@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          BigInt      @id @default(autoincrement())
+  username    String      @unique
+  password_hash String
+  full_name   String
+  email       String?     // có thể null
+  phone       String?     // có thể null
+  role_id     BigInt
+  role        Role        @relation(fields: [role_id], references: [id])
+  user_status UserStatus
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+
+  @@map("users") // đặt tên bảng trong DB nếu khác tên model
+}
+
+// Giả sử bảng roles
+model Role {
+  id     BigInt   @id @default(autoincrement())
+  name   String
+  users  User[]
+}
+
+// Enum cho user_status
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
