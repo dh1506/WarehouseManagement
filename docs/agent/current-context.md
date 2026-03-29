@@ -1,26 +1,45 @@
 # Current Context
 
-## Sprint / Task hiện tại
-**User Management Module** — Production-ready implementation
+## Sprint / Task hi?n t?i
+**Sprint 1 - N?n t?ng h? th?ng v� d? li?u g?c**
 
-## Trạng thái
-✅ **Hoàn thành** — Toàn bộ module User Management đã được implement và tối ưu.
-- Dev server đang chạy tại: `npm run dev` (Vite)
-- Backend chưa sẵn sàng — đang dùng **mock data** cho tất cả API calls
+## Tr?ng th�i
+- �� tri?n khai xong c�c module frontend ch�nh trong ph?m vi Sprint 1.
+- C�c module m?i v?n dang d�ng mock services shape-stable v� backend th?t chua s?n s�ng.
+- Ki?m tra k? thu?t hi?n t?i:
+  - `npx tsc -b`: pass
+  - `npm run build`: fail trong sandbox do Vite/Tailwind native binary, kh�ng ph?i l?i TypeScript app
 
-## Feature scope của sprint này
-- [x] Trang danh sách User (`UserManagementPage` → `UserManagement`)
-- [x] Table với sticky header, scroll nội bộ, action buttons luôn hiển thị
-- [x] Filter (search, role, status) + debounce
-- [x] Pagination luôn hiển thị khi có data
-- [x] Form thêm mới user (`UserFormSheet` — mode create)
-- [x] Form cập nhật user (`UserFormSheet` — mode update)
-- [x] Dialog khoá / mở khoá tài khoản (`LockUserDialog`)
-- [x] Dialog đặt lại mật khẩu (`ResetPasswordDialog`)
-- [x] Password generator thoả schema (6 ký tự, số, ký tự đặc biệt)
-- [x] Export Excel với full styling (exceljs)
-- [x] Mock data tương tác thật (CRUD trên MOCK_USERS array)
-- [x] Dev bypass login (`admin` / `Admin@123`)
+## Nh?ng g� d� ho�n th�nh
+- Qu?n tr? h? th?ng v� ph�n quy?n:
+  - user management
+  - role permissions
+  - advanced permissions / approval configuration n?n t?ng hi?n c�
+- D? li?u g?c s?n ph?m:
+  - product categories
+  - product settings: unit of measure, brand/manufacturer
+  - product master CRUD
+- C?u tr�c kho:
+  - warehouse CRUD
+  - warehouse location CRUD
+- Reusable foundations:
+  - `PageHeader`
+  - `StatusBadge`
+  - `StatePanel`
+  - `usePermission`
 
-## File đang active
-- `src/features/users/components/UserManagement.tsx` — page container chính
+## Routes m?i/dang active
+- `/admin/product-settings`
+- `/admin/products`
+- `/warehouse`
+
+## File tr?ng t�m v?a tri?n khai
+- `src/features/productSettings/components/ProductReferenceManagement.tsx`
+- `src/features/products/components/ProductManagement.tsx`
+- `src/features/warehouses/components/WarehouseManagement.tsx`
+- `src/features/warehouses/components/WarehouseSheets.tsx`
+
+## Assumptions dang �p d?ng
+- Workspace hi?n kh�ng c� API contract / database design / UI reference ri�ng cho Product v� Warehouse modules.
+- FE dang b�m theo design language v� pattern ki?n tr�c c� s?n trong repo.
+- Permission UI cho module m?i hi?n t?m d?a tr�n `usePermission()` v� h? tr? wildcard `*`.

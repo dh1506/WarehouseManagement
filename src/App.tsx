@@ -12,6 +12,9 @@ import { CategoryManagementPage } from './pages/admin/CategoryManagementPage';
 import { RolePermissionsPage } from './pages/admin/RolePermissionsPage';
 import { AdvancedPermissionsPage } from './pages/admin/AdvancedPermissionsPage';
 import { ApprovalConfigurationPage } from './pages/admin/ApprovalConfigurationPage';
+import { ProductReferenceManagementPage } from './pages/admin/ProductReferenceManagementPage';
+import { ProductManagementPage } from './pages/admin/ProductManagementPage';
+import { WarehouseManagementPage } from './pages/admin/WarehouseManagementPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,9 +60,11 @@ function App() {
             <Route path="/admin/advanced-permission" element={<AdvancedPermissionsPage />} />
             <Route path="/admin/approval-configuration" element={<ApprovalConfigurationPage />} />
             <Route path="/admin/categories" element={<CategoryManagementPage />} />
+            <Route path="/admin/product-settings" element={<ProductReferenceManagementPage />} />
+            <Route path="/admin/products" element={<ProductManagementPage />} />
+            <Route path="/warehouse" element={<WarehouseManagementPage />} />
 
             {/* Placeholder routes — sẽ implement trong Sprint 1 tiếp theo */}
-            <Route path="/warehouse" element={<Navigate to="/admin/users" replace />} />
             <Route path="/import-export" element={<Navigate to="/admin/users" replace />} />
             <Route path="/inventory" element={<Navigate to="/admin/users" replace />} />
             <Route path="/ai-forecast" element={<Navigate to="/admin/users" replace />} />

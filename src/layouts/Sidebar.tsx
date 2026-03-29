@@ -13,6 +13,8 @@ const navItems: NavItem[] = [
   { to: '/', icon: 'dashboard', label: 'Dashboard', end: true },
   { to: '/warehouse', icon: 'warehouse', label: 'Warehouse Management' },
   { to: '/admin/categories', icon: 'category', label: 'Category' },
+  { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
+  { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
   { to: '/import-export', icon: 'swap_horiz', label: 'Import / Export' },
   { to: '/inventory', icon: 'widgets', label: 'Inventory' },
   { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },

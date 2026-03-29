@@ -29,3 +29,31 @@
 - `src/services/userService.ts`: File chứa các hàm gọi API liên quan tới Users.
 - `src/services/roleService.ts`: File chứa các hàm giả lập gọi API CRUD cho roles.
 - `src/services/categoryService.ts`: Mock APIs gọi danh mục (CRUD).
+## Sprint 1 Additions
+- **Product Settings** (`src/features/productSettings/`)
+  - `components/ProductReferenceManagement.tsx`: Tabs unit/brand, list/filter/detail/create/update/delete.
+  - `hooks/useProductReferences.ts`: React Query hooks cho master data tham chiếu.
+  - `schemas/referenceSchemas.ts`: Zod schema cho unit/brand form.
+  - `types/referenceType.ts`: Type definitions cho unit/brand.
+- **Products** (`src/features/products/`)
+  - `components/ProductManagement.tsx`: Product list/detail/create/update/delete, filter theo category/brand/status.
+  - `hooks/useProducts.ts`: Hooks CRUD + category/unit/brand option queries.
+  - `schemas/productSchemas.ts`: Zod schema cho product form.
+  - `types/productType.ts`: Type definitions cho product master.
+- **Warehouses** (`src/features/warehouses/`)
+  - `components/WarehouseManagement.tsx`: Tabs warehouses/locations, list/filter/detail/delete.
+  - `components/WarehouseSheets.tsx`: Form sheets create/update/view cho warehouse và location.
+  - `hooks/useWarehouses.ts`: Hooks CRUD + warehouse option queries.
+  - `schemas/warehouseSchemas.ts`: Zod schemas cho warehouse/location forms.
+  - `types/warehouseType.ts`: Type definitions cho warehouse structure.
+
+## New Shared Foundations
+- `src/components/PageHeader.tsx`: Page header reusable cho admin modules.
+- `src/components/StatusBadge.tsx`: Generic badge cho status master-data.
+- `src/components/StatePanel.tsx`: Shared loading/empty/error panel.
+- `src/hooks/usePermission.ts`: Shared permission-aware hook, hỗ trợ wildcard `*`.
+
+## New Services
+- `src/services/productReferenceService.ts`: Mock APIs cho unit/brand master data.
+- `src/services/productService.ts`: Mock APIs cho product master CRUD.
+- `src/services/warehouseService.ts`: Mock APIs cho warehouse và warehouse location CRUD.
