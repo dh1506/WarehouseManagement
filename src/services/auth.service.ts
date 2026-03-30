@@ -7,13 +7,24 @@ import type { RegisterInput, LoginInput } from '../schemas/auth.schema';
 export const register = async (data: RegisterInput) => {
   const { username, password, full_name, email, phone } = data;
 
-  const existingUser = await prisma.user.findUnique({
-    where: { username },
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { username: username },
+        ...(email ? [{ email }] : []),
+      ],
+    },
   });
 
-  if (existingUser) {
-    throw new AppError('Username already exists', 400);
+if (existingUser) {
+  if (existingUser.username === username) {
+    throw new Error("Username already taken");
   }
+  if (existingUser.email === email) {
+    throw new Error("Email already registered");
+  }
+}
+  
 
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
