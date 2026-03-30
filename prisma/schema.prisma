@@ -14,23 +14,62 @@ model User {
   full_name     String
   email         String?    @unique
   phone         String?    @unique
+  avatar_url    String?
   role_id       Int
   user_status   UserStatus @default(ACTIVE)
   created_at    DateTime   @default(now())
   updated_at    DateTime   @updatedAt
-  role          Role       @relation(fields: [role_id], references: [id], onDelete: Restrict)
+  role          Role       @relation(fields: [role_id], references: [id])
 
+  @@index([role_id], map: "users_role_id_fkey")
   @@map("users")
 }
 
 model Role {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  users User[]
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  is_active   Boolean          @default(true)
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  users       User[]
+  permissions RolePermission[]
 
   @@map("roles")
 }
 
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique    // VD: "users:read", "users:create"
+  description String?
+  module      String                      // VD: "users", "roles", "warehouse"
+  action      String                      // VD: "read", "create", "update", "delete"
+  is_active   Boolean          @default(true)
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  roles       RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+// ==========================================
+// Bảng trung gian Role - Permission (N:N)
+// ==========================================
+model RolePermission {
+  role_id       Int
+  permission_id Int
+  assigned_at   DateTime   @default(now())
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+// ==========================================
+// Enum trạng thái người dùng
+// ==========================================
 enum UserStatus {
   ACTIVE
   INACTIVE
