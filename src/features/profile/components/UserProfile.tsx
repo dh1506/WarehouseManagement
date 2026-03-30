@@ -138,14 +138,18 @@ export function UserProfile() {
 
       setPasswordSuccess('Đổi mật khẩu thành công! Hãy lưu lại mật khẩu mới.');
       reset(); // Xoá form
-    } catch (err: any) {
-      if (err.message === 'INVALID_PASSWORD') {
-        setError('currentPassword', {
-          type: 'manual',
-          message: 'Mật khẩu hiện tại không chính xác.',
-        });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.message === 'INVALID_PASSWORD') {
+          setError('currentPassword', {
+            type: 'manual',
+            message: 'Mật khẩu hiện tại không chính xác.',
+          });
+        } else {
+          setPasswordError(err.message || 'Có lỗi xảy ra khi đổi mật khẩu.');
+        }
       } else {
-        setPasswordError(err.message || 'Có lỗi xảy ra khi đổi mật khẩu.');
+        setPasswordError('Có lỗi xảy ra khi đổi mật khẩu.');
       }
     } finally {
       setIsChangingPassword(false);

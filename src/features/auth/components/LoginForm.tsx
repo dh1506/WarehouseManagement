@@ -4,18 +4,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { loginSchema, type LoginFormData } from '../schema/loginSchema';
 import { useLogin } from '../hooks/useLogin';
-import { useAuthStore } from '@/store/authStore';
-
-// ⚠️ DEV ONLY: hardcode credentials để bypass API login
-// TODO: Xoá block này khi backend login hoạt động ổn định
-const DEV_USERNAME = 'admin';
-const DEV_PASSWORD = 'Admin@123';
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const setAuth = useAuthStore((state) => state.setAuth);
 
   const {
     register,
@@ -24,11 +17,6 @@ export function LoginForm() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     mode: 'onTouched',
-    // ⚠️ DEV ONLY: tự điền form bằng credentials hardcode
-    defaultValues: {
-      username: DEV_USERNAME,
-      password: DEV_PASSWORD,
-    },
   });
 
   const { mutateAsync: loginMutation } = useLogin();
@@ -36,24 +24,6 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setGlobalError(null);
-
-      // ⚠️ DEV ONLY: nếu credentials khớp hardcode thì bypass API
-      if (data.username === DEV_USERNAME && data.password === DEV_PASSWORD) {
-        setAuth(
-          {
-            id: 'dev-user-001',
-            name: 'Admin Dev',
-            email: 'admin@warehouse.dev',
-            role: 'Admin',
-            permissions: ['*'],
-          },
-          'dev-mock-token-hardcoded',
-        );
-        navigate('/');
-        return;
-      }
-
-      // Fallback: gọi API thật nếu credentials không khớp hardcode
       await loginMutation(data);
       navigate('/');
     } catch (error) {

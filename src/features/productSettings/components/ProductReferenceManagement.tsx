@@ -131,7 +131,7 @@ export function ProductReferenceManagement() {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="relative min-w-[240px]">
+                  <div className="relative min-w-60">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
                       search
                     </span>

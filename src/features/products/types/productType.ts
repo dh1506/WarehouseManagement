@@ -1,5 +1,11 @@
 export type ProductStatus = 'active' | 'inactive' | 'draft';
 
+export interface ProductImage {
+  id: string;
+  url: string;
+  alt?: string;
+}
+
 export interface ProductItem {
   id: string;
   sku: string;
@@ -17,6 +23,7 @@ export interface ProductItem {
   trackedByExpiry: boolean;
   status: ProductStatus;
   description: string;
+  images: ProductImage[];
   createdAt: string;
   updatedAt: string;
 }

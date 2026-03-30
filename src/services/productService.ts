@@ -20,6 +20,23 @@ let PRODUCTS: ProductItem[] = [
     trackedByExpiry: false,
     status: 'active',
     description: 'Bộ xử lý edge dành cho gateway theo dõi điều kiện kho.',
+    images: [
+      {
+        id: 'img-1-1',
+        url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+        alt: 'Industrial CPU chip front view',
+      },
+      {
+        id: 'img-1-2',
+        url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80',
+        alt: 'Industrial CPU chip side view',
+      },
+      {
+        id: 'img-1-3',
+        url: 'https://images.unsplash.com/photo-1517419439891-471d9d16d9f7?w=800&q=80',
+        alt: 'Industrial CPU chip technical view',
+      },
+    ],
     createdAt: '2026-03-10T08:00:00Z',
     updatedAt: '2026-03-26T11:00:00Z',
   },
@@ -40,6 +57,18 @@ let PRODUCTS: ProductItem[] = [
     trackedByExpiry: false,
     status: 'active',
     description: 'Băng keo công nghiệp dùng cho đóng gói pallet và kiện hàng.',
+    images: [
+      {
+        id: 'img-2-1',
+        url: 'https://images.unsplash.com/photo-1528148343865-34218f1bbb89?w=800&q=80',
+        alt: 'Heavy duty packing tape roll',
+      },
+      {
+        id: 'img-2-2',
+        url: 'https://images.unsplash.com/photo-1616763355603-9755a640a287?w=800&q=80',
+        alt: 'Packing tape dispenser',
+      },
+    ],
     createdAt: '2026-03-12T08:00:00Z',
     updatedAt: '2026-03-25T14:00:00Z',
   },
@@ -60,6 +89,13 @@ let PRODUCTS: ProductItem[] = [
     trackedByExpiry: false,
     status: 'inactive',
     description: 'Găng tay chống trượt cho nhân sự bốc dỡ trong kho.',
+    images: [
+      {
+        id: 'img-3-1',
+        url: 'https://images.unsplash.com/photo-1589385881134-37a89c4d1dd9?w=800&q=80',
+        alt: 'Warehouse safety gloves',
+      },
+    ],
     createdAt: '2026-03-15T08:00:00Z',
     updatedAt: '2026-03-19T14:00:00Z',
   },
@@ -140,6 +176,7 @@ export async function createProduct(payload: ProductFormValues): Promise<Product
     name: payload.name.trim(),
     sku: payload.sku.trim().toUpperCase(),
     description: payload.description.trim(),
+    images: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -176,3 +213,22 @@ export async function deleteProduct(id: string): Promise<void> {
   await delay(250);
   PRODUCTS = PRODUCTS.filter((item) => item.id !== id);
 }
+
+export async function getProductById(id: string): Promise<ProductItem> {
+  await delay(200);
+  const product = PRODUCTS.find((item) => item.id === id);
+
+  if (!product) {
+    throw new Error('Không tìm thấy sản phẩm.');
+  }
+
+  return { ...product };
+}
+
+export const productService = {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getById: getProductById,
+};

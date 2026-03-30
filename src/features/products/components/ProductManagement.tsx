@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PageHeader } from '@/components/PageHeader';
@@ -31,6 +32,7 @@ const PAGE_SIZE = 8;
 
 export function ProductManagement() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const canManage = usePermission('master_data.products.manage');
 
   const [page, setPage] = useState(1);
@@ -74,9 +76,7 @@ export function ProductManagement() {
   };
 
   const openView = (item: ProductItem) => {
-    setSheetMode('view');
-    setSelectedProduct(item);
-    setIsSheetOpen(true);
+    navigate(`/admin/products/${item.id}`);
   };
 
   const handleDelete = async () => {
@@ -508,7 +508,7 @@ function SearchInput({
   placeholder: string;
 }) {
   return (
-    <div className="relative min-w-[240px]">
+    <div className="relative min-w-60">
       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
       <input
         value={value}

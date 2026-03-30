@@ -14,6 +14,7 @@ import { AdvancedPermissionsPage } from './pages/admin/AdvancedPermissionsPage';
 import { ApprovalConfigurationPage } from './pages/admin/ApprovalConfigurationPage';
 import { ProductReferenceManagementPage } from './pages/admin/ProductReferenceManagementPage';
 import { ProductManagementPage } from './pages/admin/ProductManagementPage';
+import { ProductDetailPage } from './pages/admin/ProductDetailPage';
 import { WarehouseManagementPage } from './pages/admin/WarehouseManagementPage';
 
 const queryClient = new QueryClient({
@@ -61,6 +62,8 @@ function App() {
             <Route path="/admin/approval-configuration" element={<ApprovalConfigurationPage />} />
             <Route path="/admin/categories" element={<CategoryManagementPage />} />
             <Route path="/admin/product-settings" element={<ProductReferenceManagementPage />} />
+            <Route path="/admin/products/:id/edit" element={<ProductManagementPage />} />
+            <Route path="/admin/products/:id" element={<ProductDetailPage />} />
             <Route path="/admin/products" element={<ProductManagementPage />} />
             <Route path="/warehouse" element={<WarehouseManagementPage />} />
 
