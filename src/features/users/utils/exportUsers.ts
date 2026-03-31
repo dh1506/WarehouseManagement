@@ -7,23 +7,20 @@ import type { UserItem } from '@/services/userService';
 
 // Role colors
 const ROLE_STYLE: Record<string, { fontColor: string; bgColor: string }> = {
-  Admin:   { fontColor: 'FFFFFF', bgColor: '3B50CE' }, // xanh dương đậm
+  Admin: { fontColor: 'FFFFFF', bgColor: '3B50CE' }, // xanh dương đậm
   Manager: { fontColor: 'FFFFFF', bgColor: '7C3AED' }, // tím
-  Staff:   { fontColor: '374151', bgColor: 'E5E7EB' }, // xám nhạt
+  Staff: { fontColor: '374151', bgColor: 'E5E7EB' }, // xám nhạt
 };
 
 // Status colors
 const STATUS_STYLE: Record<string, { fontColor: string; bgColor: string }> = {
-  Active:   { fontColor: '065F46', bgColor: 'D1FAE5' }, // xanh lá nhạt
+  Active: { fontColor: '065F46', bgColor: 'D1FAE5' }, // xanh lá nhạt
   Inactive: { fontColor: '991B1B', bgColor: 'FEE2E2' }, // đỏ nhạt
 };
 
 // Header: xanh dương nhạt — primary color
-const HEADER_BG  = '1E3A8A'; // xanh dương đậm như primary
-const HEADER_FG  = 'FFFFFF'; // chữ trắng
-
-// Mapping hiển thị
-const GENDER_LABEL: Record<string, string> = { Male: 'Nam', Female: 'Nữ', Other: 'Khác' };
+const HEADER_BG = '1E3A8A'; // xanh dương đậm như primary
+const HEADER_FG = 'FFFFFF'; // chữ trắng
 
 // ---------------------------------------------------------------------------
 // Utility: áp dụng border đầy đủ 4 cạnh cho một cell
@@ -47,12 +44,12 @@ export async function exportUsersToExcel(users: UserItem[], filename = 'danh-sac
 
   // ── Định nghĩa cột ──────────────────────────────────────────────────────
   ws.columns = [
-    { header: 'STT',                key: 'stt',       width: 6  },
-    { header: 'Họ và tên',          key: 'name',      width: 26 },
-    { header: 'Email',              key: 'email',     width: 30 },
-    { header: 'Vai trò',            key: 'role',      width: 14 },
-    { header: 'Giới tính',          key: 'gender',    width: 12 },
-    { header: 'Trạng thái',         key: 'status',    width: 14 },
+    { header: 'STT', key: 'stt', width: 6 },
+    { header: 'Họ và tên', key: 'name', width: 26 },
+    { header: 'Email', key: 'email', width: 30 },
+    { header: 'Số điện thoại', key: 'phone', width: 18 },
+    { header: 'Vai trò', key: 'role', width: 14 },
+    { header: 'Trạng thái', key: 'status', width: 14 },
     { header: 'Đăng nhập lần cuối', key: 'lastLogin', width: 22 },
   ];
 
@@ -83,12 +80,12 @@ export async function exportUsersToExcel(users: UserItem[], filename = 'danh-sac
     });
 
     const row = ws.addRow({
-      stt:       idx + 1,
-      name:      u.name,
-      email:     u.email ?? '',
-      role:      u.role,
-      gender:    GENDER_LABEL[u.gender ?? ''] ?? '',
-      status:    u.status === 'Active' ? 'Hoạt động' : 'Đã khoá',
+      stt: idx + 1,
+      name: u.name,
+      email: u.email ?? '',
+      phone: u.phone ?? '',
+      role: u.role,
+      status: u.status === 'Active' ? 'Hoạt động' : 'Đã khoá',
       lastLogin: lastLoginDisplay,
     });
 
@@ -110,8 +107,8 @@ export async function exportUsersToExcel(users: UserItem[], filename = 'danh-sac
         cell.font = { name: 'Calibri', size: 10, color: { argb: '6B7280' } };
       }
 
-      // Màu vai trò (cột 4)
-      if (colNumber === 4) {
+      // Màu vai trò (cột 5)
+      if (colNumber === 5) {
         const style = ROLE_STYLE[u.role];
         if (style) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: style.bgColor } };
@@ -128,11 +125,6 @@ export async function exportUsersToExcel(users: UserItem[], filename = 'danh-sac
           cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: style.fontColor } };
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         }
-      }
-
-      // Giới tính căn giữa (cột 5)
-      if (colNumber === 5) {
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
       }
 
       applyBorder(cell);

@@ -1,4 +1,5 @@
-// import apiClient from './apiClient';
+import apiClient from './apiClient';
+import type { ApiResponse } from '@/types/api';
 import type {
   WorkflowScenario,
   ApprovalConfigPayload,
@@ -120,21 +121,24 @@ export const getApprovalConfigs = (): Promise<WorkflowScenario[]> =>
 export const updateApprovalConfig = (
   scenarioId: string,
   payload: ApprovalConfigPayload,
-): Promise<WorkflowScenario> =>
-  new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const idx = MOCK_SCENARIOS.findIndex((s) => s.id === scenarioId);
-      if (idx === -1) { reject(new Error('Không tìm thấy scenario.')); return; }
-      MOCK_SCENARIOS[idx] = {
-        ...MOCK_SCENARIOS[idx],
-        steps: payload.steps.map((step, i) => ({ ...step, stepNumber: i + 1 })),
-        updatedAt: new Date().toISOString(),
-        updatedBy: 'Admin',
+): Promise<WorkflowScenario> => {
+  const normalizedSteps = payload.steps.map((step, index) => ({
+    ...step,
+    stepNumber: index + 1,
+  }));
+
+  return apiClient
+    .patch<ApiResponse<WorkflowScenario>>(`/api/roles/${scenarioId}/approval-config`, {
+      steps: normalizedSteps,
+    })
+    .then((response) => {
+      const data = unwrapApiData<WorkflowScenario>(response);
+      return {
+        ...data,
+        steps: data.steps.map((step, index) => ({ ...step, stepNumber: index + 1 })),
       };
-      resolve({ ...MOCK_SCENARIOS[idx] });
-    }, 500);
-  });
-// return apiClient.patch<WorkflowScenario>(`/api/approval-configs/${scenarioId}`, payload).then((r) => r.data);
+    });
+};
 
 /**
  * POST /api/approval-configs
@@ -173,3 +177,16 @@ export const deleteApprovalConfig = (scenarioId: string): Promise<void> =>
 
 // Export helper để tạo step mới với id
 export { generateId };
+
+function unwrapApiData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const level1 = (response as { data: unknown }).data;
+    if (level1 && typeof level1 === 'object' && 'data' in level1) {
+      return (level1 as { data: T }).data;
+    }
+
+    return level1 as T;
+  }
+
+  return response as T;
+}

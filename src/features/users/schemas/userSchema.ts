@@ -4,19 +4,15 @@ import { z } from 'zod';
 // Shared field validators
 // ---------------------------------------------------------------------------
 
-// Full name: không trống, không toàn space, không số, không ký tự đặc biệt
+const vietnamPhoneRegex = /^(\+84|0)(3|5|7|8|9)\d{8}$/;
+
+// Full name: chỉ cần không rỗng, không chỉ toàn khoảng trắng, và tự trim
 const fullNameSchema = z
   .string()
   .trim()
   .min(1, { message: 'Họ và tên không được để trống' })
-  .refine((val) => val.trim().length > 0, {
+  .refine((val) => val.length > 0, {
     message: 'Họ và tên không được chỉ chứa khoảng trắng',
-  })
-  .refine((val) => !/[0-9]/.test(val), {
-    message: 'Họ và tên không được chứa chữ số',
-  })
-  .refine((val) => !/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(val), {
-    message: 'Họ và tên không được chứa ký tự đặc biệt',
   });
 
 // Username: min 5 ký tự (chỉ dùng khi create)
@@ -33,6 +29,15 @@ const emailSchema = z
   .refine(
     (val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
     { message: 'Email không đúng định dạng' },
+  );
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .optional()
+  .refine(
+    (val) => !val || vietnamPhoneRegex.test(val),
+    { message: 'Số điện thoại phải đúng chuẩn Việt Nam (VD: 09xxxxxxxx hoặc +849xxxxxxxx)' },
   );
 
 // Password: min 6, có số, có ký tự đặc biệt (chỉ dùng khi create)
@@ -52,9 +57,9 @@ export const createUserSchema = z.object({
   fullName: fullNameSchema,
   username: usernameSchema,
   email: emailSchema,
+  phone: phoneSchema,
   password: passwordSchema,
-  role: z.enum(['Admin', 'Manager', 'Staff'], { message: 'Vui lòng chọn vai trò' }),
-  gender: z.enum(['Male', 'Female', 'Other'], { message: 'Vui lòng chọn giới tính' }),
+  role: z.string().trim().min(1, { message: 'Vui lòng chọn vai trò' }),
 });
 
 // ---------------------------------------------------------------------------
@@ -63,8 +68,8 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   fullName: fullNameSchema,
   email: emailSchema,
-  role: z.enum(['Admin', 'Manager', 'Staff'], { message: 'Vui lòng chọn vai trò' }),
-  gender: z.enum(['Male', 'Female', 'Other'], { message: 'Vui lòng chọn giới tính' }),
+  phone: phoneSchema,
+  role: z.string().trim().min(1, { message: 'Vui lòng chọn vai trò' }),
 });
 
 export type CreateUserFormData = z.infer<typeof createUserSchema>;

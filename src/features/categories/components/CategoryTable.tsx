@@ -25,9 +25,9 @@ function buildFlattenedTree(categories: ProductCategory[]) {
     // Sort logic optional (currently by creation naturally)
     for (const child of children) {
       const childsOfChild = map.get(child.id) || [];
-      flatten.push({ 
-        ...child, 
-        depth, 
+      flatten.push({
+        ...child,
+        depth,
         hasChildren: childsOfChild.length > 0,
         childrenCount: childsOfChild.length
       });
@@ -69,7 +69,7 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
     <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 p-4 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 bg-white z-10">
+        <div className="grid grid-cols-12 gap-2 p-2 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 bg-white z-10">
           <div className="col-span-3 pl-8">Category Name</div>
           <div className="col-span-4">Description</div>
           <div className="col-span-1">Sub-categories</div>
@@ -85,11 +85,11 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
             const depth = item.depth;
             const isSub = depth > 0;
 
-            const paddingLeftBase = 24 + depth * 24; 
-            
+            const paddingLeftBase = 24 + depth * 24;
+
             return (
-              <div 
-                key={item.id} 
+              <div
+                key={item.id}
                 className={`grid grid-cols-12 gap-4 p-4 items-center transition-colors group relative ${isSub ? 'bg-slate-50/50 hover:bg-slate-50' : 'hover:bg-slate-50'}`}
               >
                 {/* Tree lines graphics based on depth */}
@@ -108,7 +108,7 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
                   ) : (
                     <div className="w-6 flex-shrink-0" /> // spacer
                   )}
-                  
+
                   <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center mr-3 text-blue-600 border border-blue-100 flex-shrink-0">
                     <span className="material-symbols-outlined text-sm">{item.icon || 'category'}</span>
                   </div>

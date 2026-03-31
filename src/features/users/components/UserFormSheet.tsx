@@ -16,6 +16,7 @@ import {
   type UpdateUserFormData,
 } from '../schemas/userSchema';
 import { useCreateUser, useUpdateUser } from '../hooks/useUserMutations';
+import { useUserRoleOptions } from '../hooks/useUsers';
 import type { UserItem } from '@/services/userService';
 
 // ---------------------------------------------------------------------------
@@ -194,6 +195,7 @@ function PasswordFieldInput({
 // ---------------------------------------------------------------------------
 export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSheetProps) {
   const isEdit = !!editUser;
+  const roleOptionsQuery = useUserRoleOptions();
 
   const { mutateAsync: createMutate, isPending: isCreating } = useCreateUser();
   const { mutateAsync: updateMutate, isPending: isUpdating } = useUpdateUser();
@@ -225,13 +227,13 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
     if (!open) return;
     if (editUser) {
       resetUpdate({
-        fullName: editUser.name,
+        fullName: editUser.fullName,
         email: editUser.email ?? '',
-        role: editUser.role,
-        gender: editUser.gender ?? 'Male',
+        phone: editUser.phone ?? '',
+        role: editUser.roleId,
       });
     } else {
-      resetCreate({ fullName: '', username: '', email: '', password: '', role: undefined, gender: undefined });
+      resetCreate({ fullName: '', username: '', email: '', phone: '', password: '', role: undefined });
     }
   }, [open, editUser, resetCreate, resetUpdate]);
 
@@ -242,11 +244,12 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
     setGlobalError(null);
     try {
       await createMutate({
-        name: data.fullName,
+        username: data.username,
+        fullName: data.fullName,
         email: data.email ?? undefined,  // optional — undefined nếu không nhập
-        role: data.role,
+        phone: data.phone ?? undefined,
+        roleId: data.role,
         password: data.password,
-        gender: data.gender,
       });
       onSuccess?.();
       onClose();
@@ -263,10 +266,10 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
       await updateMutate({
         id: editUser.id,
         payload: {
-          name: data.fullName,
+          fullName: data.fullName,
           email: data.email,
-          role: data.role,
-          gender: data.gender,
+          phone: data.phone,
+          roleId: data.role,
         },
       });
       onSuccess?.();
@@ -290,7 +293,7 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
         <SheetHeader className="flex-none border-b border-gray-100 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isEdit ? 'bg-blue-50' : 'bg-primary/10'}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isEdit ? 'bg-blue-50' : 'bg-primary/10'}`}>
                 <span className={`material-symbols-outlined text-[20px] ${isEdit ? 'text-blue-600' : 'text-primary'}`} data-icon={isEdit ? 'manage_accounts' : 'person_add'}>
                   {isEdit ? 'manage_accounts' : 'person_add'}
                 </span>
@@ -334,26 +337,14 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
               <input {...regCreate('fullName')} placeholder="Nguyễn Văn A" disabled={isPending} className={inputCls(!!createErrors.fullName)} />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Giới tính" required error={createErrors.gender?.message}>
-                <div className="relative">
-                  <select {...regCreate('gender')} disabled={isPending} className={selectCls(!!createErrors.gender)}>
-                    <option value="">Chọn...</option>
-                    <option value="Male">Nam</option>
-                    <option value="Female">Nữ</option>
-                    <option value="Other">Khác</option>
-                  </select>
-                  <ChevronIcon />
-                </div>
-              </FormField>
-
+            <div className="grid grid-cols-1 gap-3">
               <FormField label="Vai trò" required error={createErrors.role?.message}>
                 <div className="relative">
                   <select {...regCreate('role')} disabled={isPending} className={selectCls(!!createErrors.role)}>
                     <option value="">Chọn...</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Staff">Staff</option>
+                    {(roleOptionsQuery.data ?? []).map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
                   </select>
                   <ChevronIcon />
                 </div>
@@ -376,6 +367,13 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" data-icon="mail">mail</span>
                 <input {...regCreate('email')} type="email" placeholder="email@warehouse.dev" disabled={isPending} className={inputCls(!!createErrors.email) + ' pl-9'} />
+              </div>
+            </FormField>
+
+            <FormField label="Số điện thoại" error={createErrors.phone?.message}>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" data-icon="call">call</span>
+                <input {...regCreate('phone')} type="tel" placeholder="09xxxxxxxx hoặc +849xxxxxxxx" disabled={isPending} className={inputCls(!!createErrors.phone) + ' pl-9'} />
               </div>
             </FormField>
 
@@ -419,26 +417,14 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
               <input {...regUpdate('fullName')} placeholder="Nguyễn Văn A" disabled={isPending} className={inputCls(!!updateErrors.fullName)} />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Giới tính" required error={updateErrors.gender?.message}>
-                <div className="relative">
-                  <select {...regUpdate('gender')} disabled={isPending} className={selectCls(!!updateErrors.gender)}>
-                    <option value="">Chọn...</option>
-                    <option value="Male">Nam</option>
-                    <option value="Female">Nữ</option>
-                    <option value="Other">Khác</option>
-                  </select>
-                  <ChevronIcon />
-                </div>
-              </FormField>
-
+            <div className="grid grid-cols-1 gap-3">
               <FormField label="Vai trò" required error={updateErrors.role?.message}>
                 <div className="relative">
                   <select {...regUpdate('role')} disabled={isPending} className={selectCls(!!updateErrors.role)}>
                     <option value="">Chọn...</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Staff">Staff</option>
+                    {(roleOptionsQuery.data ?? []).map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
                   </select>
                   <ChevronIcon />
                 </div>
@@ -453,6 +439,13 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" data-icon="mail">mail</span>
                 <input {...regUpdate('email')} type="email" placeholder="email@warehouse.dev" disabled={isPending} className={inputCls(!!updateErrors.email) + ' pl-9'} />
+              </div>
+            </FormField>
+
+            <FormField label="Số điện thoại" error={updateErrors.phone?.message}>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" data-icon="call">call</span>
+                <input {...regUpdate('phone')} type="tel" placeholder="09xxxxxxxx hoặc +849xxxxxxxx" disabled={isPending} className={inputCls(!!updateErrors.phone) + ' pl-9'} />
               </div>
             </FormField>
           </form>

@@ -4,10 +4,6 @@ import {
   updateUser,
   lockUser,
   resetUserPassword,
-  mockCreateUser,
-  mockUpdateUser,
-  mockLockUser,
-  mockResetPassword,
 } from '@/services/userService';
 import type { CreateUserPayload, UpdateUserPayload, LockUserPayload, ResetPasswordPayload } from '@/services/userService';
 import { USER_QUERY_KEY } from './useUsers';
@@ -18,10 +14,7 @@ import { USER_QUERY_KEY } from './useUsers';
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateUserPayload) => {
-      return mockCreateUser(payload); // ⚠️ DEV ONLY
-      // return createUser(payload);
-    },
+    mutationFn: (payload: CreateUserPayload) => createUser(payload),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: [USER_QUERY_KEY] }); },
   });
 }
@@ -32,10 +25,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateUserPayload }) => {
-      return mockUpdateUser(id, payload); // ⚠️ DEV ONLY
-      // return updateUser(id, payload);
-    },
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateUserPayload }) => updateUser(id, payload),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: [USER_QUERY_KEY] }); },
   });
 }
@@ -46,10 +36,7 @@ export function useUpdateUser() {
 export function useLockUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: LockUserPayload }) => {
-      return mockLockUser(id, payload); // ⚠️ DEV ONLY
-      // return lockUser(id, payload);
-    },
+    mutationFn: ({ id, payload }: { id: string; payload: LockUserPayload }) => lockUser(id, payload),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: [USER_QUERY_KEY] }); },
   });
 }
@@ -59,10 +46,7 @@ export function useLockUser() {
 // ---------------------------------------------------------------------------
 export function useResetUserPassword() {
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: ResetPasswordPayload }) => {
-      return mockResetPassword(id, payload); // ⚠️ DEV ONLY
-      // return resetUserPassword(id, payload);
-    },
+    mutationFn: ({ id, payload }: { id: string; payload: ResetPasswordPayload }) => resetUserPassword(id, payload),
   });
 }
 

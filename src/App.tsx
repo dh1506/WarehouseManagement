@@ -16,6 +16,8 @@ import { ProductReferenceManagementPage } from './pages/admin/ProductReferenceMa
 import { ProductManagementPage } from './pages/admin/ProductManagementPage';
 import { ProductDetailPage } from './pages/admin/ProductDetailPage';
 import { WarehouseManagementPage } from './pages/admin/WarehouseManagementPage';
+import { WarehouseHubPage } from './pages/admin/WarehouseHubPage';
+import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,10 +64,16 @@ function App() {
             <Route path="/admin/approval-configuration" element={<ApprovalConfigurationPage />} />
             <Route path="/admin/categories" element={<CategoryManagementPage />} />
             <Route path="/admin/product-settings" element={<ProductReferenceManagementPage />} />
+            <Route path="/admin/product" element={<Navigate to="/admin/products" replace />} />
+            <Route path="/admin/product/:id" element={<ProductDetailPage />} />
+            <Route path="/admin/product/:id/edit" element={<ProductManagementPage />} />
             <Route path="/admin/products/:id/edit" element={<ProductManagementPage />} />
             <Route path="/admin/products/:id" element={<ProductDetailPage />} />
             <Route path="/admin/products" element={<ProductManagementPage />} />
-            <Route path="/warehouse" element={<WarehouseManagementPage />} />
+            <Route path="/admin/warehouses/:id/zones/:zoneId" element={<ZoneDetailPage />} />
+            <Route path="/admin/warehouses" element={<WarehouseHubPage />} />
+            <Route path="/warehouse" element={<WarehouseHubPage />} />
+            <Route path="/warehouse/master" element={<WarehouseManagementPage />} />
 
             {/* Placeholder routes — sẽ implement trong Sprint 1 tiếp theo */}
             <Route path="/import-export" element={<Navigate to="/admin/users" replace />} />

@@ -97,7 +97,7 @@ export function CategoryManagement() {
   return (
     <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
       {/* Top Bar (Optional if you want to keep it like the design, but in our layout it is part of Header. Assuming we have a standard header or we can just render page content) */}
-      <div className="flex-1 overflow-auto p-8 pb-24">
+      <div className="flex-1 overflow-auto p-4 pb-24">
         <div className="max-w-6xl mx-auto h-full flex flex-col">
           {/* Header Section */}
           <div className="flex justify-between items-end mb-8 flex-shrink-0">
@@ -148,7 +148,7 @@ export function CategoryManagement() {
             />
 
             {/* Pagination Box */}
-            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-white flex-shrink-0">
+            <div className="px-6 py-2 border-t border-slate-200 flex items-center justify-between bg-white flex-shrink-0">
               <span className="text-sm text-slate-500">
                 Showing {allCategories.length} of {totalCategories} categories
               </span>

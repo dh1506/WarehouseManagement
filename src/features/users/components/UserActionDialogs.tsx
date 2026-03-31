@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import { useLockUser, useResetUserPassword } from '../hooks/useUserMutations';
 import type { UserItem } from '@/services/userService';
 
@@ -62,18 +63,27 @@ interface LockUserDialogProps {
 export function LockUserDialog({ user, onClose, onSuccess }: LockUserDialogProps) {
   const isLocking = user?.status === 'Active'; // true = đang khoá, false = đang mở khoá
   const { mutateAsync, isPending } = useLockUser();
+  const { toast } = useToast();
 
   const handleConfirm = async () => {
     if (!user) return;
     try {
       await mutateAsync({
         id: user.id,
-        payload: { status: isLocking ? 'Inactive' : 'Active' },
+        payload: { status: isLocking ? 'Suspended' : 'Active' },
+      });
+      toast({
+        title: isLocking ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản',
+        description: isLocking ? 'Tài khoản đã chuyển sang trạng thái Suspended.' : 'Tài khoản đã chuyển về trạng thái Active.',
       });
       onSuccess?.();
       onClose();
-    } catch {
-      // Lỗi đã được xử lý trong hook
+    } catch (error) {
+      toast({
+        title: 'Không thể cập nhật trạng thái tài khoản',
+        description: error instanceof Error ? error.message : 'Vui lòng kiểm tra quyền thao tác hoặc thử lại sau.',
+        variant: 'destructive',
+      });
     }
   };
 

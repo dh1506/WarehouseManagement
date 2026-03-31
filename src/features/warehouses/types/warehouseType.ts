@@ -1,5 +1,89 @@
 export type WarehouseStatus = 'operational' | 'maintenance' | 'inactive';
 export type WarehouseLocationStatus = 'active' | 'blocked' | 'inactive';
+export type BinOccupancyLevel = 'empty' | 'partial' | 'full' | 'overloaded';
+
+export interface WarehouseHub {
+  id: string;
+  code: string;
+  name: string;
+  location: string;
+  tier: string;
+  totalSpace: number;
+  totalZones: number;
+  usedCapacity: number;
+  layoutConfig: WarehouseLayoutConfig;
+  zones: Zone[];
+}
+
+export interface WarehouseLayoutConfig {
+  viewMode: 'grid' | 'hierarchy';
+  colorMode: 'occupancy' | 'type';
+  columns: number;
+  zoneOrder: string[];
+}
+
+export interface Zone {
+  id: string;
+  warehouseId: string;
+  code: string;
+  name: string;
+  type: string;
+  rows: number;
+  shelves: number;
+  levels: number;
+  binCount: number;
+  occupancy: number;
+  bins: Bin[];
+}
+
+export interface WarehouseHubFormValues {
+  code: string;
+  name: string;
+  location: string;
+  tier: string;
+  totalSpace: number;
+  usedCapacity: number;
+}
+
+export interface WarehouseZoneFormValues {
+  code: string;
+  name: string;
+  type: string;
+  rows: number;
+  shelves: number;
+  levels: number;
+  occupancy: number;
+}
+
+export interface Bin {
+  id: string;
+  code: string;
+  row: number;
+  shelf: number;
+  level: number;
+  occupancy: number;
+  occupancyLevel: BinOccupancyLevel;
+  capacity: number;
+  currentLoad: number;
+  items: number;
+  productCount: number;
+  temperature?: number;
+  humidity?: number;
+  lastUpdated: string;
+}
+
+export interface InventoryItem {
+  skuId: string;
+  skuName: string;
+  quantity: number;
+}
+
+export interface BinCapacityFormValues {
+  capacity: number;
+  currentLoad: number;
+  items: number;
+  productCount: number;
+}
 
 export interface WarehouseItem {
   id: string;

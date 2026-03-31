@@ -10,8 +10,9 @@ import {
   useProductBrandOptions,
   useUpdateProduct,
 } from '../hooks/useProducts';
-import { ProductFormSheet } from './ProductFormSheets';
+
 import type { ProductFormData } from '../schemas/productSchemas';
+import { ProductFormSheet } from '@/features/products/components/ProductFormSheets';
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -120,7 +121,11 @@ export function ProductDetail() {
             <div className="col-span-12 space-y-6 xl:col-span-3">
               {/* Main Image */}
               <div className="overflow-hidden rounded-2xl bg-white p-4 shadow-sm">
-                <div className="relative mb-4 overflow-hidden rounded-lg bg-slate-100 aspect-square group">
+                <button
+                  type="button"
+                  onClick={() => setFullscreenImageIndex(selectedImageIndex)}
+                  className="relative mb-4 overflow-hidden rounded-lg bg-slate-100 aspect-square group w-full cursor-pointer"
+                >
                   {product.images && product.images.length > 0 ? (
                     <>
                       <img
@@ -133,7 +138,10 @@ export function ProductDetail() {
                         <>
                           <button
                             type="button"
-                            onClick={() => setSelectedImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1))}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
+                            }}
                             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
                             aria-label="Ảnh trước"
                           >
@@ -141,7 +149,10 @@ export function ProductDetail() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setSelectedImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1))}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
+                            }}
                             className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
                             aria-label="Ảnh tiếp"
                           >
@@ -162,7 +173,7 @@ export function ProductDetail() {
                   <div className="absolute inset-0 bg-black/40 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 flex items-center justify-center">
                     <span className="material-symbols-outlined text-white text-3xl">zoom_in</span>
                   </div>
-                </div>
+                </button>
                 {/* Thumbnail Grid */}
                 {product.images && product.images.length > 0 && (
                   <div className="grid gap-2 grid-cols-3 md:grid-cols-4">
@@ -171,9 +182,8 @@ export function ProductDetail() {
                         type="button"
                         key={img.id}
                         onClick={() => setSelectedImageIndex(idx)}
-                        className={`aspect-square overflow-hidden rounded-md border-2 transition ${
-                          selectedImageIndex === idx ? 'border-primary shadow-md' : 'border-slate-200 hover:border-slate-300'
-                        }`}
+                        className={`aspect-square overflow-hidden rounded-md border-2 transition ${selectedImageIndex === idx ? 'border-primary shadow-md' : 'border-slate-200 hover:border-slate-300'
+                          }`}
                       >
                         <img src={img.url} alt={img.alt || `Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
                       </button>

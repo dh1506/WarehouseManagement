@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { useUsers } from '../hooks/useUsers';
+import { useUserRoleOptions, useUsers } from '../hooks/useUsers';
 import { UserTable } from './UserTable';
 import { UserFormSheet } from './UserFormSheet';
 import { LockUserDialog, ResetPasswordDialog } from './UserActionDialogs';
 import { exportUsersToExcel } from '../utils/exportUsers';
+import { getUsers } from '@/services/userService';
 import type { UserItem } from '@/services/userService';
 
 const PAGE_LIMIT = 10;
@@ -13,7 +14,9 @@ export function UserManagement() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<UserItem['status'] | ''>('');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isHeaderChecked, setIsHeaderChecked] = useState(false);
 
   // --- Sheet state ---
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -27,20 +30,34 @@ export function UserManagement() {
 
   // Debounce tìm kiếm
   const debouncedSearch = useDebounce(searchInput, 400);
+  const roleOptionsQuery = useUserRoleOptions();
 
   const { data, isLoading, isFetching } = useUsers({
     page,
     limit: PAGE_LIMIT,
     search: debouncedSearch || undefined,
-    role: roleFilter || undefined,
+    roleId: roleFilter || undefined,
     status: statusFilter || undefined,
   });
 
   const totalPages = data ? Math.ceil(data.total / PAGE_LIMIT) : 0;
+  const currentUsers = data?.data ?? [];
+
+  const currentUserIdSet = useMemo(() => new Set(currentUsers.map((user) => user.id)), [currentUsers]);
+
+  const selectedCountInCurrentPage = useMemo(
+    () => selectedUserIds.filter((id) => currentUserIdSet.has(id)).length,
+    [selectedUserIds, currentUserIdSet],
+  );
+
+  const isAllRowsSelected = currentUsers.length > 0 && selectedCountInCurrentPage === currentUsers.length;
+  const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
     setPage(1);
+    setSelectedUserIds([]);
+    setIsHeaderChecked(false);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -48,7 +65,46 @@ export function UserManagement() {
     setRoleFilter('');
     setStatusFilter('');
     setPage(1);
+    setSelectedUserIds([]);
+    setIsHeaderChecked(false);
   }, []);
+
+  useEffect(() => {
+    setSelectedUserIds((prev) => prev.filter((id) => currentUserIdSet.has(id)));
+  }, [currentUserIdSet]);
+
+  useEffect(() => {
+    if (!isAllRowsSelected) {
+      setIsHeaderChecked(false);
+    }
+  }, [isAllRowsSelected]);
+
+  const handleToggleSelectAll = useCallback((checked: boolean) => {
+    setIsHeaderChecked(checked);
+    if (checked) {
+      setSelectedUserIds(currentUsers.map((user) => user.id));
+      return;
+    }
+
+    setSelectedUserIds([]);
+  }, [currentUsers]);
+
+  const handleToggleSelectUser = useCallback((userId: string, checked: boolean) => {
+    setIsHeaderChecked(false);
+    setSelectedUserIds((prev) => {
+      if (checked) {
+        if (prev.includes(userId)) return prev;
+        return [...prev, userId];
+      }
+
+      return prev.filter((id) => id !== userId);
+    });
+  }, []);
+
+  const selectedUsersForExport = useMemo(
+    () => currentUsers.filter((user) => selectedUserIds.includes(user.id)),
+    [currentUsers, selectedUserIds],
+  );
 
   // --- Handlers ---
   const handleAddUser = () => { setEditUser(null); setSheetOpen(true); };
@@ -56,8 +112,27 @@ export function UserManagement() {
   const handleCloseSheet = () => { setSheetOpen(false); setEditUser(null); };
 
   const handleExport = async () => {
-    if (data?.data && data.data.length > 0) {
-      await exportUsersToExcel(data.data);
+    if (!data || data.total === 0) {
+      return;
+    }
+
+    if (isHeaderChecked) {
+      const allUsersResult = await getUsers({
+        page: 1,
+        limit: data.total,
+        search: debouncedSearch || undefined,
+        roleId: roleFilter || undefined,
+        status: statusFilter || undefined,
+      });
+
+      if (allUsersResult.data.length > 0) {
+        await exportUsersToExcel(allUsersResult.data);
+      }
+      return;
+    }
+
+    if (selectedUsersForExport.length > 0) {
+      await exportUsersToExcel(selectedUsersForExport);
     }
   };
 
@@ -72,7 +147,7 @@ export function UserManagement() {
         </div>
         <button
           onClick={handleAddUser}
-          className="flex-shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+          className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
         >
           <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
           Add User
@@ -81,7 +156,7 @@ export function UserManagement() {
 
       {/* Filters */}
       <div className="flex-none bg-gray-50 p-3 rounded-2xl flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[200px] relative">
+        <div className="flex-1 min-w-50 relative">
           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]" data-icon="filter_list">filter_list</span>
           <input
             type="text"
@@ -94,22 +169,33 @@ export function UserManagement() {
         <div className="flex items-center flex-wrap gap-3">
           <select
             value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+              setSelectedUserIds([]);
+              setIsHeaderChecked(false);
+            }}
             className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary/30 focus:border-transparent font-medium cursor-pointer"
           >
             <option value="">All Roles</option>
-            <option value="Admin">Admin</option>
-            <option value="Manager">Manager</option>
-            <option value="Staff">Staff</option>
+            {(roleOptionsQuery.data ?? []).map((role) => (
+              <option key={role.id} value={role.id}>{role.name}</option>
+            ))}
           </select>
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatusFilter((e.target.value || '') as UserItem['status'] | '');
+              setPage(1);
+              setSelectedUserIds([]);
+              setIsHeaderChecked(false);
+            }}
             className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary/30 focus:border-transparent font-medium cursor-pointer"
           >
             <option value="">All Status</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
+            <option value="Suspended">Suspended</option>
           </select>
           <div className="w-px h-8 bg-gray-200" />
           <button
@@ -122,7 +208,7 @@ export function UserManagement() {
           {/* Export Excel */}
           <button
             onClick={handleExport}
-            disabled={!data?.data?.length}
+            disabled={!(isHeaderChecked || selectedUsersForExport.length > 0)}
             title="Xuất file Excel"
             className="p-2.5 text-gray-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -135,8 +221,13 @@ export function UserManagement() {
       <div className={`flex-1 min-h-0 flex flex-col gap-2 transition-opacity duration-200 ${isFetching && !isLoading ? 'opacity-60' : 'opacity-100'}`}>
         <div className="flex-1 min-h-0 overflow-auto rounded-2xl">
           <UserTable
-            users={data?.data ?? []}
+            users={currentUsers}
             isLoading={isLoading}
+            selectedUserIds={selectedUserIds}
+            isAllRowsSelected={isAllRowsSelected}
+            isPartiallySelected={isPartiallySelected}
+            onToggleSelectAll={handleToggleSelectAll}
+            onToggleSelectUser={handleToggleSelectUser}
             onEdit={handleEditUser}
             onLock={setLockTarget}
             onResetPassword={setResetPwdTarget}

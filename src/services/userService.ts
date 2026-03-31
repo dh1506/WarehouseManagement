@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import type { ApiResponse } from '@/types/api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -6,21 +7,24 @@ import apiClient from './apiClient';
 
 export interface UserItem {
   id: string;
+  username: string;
   name: string;
+  fullName: string;
   email: string;
-  role: 'Admin' | 'Manager' | 'Staff';
-  status: 'Active' | 'Inactive';
+  phone?: string;
+  role: string;
+  roleId: string;
+  status: 'Active' | 'Inactive' | 'Suspended';
   lastLogin: string;
   avatar?: string;
-  gender?: 'Male' | 'Female' | 'Other';
 }
 
 export interface GetUsersParams {
   page: number;
   limit: number;
   search?: string;
-  role?: string;
-  status?: string;
+  roleId?: string;
+  status?: UserItem['status'];
 }
 
 export interface GetUsersResponse {
@@ -31,116 +35,112 @@ export interface GetUsersResponse {
 }
 
 export interface CreateUserPayload {
-  name: string;
-  email?: string;           // tuỳ chọn — khớp với createUserSchema
-  role: 'Admin' | 'Manager' | 'Staff';
+  username: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  roleId: string;
   password: string;
-  gender: 'Male' | 'Female' | 'Other';
 }
 
 export interface UpdateUserPayload {
-  name?: string;
+  fullName?: string;
   email?: string;
-  role?: 'Admin' | 'Manager' | 'Staff';
-  gender?: 'Male' | 'Female' | 'Other';
+  phone?: string;
+  roleId?: string;
+  status?: UserItem['status'];
+  password?: string;
 }
 
 export interface LockUserPayload {
-  status: 'Active' | 'Inactive';
+  status: 'Active' | 'Inactive' | 'Suspended';
 }
 
 export interface ResetPasswordPayload {
   newPassword: string;
 }
 
-// ---------------------------------------------------------------------------
-// ⚠️ DEV ONLY: mock data — xoá toàn bộ block này trước khi release
-// ---------------------------------------------------------------------------
+interface UserApiItem {
+  id: number;
+  username: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  role_id: number;
+  user_status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  updated_at: string;
+  role: {
+    id: number;
+    name: string;
+  };
+}
 
-// Mảng móc mụtáble — các hàm mock sẽ đọc/ghi trực tiếp vào đây
-export const MOCK_USERS: UserItem[] = [
-  { id: '1', name: 'Nguyễn Văn Admin', email: 'admin@warehouse.dev', role: 'Admin', status: 'Active', lastLogin: '2026-03-28T08:00:00Z', gender: 'Male' },
-  { id: '2', name: 'Trần Thị Manager', email: 'manager@warehouse.dev', role: 'Manager', status: 'Active', lastLogin: '2026-03-27T14:30:00Z', gender: 'Female' },
-  { id: '3', name: 'Lê Văn Staff', email: 'levan.staff@warehouse.dev', role: 'Staff', status: 'Active', lastLogin: '2026-03-27T09:15:00Z', gender: 'Male' },
-  { id: '4', name: 'Phạm Thị Lan', email: 'lan.pham@warehouse.dev', role: 'Staff', status: 'Inactive', lastLogin: '2026-03-20T11:00:00Z', gender: 'Female' },
-  { id: '5', name: 'Hoàng Minh Tú', email: 'tu.hoang@warehouse.dev', role: 'Manager', status: 'Active', lastLogin: '2026-03-28T07:45:00Z', gender: 'Male' },
-  { id: '6', name: 'Đỗ Thị Hương', email: 'huong.do@warehouse.dev', role: 'Staff', status: 'Active', lastLogin: '2026-03-26T16:20:00Z', gender: 'Female' },
-  { id: '7', name: 'Bùi Quang Huy', email: 'huy.bui@warehouse.dev', role: 'Staff', status: 'Active', lastLogin: '2026-03-25T13:10:00Z', gender: 'Male' },
-  { id: '8', name: 'Ngô Thị Mai', email: 'mai.ngo@warehouse.dev', role: 'Staff', status: 'Inactive', lastLogin: '2026-03-15T10:00:00Z', gender: 'Female' },
-  { id: '9', name: 'Vũ Thanh Tùng', email: 'tung.vu@warehouse.dev', role: 'Admin', status: 'Active', lastLogin: '2026-03-28T06:30:00Z', gender: 'Male' },
-  { id: '10', name: 'Đinh Thị Bích', email: 'bich.dinh@warehouse.dev', role: 'Staff', status: 'Active', lastLogin: '2026-03-27T18:00:00Z', gender: 'Female' },
-  { id: '11', name: 'Lý Văn Phúc', email: 'phuc.ly@warehouse.dev', role: 'Manager', status: 'Active', lastLogin: '2026-03-28T09:00:00Z', gender: 'Male' },
-  { id: '12', name: 'Cao Thị Thu', email: 'thu.cao@warehouse.dev', role: 'Staff', status: 'Inactive', lastLogin: '2026-03-10T08:30:00Z', gender: 'Female' },
-];
+interface UsersListApiData {
+  users: UserApiItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
-// ⚠️ DEV: GET list — filter, phân trang
-const getMockUsers = (params: GetUsersParams): Promise<GetUsersResponse> =>
-  new Promise((resolve) => {
-    setTimeout(() => {
-      let filtered = [...MOCK_USERS];
+interface RoleApiItem {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
 
-      if (params.search) {
-        const q = params.search.toLowerCase();
-        filtered = filtered.filter(
-          (u) => u.name.toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q),
-        );
-      }
-      if (params.role) filtered = filtered.filter((u) => u.role === params.role);
-      if (params.status) filtered = filtered.filter((u) => u.status === params.status);
+interface RolesListApiData {
+  roles: RoleApiItem[];
+}
 
-      const total = filtered.length;
-      const start = (params.page - 1) * params.limit;
-      const data = filtered.slice(start, start + params.limit);
+export interface UserRoleOption {
+  id: string;
+  name: string;
+}
 
-      resolve({ data, total, page: params.page, limit: params.limit });
-    }, 400);
-  });
+function unwrapApiData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const level1 = (response as { data: unknown }).data;
+    if (level1 && typeof level1 === 'object' && 'data' in level1) {
+      return (level1 as { data: T }).data;
+    }
 
-// ⚠️ DEV: POST — thêm thực sự vào MOCK_USERS
-export const mockCreateUser = (payload: CreateUserPayload): Promise<UserItem> =>
-  new Promise((resolve) => {
-    setTimeout(() => {
-      const newUser: UserItem = {
-        id: `mock-${Date.now()}`,
-        name: payload.name,
-        email: payload.email ?? '',
-        role: payload.role,
-        gender: payload.gender,
-        status: 'Active',
-        lastLogin: new Date().toISOString(),
-      };
-      MOCK_USERS.push(newUser);
-      resolve(newUser);
-    }, 600);
-  });
+    return level1 as T;
+  }
 
-// ⚠️ DEV: PUT — cập nhật thực sự trong MOCK_USERS
-export const mockUpdateUser = (id: string, payload: UpdateUserPayload): Promise<UserItem> =>
-  new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const idx = MOCK_USERS.findIndex((u) => u.id === id);
-      if (idx === -1) { reject(new Error('User not found')); return; }
-      MOCK_USERS[idx] = { ...MOCK_USERS[idx], ...payload, name: payload.name ?? MOCK_USERS[idx].name };
-      resolve({ ...MOCK_USERS[idx] });
-    }, 600);
-  });
+  return response as T;
+}
 
-// ⚠️ DEV: PATCH — khoá / mở khoá tài khoản trong MOCK_USERS
-export const mockLockUser = (id: string, payload: LockUserPayload): Promise<UserItem> =>
-  new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const idx = MOCK_USERS.findIndex((u) => u.id === id);
-      if (idx === -1) { reject(new Error('User not found')); return; }
-      MOCK_USERS[idx] = { ...MOCK_USERS[idx], status: payload.status };
-      resolve({ ...MOCK_USERS[idx] });
-    }, 500);
-  });
+function fromApiStatus(status: UserApiItem['user_status']): UserItem['status'] {
+  if (status === 'ACTIVE') return 'Active';
+  if (status === 'INACTIVE') return 'Inactive';
+  return 'Suspended';
+}
 
-// ⚠️ DEV: PATCH reset-password — mock chỉ giả lập delay, không lưu password
-export const mockResetPassword = (_id: string, _payload: ResetPasswordPayload): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(() => { resolve(); }, 500);
-  });
+function toApiStatus(status: UserItem['status']): UserApiItem['user_status'] {
+  if (status === 'Active') return 'ACTIVE';
+  if (status === 'Inactive') return 'INACTIVE';
+  return 'SUSPENDED';
+}
+
+function mapUserFromApi(item: UserApiItem): UserItem {
+  return {
+    id: String(item.id),
+    username: item.username,
+    name: item.full_name,
+    fullName: item.full_name,
+    email: item.email ?? '',
+    phone: item.phone ?? undefined,
+    role: item.role?.name ?? '',
+    roleId: String(item.role_id),
+    status: fromApiStatus(item.user_status),
+    lastLogin: item.updated_at,
+    avatar: item.avatar_url ?? undefined,
+  };
+}
 
 
 // ---------------------------------------------------------------------------
@@ -150,14 +150,37 @@ export const mockResetPassword = (_id: string, _payload: ResetPasswordPayload): 
 /**
  * GET /api/users?page={}&limit={}&search={}
  * Xem danh sách người dùng (có phân trang, tìm kiếm)
- *
- * ⚠️ DEV: đang dùng mock. Khi BE sẵn sàng:
- *   1. Xoá dòng `return getMockUsers(params)`
- *   2. Bỏ comment dòng `return apiClient...`
  */
 export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
-  return getMockUsers(params); // ⚠️ DEV ONLY
-  // return apiClient.get<GetUsersResponse>('/api/users', { params }).then((r) => r.data);
+  const query: Record<string, string | number> = {
+    page: params.page,
+    limit: params.limit,
+  };
+
+  if (params.search) {
+    query.search = params.search;
+  }
+
+  if (params.roleId) {
+    query.role_id = Number(params.roleId);
+  }
+
+  if (params.status) {
+    query.status = toApiStatus(params.status);
+  }
+
+  return apiClient
+    .get<ApiResponse<UsersListApiData>>('/api/users', { params: query })
+    .then((response) => {
+      const payload = unwrapApiData<UsersListApiData>(response);
+
+      return {
+        data: payload.users.map(mapUserFromApi),
+        total: payload.pagination.total,
+        page: payload.pagination.page,
+        limit: payload.pagination.limit,
+      };
+    });
 };
 
 /**
@@ -165,32 +188,75 @@ export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
  * Xem chi tiết người dùng
  */
 export const getUserById = (id: string): Promise<UserItem> =>
-  apiClient.get<UserItem>(`/api/users/${id}`).then((r) => r.data);
+  apiClient.get<ApiResponse<UserApiItem>>(`/api/users/${id}`).then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
 /**
  * POST /api/users
  * Tạo tài khoản người dùng mới
  */
 export const createUser = (payload: CreateUserPayload): Promise<UserItem> =>
-  apiClient.post<UserItem>('/api/users', payload).then((r) => r.data);
+  apiClient
+    .post<ApiResponse<UserApiItem>>('/api/users', {
+      username: payload.username.trim(),
+      password: payload.password,
+      full_name: payload.fullName.trim(),
+      email: payload.email?.trim() || undefined,
+      phone: payload.phone?.trim() || undefined,
+      role_id: Number(payload.roleId),
+      user_status: 'ACTIVE',
+    })
+    .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
 /**
- * PUT /api/users/:id
+ * PATCH /api/users/:id
  * Cập nhật thông tin tài khoản người dùng
  */
 export const updateUser = (id: string, payload: UpdateUserPayload): Promise<UserItem> =>
-  apiClient.put<UserItem>(`/api/users/${id}`, payload).then((r) => r.data);
+  apiClient
+    .patch<ApiResponse<UserApiItem>>(`/api/users/${id}`, {
+      full_name: payload.fullName?.trim(),
+      email: payload.email?.trim() || null,
+      phone: payload.phone?.trim() || null,
+      role_id: payload.roleId ? Number(payload.roleId) : undefined,
+      user_status: payload.status ? toApiStatus(payload.status) : undefined,
+      password: payload.password,
+    })
+    .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
 /**
  * PATCH /api/users/:id
  * Khoá / mở khoá tài khoản người dùng
  */
 export const lockUser = (id: string, payload: LockUserPayload): Promise<UserItem> =>
-  apiClient.patch<UserItem>(`/api/users/${id}`, payload).then((r) => r.data);
+  apiClient
+    .patch<ApiResponse<UserApiItem>>(`/api/users/${id}`, {
+      user_status: toApiStatus(payload.status),
+    })
+    .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
 /**
  * PATCH /api/users/:id/reset-password
  * Đặt lại mật khẩu người dùng
  */
 export const resetUserPassword = (id: string, payload: ResetPasswordPayload): Promise<void> =>
-  apiClient.patch(`/api/users/${id}/reset-password`, payload).then(() => undefined);
+  apiClient
+    .patch<ApiResponse<unknown>>(`/api/users/${id}/reset-password`, {
+      new_password: payload.newPassword,
+    })
+    .then(() => undefined);
+
+export const getUserRoleOptions = (): Promise<UserRoleOption[]> =>
+  apiClient
+    .get<ApiResponse<RolesListApiData>>('/api/roles', {
+      params: {
+        page: 1,
+        limit: 100,
+      },
+    })
+    .then((response) => {
+      const payload = unwrapApiData<RolesListApiData>(response);
+
+      return payload.roles
+        .filter((role) => role.is_active)
+        .map((role) => ({ id: String(role.id), name: role.name }));
+    });

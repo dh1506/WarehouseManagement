@@ -11,14 +11,14 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', icon: 'dashboard', label: 'Dashboard', end: true },
-  { to: '/warehouse', icon: 'warehouse', label: 'Warehouse Management' },
+  { to: '/admin/warehouses', icon: 'warehouse', label: 'Warehouse Hub' },
   { to: '/admin/categories', icon: 'category', label: 'Category' },
   { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
   { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
   { to: '/import-export', icon: 'swap_horiz', label: 'Import / Export' },
   { to: '/inventory', icon: 'widgets', label: 'Inventory' },
   { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
-  { to: '/admin/users', icon: 'manage_accounts', label: 'System Administration' },
+  { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
   { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
   { to: '/admin/advanced-permission', icon: 'admin_panel_settings', label: 'Advanced Permissions' },
   { to: '/admin/approval-configuration', icon: 'approval', label: 'Approval Configuration' },

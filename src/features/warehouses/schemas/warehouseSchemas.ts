@@ -32,5 +32,44 @@ export const warehouseLocationFormSchema = z
     message: 'Tải hiện tại không được vượt quá sức chứa',
   });
 
+export const warehouseHubFormSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2, 'Mã kho phải có ít nhất 2 ký tự')
+    .max(20, 'Mã kho tối đa 20 ký tự')
+    .regex(/^[A-Z0-9_-]+$/i, 'Mã kho chỉ được chứa chữ, số, gạch dưới hoặc gạch ngang'),
+  name: z.string().trim().min(3, 'Tên kho quá ngắn').max(120, 'Tên kho tối đa 120 ký tự'),
+  location: z.string().trim().min(3, 'Vui lòng nhập khu vực kho').max(120, 'Tối đa 120 ký tự'),
+  tier: z.string().trim().min(2, 'Tier tối thiểu 2 ký tự').max(40, 'Tier tối đa 40 ký tự'),
+  totalSpace: z.number().min(1000, 'Tổng dung tích phải lớn hơn 1000 m3'),
+  usedCapacity: z.number().min(0, 'Dung tích sử dụng không hợp lệ').max(100, 'Dung tích tối đa là 100%'),
+});
+
+export const warehouseZoneFormSchema = z.object({
+  code: z.string().trim().min(2, 'Mã khu vực quá ngắn').max(20, 'Mã khu vực tối đa 20 ký tự'),
+  name: z.string().trim().min(3, 'Tên khu vực quá ngắn').max(120, 'Tên khu vực tối đa 120 ký tự'),
+  type: z.string().trim().min(2, 'Vui lòng nhập loại khu vực').max(60, 'Loại khu vực tối đa 60 ký tự'),
+  rows: z.number().int().min(1, 'Rows tối thiểu là 1').max(60, 'Rows tối đa là 60'),
+  shelves: z.number().int().min(1, 'Shelves tối thiểu là 1').max(60, 'Shelves tối đa là 60'),
+  levels: z.number().int().min(1, 'Levels tối thiểu là 1').max(20, 'Levels tối đa là 20'),
+  occupancy: z.number().min(0, 'Occupancy không hợp lệ').max(100, 'Occupancy tối đa là 100%'),
+});
+
+export const binCapacityFormSchema = z
+  .object({
+    capacity: z.number().int().min(1, 'Sức chứa phải lớn hơn 0'),
+    currentLoad: z.number().int().min(0, 'Tải hiện tại không hợp lệ'),
+    items: z.number().int().min(0, 'Số lượng kiện không hợp lệ'),
+    productCount: z.number().int().min(0, 'Số SKU không hợp lệ'),
+  })
+  .refine((data) => data.currentLoad <= data.capacity, {
+    path: ['currentLoad'],
+    message: 'Tải hiện tại không được vượt quá sức chứa',
+  });
+
 export type WarehouseFormData = z.infer<typeof warehouseFormSchema>;
 export type WarehouseLocationFormData = z.infer<typeof warehouseLocationFormSchema>;
+export type WarehouseHubFormData = z.infer<typeof warehouseHubFormSchema>;
+export type WarehouseZoneFormData = z.infer<typeof warehouseZoneFormSchema>;
+export type BinCapacityFormData = z.infer<typeof binCapacityFormSchema>;
