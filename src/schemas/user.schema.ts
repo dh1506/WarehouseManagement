@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-// ==========================================
 // Schema lấy danh sách users (query params)
-// ==========================================
 export const getUsersQuerySchema = z.object({
   query: z.object({
     page: z
@@ -25,9 +23,7 @@ export const getUsersQuerySchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema lấy chi tiết user (params)
-// ==========================================
 export const getUserByIdParamSchema = z.object({
   params: z.object({
     id: z
@@ -37,9 +33,7 @@ export const getUserByIdParamSchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema tạo mới user
-// ==========================================
 export const createUserSchema = z.object({
   body: z.object({
     username: z
@@ -67,9 +61,7 @@ export const createUserSchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema cập nhật user
-// ==========================================
 export const updateUserSchema = z.object({
   params: z.object({
     id: z
@@ -100,9 +92,6 @@ export const updateUserSchema = z.object({
   }),
 });
 
-// ==========================================
-// Export types
-// ==========================================
 export type GetUsersQuery = z.infer<typeof getUsersQuerySchema>['query'];
 export type GetUserByIdParam = z.infer<typeof getUserByIdParamSchema>['params'];
 export type CreateUserInput = z.infer<typeof createUserSchema>['body'];

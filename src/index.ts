@@ -6,6 +6,12 @@ import authRoutes from './routes/auth.route';
 import userRoutes from './routes/user.route';
 import roleRoutes from './routes/role.route';
 import permissionRoutes from './routes/permission.route';
+import productCategoryRoutes from './routes/product-category.route';
+import brandRoutes from './routes/brand.route';
+import manufacturerRoutes from './routes/manufacturer.route';
+import unitOfMeasureRoutes from './routes/unit-of-measure.route';
+import supplierRoutes from './routes/supplier.route';
+import productRoutes from './routes/product.route';
 import { globalErrorHandler } from './middlewares/error.middleware';
 
 
@@ -23,6 +29,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/product-categories', productCategoryRoutes);
+app.use('/api/brands', brandRoutes);
+app.use('/api/manufacturers', manufacturerRoutes);
+app.use('/api/units-of-measure', unitOfMeasureRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/products', productRoutes);
 
 // Error Middleware
 app.use(globalErrorHandler);
