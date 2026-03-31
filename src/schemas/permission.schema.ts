@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-// ==========================================
-// Schema lấy danh sách permissions (query params)
-// ==========================================
 export const getPermissionsQuerySchema = z.object({
   query: z.object({
     module: z.string().optional(),
@@ -17,7 +14,4 @@ export const getPermissionsQuerySchema = z.object({
   }),
 });
 
-// ==========================================
-// Export types
-// ==========================================
 export type GetPermissionsQuery = z.infer<typeof getPermissionsQuerySchema>['query'];

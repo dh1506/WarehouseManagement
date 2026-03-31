@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-// ==========================================
 // Schema lấy danh sách roles (query params)
-// ==========================================
 export const getRolesQuerySchema = z.object({
   query: z.object({
     page: z
@@ -27,9 +25,7 @@ export const getRolesQuerySchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema lấy chi tiết role (params)
-// ==========================================
 export const getRoleByIdParamSchema = z.object({
   params: z.object({
     id: z
@@ -39,9 +35,7 @@ export const getRoleByIdParamSchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema tạo mới role
-// ==========================================
 export const createRoleSchema = z.object({
   body: z.object({
     name: z
@@ -54,9 +48,7 @@ export const createRoleSchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema cập nhật role
-// ==========================================
 export const updateRoleSchema = z.object({
   params: z.object({
     id: z
@@ -76,9 +68,7 @@ export const updateRoleSchema = z.object({
   }),
 });
 
-// ==========================================
 // Schema gán permissions cho role
-// ==========================================
 export const assignPermissionsSchema = z.object({
   params: z.object({
     id: z
@@ -93,9 +83,6 @@ export const assignPermissionsSchema = z.object({
   }),
 });
 
-// ==========================================
-// Export types
-// ==========================================
 export type GetRolesQuery = z.infer<typeof getRolesQuerySchema>['query'];
 export type CreateRoleInput = z.infer<typeof createRoleSchema>['body'];
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>['body'];

@@ -32,18 +32,18 @@ model Role {
   is_active   Boolean          @default(true)
   created_at  DateTime         @default(now())
   updated_at  DateTime         @updatedAt
-  users       User[]
   permissions RolePermission[]
+  users       User[]
 
   @@map("roles")
 }
 
 model Permission {
   id          Int              @id @default(autoincrement())
-  name        String           @unique    // VD: "users:read", "users:create"
+  name        String           @unique
   description String?
-  module      String                      // VD: "users", "roles", "warehouse"
-  action      String                      // VD: "read", "create", "update", "delete"
+  module      String
+  action      String
   is_active   Boolean          @default(true)
   created_at  DateTime         @default(now())
   updated_at  DateTime         @updatedAt
@@ -53,25 +53,183 @@ model Permission {
   @@map("permissions")
 }
 
-// ==========================================
-// Bảng trung gian Role - Permission (N:N)
-// ==========================================
 model RolePermission {
   role_id       Int
   permission_id Int
   assigned_at   DateTime   @default(now())
-  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
   permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
 
   @@id([role_id, permission_id])
+  @@index([permission_id], map: "role_permissions_permission_id_fkey")
   @@map("role_permissions")
 }
 
-// ==========================================
-// Enum trạng thái người dùng
-// ==========================================
+model ProductCategory {
+  id          Int                  @id @default(autoincrement())
+  code        String               @unique
+  name        String
+  description String?
+  parent_id   Int?
+  created_at  DateTime             @default(now())
+  updated_at  DateTime             @updatedAt
+  parent      ProductCategory?     @relation("CategoryHierarchy", fields: [parent_id], references: [id])
+  children    ProductCategory[]    @relation("CategoryHierarchy")
+  products    ProductCategoryMap[]
+
+  @@index([parent_id], map: "product_categories_parent_id_fkey")
+  @@map("product_categories")
+}
+
+model Brand {
+  id         Int       @id @default(autoincrement())
+  code       String    @unique
+  name       String
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  products   Product[]
+
+  @@map("brands")
+}
+
+model Manufacturer {
+  id         Int       @id @default(autoincrement())
+  code       String    @unique
+  name       String
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  products   Product[]
+
+  @@map("manufacturers")
+}
+
+model UnitOfMeasure {
+  id           Int          @id @default(autoincrement())
+  code         String       @unique
+  name         String
+  uom_type     UomType
+  is_active    Boolean      @default(true)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  product_uoms ProductUom[]
+  products     Product[]
+
+  @@map("units_of_measure")
+}
+
+model Product {
+  id                 Int                  @id @default(autoincrement())
+  code               String               @unique
+  name               String
+  description        String?              @db.Text
+  product_type       ProductType          @default(GOODS)
+  product_status     ProductStatus        @default(ACTIVE)
+  brand_id           Int?
+  manufacturer_id    Int?
+  base_uom_id        Int
+  has_batch          Boolean              @default(false)
+  has_expiry         Boolean              @default(false)
+  min_stock          Decimal?             @db.Decimal(15, 3)
+  max_stock          Decimal?             @db.Decimal(15, 3)
+  storage_conditions String?
+  image_url          String?
+  created_at         DateTime             @default(now())
+  updated_at         DateTime             @updatedAt
+  categories         ProductCategoryMap[]
+  uoms               ProductUom[]
+  productSuppliers   ProductSupplier[]
+  base_uom           UnitOfMeasure        @relation(fields: [base_uom_id], references: [id])
+  brand              Brand?               @relation(fields: [brand_id], references: [id])
+  manufacturer       Manufacturer?        @relation(fields: [manufacturer_id], references: [id])
+
+  @@index([brand_id], map: "products_brand_id_fkey")
+  @@index([manufacturer_id], map: "products_manufacturer_id_fkey")
+  @@index([base_uom_id], map: "products_base_uom_id_fkey")
+  @@map("products")
+}
+
+model ProductCategoryMap {
+  product_id  Int
+  category_id Int
+  assigned_at DateTime        @default(now())
+  category    ProductCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, category_id])
+  @@index([category_id], map: "product_category_map_category_id_fkey")
+  @@map("product_category_map")
+}
+
+model ProductUom {
+  id                Int           @id @default(autoincrement())
+  product_id        Int
+  uom_id            Int
+  conversion_factor Decimal       @db.Decimal(15, 6)
+  is_default        Boolean       @default(false)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  product           Product       @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  uom               UnitOfMeasure @relation(fields: [uom_id], references: [id])
+
+  @@unique([product_id, uom_id])
+  @@index([uom_id], map: "product_uoms_uom_id_fkey")
+  @@map("product_uoms")
+}
+
+model Supplier {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique
+  name           String
+  contact_person String?
+  phone          String?
+  email          String?
+  address        String?  @db.Text
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  productSuppliers ProductSupplier[]
+
+  @@map("suppliers")
+}
+
+model ProductSupplier {
+  product_id      Int
+  supplier_id     Int
+  supplier_sku    String?   // Mã sản phẩm riêng của nhà cung cấp
+  purchase_price  Decimal   @db.Decimal(15, 2) // Giá nhập từ NCC này
+  is_primary      Boolean   @default(false)    // Có phải NCC chính không?
+  
+  product         Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  supplier        Supplier  @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, supplier_id])
+  @@map("product_suppliers")
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+enum ProductType {
+  GOODS
+  MATERIAL
+  CONSUMABLE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+enum UomType {
+  WEIGHT
+  VOLUME
+  LENGTH
+  QUANTITY
+  PACK
 }
