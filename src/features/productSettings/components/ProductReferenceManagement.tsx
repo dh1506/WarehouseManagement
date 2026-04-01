@@ -17,7 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermission } from '@/hooks/usePermission';
 import {
   useCreateProductReference,
-  useDeleteProductReference,
   useProductReferences,
   useUpdateProductReference,
 } from '../hooks/useProductReferences';
@@ -26,37 +25,110 @@ import type { ProductReferenceItem, ProductReferenceType } from '../types/refere
 
 const PAGE_SIZE = 8;
 
+interface TabUiState {
+  page: number;
+  search: string;
+  status: 'all' | 'active' | 'inactive';
+}
+
+const DEFAULT_TAB_STATE: TabUiState = {
+  page: 1,
+  search: '',
+  status: 'all',
+};
+
+const TAB_LABEL: Record<ProductReferenceType, string> = {
+  unit: 'Units of Measure',
+  brand: 'Brands',
+  manufacturer: 'Manufacturers',
+};
+
 export function ProductReferenceManagement() {
   const { toast } = useToast();
-  const canManage = usePermission('master_data.references.manage');
+  const canReadUnit = usePermission('uoms:read');
+  const canCreateUnit = usePermission('uoms:create');
+  const canUpdateUnit = usePermission('uoms:update');
+
+  const canReadBrand = usePermission('brands:read');
+  const canCreateBrand = usePermission('brands:create');
+  const canUpdateBrand = usePermission('brands:update');
+
+  const canReadManufacturer = usePermission('manufacturers:read');
+  const canCreateManufacturer = usePermission('manufacturers:create');
+  const canUpdateManufacturer = usePermission('manufacturers:update');
 
   const [tab, setTab] = useState<ProductReferenceType>('unit');
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [tabState, setTabState] = useState<Record<ProductReferenceType, TabUiState>>({
+    unit: { ...DEFAULT_TAB_STATE },
+    brand: { ...DEFAULT_TAB_STATE },
+    manufacturer: { ...DEFAULT_TAB_STATE },
+  });
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedItem, setSelectedItem] = useState<ProductReferenceItem | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ProductReferenceItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ProductReferenceItem | null>(null);
+
+  const tabPermissions: Record<ProductReferenceType, { canRead: boolean; canCreate: boolean; canUpdate: boolean }> = {
+    unit: {
+      canRead: canReadUnit,
+      canCreate: canCreateUnit,
+      canUpdate: canUpdateUnit,
+    },
+    brand: {
+      canRead: canReadBrand,
+      canCreate: canCreateBrand,
+      canUpdate: canUpdateBrand,
+    },
+    manufacturer: {
+      canRead: canReadManufacturer,
+      canCreate: canCreateManufacturer,
+      canUpdate: canUpdateManufacturer,
+    },
+  };
+
+  const visibleTabs = (['unit', 'brand', 'manufacturer'] as ProductReferenceType[]).filter(
+    (item) => tabPermissions[item].canRead,
+  );
+
+  const hasAnyReadableTab = visibleTabs.length > 0;
+
+  useEffect(() => {
+    if (!hasAnyReadableTab) {
+      return;
+    }
+
+    if (!visibleTabs.includes(tab)) {
+      setTab(visibleTabs[0]);
+    }
+  }, [hasAnyReadableTab, tab, visibleTabs]);
+
+  const currentState = tabState[tab];
+  const canCreateCurrentTab = tabPermissions[tab].canCreate;
+  const canUpdateCurrentTab = tabPermissions[tab].canUpdate;
+
+  const setCurrentTabState = (next: Partial<TabUiState>) => {
+    setTabState((prev) => ({
+      ...prev,
+      [tab]: {
+        ...prev[tab],
+        ...next,
+      },
+    }));
+  };
 
   const { data, isLoading, isError, refetch, isFetching } = useProductReferences({
     type: tab,
-    search: search || undefined,
-    status,
-    page,
+    search: currentState.search || undefined,
+    status: currentState.status,
+    page: currentState.page,
     pageSize: PAGE_SIZE,
   });
 
   const createMutation = useCreateProductReference();
   const updateMutation = useUpdateProductReference();
-  const deleteMutation = useDeleteProductReference();
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
-  const title = tab === 'unit'
-    ? 'Units of Measure'
-    : tab === 'brand'
-      ? 'Brands'
-      : 'Manufacturers';
+  const title = TAB_LABEL[tab];
   const description =
     tab === 'unit'
       ? 'Chuẩn hóa đơn vị tính để product master và giao dịch kho dùng lại xuyên suốt các sprint.'
@@ -65,12 +137,30 @@ export function ProductReferenceManagement() {
         : 'Quản lý nhà sản xuất làm dữ liệu gốc cho nguồn gốc sản phẩm.';
 
   const openCreate = () => {
+    if (!canCreateCurrentTab) {
+      toast({
+        title: 'Access denied',
+        description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[tab]}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setDialogMode('create');
     setSelectedItem(null);
     setIsFormOpen(true);
   };
 
   const openEdit = (item: ProductReferenceItem) => {
+    if (!canUpdateCurrentTab) {
+      toast({
+        title: 'Access denied',
+        description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[tab]}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setDialogMode('edit');
     setSelectedItem(item);
     setIsFormOpen(true);
@@ -82,16 +172,40 @@ export function ProductReferenceManagement() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  const handleChangeStatus = async () => {
+    if (!statusTarget) return;
+
+    if (!canUpdateCurrentTab) {
+      toast({
+        title: 'Access denied',
+        description: `Bạn không có quyền cập nhật trạng thái trong tab ${TAB_LABEL[tab]}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nextStatus = statusTarget.status === 'active' ? 'inactive' : 'active';
 
     try {
-      await deleteMutation.mutateAsync(deleteTarget.id);
-      toast({ title: 'Thành công', description: 'Đã xóa dữ liệu tham chiếu.' });
-      setDeleteTarget(null);
+      await updateMutation.mutateAsync({
+        id: statusTarget.id,
+        type: tab,
+        payload: {
+          code: statusTarget.code,
+          name: statusTarget.name,
+          description: statusTarget.description,
+          status: nextStatus,
+        },
+      });
+
+      toast({
+        title: 'Cập nhật trạng thái thành công',
+        description: `Đã chuyển ${statusTarget.name} sang ${nextStatus === 'active' ? 'Active' : 'Inactive'}.`,
+      });
+      setStatusTarget(null);
     } catch (error) {
       toast({
-        title: 'Không thể xóa',
+        title: 'Không thể cập nhật trạng thái',
         description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
         variant: 'destructive',
       });
@@ -99,174 +213,191 @@ export function ProductReferenceManagement() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          eyebrow="Sprint 1 · Product Foundation"
+          // eyebrow="Sprint 1 · Product Foundation"
           title="Product Supporting Masters"
-          description="Thiết lập đơn vị tính và thương hiệu để product master ở Sprint 1–2 có thể tái sử dụng ổn định."
-          actions={
-            canManage ? (
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
-              >
-                <span className="material-symbols-outlined text-[18px]">add</span>
-                New {tab === 'unit' ? 'Unit' : tab === 'brand' ? 'Brand' : 'Manufacturer'}
-              </button>
-            ) : null
-          }
+          description="Thiết lập đơn vị tính, thương hiệu, và nhà sản xuất để product master ở Sprint 1–2 có thể tái sử dụng ổn định."
+          actions={(
+            <button
+              onClick={openCreate}
+              disabled={!canCreateCurrentTab}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              New {tab === 'unit' ? 'Unit' : tab === 'brand' ? 'Brand' : 'Manufacturer'}
+            </button>
+          )}
         />
 
-        <Tabs value={tab} onValueChange={(value) => { setTab(value as ProductReferenceType); setPage(1); }}>
-          <TabsList variant="line" className="rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
-            <TabsTrigger value="unit" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
-              Units of Measure
-            </TabsTrigger>
-            <TabsTrigger value="brand" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
-              Brands
-            </TabsTrigger>
-            <TabsTrigger value="manufacturer" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
-              Manufacturers
-            </TabsTrigger>
-          </TabsList>
+        {!hasAnyReadableTab ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <StatePanel
+              title="Không có quyền truy cập"
+              description="Bạn không có quyền xem Units of Measure, Brands, hoặc Manufacturers."
+              icon="lock"
+              tone="error"
+            />
+          </div>
+        ) : (
+          <Tabs value={tab} onValueChange={(value) => setTab(value as ProductReferenceType)} className="flex min-h-0 flex-1 flex-col">
+            <TabsList variant="line" className="shrink-0 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
+              {tabPermissions.unit.canRead ? (
+                <TabsTrigger value="unit" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Units of Measure
+                </TabsTrigger>
+              ) : null}
+              {tabPermissions.brand.canRead ? (
+                <TabsTrigger value="brand" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Brands
+                </TabsTrigger>
+              ) : null}
+              {tabPermissions.manufacturer.canRead ? (
+                <TabsTrigger value="manufacturer" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Manufacturers
+                </TabsTrigger>
+              ) : null}
+            </TabsList>
 
-          <TabsContent value={tab} className="space-y-4">
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-                  <p className="mt-1 text-sm text-slate-500">{description}</p>
-                </div>
+            <TabsContent value={tab} className="mt-4 flex min-h-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{description}</p>
+                  </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="relative min-w-60">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
-                      search
-                    </span>
-                    <input
-                      value={search}
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="relative min-w-60">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
+                        search
+                      </span>
+                      <input
+                        value={currentState.search}
+                        onChange={(event) => {
+                          setCurrentTabState({ search: event.target.value, page: 1 });
+                        }}
+                        placeholder={`Search ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}...`}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+                      />
+                    </div>
+
+                    <select
+                      value={currentState.status}
                       onChange={(event) => {
-                        setSearch(event.target.value);
-                        setPage(1);
+                        setCurrentTabState({
+                          status: event.target.value as 'all' | 'active' | 'inactive',
+                          page: 1,
+                        });
                       }}
-                      placeholder={`Search ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}...`}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-                    />
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+                    >
+                      <option value="all">All status</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
                   </div>
-
-                  <select
-                    value={status}
-                    onChange={(event) => {
-                      setStatus(event.target.value as 'all' | 'active' | 'inactive');
-                      setPage(1);
-                    }}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-                  >
-                    <option value="all">All status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
                 </div>
-              </div>
 
-              <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-                {isLoading ? (
-                  <div className="p-8">
-                    <StatePanel title="Đang tải dữ liệu" description="Hệ thống đang lấy danh sách master data." icon="hourglass_top" />
-                  </div>
-                ) : isError ? (
-                  <div className="p-8">
-                    <StatePanel
-                      title="Không tải được dữ liệu"
-                      description="Vui lòng thử lại để tiếp tục cấu hình dữ liệu gốc."
-                      icon="error"
-                      tone="error"
-                      action={
-                        <button
-                          onClick={() => void refetch()}
-                          className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
-                        >
-                          Thử lại
-                        </button>
-                      }
-                    />
-                  </div>
-                ) : (data?.data.length ?? 0) === 0 ? (
-                  <div className="p-8">
-                    <StatePanel
-                      title="Chưa có dữ liệu phù hợp"
-                      description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
-                      icon={tab === 'unit' ? 'straighten' : tab === 'brand' ? 'branding_watermark' : 'factory'}
-                      action={
-                        canManage ? (
+                <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
+                  {isLoading ? (
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                      <StatePanel title="Đang tải dữ liệu" description="Hệ thống đang lấy danh sách master data." icon="hourglass_top" />
+                    </div>
+                  ) : isError ? (
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                      <StatePanel
+                        title="Không tải được dữ liệu"
+                        description="Vui lòng thử lại để tiếp tục cấu hình dữ liệu gốc."
+                        icon="error"
+                        tone="error"
+                        action={
+                          <button
+                            onClick={() => void refetch()}
+                            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                          >
+                            Thử lại
+                          </button>
+                        }
+                      />
+                    </div>
+                  ) : (data?.data.length ?? 0) === 0 ? (
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                      <StatePanel
+                        title="Chưa có dữ liệu phù hợp"
+                        description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
+                        icon={tab === 'unit' ? 'straighten' : tab === 'brand' ? 'branding_watermark' : 'factory'}
+                        action={
                           <button
                             onClick={openCreate}
-                            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container"
+                            disabled={!canCreateCurrentTab}
+                            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
                           >
                             Tạo mới
                           </button>
-                        ) : null
-                      }
-                    />
-                  </div>
-                ) : (
-                  <div className={isFetching ? 'opacity-70 transition' : 'transition'}>
-                    <table className="min-w-full divide-y divide-slate-200">
-                      <thead className="bg-slate-50">
-                        <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          <th className="px-4 py-3">Code</th>
-                          <th className="px-4 py-3">Name</th>
-                          <th className="px-4 py-3">Description</th>
-                          <th className="px-4 py-3">Usage</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 bg-white">
-                        {data?.data.map((item) => (
-                          <tr key={item.id} className="align-top">
-                            <td className="px-4 py-4">
-                              <div className="font-semibold text-slate-900">{item.code}</div>
-                              <div className="mt-1 text-xs text-slate-400">
-                                Updated {new Date(item.updatedAt).toLocaleDateString('vi-VN')}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 text-sm font-medium text-slate-800">{item.name}</td>
-                            <td className="px-4 py-4 text-sm text-slate-500">{item.description || 'Khong co mo ta'}</td>
-                            <td className="px-4 py-4 text-sm text-slate-600">{item.usageCount} products</td>
-                            <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
-                            <td className="px-4 py-4">
-                              <div className="flex justify-end gap-2">
-                                <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                                {canManage ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
-                                {canManage ? (
-                                  <ActionButton
-                                    icon="delete"
-                                    label="Delete"
-                                    danger
-                                    onClick={() => setDeleteTarget(item)}
-                                  />
-                                ) : null}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`min-h-0 flex-1 overflow-auto ${isFetching ? 'opacity-70 transition' : 'transition'}`}>
+                        <table className="min-w-full divide-y divide-slate-200">
+                          <thead className="bg-slate-50">
+                            <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Code</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Name</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Description</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Usage</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Status</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 bg-white">
+                            {data?.data.map((item) => (
+                              <tr key={item.id} className="align-top">
+                                <td className="px-4 py-4">
+                                  <div className="font-semibold text-slate-900">{item.code}</div>
+                                  <div className="mt-1 text-xs text-slate-400">
+                                    Updated {new Date(item.updatedAt).toLocaleDateString('vi-VN')}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 text-sm font-medium text-slate-800">{item.name}</td>
+                                <td className="px-4 py-4 text-sm text-slate-500">{item.description || 'Khong co mo ta'}</td>
+                                <td className="px-4 py-4 text-sm text-slate-600">{item.usageCount} products</td>
+                                <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
+                                <td className="px-4 py-4">
+                                  <div className="flex justify-end gap-2">
+                                    <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
+                                    <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} disabled={!canUpdateCurrentTab} />
+                                    <ActionButton
+                                      icon={item.status === 'active' ? 'block' : 'check_circle'}
+                                      label={item.status === 'active' ? 'Inactivate' : 'Activate'}
+                                      danger={item.status === 'active'}
+                                      onClick={() => setStatusTarget(item)}
+                                      disabled={!canUpdateCurrentTab}
+                                    />
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
 
-                    <Pagination
-                      page={page}
-                      totalPages={totalPages}
-                      totalItems={data?.total ?? 0}
-                      onChange={setPage}
-                    />
-                  </div>
-                )}
+                      <Pagination
+                        page={currentState.page}
+                        totalPages={totalPages}
+                        totalItems={data?.total ?? 0}
+                        onChange={(nextPage) => setCurrentTabState({ page: nextPage })}
+                      />
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
 
       <ReferenceFormDialog
@@ -278,9 +409,27 @@ export function ProductReferenceManagement() {
         onSubmit={async (payload) => {
           try {
             if (dialogMode === 'edit' && selectedItem) {
+              if (!canUpdateCurrentTab) {
+                toast({
+                  title: 'Access denied',
+                  description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[tab]}.`,
+                  variant: 'destructive',
+                });
+                return;
+              }
+
               await updateMutation.mutateAsync({ id: selectedItem.id, type: tab, payload });
               toast({ title: 'Đã cập nhật', description: 'Thông tin tham chiếu đã được lưu.' });
             } else {
+              if (!canCreateCurrentTab) {
+                toast({
+                  title: 'Access denied',
+                  description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[tab]}.`,
+                  variant: 'destructive',
+                });
+                return;
+              }
+
               await createMutation.mutateAsync({ type: tab, payload });
               toast({ title: 'Đã tạo mới', description: 'Dữ liệu tham chiếu đã sẵn sàng để dùng.' });
             }
@@ -297,12 +446,14 @@ export function ProductReferenceManagement() {
       />
 
       <DeleteDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title={`Xóa ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}`}
-        description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.name ?? ''}" không?`}
-        onConfirm={() => void handleDelete()}
-        isPending={deleteMutation.isPending}
+        open={!!statusTarget}
+        onClose={() => setStatusTarget(null)}
+        title={`${statusTarget?.status === 'active' ? 'Inactivate' : 'Activate'} ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}`}
+        description={statusTarget?.status === 'active'
+          ? `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Inactive không?`
+          : `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Active không?`}
+        onConfirm={() => void handleChangeStatus()}
+        isPending={updateMutation.isPending}
       />
     </div>
   );
@@ -452,7 +603,7 @@ function DeleteDialog({ open, onClose, title, description, onConfirm, isPending 
             disabled={isPending}
             className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
           >
-            {isPending ? 'Đang xóa...' : 'Xóa'}
+            {isPending ? 'Đang cập nhật...' : 'Xác nhận'}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -483,17 +634,20 @@ function ActionButton({
   label,
   onClick,
   danger = false,
+  disabled = false,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg p-2 transition ${danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+      disabled={disabled}
+      className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-45 ${danger ? 'text-red-600 hover:bg-red-50 disabled:hover:bg-transparent' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500'}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>

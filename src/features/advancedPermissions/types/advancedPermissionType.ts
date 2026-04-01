@@ -11,6 +11,11 @@ export interface ModulePermission {
   iconBg: string;
   iconColor: string;
   isConfigurable: boolean;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
   view: boolean;
   create: boolean;
   edit: boolean;

@@ -42,6 +42,29 @@ function PageAccessRoute({ path, children }: { path: string; children: React.Rea
   return canAccess ? <>{children}</> : <Navigate to="/403" replace />;
 }
 
+function DefaultLandingRoute() {
+  const user = useAuthStore((state) => state.user);
+  const permissions = user?.permissions ?? [];
+  const role = user?.role;
+
+  const candidates = [
+    '/admin/product-settings',
+    '/admin/categories',
+    '/admin/products',
+    '/admin/warehouses',
+    '/admin/users',
+    '/admin/role-permissions',
+    '/admin/advanced-permission',
+    '/admin/approval-configuration',
+  ];
+
+  const firstAccessible = candidates.find((path) =>
+    hasPageAccessFromPermissionNames(path, permissions, role),
+  );
+
+  return <Navigate to={firstAccessible ?? '/profile'} replace />;
+}
+
 function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -64,7 +87,7 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Navigate to="/admin/users" replace />} />
+            <Route path="/" element={<DefaultLandingRoute />} />
             <Route path="/profile" element={<UserProfilePage />} />
             <Route path="/admin/users" element={<PageAccessRoute path="/admin/users"><UserManagementPage /></PageAccessRoute>} />
             <Route path="/admin/role-permissions" element={<PageAccessRoute path="/admin/role-permissions"><RolePermissionsPage /></PageAccessRoute>} />

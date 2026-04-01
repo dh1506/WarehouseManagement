@@ -165,9 +165,35 @@ function hasAnyAction(
   return backendModules.some((moduleName) => actions.some((action) => permissionSet.has(`${moduleName}:${action}`)));
 }
 
-function mapToSidebarModules(permissionSet: Set<string>): ModulePermission[] {
+function hasAvailableAction(
+  permissionCatalogSet: Set<string>,
+  backendModules: string[],
+  action: string,
+): boolean {
+  return backendModules.some((moduleName) => permissionCatalogSet.has(`${moduleName}:${action}`));
+}
+
+function mapToSidebarModules(
+  permissionSet: Set<string>,
+  permissionCatalogSet: Set<string>,
+): ModulePermission[] {
   return SIDEBAR_MODULE_TEMPLATES.map((template) => {
     const hasMappedModule = template.backendModules.length > 0;
+    const canView = hasMappedModule
+      ? hasAvailableAction(permissionCatalogSet, template.backendModules, 'read')
+      : false;
+    const canCreate = hasMappedModule
+      ? hasAvailableAction(permissionCatalogSet, template.backendModules, 'create')
+      : false;
+    const canEdit = hasMappedModule
+      ? hasAvailableAction(permissionCatalogSet, template.backendModules, 'update')
+      : false;
+    const canDelete = hasMappedModule
+      ? hasAvailableAction(permissionCatalogSet, template.backendModules, 'delete')
+      : false;
+    const canApprove = hasMappedModule
+      ? hasAvailableAction(permissionCatalogSet, template.backendModules, 'approve')
+      : false;
 
     return {
       moduleId: template.moduleId,
@@ -176,15 +202,30 @@ function mapToSidebarModules(permissionSet: Set<string>): ModulePermission[] {
       iconBg: template.iconBg,
       iconColor: template.iconColor,
       isConfigurable: hasMappedModule,
-      view: hasMappedModule
-        ? hasAnyAction(permissionSet, template.backendModules, ['read', 'create', 'update', 'delete', 'approve'])
+      canView,
+      canCreate,
+      canEdit,
+      canDelete,
+      canApprove,
+      view: canView
+        ? hasAnyAction(permissionSet, template.backendModules, ['read'])
         : false,
-      create: hasMappedModule ? hasAnyAction(permissionSet, template.backendModules, ['create']) : false,
-      edit: hasMappedModule ? hasAnyAction(permissionSet, template.backendModules, ['update']) : false,
-      delete: hasMappedModule ? hasAnyAction(permissionSet, template.backendModules, ['delete']) : false,
-      approve: hasMappedModule ? hasAnyAction(permissionSet, template.backendModules, ['approve']) : false,
+      create: canCreate ? hasAnyAction(permissionSet, template.backendModules, ['create']) : false,
+      edit: canEdit ? hasAnyAction(permissionSet, template.backendModules, ['update']) : false,
+      delete: canDelete ? hasAnyAction(permissionSet, template.backendModules, ['delete']) : false,
+      approve: canApprove ? hasAnyAction(permissionSet, template.backendModules, ['approve']) : false,
     };
   });
+}
+
+function hasModuleAccess(moduleItem: ModulePermission): boolean {
+  return Boolean(
+    moduleItem.view ||
+    moduleItem.create ||
+    moduleItem.edit ||
+    moduleItem.delete ||
+    moduleItem.approve,
+  );
 }
 
 function buildContext(roleId: string, roleDescription: string | null, modules: ModulePermission[]): RoleContext {
@@ -266,7 +307,8 @@ export async function getAdvancedRolePermissions(roleId: string): Promise<Advanc
     ),
   );
 
-  const modules = mapToSidebarModules(assignedPermissionSet);
+  const modules = mapToSidebarModules(assignedPermissionSet, activePermissionKeySet)
+    .filter(hasModuleAccess);
 
   return {
     roleId: String(rolePayload.id),

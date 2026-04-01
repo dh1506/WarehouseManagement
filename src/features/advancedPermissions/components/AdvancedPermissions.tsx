@@ -9,6 +9,7 @@ import {
   ACCESS_LEVEL_META,
 } from '../types/advancedPermissionType';
 import type { ModulePermission } from '../types/advancedPermissionType';
+import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,7 @@ function PermCheckbox({
 
 export function AdvancedPermissions() {
   const { toast } = useToast();
+  const canUpdateAdvancedPermissions = usePermission('roles:update');
   const { data: roles, isLoading: rolesLoading } = useRolesForAdvanced();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
@@ -134,11 +136,20 @@ export function AdvancedPermissions() {
     moduleId: string,
     field: 'view' | 'create' | 'edit' | 'delete',
   ) => {
+    if (!canUpdateAdvancedPermissions) {
+      return;
+    }
+
     setLocalModules((prev) =>
       prev.map((m) => {
         if (m.moduleId !== moduleId || !m.isConfigurable) {
           return m;
         }
+
+        if (field === 'view' && !m.canView) return m;
+        if (field === 'create' && !m.canCreate) return m;
+        if (field === 'edit' && !m.canEdit) return m;
+        if (field === 'delete' && !m.canDelete) return m;
 
         return { ...m, [field]: !m[field] };
       }),
@@ -146,9 +157,13 @@ export function AdvancedPermissions() {
   };
 
   const handleToggleApprove = (moduleId: string) => {
+    if (!canUpdateAdvancedPermissions) {
+      return;
+    }
+
     setLocalModules((prev) =>
       prev.map((m) => {
-        if (m.moduleId !== moduleId || !m.isConfigurable) {
+        if (m.moduleId !== moduleId || !m.isConfigurable || !m.canApprove) {
           return m;
         }
 
@@ -159,6 +174,15 @@ export function AdvancedPermissions() {
 
   const handleSave = async () => {
     if (!selectedRoleId) return;
+
+    if (!canUpdateAdvancedPermissions) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi phân quyền.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       const result = await updateMutation.mutateAsync({
@@ -181,6 +205,10 @@ export function AdvancedPermissions() {
   };
 
   const handleDiscard = () => {
+    if (!canUpdateAdvancedPermissions) {
+      return;
+    }
+
     if (permData) setLocalModules(permData.modules.map((m) => ({ ...m })));
   };
 
@@ -214,14 +242,14 @@ export function AdvancedPermissions() {
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={handleDiscard}
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || !canUpdateAdvancedPermissions}
               className="px-5 py-2.5 text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm disabled:opacity-50"
             >
               Discard Changes
             </button>
             <button
               onClick={() => void handleSave()}
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || !canUpdateAdvancedPermissions}
               className="px-5 py-2.5 text-white bg-[#0f2868] hover:bg-blue-900 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2 disabled:opacity-75"
             >
               {updateMutation.isPending && (
@@ -474,28 +502,28 @@ export function AdvancedPermissions() {
                           <PermCheckbox
                             checked={mod.view}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'view')}
-                            disabled={!mod.isConfigurable}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canView}
                           />
                         </td>
                         <td className="py-4 px-4 text-center">
                           <PermCheckbox
                             checked={mod.create}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'create')}
-                            disabled={!mod.isConfigurable}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canCreate}
                           />
                         </td>
                         <td className="py-4 px-4 text-center">
                           <PermCheckbox
                             checked={mod.edit}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'edit')}
-                            disabled={!mod.isConfigurable}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canEdit}
                           />
                         </td>
                         <td className="py-4 px-4 text-center">
                           <PermCheckbox
                             checked={mod.delete}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'delete')}
-                            disabled={!mod.isConfigurable}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canDelete}
                           />
                         </td>
 
@@ -506,7 +534,7 @@ export function AdvancedPermissions() {
                               id={`approve-${mod.moduleId}`}
                               checked={mod.approve}
                               onChange={() => handleToggleApprove(mod.moduleId)}
-                              disabled={!mod.isConfigurable}
+                              disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canApprove}
                             />
                           </div>
                         </td>

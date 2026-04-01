@@ -71,12 +71,30 @@ export function ProductManagement() {
   const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
 
   const openCreate = () => {
+    if (!canCreate) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to create products.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSheetMode('create');
     setSelectedProduct(null);
     setIsSheetOpen(true);
   };
 
   const openEdit = (item: ProductItem) => {
+    if (!canEdit) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to edit products.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSheetMode('edit');
     setSelectedProduct(item);
     setIsSheetOpen(true);
@@ -134,7 +152,7 @@ export function ProductManagement() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          eyebrow="Sprint 1 · Product Master"
+          // eyebrow="Sprint 1 · Product Master"
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
           actions={canCreate ? (
@@ -227,16 +245,16 @@ export function ProductManagement() {
               </div>
             ) : (
               <>
-                <div className={`min-h-0 flex-1 overflow-auto ${listQuery.isFetching ? 'opacity-70 transition' : 'transition'}`}>
+                <div className={`relative min-h-0 flex-1 overflow-y-auto ${listQuery.isFetching ? 'opacity-70 transition' : 'transition'}`}>
                   <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+                    <thead className="sticky top-0 z-10 bg-slate-50">
                       <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Product</th>
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Category</th>
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Unit / Brand</th>
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Stock Policy</th>
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Status</th>
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
+                        <th className="px-4 py-3">Product</th>
+                        <th className="px-4 py-3">Category</th>
+                        <th className="px-4 py-3">Unit / Brand</th>
+                        <th className="px-4 py-3">Stock Policy</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -283,7 +301,9 @@ export function ProductManagement() {
                   </table>
                 </div>
 
-                <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageStart={pageStart} pageEnd={pageEnd} onChange={setPage} />
+                {totalItems > 0 ? (
+                  <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageStart={pageStart} pageEnd={pageEnd} onChange={setPage} />
+                ) : null}
               </>
             )}
           </div>
@@ -302,9 +322,27 @@ export function ProductManagement() {
         onSubmit={async (payload: ProductFormData) => {
           try {
             if (sheetMode === 'edit' && selectedProduct) {
+              if (!canEdit) {
+                toast({
+                  title: 'Access denied',
+                  description: 'You do not have permission to edit products.',
+                  variant: 'destructive',
+                });
+                return;
+              }
+
               await updateMutation.mutateAsync({ id: selectedProduct.id, payload });
               toast({ title: 'Product updated', description: 'The product record has been saved.' });
             } else {
+              if (!canCreate) {
+                toast({
+                  title: 'Access denied',
+                  description: 'You do not have permission to create products.',
+                  variant: 'destructive',
+                });
+                return;
+              }
+
               await createMutation.mutateAsync(payload);
               toast({ title: 'Product created', description: 'The product is now available in the system.' });
             }
