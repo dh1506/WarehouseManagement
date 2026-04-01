@@ -16,6 +16,8 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   // Clear existing data in correct order (child tables first)
+  await prisma.warehouseLocation.deleteMany();
+  await prisma.warehouse.deleteMany();
   await prisma.productSupplier.deleteMany();
   await prisma.productCategoryMap.deleteMany();
   await prisma.productUom.deleteMany();
@@ -197,6 +199,25 @@ async function main() {
       module: "uoms",
       action: "update",
     },
+    // Warehouses
+    {
+      name: "warehouses:read",
+      description: "Read warehouses",
+      module: "warehouses",
+      action: "read",
+    },
+    {
+      name: "warehouses:create",
+      description: "Create warehouses",
+      module: "warehouses",
+      action: "create",
+    },
+    {
+      name: "warehouses:update",
+      description: "Update warehouses",
+      module: "warehouses",
+      action: "update",
+    },
   ];
 
   for (const perm of permissions) {
@@ -260,7 +281,8 @@ async function main() {
       p.name.startsWith("manufacturers:") ||
       p.name.startsWith("suppliers:") ||
       p.name.startsWith("categories:") ||
-      p.name.startsWith("uoms:"),
+      p.name.startsWith("uoms:") ||
+      p.name.startsWith("warehouses:"),
   );
   await prisma.rolePermission.createMany({
     data: managerPermissions.map((p) => ({
@@ -282,7 +304,8 @@ async function main() {
       p.name.startsWith("manufacturers:") ||
       p.name.startsWith("suppliers:") ||
       p.name.startsWith("categories:") ||
-      p.name.startsWith("uoms:"),
+      p.name.startsWith("uoms:") ||
+      p.name.startsWith("warehouses:"),
   );
   await prisma.rolePermission.createMany({
     data: staffPermissions.map((p) => ({
@@ -295,7 +318,7 @@ async function main() {
   // Tạo user admin
   const hashedPassword =
     "$2b$10$02j7B5YIoaPFDl7hfT8zpuFlcfsAZtTY466rNGVqyNug.ua8jInvW";
-  await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { username: "admin" },
     update: {},
     create: {
@@ -305,6 +328,22 @@ async function main() {
       email: "admin@gmail.com",
       role_id: ceoRole.id,
     },
+  });
+
+  // Tạo warehouse mẫu
+  const mainWarehouse = await prisma.warehouse.upsert({
+    where: { code: "WH001" },
+    update: {},
+    create: {
+      code: "WH001",
+      name: "Main Warehouse",
+    },
+  });
+
+  // Cập nhật admin user với warehouse_id
+  await prisma.user.update({
+    where: { id: adminUser.id },
+    data: { warehouse_id: mainWarehouse.id },
   });
 
   // Seeding sample data for F&B Warehouse
@@ -458,9 +497,11 @@ async function main() {
       product_type: "GOODS",
       brand_id: cocaColaBrand.id,
       manufacturer_id: cocaColaMfg.id,
+      warehouse_id: mainWarehouse.id,
       base_uom_id: pieceUom.id,
       has_batch: true,
-      has_expiry: true,
+      production_date: new Date("2026-01-01T00:00:00.000Z"),
+      expiry_date: new Date("2026-12-31T23:59:59.999Z"),
       min_stock: 100,
       max_stock: 1000,
       storage_conditions: "Store in cool, dry place",
@@ -477,9 +518,11 @@ async function main() {
       product_type: "GOODS",
       brand_id: nestleBrand.id,
       manufacturer_id: nestleMfg.id,
+      warehouse_id: mainWarehouse.id,
       base_uom_id: pieceUom.id,
       has_batch: true,
-      has_expiry: true,
+      production_date: new Date("2026-03-01T00:00:00.000Z"),
+      expiry_date: new Date("2026-05-31T23:59:59.999Z"),
       min_stock: 50,
       max_stock: 500,
       storage_conditions: "Refrigerate at 4°C",
@@ -574,6 +617,61 @@ async function main() {
       supplier_sku: "FM1L",
       purchase_price: 1.2,
       is_primary: true,
+    },
+  });
+
+  // Warehouses
+
+  const hcmWarehouse = await prisma.warehouse.upsert({
+    where: { code: "WH_HCM" },
+    update: {},
+    create: {
+      code: "WH_HCM",
+      name: "Ho Chi Minh Branch",
+      is_active: true,
+    },
+  });
+  // Warehouse Locations (WH_MAIN)
+  // Ambient Zone
+  await prisma.warehouseLocation.upsert({
+    where: { location_code: "WH001-Z1-A1-R1-L1-B1" },
+    update: {},
+    create: {
+      warehouse_id: mainWarehouse.id,
+      location_code: "WH001-Z1-A1-R1-L1-B1",
+      zone_code: "Z1",
+      aisle_code: "A1",
+      rack_code: "R1",
+      level_code: "L1",
+      bin_code: "B1",
+      full_path: "WH001-Z1-A1-R1-L1-B1",
+      location_status: "AVAILABLE",
+      storage_condition: "AMBIENT",
+      max_weight: 1000,
+      max_volume: 50,
+      current_weight: 0,
+      current_volume: 0,
+    },
+  });
+  // Frozen Zone
+  await prisma.warehouseLocation.upsert({
+    where: { location_code: "WH001-FZ1-A1-R1-L1-B1" },
+    update: {},
+    create: {
+      warehouse_id: mainWarehouse.id,
+      location_code: "WH001-FZ1-A1-R1-L1-B1",
+      zone_code: "FZ1",
+      aisle_code: "A1",
+      rack_code: "R1",
+      level_code: "L1",
+      bin_code: "B1",
+      full_path: "WH001-FZ1-A1-R1-L1-B1",
+      location_status: "AVAILABLE",
+      storage_condition: "FROZEN",
+      max_weight: 800,
+      max_volume: 40,
+      current_weight: 0,
+      current_volume: 0,
     },
   });
 

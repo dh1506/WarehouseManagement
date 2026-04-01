@@ -18,7 +18,11 @@ export const getProducts = async (query: GetProductsQuery) => {
     product_type,
     product_status,
     brand_id,
-    has_expiry,
+    warehouse_id,
+    production_date_from,
+    production_date_to,
+    expiry_date_from,
+    expiry_date_to,
   } = query;
   const skip = (page - 1) * limit;
 
@@ -41,8 +45,28 @@ export const getProducts = async (query: GetProductsQuery) => {
     where.brand_id = brand_id;
   }
 
-  if (has_expiry !== undefined) {
-    where.has_expiry = has_expiry;
+  if (warehouse_id) {
+    where.warehouse_id = warehouse_id;
+  }
+
+  if (production_date_from || production_date_to) {
+    where.production_date = {} as any;
+    if (production_date_from) {
+      (where.production_date as any).gte = production_date_from;
+    }
+    if (production_date_to) {
+      (where.production_date as any).lte = production_date_to;
+    }
+  }
+
+  if (expiry_date_from || expiry_date_to) {
+    where.expiry_date = {} as any;
+    if (expiry_date_from) {
+      (where.expiry_date as any).gte = expiry_date_from;
+    }
+    if (expiry_date_to) {
+      (where.expiry_date as any).lte = expiry_date_to;
+    }
   }
 
   // Lọc theo danh mục: tìm sản phẩm có liên kết với category_id
@@ -66,7 +90,8 @@ export const getProducts = async (query: GetProductsQuery) => {
         product_type: true,
         product_status: true,
         has_batch: true,
-        has_expiry: true,
+        production_date: true,
+        expiry_date: true,
         min_stock: true,
         max_stock: true,
         storage_conditions: true,
@@ -81,6 +106,13 @@ export const getProducts = async (query: GetProductsQuery) => {
           },
         },
         manufacturer: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+        warehouse: {
           select: {
             id: true,
             code: true,
@@ -189,7 +221,8 @@ export const getProductById = async (id: number) => {
       product_type: true,
       product_status: true,
       has_batch: true,
-      has_expiry: true,
+      production_date: true,
+      expiry_date: true,
       min_stock: true,
       max_stock: true,
       storage_conditions: true,
@@ -204,6 +237,13 @@ export const getProductById = async (id: number) => {
         },
       },
       manufacturer: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+      warehouse: {
         select: {
           id: true,
           code: true,
@@ -327,6 +367,16 @@ export const createProduct = async (data: CreateProductInput) => {
     }
   }
 
+  // Kiểm tra warehouse tồn tại (nếu có)
+  if (data.warehouse_id) {
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: data.warehouse_id },
+    });
+    if (!warehouse) {
+      throw new AppError("Kho không tồn tại", 400);
+    }
+  }
+
   // Kiểm tra tất cả category IDs tồn tại (nếu có)
   if (data.category_ids && data.category_ids.length > 0) {
     const categories = await prisma.productCategory.findMany({
@@ -360,6 +410,18 @@ export const createProduct = async (data: CreateProductInput) => {
     }
   }
 
+  // Kiểm tra production/expiry hợp lệ
+  if (data.production_date && data.expiry_date) {
+    const productionDate = new Date(data.production_date);
+    const expiryDate = new Date(data.expiry_date);
+    if (expiryDate < productionDate) {
+      throw new AppError(
+        "Ngày hết hạn phải lớn hơn hoặc bằng ngày sản xuất",
+        400,
+      );
+    }
+  }
+
   // Tạo sản phẩm trong transaction
   const newProduct = await prisma.$transaction(async (tx) => {
     // Tạo sản phẩm
@@ -372,8 +434,12 @@ export const createProduct = async (data: CreateProductInput) => {
         brand_id: data.brand_id ?? null,
         manufacturer_id: data.manufacturer_id ?? null,
         base_uom_id: data.base_uom_id,
+        warehouse_id: data.warehouse_id ?? null,
         has_batch: data.has_batch ?? false,
-        has_expiry: data.has_expiry ?? false,
+        production_date: data.production_date
+          ? new Date(data.production_date)
+          : null,
+        expiry_date: data.expiry_date ? new Date(data.expiry_date) : null,
         min_stock: data.min_stock ?? null,
         max_stock: data.max_stock ?? null,
         storage_conditions: data.storage_conditions ?? null,
@@ -463,6 +529,16 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
     }
   }
 
+  // Kiểm tra warehouse (nếu thay đổi)
+  if (data.warehouse_id) {
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: data.warehouse_id },
+    });
+    if (!warehouse) {
+      throw new AppError("Kho không tồn tại", 400);
+    }
+  }
+
   // Kiểm tra category IDs (nếu có)
   if (data.category_ids && data.category_ids.length > 0) {
     const categories = await prisma.productCategory.findMany({
@@ -496,6 +572,18 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
     }
   }
 
+  // Kiểm tra production/expiry hợp lệ khi cập nhật
+  if (data.production_date && data.expiry_date) {
+    const productionDate = new Date(data.production_date);
+    const expiryDate = new Date(data.expiry_date);
+    if (expiryDate < productionDate) {
+      throw new AppError(
+        "Ngày hết hạn phải lớn hơn hoặc bằng ngày sản xuất",
+        400,
+      );
+    }
+  }
+
   // Cập nhật trong transaction
   await prisma.$transaction(async (tx) => {
     // Chuẩn bị dữ liệu cập nhật cho product
@@ -513,8 +601,17 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
       updateData.manufacturer_id = data.manufacturer_id;
     if (data.base_uom_id !== undefined)
       updateData.base_uom_id = data.base_uom_id;
+    if (data.warehouse_id !== undefined)
+      updateData.warehouse_id = data.warehouse_id;
     if (data.has_batch !== undefined) updateData.has_batch = data.has_batch;
-    if (data.has_expiry !== undefined) updateData.has_expiry = data.has_expiry;
+    if (data.production_date !== undefined)
+      updateData.production_date = data.production_date
+        ? new Date(data.production_date)
+        : null;
+    if (data.expiry_date !== undefined)
+      updateData.expiry_date = data.expiry_date
+        ? new Date(data.expiry_date)
+        : null;
     if (data.min_stock !== undefined) updateData.min_stock = data.min_stock;
     if (data.max_stock !== undefined) updateData.max_stock = data.max_stock;
     if (data.storage_conditions !== undefined)
