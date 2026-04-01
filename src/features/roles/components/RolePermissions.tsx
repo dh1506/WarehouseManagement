@@ -1,8 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { StatePanel } from '@/components/StatePanel';
 import { useToast } from '@/hooks/use-toast';
+import { sidebarNavItems } from '@/layouts/sidebar-navigation';
 import { useRoles, useRolePermissions, useUpdateRolePermissions } from '../hooks/useRolePermissions';
-import type { Permission } from '../types/roleType';
+import type { Permission, PermissionAction } from '../types/roleType';
+
+interface PermissionPageRow {
+  module: string;
+  label: string;
+  icon: string;
+  route: string;
+  description: string;
+  permission: Permission;
+  actions: Set<PermissionAction>;
+  isBackedByApi: boolean;
+}
 
 export function RolePermissions() {
   const { toast } = useToast();
@@ -35,7 +47,35 @@ export function RolePermissions() {
     }
   }, [rolePermissions]);
 
-  const handleToggle = (moduleName: string, action: keyof Omit<Permission, 'module'>) => {
+  const pageRows = useMemo<PermissionPageRow[]>(() => {
+    const availableModuleMap = new Map(
+      (rolePermissions?.availableModules ?? []).map((item) => [normalizePermissionKey(item.module), item])
+    );
+    const localPermissionMap = new Map(
+      localPermissions.map((permission) => [normalizePermissionKey(permission.module), permission])
+    );
+
+    return sidebarNavItems.map((item) => {
+      const lookupKeys = [item.permissionModule, ...(item.permissionAliases ?? [])].map(normalizePermissionKey);
+      const matchedModule =
+        lookupKeys.find((key) => availableModuleMap.has(key) || localPermissionMap.has(key)) ?? null;
+      const availableModule = matchedModule ? availableModuleMap.get(matchedModule) : undefined;
+      const backingPermission = matchedModule ? localPermissionMap.get(matchedModule) : undefined;
+
+      return {
+        module: item.permissionModule,
+        label: item.label,
+        icon: item.icon,
+        route: item.to,
+        description: item.pageDescription ?? `Truy cập trang ${item.label}.`,
+        permission: backingPermission ?? createEmptyPermission(item.permissionModule),
+        actions: new Set(availableModule?.actions ?? []),
+        isBackedByApi: Boolean(availableModule && backingPermission),
+      };
+    });
+  }, [localPermissions, rolePermissions?.availableModules]);
+
+  const handleToggle = (moduleName: string, action: PermissionAction) => {
     setLocalPermissions((prev) =>
       prev.map((perm) =>
         perm.module === moduleName ? { ...perm, [action]: !perm[action] } : perm
@@ -79,7 +119,7 @@ export function RolePermissions() {
 
   const selectedRole = roles?.find((r) => r.id === selectedRoleId);
   const showEmptyRoles = !rolesLoading && !rolesError && (roles?.length ?? 0) === 0;
-  const showEmptyPermissions = !permissionsLoading && !permissionsError && localPermissions.length === 0;
+  const showEmptyPermissions = !permissionsLoading && !permissionsError && pageRows.length === 0;
   const isInteractionDisabled = updateMutation.isPending || permissionsLoading;
 
   return (
@@ -167,7 +207,7 @@ export function RolePermissions() {
               <h3 className="text-xl font-bold text-gray-900">
                 Permission Matrix: <span className="text-primary">{selectedRole?.name}</span>
               </h3>
-              <p className="text-sm text-gray-500">Configure access levels for each system module.</p>
+              <p className="text-sm text-gray-500">Configure access levels for each page currently exposed in the sidebar.</p>
             </div>
             {selectedRole?.name === 'Director' && (
               <div className="flex gap-1">
@@ -179,7 +219,7 @@ export function RolePermissions() {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 min-h-0 overflow-auto p-4">
             {permissionsLoading ? (
               <div className="animate-pulse space-y-2">
                 <div className="h-10 bg-gray-100 rounded"></div>
@@ -209,38 +249,46 @@ export function RolePermissions() {
               />
             ) : (
               <table className="w-full border-separate border-spacing-y-4">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="text-left">
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider pl-4">System Module</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">View</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Create</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Edit</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Delete</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center pr-4">Approve</th>
+                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider pl-4">System Module</th>
+                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">View</th>
+                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Create</th>
+                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Edit</th>
+                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Delete</th>
+                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center pr-4">Approve</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {localPermissions.map((perm) => {
-                    const moduleName = formatModuleName(perm.module);
-                    const isAiForecast = isAiForecastModule(perm.module);
+                  {pageRows.map((row) => {
+                    const moduleName = row.label;
+                    const isAiForecast = isAiForecastModule(row.module);
+                    const rowDisabled = isInteractionDisabled || !row.isBackedByApi;
                     return (
-                      <tr key={perm.module} className="group hover:bg-slate-50/50 transition-colors">
+                      <tr key={row.route} className="group hover:bg-slate-50/50 transition-colors">
                         <td className={`py-4 pl-4 rounded-l-xl ${isAiForecast ? 'bg-cyan-50/30 group-hover:bg-cyan-100/10' : 'bg-gray-50/30 group-hover:bg-primary/5'} transition-colors`}>
                           <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg shadow-sm ${isAiForecast ? 'bg-cyan-600 text-white' : 'bg-white text-primary'
                               }`}>
                               <span
                                 className="material-symbols-outlined text-xl"
-                                data-icon={getIconForModule(perm.module)}
+                                data-icon={row.icon}
                                 style={isAiForecast ? { fontVariationSettings: "'FILL' 1" } : {}}
                               >
-                                {getIconForModule(perm.module)}
+                                {row.icon}
                               </span>
                             </div>
                             <div>
                               <span className="font-bold text-gray-900">{moduleName}</span>
+                              <span className="block text-xs text-gray-500">{row.route}</span>
+                              <span className="block text-xs text-gray-500">{row.description}</span>
                               {isAiForecast && (
                                 <span className="block text-[10px] text-cyan-700 font-bold uppercase tracking-tighter">Predictive Analysis</span>
+                              )}
+                              {!row.isBackedByApi && (
+                                <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                                  Chưa có permission backend
+                                </span>
                               )}
                             </div>
                           </div>
@@ -248,45 +296,45 @@ export function RolePermissions() {
                         <td className="py-4 text-center">
                           <input
                             type="checkbox"
-                            checked={perm.view}
-                            onChange={() => handleToggle(perm.module, 'view')}
-                            disabled={isInteractionDisabled}
+                            checked={row.permission.view}
+                            onChange={() => handleToggle(row.permission.module, 'view')}
+                            disabled={rowDisabled || !row.actions.has('view')}
                             className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
                           />
                         </td>
                         <td className="py-4 text-center">
                           <input
                             type="checkbox"
-                            checked={perm.create}
-                            onChange={() => handleToggle(perm.module, 'create')}
-                            disabled={isInteractionDisabled}
+                            checked={row.permission.create}
+                            onChange={() => handleToggle(row.permission.module, 'create')}
+                            disabled={rowDisabled || !row.actions.has('create')}
                             className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
                           />
                         </td>
                         <td className="py-4 text-center">
                           <input
                             type="checkbox"
-                            checked={perm.edit}
-                            onChange={() => handleToggle(perm.module, 'edit')}
-                            disabled={isInteractionDisabled}
+                            checked={row.permission.edit}
+                            onChange={() => handleToggle(row.permission.module, 'edit')}
+                            disabled={rowDisabled || !row.actions.has('edit')}
                             className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
                           />
                         </td>
                         <td className="py-4 text-center">
                           <input
                             type="checkbox"
-                            checked={perm.delete}
-                            onChange={() => handleToggle(perm.module, 'delete')}
-                            disabled={isInteractionDisabled}
+                            checked={row.permission.delete}
+                            onChange={() => handleToggle(row.permission.module, 'delete')}
+                            disabled={rowDisabled || !row.actions.has('delete')}
                             className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
                           />
                         </td>
                         <td className="py-4 text-center pr-4 rounded-r-xl">
                           <input
                             type="checkbox"
-                            checked={perm.approve}
-                            onChange={() => handleToggle(perm.module, 'approve')}
-                            disabled={isInteractionDisabled}
+                            checked={row.permission.approve}
+                            onChange={() => handleToggle(row.permission.module, 'approve')}
+                            disabled={rowDisabled || !row.actions.has('approve')}
                             className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
                           />
                         </td>
@@ -329,34 +377,22 @@ export function RolePermissions() {
   );
 }
 
-function getIconForModule(module: string): string {
-  const normalized = module.trim().toLowerCase();
-
-  switch (normalized) {
-    case 'dashboard': return 'dashboard';
-    case 'inventory': return 'inventory';
-    case 'products': return 'inventory_2';
-    case 'reports': return 'bar_chart';
-    case 'users': return 'person';
-    case 'roles': return 'security';
-    case 'permissions': return 'shield';
-    case 'ai-forecast':
-    case 'ai_forecast':
-    case 'ai forecast':
-      return 'auto_awesome';
-    default: return 'widgets';
-  }
-}
-
-function formatModuleName(module: string): string {
-  return module
-    .split(/[-_\s]+/)
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
 function isAiForecastModule(module: string): boolean {
   const normalized = module.trim().toLowerCase();
   return normalized === 'ai forecast' || normalized === 'ai-forecast' || normalized === 'ai_forecast';
+}
+
+function normalizePermissionKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function createEmptyPermission(moduleName: string): Permission {
+  return {
+    module: moduleName,
+    view: false,
+    create: false,
+    edit: false,
+    delete: false,
+    approve: false,
+  };
 }

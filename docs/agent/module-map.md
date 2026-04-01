@@ -20,6 +20,8 @@
   - `types/roleType.ts`: Interfaces cho Role và Permission, có metadata trạng thái/số lượng từ backend.
   - `services/roleService.ts`: Đã chuyển sang API thật, map action backend `read/create/update/delete(/approve)` sang matrix `view/create/edit/delete/approve`.
   - `RolePermissions.tsx`: Bổ sung đầy đủ state loading/error/empty/disabled/mutation + toast theo pattern chung.
+  - `RolePermissions.tsx`: Ma trận hiện bám theo toàn bộ page đang xuất hiện ở sidebar hiện tại, thay vì chỉ render raw module backend.
+  - `types/roleType.ts`: Bổ sung `availableModules` để FE biết action nào backend thực sự hỗ trợ cho từng module/page.
 - **Categories**: Quản lý danh mục Sản Phẩm (`src/features/categories/`)
   - `components/CategoryManagement.tsx`: Container điều phối luồng.
   - `components/CategoryTable.tsx`: Hiện thị danh sách phân cấp tree (`buildFlattenedTree`).
@@ -68,6 +70,13 @@
 - `src/components/StatusBadge.tsx`: Generic badge cho status master-data.
 - `src/components/StatePanel.tsx`: Shared loading/empty/error panel.
 - `src/hooks/usePermission.ts`: Shared permission-aware hook, hỗ trợ wildcard `*`.
+- `src/layouts/sidebar-navigation.ts`: Shared source of truth cho sidebar items, route/icon/label và mapping page -> permission module dùng chung cho Sidebar và Role Permissions.
+
+## Advanced Page Access
+
+- `src/features/advancedPermissions/components/AdvancedPagePermissions.tsx`: Matrix phân quyền theo từng page sidebar hiện tại, phục vụ cấu hình quyền vào trang cho từng role.
+- `src/services/advancedPagePermissionService.ts`: Mock service page-based cho advanced permissions, seed sẵn khác biệt giữa CEO / MANAGER / STAFF / AUDITOR.
+- `src/pages/admin/AdvancedPermissionsPage.tsx`: Đã chuyển sang render `AdvancedPagePermissions`.
 
 ## New Services
 

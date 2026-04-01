@@ -29,9 +29,17 @@ export interface Permission {
   approve: boolean;
 }
 
+export type PermissionAction = keyof Omit<Permission, 'module'>;
+
+export interface PermissionCatalogModule {
+  module: string;
+  actions: PermissionAction[];
+}
+
 export interface RolePermissionResponse {
   roleId: string;
   permissions: Permission[];
+  availableModules: PermissionCatalogModule[];
 }
 
 export interface UpdateRolePermissionPayload {

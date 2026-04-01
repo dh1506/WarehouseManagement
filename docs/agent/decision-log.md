@@ -151,3 +151,38 @@
 **Context:** Yêu cầu nghiệp vụ bỏ trường giới tính trong luồng add/update user; full_name chỉ cần không rỗng (kể cả trim), phone phải theo chuẩn số Việt Nam.  
 **Decision:** Xoá `gender` khỏi FE user form/schema/payload và cập nhật validate `full_name` + `phone` ở cả BE (`user.schema.ts`) và FE (`features/users/schemas/userSchema.ts`). Đồng thời thêm field `phone` vào payload/user model FE và form UI add/update.  
 **Rationale:** Đồng bộ behavior nhập liệu giữa FE và BE theo yêu cầu business, giảm sai lệch validate và đảm bảo dữ liệu sạch trước khi lưu.
+
+## DEC-022 - Canonical user update endpoint follows running backend route (PATCH)
+
+**Date:** 2026-03-31  
+**Context:** FE update flow failed with 404 because FE called `PUT /api/users/:id` while current BE route is `PATCH /api/users/:id`.  
+**Decision:** Standardize FE user update call to `PATCH /api/users/:id` in `userService.ts` until backend route contract is explicitly changed.  
+**Rationale:** Removes runtime endpoint mismatch immediately and keeps FE behavior consistent with deployed backend routing.
+
+## DEC-023 - Add dedicated reset-password endpoint in users module
+
+**Date:** 2026-03-31  
+**Context:** FE already used `PATCH /api/users/:id/reset-password` but BE lacked this endpoint, causing reset-password action to fail.  
+**Decision:** Implement reset-password as a dedicated users endpoint with its own schema (`new_password`), controller action, and service-level bcrypt hashing update.  
+**Rationale:** Keeps password reset separate from profile update semantics, improves auditability of intent, and aligns FE/BE contract for user administration flows.
+
+## DEC-024 - Role permission matrix follows current sidebar navigation
+
+**Date:** 2026-03-31  
+**Context:** User requested role permissions to cover the pages currently exposed in the sidebar, while the existing matrix was based only on raw backend permission modules.  
+**Decision:** Extract sidebar navigation into `src/layouts/sidebar-navigation.ts` and reuse that config to render the role permission matrix in sidebar order, with page-to-permission-module mapping.  
+**Rationale:** Keeps navigation and permission UI in sync, reduces duplicated config, and avoids drift when sidebar pages change later.
+
+## DEC-025 - Sidebar pages without backend permission seeds stay visible but disabled
+
+**Date:** 2026-03-31  
+**Context:** Backend seed currently exposes real permission modules for only part of the current sidebar (`users`, `roles`, `permissions`), while other pages do not yet have matching permission records.  
+**Decision:** Render all sidebar pages in the matrix, but disable toggles and show a backend-gap indicator for pages that do not have matching permission modules/actions from `/api/permissions`.  
+**Rationale:** Satisfies the requested page coverage in UI without inventing unsupported permission IDs or breaking the existing API contract.
+
+## DEC-026 - Advanced Permissions repurposed to page-level sidebar access
+
+**Date:** 2026-03-31  
+**Context:** User requested `/admin/advanced-permission` to control whether each role can enter specific sidebar pages such as Users, Roles, and AI Forecast.  
+**Decision:** Implement a new page-based advanced permission matrix sourced from `sidebar-navigation.ts`, with mock per-role defaults that allow scenarios like `CEO` accessing Users/Roles while `MANAGER` is blocked from those admin pages.  
+**Rationale:** Aligns the advanced permission screen with actual navigation behavior and gives a dedicated place to manage page access without changing the existing backend contract yet.

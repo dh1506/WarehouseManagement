@@ -1,9 +1,9 @@
-import { AdvancedPermissions } from '@/features/advancedPermissions/components/AdvancedPermissions';
+import { AdvancedPagePermissions } from '@/features/advancedPermissions/components/AdvancedPagePermissions';
 
 export function AdvancedPermissionsPage() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
-      <AdvancedPermissions />
+      <AdvancedPagePermissions />
     </div>
   );
 }

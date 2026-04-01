@@ -1,52 +1,51 @@
 # Next Steps
 
 ## Recommended Next Task
-**Connect real backend contracts for Sprint 1 master-data modules**
+
+**Stabilize user-management API behavior with end-to-end verification**
 
 ## Why this is next
-- Product Settings, Product Master, Warehouse, và Warehouse Locations dã có frontend flows hoàn ch?nh.
-- Các sprint transaction sau s? ph? thu?c tr?c ti?p vào các master-data modules này.
-- Ðây là bu?c có ROI cao nh?t tru?c khi m? r?ng sang inbound/outbound/inventory.
+
+- Recent fixes touched critical admin actions (update user, lock/unlock, reset password).
+- There was an API contract drift (`PUT` vs `PATCH`) and a missing reset-password BE route.
+- User administration reliability should be confirmed before expanding additional module integration.
 
 ## Priority Tasks
 
-### NEXT-001 - Replace mock services with real APIs
-- Target files:
-  - `src/services/productReferenceService.ts`
-  - `src/services/productService.ts`
-  - `src/services/warehouseService.ts`
-  - các services cu còn mock khi backend tuong ?ng s?n sàng
-- Vi?c c?n làm:
-  - map chính xác request/response theo backend contract th?t
-  - b? mock arrays
-  - gi? nguyên hooks và UI n?u contract tuong thích
+### NEXT-001 - Run user-management E2E smoke tests
 
-### NEXT-002 - Finalize permission keys for new modules
-- C?n ch?t permission keys cho:
-  - product settings
-  - products
-  - warehouses
-  - warehouse locations
-- Sau dó c?p nh?t `usePermission()` usage ? t?ng action/button cho dúng permission th?t.
+- Scope:
+  - update user profile
+  - lock/unlock account
+  - reset user password
+  - login attempt with suspended account
+- Acceptance:
+  - no 404/405 on user admin actions
+  - clear toast/message for success and failure paths
+  - list state refreshes correctly after mutation
 
-### NEXT-003 - Add stable option endpoints for dependent masters
-- Product form ph? thu?c category/unit/brand.
-- Location form ph? thu?c warehouse options.
-- Nên uu tiên có endpoint option/list don gi?n d? form và filters không ph?i fetch shape l?n.
+### NEXT-002 - Consolidate user update method in API documentation
 
-### NEXT-004 - Confirm deletion/business rules with backend
-- Làm rõ rule khi:
-  - xóa warehouse còn locations
-  - xóa unit/brand dang du?c product dùng
-  - d?i tr?ng thái inactive c?a product master dang có transaction
+- Confirm canonical contract between FE docs and BE implementation:
+  - Option A: keep `PATCH /api/users/:id` as update endpoint
+  - Option B: add/restore `PUT /api/users/:id` and support both during transition
+- Update API design references to remove method ambiguity.
+
+### NEXT-003 - Add regression checks for auth/permission edge cases
+
+- Verify non-CEO roles with and without `users:update` permission on update/lock/reset actions.
+- Confirm forbidden actions return proper 403 and FE shows actionable error feedback.
+
+### NEXT-004 - Resume Sprint 1 remaining service integrations
+
+- After user-management stability is confirmed, continue replacing mock services for product and warehouse domains.
 
 ### NEXT-005 - Prepare Sprint 2 transaction modules
-- Sau khi master data APIs n?i th?t, task nên làm ti?p là:
-  - inbound / import requests
-  - outbound / export requests
-  - inventory transactions
+
+- Start inbound/outbound/inventory only after master-data + user-admin APIs are stable in integrated environment.
 
 ## Assumptions to verify next
-- Unit of measure và brand/manufacturer có thu?c cùng domain API v?i product hay là service riêng.
-- Warehouse location có c?n thêm c?p hierarchy nhu area/zone/rack/bin ngoài shape hi?n t?i hay không.
-- Product master có c?n thêm barcode, lot policy, expiry policy, ho?c metadata khác ngoài scope hi?n t?i không.
+
+- Backend users module is the source of truth for update/reset-password routes and payload shapes.
+- Permission middleware behavior for CEO bypass and non-CEO restricted actions is intentional and approved.
+- FE error handling assumes API errors are normalized by backend global error middleware.

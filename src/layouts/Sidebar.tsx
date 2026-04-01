@@ -1,28 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
-
-interface NavItem {
-  to: string;
-  icon: string;
-  label: string;
-  end?: boolean;
-}
-
-const navItems: NavItem[] = [
-  { to: '/', icon: 'dashboard', label: 'Dashboard', end: true },
-  { to: '/admin/warehouses', icon: 'warehouse', label: 'Warehouse Hub' },
-  { to: '/admin/categories', icon: 'category', label: 'Category' },
-  { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
-  { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
-  { to: '/import-export', icon: 'swap_horiz', label: 'Import / Export' },
-  { to: '/inventory', icon: 'widgets', label: 'Inventory' },
-  { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
-  { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
-  { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
-  { to: '/admin/advanced-permission', icon: 'admin_panel_settings', label: 'Advanced Permissions' },
-  { to: '/admin/approval-configuration', icon: 'approval', label: 'Approval Configuration' },
-];
+import { sidebarNavItems } from './sidebar-navigation';
 
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
@@ -81,7 +60,7 @@ export function Sidebar() {
 
         {/* ── Navigation ────────────────────────────────────────────────────── */}
         <nav className="p-2 space-y-0.5 mt-2 flex-1 overflow-y-auto overflow-x-hidden">
-          {navItems.map((item) => (
+          {sidebarNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

@@ -3,6 +3,8 @@ import type { ApiResponse } from '@/types/api';
 import type {
   CreateRolePayload,
   Permission,
+  PermissionAction,
+  PermissionCatalogModule,
   Role,
   RolePermissionResponse,
   UpdateRolePayload,
@@ -44,7 +46,7 @@ interface RolePermissionsApiData {
   permissions: PermissionApiItem[];
 }
 
-type PermissionToggleKey = keyof Omit<Permission, 'module'>;
+type PermissionToggleKey = PermissionAction;
 
 const PRIMARY_ROLE_NAMES = new Set(['CEO', 'DIRECTOR']);
 
@@ -124,6 +126,28 @@ function buildPermissionMatrix(availablePermissions: PermissionApiItem[], assign
   return Array.from(permissionByModule.values());
 }
 
+function buildAvailableModules(permissionCatalog: PermissionApiItem[]): PermissionCatalogModule[] {
+  const moduleActionMap = new Map<string, Set<PermissionAction>>();
+
+  for (const permission of permissionCatalog) {
+    const toggleKey = toToggleKey(permission.action);
+    if (!toggleKey) {
+      continue;
+    }
+
+    if (!moduleActionMap.has(permission.module)) {
+      moduleActionMap.set(permission.module, new Set<PermissionAction>());
+    }
+
+    moduleActionMap.get(permission.module)?.add(toggleKey);
+  }
+
+  return Array.from(moduleActionMap.entries()).map(([module, actions]) => ({
+    module,
+    actions: Array.from(actions),
+  }));
+}
+
 function mapRoleFromApi(role: RoleApiItem): Role {
   return {
     id: String(role.id),
@@ -186,7 +210,7 @@ export const createRole = async (payload: CreateRolePayload): Promise<Role> => {
 };
 
 export const updateRole = async (id: string, payload: UpdateRolePayload): Promise<Role> => {
-  const response = await apiClient.put<ApiResponse<RoleDetailApiData>>(`/api/roles/${id}`, {
+  const response = await apiClient.patch<ApiResponse<RoleDetailApiData>>(`/api/roles/${id}`, {
     name: payload.name?.trim(),
     description: payload.description?.trim() || null,
     is_active: payload.isActive,
@@ -197,7 +221,7 @@ export const updateRole = async (id: string, payload: UpdateRolePayload): Promis
 
 export const getRolePermissions = async (id: string): Promise<RolePermissionResponse> => {
   const [roleResponse, permissionCatalog] = await Promise.all([
-    apiClient.get<ApiResponse<RolePermissionsApiData>>(`/api/roles/${id}/permissions`),
+    apiClient.get<ApiResponse<RolePermissionsApiData>>(`/api/roles/${id}`),
     getPermissionCatalog(),
   ]);
 
@@ -207,6 +231,7 @@ export const getRolePermissions = async (id: string): Promise<RolePermissionResp
   return {
     roleId: String(roleId),
     permissions: buildPermissionMatrix(permissionCatalog, rolePayload.permissions),
+    availableModules: buildAvailableModules(permissionCatalog),
   };
 };
 
@@ -218,7 +243,7 @@ export const updateRolePermissions = async (id: string, payload: UpdateRolePermi
     throw new Error('Vai trò phải có ít nhất một quyền để lưu cấu hình.');
   }
 
-  await apiClient.patch<ApiResponse<RolePermissionsApiData>>(`/api/roles/${id}/permissions`, {
+  await apiClient.put<ApiResponse<RolePermissionsApiData>>(`/api/roles/${id}/permissions`, {
     permission_ids: permissionIds,
   });
 

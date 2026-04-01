@@ -1,25 +1,28 @@
 # Current Context
 
 ## Sprint / Task hi?n t?i
-**Sprint 1 - N?n t?ng h? th?ng và d? li?u g?c**
 
-## Tr?ng thái
-- Ðã tri?n khai xong các module frontend chính trong ph?m vi Sprint 1.
-- Các module m?i v?n dang dùng mock services shape-stable vì backend th?t chua s?n sàng.
+**Sprint 1 - N?n t?ng h? th?ng vï¿½ d? li?u g?c**
+
+## Tr?ng thï¿½i
+
+- ï¿½ï¿½ tri?n khai xong cï¿½c module frontend chï¿½nh trong ph?m vi Sprint 1.
+- Cï¿½c module m?i v?n dang dï¿½ng mock services shape-stable vï¿½ backend th?t chua s?n sï¿½ng.
 - Ki?m tra k? thu?t hi?n t?i:
   - `npx tsc -b`: pass
-  - `npm run build`: fail trong sandbox do Vite/Tailwind native binary, không ph?i l?i TypeScript app
+  - `npm run build`: fail trong sandbox do Vite/Tailwind native binary, khï¿½ng ph?i l?i TypeScript app
 
-## Nh?ng gì dã hoàn thành
-- Qu?n tr? h? th?ng và phân quy?n:
+## Nh?ng gï¿½ dï¿½ hoï¿½n thï¿½nh
+
+- Qu?n tr? h? th?ng vï¿½ phï¿½n quy?n:
   - user management
   - role permissions
-  - advanced permissions / approval configuration n?n t?ng hi?n có
+  - advanced permissions / approval configuration n?n t?ng hi?n cï¿½
 - D? li?u g?c s?n ph?m:
   - product categories
   - product settings: unit of measure, brand/manufacturer
   - product master CRUD
-- C?u trúc kho:
+- C?u trï¿½c kho:
   - warehouse CRUD
   - warehouse location CRUD
 - Reusable foundations:
@@ -29,17 +32,54 @@
   - `usePermission`
 
 ## Routes m?i/dang active
+
 - `/admin/product-settings`
 - `/admin/products`
 - `/warehouse`
 
-## File tr?ng tâm v?a tri?n khai
+## File tr?ng tï¿½m v?a tri?n khai
+
 - `src/features/productSettings/components/ProductReferenceManagement.tsx`
 - `src/features/products/components/ProductManagement.tsx`
 - `src/features/warehouses/components/WarehouseManagement.tsx`
 - `src/features/warehouses/components/WarehouseSheets.tsx`
 
-## Assumptions dang áp d?ng
-- Workspace hi?n không có API contract / database design / UI reference riêng cho Product và Warehouse modules.
-- FE dang bám theo design language và pattern ki?n trúc có s?n trong repo.
-- Permission UI cho module m?i hi?n t?m d?a trên `usePermission()` và h? tr? wildcard `*`.
+## Assumptions dang ï¿½p d?ng
+
+- Workspace hi?n khï¿½ng cï¿½ API contract / database design / UI reference riï¿½ng cho Product vï¿½ Warehouse modules.
+- FE dang bï¿½m theo design language vï¿½ pattern ki?n trï¿½c cï¿½ s?n trong repo.
+- Permission UI cho module m?i hi?n t?m d?a trï¿½n `usePermission()` vï¿½ h? tr? wildcard `*`.
+
+---
+
+## Latest Update (2026-03-31)
+
+### What was done
+
+- Fixed user update API mismatch in FE: update now calls `PATCH /api/users/:id` to match current BE route.
+- Implemented full BE reset-password flow for users:
+  - schema validation for `PATCH /api/users/:id/reset-password`
+  - route wiring + controller handler
+  - service logic to hash and store new password
+- Confirmed FE reset-password service contract remains aligned: payload field `new_password`.
+- Build validation after changes:
+  - FE `npx tsc -b`: pass
+  - BE `npx tsc -p tsconfig.json`: pass
+
+### Touched files (latest batch)
+
+- `FE/Warehouse_Management/src/services/userService.ts`
+- `BE/Warehouse_Management/src/schemas/user.schema.ts`
+- `BE/Warehouse_Management/src/routes/user.route.ts`
+- `BE/Warehouse_Management/src/controllers/user.controller.ts`
+- `BE/Warehouse_Management/src/services/user.service.ts`
+
+### Active assumptions
+
+- `users:update` permission is required for update/lock/reset-password actions.
+- Canonical user update method in the running BE is currently `PATCH /api/users/:id`.
+- FE user dialogs expect API-level error messages to be returned through standard error middleware.
+
+### Immediate recommended task
+
+- Execute end-to-end smoke test for user actions (update, lock/unlock, reset-password) on non-CEO and CEO roles to confirm permission behavior and UX feedback are consistent.

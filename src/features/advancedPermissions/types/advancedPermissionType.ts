@@ -7,6 +7,7 @@ export type AccessLevel = 'full_control' | 'restricted' | 'read_only' | 'ai_augm
 export interface ModulePermission {
   moduleId: string;
   moduleName: string;
+  pagePath?: string;
   description: string;
   iconBg: string;
   iconColor: string;

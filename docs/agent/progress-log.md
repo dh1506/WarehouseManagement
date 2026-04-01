@@ -1,24 +1,28 @@
 # Progress Log
 
 ## 2026-03-28 - User Management Module
-- Kh?i t?o `features/users/` theo dúng ki?n trúc AGENTS.
-- Hoàn thi?n list/filter/pagination/sheet/dialog cho user management.
-- Thêm mock CRUD, export Excel, dev login bypass, profile page, và UI fixes liên quan.
+
+- Kh?i t?o `features/users/` theo dï¿½ng ki?n trï¿½c AGENTS.
+- Hoï¿½n thi?n list/filter/pagination/sheet/dialog cho user management.
+- Thï¿½m mock CRUD, export Excel, dev login bypass, profile page, vï¿½ UI fixes liï¿½n quan.
 
 ## 2026-03-28 - Role Permissions Foundation
+
 - T?o page `/admin/role-permissions`.
-- Thêm mock role service và React Query hooks cho role permissions.
-- G?n route và sidebar cho module role permissions.
+- Thï¿½m mock role service vï¿½ React Query hooks cho role permissions.
+- G?n route vï¿½ sidebar cho module role permissions.
 
 ## 2026-03-29 - Category Management
+
 - T?o page `/admin/categories`.
-- Hoàn thi?n category tree, drawer form, delete dialog, và export categories.
-- Ð?ng b? route/sidebar v?i module category.
+- Hoï¿½n thi?n category tree, drawer form, delete dialog, vï¿½ export categories.
+- ï¿½?ng b? route/sidebar v?i module category.
 
 ## 2026-03-29 - Sprint 1 Master Data Completion
 
-### Ðã làm
-- Thêm reusable foundations nh?:
+### ï¿½ï¿½ lï¿½m
+
+- Thï¿½m reusable foundations nh?:
   - `PageHeader`
   - `StatusBadge`
   - `StatePanel`
@@ -38,13 +42,14 @@
   - tabs warehouses / locations
   - validation b?ng Zod
 - C?p nh?t di?u hu?ng:
-  - thêm route `/admin/product-settings`
-  - thêm route `/admin/products`
+  - thï¿½m route `/admin/product-settings`
+  - thï¿½m route `/admin/products`
   - thay `/warehouse` t? placeholder sang module th?t
-  - c?p nh?t sidebar d? truy c?p các module m?i
+  - c?p nh?t sidebar d? truy c?p cï¿½c module m?i
 - C?p nh?t working memory docs cho Sprint 1.
 
 ### Touched Files
+
 - `src/App.tsx`
 - `src/layouts/Sidebar.tsx`
 - `src/components/PageHeader.tsx`
@@ -77,11 +82,47 @@
 - `docs/agent/known-issues.md`
 
 ### Assumptions
-- Product supporting masters trong Sprint 1 g?m unit of measure và brand/manufacturer.
-- Mock services hi?n t?i là cách phù h?p d? FE ti?p t?c ti?n d? trong khi backend chua s?n sàng.
-- Product/Warehouse UI du?c re-implement theo ki?n trúc repo hi?n t?i, ch? dùng design language có s?n làm reference.
+
+- Product supporting masters trong Sprint 1 g?m unit of measure vï¿½ brand/manufacturer.
+- Mock services hi?n t?i lï¿½ cï¿½ch phï¿½ h?p d? FE ti?p t?c ti?n d? trong khi backend chua s?n sï¿½ng.
+- Product/Warehouse UI du?c re-implement theo ki?n trï¿½c repo hi?n t?i, ch? dï¿½ng design language cï¿½ s?n lï¿½m reference.
 
 ### Verification
+
 - `npx tsc -b`: pass
-- `npm run build`: fail do môi tru?ng sandbox khi load Vite/Tailwind native binary
+- `npm run build`: fail do mï¿½i tru?ng sandbox khi load Vite/Tailwind native binary
 - ESLint theo ph?m vi file m?i/ch?nh s?a: pass
+
+## 2026-03-31 - User Update and Reset Password Integration Fix
+
+### Done
+
+- Fixed FE user update call from `PUT /api/users/:id` to `PATCH /api/users/:id` so it matches current BE users route.
+- Added missing BE endpoint for password reset:
+  - `PATCH /api/users/:id/reset-password`
+  - request schema validation (`new_password`)
+  - controller action and service password hashing/update flow
+- Kept FE reset password payload contract aligned with BE (`new_password`).
+
+### Touched Files
+
+- `FE/Warehouse_Management/src/services/userService.ts`
+- `BE/Warehouse_Management/src/schemas/user.schema.ts`
+- `BE/Warehouse_Management/src/routes/user.route.ts`
+- `BE/Warehouse_Management/src/controllers/user.controller.ts`
+- `BE/Warehouse_Management/src/services/user.service.ts`
+- `FE/Warehouse_Management/docs/agent/current-context.md`
+- `FE/Warehouse_Management/docs/agent/progress-log.md`
+- `FE/Warehouse_Management/docs/agent/decision-log.md`
+- `FE/Warehouse_Management/docs/agent/next-steps.md`
+
+### Assumptions
+
+- BE users module continues to use `PATCH /api/users/:id` as canonical update endpoint.
+- Reset-password action remains under users domain and protected by `users:update` permission.
+- Existing FE mutation hooks are stable and do not require API envelope shape changes.
+
+### Verification
+
+- `npx tsc -p tsconfig.json` (BE): pass
+- `npx tsc -b` (FE): pass

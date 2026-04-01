@@ -16,6 +16,8 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 2. Nếu backend không có action `approve`, cột Approve sẽ luôn false và không sinh `permission_id` khi lưu.
 3. Backend schema hiện yêu cầu `permission_ids` tối thiểu 1 phần tử khi update role permission; FE đã chặn lưu khi tất cả quyền bị bỏ chọn.
 4. FE đã đổi endpoint phân quyền sang `GET/PATCH /api/roles/:id/permissions` theo API design table.
+5. Role matrix hiện đã hiển thị đủ các page đang có trong sidebar, nhưng backend seed mới chỉ có permission thật cho một phần module.
+6. Các page chưa có permission backend tương ứng đang hiển thị read-only với nhãn `Chưa có permission backend`; cần backend seed/thêm module permission nếu muốn lưu được quyền cho các page đó.
 
 ## API design gaps from approved table (2026-03-31)
 
@@ -73,3 +75,9 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
    - guarding wildcard permission checks when `permissions` is missing
    - sanitizing persisted auth state during store migration
 2. If blank page still appears on a specific browser profile, clear `localStorage.auth-storage` once and re-login.
+
+## Advanced page permission note (2026-03-31)
+
+1. `/admin/advanced-permission` hiện dùng mock service page-based tại `src/services/advancedPagePermissionService.ts`.
+2. Ma trận này đã bám theo sidebar pages thật, nhưng chưa có backend API/storage chính thức cho page-level access.
+3. Nếu muốn quyền ở đây thực sự chặn route trong runtime cho từng user, bước tiếp theo là thống nhất backend contract và nối auth guard/router với page-permission source of truth đó.

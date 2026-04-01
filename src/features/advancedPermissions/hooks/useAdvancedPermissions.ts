@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAdvancedRolePermissions,
   updateAdvancedRolePermissions,
-} from '@/services/advancedPermissionService';
+} from '@/services/advancedPagePermissionService';
 import { getRoles } from '@/services/roleService';
 import type { UpdateAdvancedPermissionPayload } from '../types/advancedPermissionType';
 
