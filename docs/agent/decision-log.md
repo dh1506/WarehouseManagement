@@ -151,3 +151,26 @@
 **Context:** Yêu cầu nghiệp vụ bỏ trường giới tính trong luồng add/update user; full_name chỉ cần không rỗng (kể cả trim), phone phải theo chuẩn số Việt Nam.  
 **Decision:** Xoá `gender` khỏi FE user form/schema/payload và cập nhật validate `full_name` + `phone` ở cả BE (`user.schema.ts`) và FE (`features/users/schemas/userSchema.ts`). Đồng thời thêm field `phone` vào payload/user model FE và form UI add/update.  
 **Rationale:** Đồng bộ behavior nhập liệu giữa FE và BE theo yêu cầu business, giảm sai lệch validate và đảm bảo dữ liệu sạch trước khi lưu.
+
+## DEC-045 - Categories switched from mock data to real API contract
+
+**Date:** 2026-04-01  
+**Context:** FE categories module was still driven by in-memory mock data even though backend already exposes product-category CRUD routes and hierarchical counters.  
+**Decision:** Add src/services/categoryApiService.ts and repoint category hooks/page flow to real API calls for list/detail/create/update/delete. Legacy mock files remain only as isolated references.  
+**Rationale:** Removes mock drift and makes category management use the actual persisted backend source of truth.
+
+## DEC-046 - Category status remains a backend dependency
+
+**Date:** 2026-04-01  
+**Context:** The AC includes active/inactive display and status mutation, but current backend category schema/routes do not expose status/is_active fields or a dedicated status endpoint.  
+**Decision:** Ship the API-backed categories page without fake status mutation. FE renders status as unknown and documents the contract gap instead of inventing unsupported persistence.  
+**Rationale:** Keeps FE behavior honest to the current API contract and avoids misleading users with non-persisted UI state.
+
+
+- 2026-04-01: Categories V2 removed status UI/export because backend category contract still has no persisted status field; pagination footer aligned to User Management interaction pattern; delete confirmation dialog refreshed for clearer destructive UX.
+
+- 2026-04-01: Standardized the API-backed Categories V2 module to English for all user-facing copy, validation messages, dialog content, and date formatting (en-US).
+
+- 2026-04-01: Categories V2 layout now uses fixed-height flex sections so only the table content scrolls; table header is sticky and pagination stays pinned at the bottom of the page content area.
+
+- 2026-04-01: Product Management list layout now matches Categories with internal table scrolling, sticky table headers, and a bottom-pinned pagination footer using the same numbered paging pattern.

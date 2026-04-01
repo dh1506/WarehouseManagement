@@ -62,6 +62,9 @@ export function ProductManagement() {
   const deleteMutation = useDeleteProduct();
 
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
+  const totalItems = listQuery.data?.total ?? 0;
+  const pageStart = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * PAGE_SIZE, totalItems);
 
   const openCreate = () => {
     setSheetMode('create');
@@ -98,10 +101,10 @@ export function ProductManagement() {
   const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          eyebrow="Sprint 1 · Product Master"
+          // eyebrow="Sprint 1 · Product Master"
           title="Product Management"
           description="Xây dựng dữ liệu sản phẩm gốc làm nền cho nhập, xuất, tồn và các workflow kho ở Sprint 2 trở đi."
           actions={
@@ -117,7 +120,7 @@ export function ProductManagement() {
           }
         />
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Master catalog</h3>
@@ -149,13 +152,13 @@ export function ProductManagement() {
             </div>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
             {listQuery.isLoading ? (
-              <div className="p-8">
+              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel title="Đang tải product master" description="Hệ thống đang đồng bộ dữ liệu sản phẩm." icon="hourglass_top" />
               </div>
             ) : listQuery.isError ? (
-              <div className="p-8">
+              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel
                   title="Không tải được danh sách"
                   description="Hãy thử lại để tiếp tục quản trị product master."
@@ -172,7 +175,7 @@ export function ProductManagement() {
                 />
               </div>
             ) : (listQuery.data?.data.length ?? 0) === 0 ? (
-              <div className="p-8">
+              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel
                   title="Chưa có sản phẩm phù hợp"
                   description="Tạo product master đầu tiên để các nghiệp vụ nhập, xuất và kiểm kê có thể kế thừa."
@@ -191,16 +194,16 @@ export function ProductManagement() {
               </div>
             ) : (
               <>
-                <div className={listQuery.isFetching ? 'opacity-70 transition' : 'transition'}>
+                <div className={`min-h-0 flex-1 overflow-auto ${listQuery.isFetching ? 'opacity-70 transition' : 'transition'}`}>
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                       <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        <th className="px-4 py-3">Product</th>
-                        <th className="px-4 py-3">Category</th>
-                        <th className="px-4 py-3">Unit / Brand</th>
-                        <th className="px-4 py-3">Stock policy</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Product</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Category</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Unit / Brand</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Stock policy</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Status</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -238,7 +241,7 @@ export function ProductManagement() {
                   </table>
                 </div>
 
-                <Pagination page={page} totalPages={totalPages} totalItems={listQuery.data?.total ?? 0} onChange={setPage} />
+                <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageStart={pageStart} pageEnd={pageEnd} onChange={setPage} />
               </>
             )}
           </div>
@@ -533,7 +536,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+      className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
     >
       {children}
     </select>
@@ -602,23 +605,65 @@ function Pagination({
   page,
   totalPages,
   totalItems,
+  pageStart,
+  pageEnd,
   onChange,
 }: {
   page: number;
   totalPages: number;
   totalItems: number;
+  pageStart: number;
+  pageEnd: number;
   onChange: (page: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-slate-500">Total {totalItems} products</p>
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">
+    <div className="flex shrink-0 flex-col gap-3 border-t border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-medium text-slate-500">Showing {pageStart} - {pageEnd} of {totalItems} products</p>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <span className="material-symbols-outlined text-[16px]">chevron_left</span>
           Prev
         </button>
-        <span className="text-sm font-medium text-slate-700">{page} / {totalPages}</span>
-        <button type="button" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">
+        {[...Array(Math.min(totalPages, 5))].map((_, index) => {
+          const targetPage = index + 1;
+          return (
+            <button
+              key={targetPage}
+              type="button"
+              onClick={() => onChange(targetPage)}
+              className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {targetPage}
+            </button>
+          );
+        })}
+        {totalPages > 5 ? <span className="px-1 text-slate-400">...</span> : null}
+        {totalPages > 5 ? (
+          <button
+            type="button"
+            onClick={() => onChange(totalPages)}
+            className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
+              page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            {totalPages}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages}
+          className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
           Next
+          <span className="material-symbols-outlined text-[16px]">chevron_right</span>
         </button>
       </div>
     </div>

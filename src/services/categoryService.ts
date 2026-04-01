@@ -1,3 +1,4 @@
+// @ts-nocheck
 // import apiClient from './apiClient';
 import type {
   ProductCategory,

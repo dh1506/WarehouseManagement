@@ -1,5 +1,5 @@
-import { CategoryManagement } from '@/features/categories/components/CategoryManagement';
+import { CategoryManagementV2 } from '@/features/categories/components/CategoryManagementV2';
 
 export function CategoryManagementPage() {
-  return <CategoryManagement />;
+  return <CategoryManagementV2 />;
 }

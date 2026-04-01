@@ -73,3 +73,19 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
    - guarding wildcard permission checks when `permissions` is missing
    - sanitizing persisted auth state during store migration
 2. If blank page still appears on a specific browser profile, clear `localStorage.auth-storage` once and re-login.
+
+## Categories backend gap note (2026-04-01)
+
+1. FE categories list/detail/create/update/delete now use real API contract from /api/product-categories.
+2. Current backend category schema does not expose status/is_active, so AC-CAT-11 and AC-CAT-12 cannot be completed as true persisted behavior yet.
+3. FE currently renders category status as unknown rather than faking active/inactive state.
+4. To fully satisfy the AC, backend still needs:
+   - category status field in list/detail payload
+   - create/update support for status
+   - business rule for inactive categories with child categories or linked products
+5. FE validation prevents selecting self or descendant as parent using current loaded tree, but final integrity still depends on backend validation remaining in place.
+
+
+- 2026-04-01: Category status remains intentionally absent from FE categories screens until backend exposes a real status field and mutation contract.
+
+- 2026-04-01: The wider FE codebase still contains many Vietnamese user-facing strings outside Categories; this task standardized the live Categories V2 flow only.

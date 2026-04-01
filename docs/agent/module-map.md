@@ -101,3 +101,31 @@
 - `src/features/warehouses/types/warehouseType.ts`
   - Added `WarehouseLayoutConfig`, `WarehouseHubFormValues`, `WarehouseZoneFormValues`
   - `Zone` now uses `bins: Bin[]` as the stable zone detail payload shape
+
+## Categories API Alignment (2026-04-01)
+
+- src/services/categoryApiService.ts
+  - Real API layer for category list/detail/create/update/delete against /api/product-categories.
+- src/features/categories/hooks/useCategories.ts
+  - Added detail hook and repointed mutations/queries to API-backed service.
+- src/features/categories/schemas/categorySchemas.ts
+  - Zod validation for category form, duplicate checks, self-parent and descendant-parent prevention.
+- src/features/categories/components/CategoryManagementV2.tsx
+  - New permission-aware category management screen with search, export, tree table, pagination, empty/error states.
+- src/features/categories/components/CategoryTableV2.tsx
+  - Expand/collapse hierarchical rendering with action visibility by permission.
+- src/features/categories/components/CategoryFormSheetV2.tsx
+  - API-backed create/edit/view sheet using real detail query.
+- src/features/categories/components/CategoryActionDialogsV2.tsx
+  - Delete confirmation dialog aligned with backend delete rule.
+- src/features/categories/types/categoryType.ts
+  - Added API-backed fields: code, parentCode, childrenCount, detail shape.
+- src/features/categories/utils/exportCategories.ts
+  - Export now includes code and sub-category count from API-backed data.
+
+
+- categories/components/CategoryManagementV2.tsx: API-backed category list page with search, permission-aware actions, and User Management-style pagination.
+- categories/components/CategoryActionDialogsV2.tsx: destructive delete confirmation dialog for category removal.
+- categories/components/CategoryFormSheetV2.tsx: category create/edit/detail sheet without status UI.
+
+- categories/components/CategoryManagementV2.tsx, CategoryFormSheetV2.tsx, CategoryActionDialogsV2.tsx, CategoryTableV2.tsx, schemas/categorySchemas.ts, utils/exportCategories.ts: English-only API-backed Categories V2 flow.
