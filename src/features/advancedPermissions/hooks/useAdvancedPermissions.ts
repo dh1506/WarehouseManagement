@@ -33,7 +33,8 @@ export function useUpdateAdvancedPermissions() {
   return useMutation({
     mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateAdvancedPermissionPayload }) =>
       updateAdvancedRolePermissions(roleId, payload),
-    onSuccess: (_, { roleId }) => {
+    onSuccess: (data, { roleId }) => {
+      queryClient.setQueryData(ADVANCED_PERM_KEYS.byRole(roleId), data);
       queryClient.invalidateQueries({ queryKey: ADVANCED_PERM_KEYS.byRole(roleId) });
     },
   });

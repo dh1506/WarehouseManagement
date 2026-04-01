@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sheet';
 import { StatePanel } from '@/components/StatePanel';
 import { productFormSchema, type ProductFormData } from '../schemas/productSchemas';
-import type { ProductItem } from '../types/productType';
+import type { ProductItem, ProductOptionItem } from '../types/productType';
 
 export interface ProductFormSheetProps {
   open: boolean;
@@ -19,8 +19,9 @@ export interface ProductFormSheetProps {
   mode: 'create' | 'edit' | 'view';
   product: ProductItem | null;
   categories: Array<{ id: string; name: string }>;
-  units: Array<{ id: string; name: string }>;
-  brands: Array<{ id: string; name: string }>;
+  units: ProductOptionItem[];
+  brands: ProductOptionItem[];
+  manufacturers: ProductOptionItem[];
   onSubmit: (payload: ProductFormData) => Promise<void>;
   isPending: boolean;
   isOptionsLoading: boolean;
@@ -34,6 +35,7 @@ export function ProductFormSheet({
   categories,
   units,
   brands,
+  manufacturers,
   onSubmit,
   isPending,
   isOptionsLoading,
@@ -44,16 +46,20 @@ export function ProductFormSheet({
     defaultValues: {
       sku: '',
       name: '',
+      productType: 'goods',
       categoryId: '',
       unitId: '',
       brandId: '',
-      manufacturer: '',
+      manufacturerId: '',
       minStock: 0,
       maxStock: 0,
       trackedByLot: false,
       trackedByExpiry: false,
+      expiryDate: '',
+      productionDate: '',
       status: 'active',
       description: '',
+      storageConditions: '',
     },
   });
 
@@ -61,31 +67,38 @@ export function ProductFormSheet({
     register,
     reset,
     handleSubmit,
+    watch,
     formState: { errors },
   } = form;
+
+  const trackedByExpiry = watch('trackedByExpiry');
 
   useEffect(() => {
     if (!open) return;
     reset({
       sku: product?.sku ?? '',
       name: product?.name ?? '',
-      categoryId: product?.categoryId ?? '',
+      productType: product?.productType ?? 'goods',
+      categoryId: product?.categoryIds[0] ?? '',
       unitId: product?.unitId ?? '',
       brandId: product?.brandId ?? '',
-      manufacturer: product?.manufacturer ?? '',
+      manufacturerId: product?.manufacturerId ?? '',
       minStock: product?.minStock ?? 0,
       maxStock: product?.maxStock ?? 0,
       trackedByLot: product?.trackedByLot ?? false,
       trackedByExpiry: product?.trackedByExpiry ?? false,
+      expiryDate: product?.expiryDate ? product.expiryDate.slice(0, 10) : '',
+      productionDate: product?.productionDate ? product.productionDate.slice(0, 10) : '',
       status: product?.status ?? 'active',
       description: product?.description ?? '',
+      storageConditions: product?.storageConditions ?? '',
     });
   }, [open, product, reset]);
 
   const title = {
-    create: 'Tạo sản phẩm',
-    edit: 'Cập nhật sản phẩm',
-    view: 'Chi tiết sản phẩm',
+    create: 'Create Product',
+    edit: 'Update Product',
+    view: 'Product Details',
   }[mode];
 
   return (
@@ -108,8 +121,8 @@ export function ProductFormSheet({
                 <SheetTitle>{title}</SheetTitle>
                 <SheetDescription>
                   {isView
-                    ? 'Xem chi tiết dữ liệu gốc của sản phẩm.'
-                    : 'Thiết lập thông tin cốt lõi và chính sách tồn kho để các transaction modules tái sử dụng.'}
+                    ? 'Review product master data and tracking policies.'
+                    : 'Configure the core product definition used by downstream warehouse workflows.'}
                 </SheetDescription>
               </div>
               <button
@@ -126,8 +139,8 @@ export function ProductFormSheet({
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {isOptionsLoading ? (
               <StatePanel
-                title="Đang chuẩn bị form"
-                description="Danh mục, đơn vị và thương hiệu đang được tải."
+                title="Preparing form"
+                description="Categories, units, brands, and manufacturers are loading."
                 icon="hourglass_top"
               />
             ) : (
@@ -135,113 +148,84 @@ export function ProductFormSheet({
                 <Field label="SKU" error={errors.sku?.message}>
                   <input {...register('sku')} disabled={isView || isPending} className={inputClass(!!errors.sku)} />
                 </Field>
-                <Field label="Trạng thái" error={errors.status?.message}>
-                  <select
-                    {...register('status')}
-                    disabled={isView || isPending}
-                    className={inputClass(!!errors.status)}
-                  >
-                    <option value="active">Hoạt động</option>
-                    <option value="inactive">Không hoạt động</option>
-                    <option value="draft">Bản nháp</option>
+                <Field label="Status" error={errors.status?.message}>
+                  <select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="discontinued">Discontinued</option>
                   </select>
                 </Field>
-                <Field label="Tên sản phẩm" error={errors.name?.message}>
+                <Field label="Product Name" error={errors.name?.message}>
                   <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
                 </Field>
-                <Field label="Nhà sản xuất" error={errors.manufacturer?.message}>
-                  <input
-                    {...register('manufacturer')}
-                    disabled={isView || isPending}
-                    className={inputClass(!!errors.manufacturer)}
-                  />
+                <Field label="Product Type" error={errors.productType?.message}>
+                  <select {...register('productType')} disabled={isView || isPending} className={inputClass(!!errors.productType)}>
+                    <option value="goods">Goods</option>
+                    <option value="material">Material</option>
+                    <option value="consumable">Consumable</option>
+                  </select>
                 </Field>
-                <Field label="Danh mục" error={errors.categoryId?.message}>
-                  <select
-                    {...register('categoryId')}
-                    disabled={isView || isPending}
-                    className={inputClass(!!errors.categoryId)}
-                  >
-                    <option value="">Chọn danh mục</option>
+                <Field label="Category" error={errors.categoryId?.message}>
+                  <select {...register('categoryId')} disabled={isView || isPending} className={inputClass(!!errors.categoryId)}>
+                    <option value="">Select category</option>
                     {categories.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
+                      <option key={item.id} value={item.id}>{item.name}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Đơn vị tính" error={errors.unitId?.message}>
-                  <select
-                    {...register('unitId')}
-                    disabled={isView || isPending}
-                    className={inputClass(!!errors.unitId)}
-                  >
-                    <option value="">Chọn đơn vị</option>
+                <Field label="Base Unit" error={errors.unitId?.message}>
+                  <select {...register('unitId')} disabled={isView || isPending} className={inputClass(!!errors.unitId)}>
+                    <option value="">Select unit</option>
                     {units.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
+                      <option key={item.id} value={item.id}>{item.name}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Thương hiệu" error={errors.brandId?.message}>
-                  <select
-                    {...register('brandId')}
-                    disabled={isView || isPending}
-                    className={inputClass(!!errors.brandId)}
-                  >
-                    <option value="">Chọn thương hiệu</option>
+                <Field label="Brand" error={errors.brandId?.message}>
+                  <select {...register('brandId')} disabled={isView || isPending} className={inputClass(!!errors.brandId)}>
+                    <option value="">Select brand</option>
                     {brands.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
+                      <option key={item.id} value={item.id}>{item.name}</option>
                     ))}
                   </select>
                 </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Tồn tối thiểu" error={errors.minStock?.message}>
-                    <input
-                      type="number"
-                      {...register('minStock', { valueAsNumber: true })}
-                      disabled={isView || isPending}
-                      className={inputClass(!!errors.minStock)}
-                    />
+                <Field label="Manufacturer" error={errors.manufacturerId?.message}>
+                  <select {...register('manufacturerId')} disabled={isView || isPending} className={inputClass(!!errors.manufacturerId)}>
+                    <option value="">Select manufacturer</option>
+                    {manufacturers.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="grid grid-cols-2 gap-4 md:col-span-2">
+                  <Field label="Minimum Stock" error={errors.minStock?.message}>
+                    <input type="number" {...register('minStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.minStock)} />
                   </Field>
-                  <Field label="Tồn tối đa" error={errors.maxStock?.message}>
-                    <input
-                      type="number"
-                      {...register('maxStock', { valueAsNumber: true })}
-                      disabled={isView || isPending}
-                      className={inputClass(!!errors.maxStock)}
-                    />
+                  <Field label="Maximum Stock" error={errors.maxStock?.message}>
+                    <input type="number" {...register('maxStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.maxStock)} />
                   </Field>
                 </div>
-                <Field label="Mô tả" error={errors.description?.message}>
-                  <textarea
-                    {...register('description')}
-                    disabled={isView || isPending}
-                    className={`${inputClass(!!errors.description)} min-h-32 resize-none`}
-                  />
+                <Field label="Production Date" error={errors.productionDate?.message}>
+                  <input type="date" {...register('productionDate')} disabled={isView || isPending} className={inputClass(!!errors.productionDate)} />
                 </Field>
-                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-700">Quy tắc theo dõi</p>
+                <Field label="Expiry Date" error={errors.expiryDate?.message}>
+                  <input type="date" {...register('expiryDate')} disabled={isView || isPending || !trackedByExpiry} className={inputClass(!!errors.expiryDate)} />
+                </Field>
+                <Field label="Description" error={errors.description?.message}>
+                  <textarea {...register('description')} disabled={isView || isPending} className={`${inputClass(!!errors.description)} min-h-32 resize-none`} />
+                </Field>
+                <Field label="Storage Conditions" error={errors.storageConditions?.message}>
+                  <textarea {...register('storageConditions')} disabled={isView || isPending} className={`${inputClass(!!errors.storageConditions)} min-h-32 resize-none`} />
+                </Field>
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+                  <p className="text-sm font-semibold text-slate-700">Tracking Rules</p>
                   <label className="flex items-center gap-3 text-sm text-slate-600">
-                    <input
-                      type="checkbox"
-                      {...register('trackedByLot')}
-                      disabled={isView || isPending}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                    Theo dõi theo lô / batch
+                    <input type="checkbox" {...register('trackedByLot')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300" />
+                    Track by lot or batch
                   </label>
                   <label className="flex items-center gap-3 text-sm text-slate-600">
-                    <input
-                      type="checkbox"
-                      {...register('trackedByExpiry')}
-                      disabled={isView || isPending}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                    Theo dõi ngày hết hạn
+                    <input type="checkbox" {...register('trackedByExpiry')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300" />
+                    Enable expiry tracking
                   </label>
                 </div>
               </div>
@@ -256,7 +240,7 @@ export function ProductFormSheet({
                 disabled={isPending}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
               >
-                {isView ? 'Đóng' : 'Hủy'}
+                {isView ? 'Close' : 'Cancel'}
               </button>
               {!isView ? (
                 <button
@@ -264,7 +248,7 @@ export function ProductFormSheet({
                   disabled={isPending || isOptionsLoading}
                   className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isPending ? 'Đang lưu...' : 'Lưu sản phẩm'}
+                  {isPending ? 'Saving...' : 'Save Product'}
                 </button>
               ) : null}
             </div>
@@ -295,7 +279,7 @@ function Field({
 
 function inputClass(hasError: boolean) {
   return `w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 ${hasError
-      ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-      : 'border-slate-200 focus:border-primary focus:ring-primary/15'
+    ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+    : 'border-slate-200 focus:border-primary focus:ring-primary/15'
     }`;
 }

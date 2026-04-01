@@ -7,10 +7,16 @@ import { LockUserDialog, ResetPasswordDialog } from './UserActionDialogs';
 import { exportUsersToExcel } from '../utils/exportUsers';
 import { getUsers } from '@/services/userService';
 import type { UserItem } from '@/services/userService';
+import { useToast } from '@/hooks/use-toast';
+import { usePermission } from '@/hooks/usePermission';
 
 const PAGE_LIMIT = 10;
 
 export function UserManagement() {
+  const { toast } = useToast();
+  const canCreateUser = usePermission('users:create');
+  const canUpdateUser = usePermission('users:update');
+
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -107,8 +113,60 @@ export function UserManagement() {
   );
 
   // --- Handlers ---
-  const handleAddUser = () => { setEditUser(null); setSheetOpen(true); };
-  const handleEditUser = useCallback((user: UserItem) => { setEditUser(user); setSheetOpen(true); }, []);
+  const handleAddUser = () => {
+    if (!canCreateUser) {
+      toast({
+        title: 'Không có quyền tạo người dùng',
+        description: 'Bạn cần quyền users:create để thực hiện thao tác này.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setEditUser(null);
+    setSheetOpen(true);
+  };
+
+  const handleEditUser = useCallback((user: UserItem) => {
+    if (!canUpdateUser) {
+      toast({
+        title: 'Không có quyền cập nhật người dùng',
+        description: 'Bạn cần quyền users:update để thực hiện thao tác này.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setEditUser(user);
+    setSheetOpen(true);
+  }, [canUpdateUser, toast]);
+
+  const handleLockUser = useCallback((user: UserItem) => {
+    if (!canUpdateUser) {
+      toast({
+        title: 'Không có quyền khóa/mở khóa',
+        description: 'Bạn cần quyền users:update để thực hiện thao tác này.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLockTarget(user);
+  }, [canUpdateUser, toast]);
+
+  const handleResetPassword = useCallback((user: UserItem) => {
+    if (!canUpdateUser) {
+      toast({
+        title: 'Không có quyền đặt lại mật khẩu',
+        description: 'Bạn cần quyền users:update để thực hiện thao tác này.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setResetPwdTarget(user);
+  }, [canUpdateUser, toast]);
+
   const handleCloseSheet = () => { setSheetOpen(false); setEditUser(null); };
 
   const handleExport = async () => {
@@ -229,8 +287,8 @@ export function UserManagement() {
             onToggleSelectAll={handleToggleSelectAll}
             onToggleSelectUser={handleToggleSelectUser}
             onEdit={handleEditUser}
-            onLock={setLockTarget}
-            onResetPassword={setResetPwdTarget}
+            onLock={handleLockUser}
+            onResetPassword={handleResetPassword}
           />
         </div>
 

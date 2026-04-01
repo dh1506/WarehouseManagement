@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -13,37 +11,41 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import {
   useCreateProduct,
-  useDeleteProduct,
+  useDiscontinueProduct,
   useProductBrandOptions,
   useProductCategoryOptions,
+  useProductManufacturerOptions,
   useProducts,
   useProductUnitOptions,
   useUpdateProduct,
 } from '../hooks/useProducts';
-import { productFormSchema, type ProductFormData } from '../schemas/productSchemas';
-import type { ProductItem } from '../types/productType';
+import type { ProductFormData } from '../schemas/productSchemas';
+import type { ProductItem, ProductStatus } from '../types/productType';
+import { ProductFormSheet } from './ProductFormSheets';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 export function ProductManagement() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const canManage = usePermission('master_data.products.manage');
+  const canCreate = usePermission('products:create');
+  const canEdit = usePermission('products:update');
+  const canDelete = usePermission('products:delete');
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'active' | 'inactive' | 'draft'>('all');
+  const [status, setStatus] = useState<ProductStatus | 'all'>('all');
   const [categoryId, setCategoryId] = useState('');
   const [brandId, setBrandId] = useState('');
   const [sheetMode, setSheetMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ProductItem | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<ProductItem | null>(null);
 
   const listQuery = useProducts({
     search: search || undefined,
@@ -56,15 +58,17 @@ export function ProductManagement() {
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
+  const manufacturersQuery = useProductManufacturerOptions();
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
-  const deleteMutation = useDeleteProduct();
+  const discontinueMutation = useDiscontinueProduct();
 
-  const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
   const totalItems = listQuery.data?.total ?? 0;
+  const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
   const pageStart = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, totalItems);
+  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
 
   const openCreate = () => {
     setSheetMode('create');
@@ -82,114 +86,143 @@ export function ProductManagement() {
     navigate(`/admin/products/${item.id}`);
   };
 
+  const openDelete = (item: ProductItem) => {
+    if (!canDelete) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to discontinue products.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDeletingProduct(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    if (discontinueMutation.isPending) {
+      return;
+    }
+
+    setIsDeleteDialogOpen(false);
+    setDeletingProduct(null);
+  };
+
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deletingProduct) {
+      return;
+    }
 
     try {
-      await deleteMutation.mutateAsync(deleteTarget.id);
-      toast({ title: 'Đã xóa sản phẩm', description: 'Product master đã được cập nhật.' });
-      setDeleteTarget(null);
+      await discontinueMutation.mutateAsync(deletingProduct.id);
+      toast({
+        title: 'Product discontinued',
+        description: `${deletingProduct.name} has been marked as discontinued.`,
+      });
+      closeDeleteDialog();
     } catch (error) {
       toast({
-        title: 'Không thể xóa',
-        description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+        title: 'Unable to discontinue product',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         variant: 'destructive',
       });
     }
   };
 
-  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
-
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          // eyebrow="Sprint 1 · Product Master"
+          eyebrow="Sprint 1 · Product Master"
           title="Product Management"
-          description="Xây dựng dữ liệu sản phẩm gốc làm nền cho nhập, xuất, tồn và các workflow kho ở Sprint 2 trở đi."
-          actions={
-            canManage ? (
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
-              >
-                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                New Product
-              </button>
-            ) : null
-          }
+          description="Manage product master data for inbound, outbound, inventory, and planning workflows."
+          actions={canCreate ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+            >
+              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+              New Product
+            </button>
+          ) : null}
         />
 
         <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Master catalog</h3>
               <p className="mt-1 text-sm text-slate-500">
-                Reuse category, unit, brand và trạng thái để bảo đảm product data nhất quán xuyên module.
+                Use real category, unit, brand, and manufacturer master data to keep product records consistent across modules.
               </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search SKU, name, manufacturer..." />
-              <FilterSelect value={status} onChange={(value) => { setStatus(value as 'all' | 'active' | 'inactive' | 'draft'); setPage(1); }}>
-                <option value="all">All status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="draft">Draft</option>
-              </FilterSelect>
-              <FilterSelect value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1); }}>
-                <option value="">All categories</option>
-                {categoriesQuery.data?.data.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect value={brandId} onChange={(value) => { setBrandId(value); setPage(1); }}>
-                <option value="">All brands</option>
-                {brandsQuery.data?.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </FilterSelect>
+            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-12">
+              <div className="xl:col-span-5">
+                <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search code, name, or manufacturer..." />
+              </div>
+              <div className="xl:col-span-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <FilterSelect value={status} onChange={(value) => { setStatus(value as ProductStatus | 'all'); setPage(1); }}>
+                  <option value="all">All status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="discontinued">Discontinued</option>
+                </FilterSelect>
+                <FilterSelect value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1); }}>
+                  <option value="">All categories</option>
+                  {(categoriesQuery.data ?? []).map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect value={brandId} onChange={(value) => { setBrandId(value); setPage(1); }}>
+                  <option value="">All brands</option>
+                  {(brandsQuery.data ?? []).map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </FilterSelect>
+              </div>
             </div>
           </div>
 
           <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
             {listQuery.isLoading ? (
               <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
-                <StatePanel title="Đang tải product master" description="Hệ thống đang đồng bộ dữ liệu sản phẩm." icon="hourglass_top" />
+                <StatePanel title="Loading products" description="The system is synchronizing product master data from the API." icon="hourglass_top" />
               </div>
             ) : listQuery.isError ? (
               <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel
-                  title="Không tải được danh sách"
-                  description="Hãy thử lại để tiếp tục quản trị product master."
+                  title="Unable to load products"
+                  description="Please try again to continue managing product master data."
                   icon="error"
                   tone="error"
-                  action={
+                  action={(
                     <button
+                      type="button"
                       onClick={() => void listQuery.refetch()}
                       className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
                     >
-                      Thử lại
+                      Retry
                     </button>
-                  }
+                  )}
                 />
               </div>
             ) : (listQuery.data?.data.length ?? 0) === 0 ? (
               <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel
-                  title="Chưa có sản phẩm phù hợp"
-                  description="Tạo product master đầu tiên để các nghiệp vụ nhập, xuất và kiểm kê có thể kế thừa."
+                  title="No matching products"
+                  description="Create your first product or adjust the current filters."
                   icon="inventory_2"
-                  action={
-                    canManage ? (
-                      <button
-                        onClick={openCreate}
-                        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Tạo sản phẩm
-                      </button>
-                    ) : null
-                  }
+                  action={canCreate ? (
+                    <button
+                      type="button"
+                      onClick={openCreate}
+                      className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      New Product
+                    </button>
+                  ) : null}
                 />
               </div>
             ) : (
@@ -201,7 +234,7 @@ export function ProductManagement() {
                         <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Product</th>
                         <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Category</th>
                         <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Unit / Brand</th>
-                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Stock policy</th>
+                        <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Stock Policy</th>
                         <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Status</th>
                         <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
                       </tr>
@@ -212,9 +245,12 @@ export function ProductManagement() {
                           <td className="px-4 py-4">
                             <div className="font-semibold text-slate-900">{item.name}</div>
                             <div className="mt-1 text-sm text-slate-500">{item.sku}</div>
-                            <div className="mt-2 text-xs text-slate-400">{item.manufacturer}</div>
+                            <div className="mt-2 text-xs text-slate-400">{item.manufacturerName || item.supplierName || 'No secondary source'}</div>
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">{item.categoryName}</td>
+                          <td className="px-4 py-4 text-sm text-slate-600">
+                            <div>{item.categoryName}</div>
+                            {item.categoryNames.length > 1 ? <div className="mt-1 text-xs text-slate-400">+{item.categoryNames.length - 1} more</div> : null}
+                          </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
                             <div>{item.unitName}</div>
                             <div className="mt-1 text-xs text-slate-400">{item.brandName}</div>
@@ -229,9 +265,15 @@ export function ProductManagement() {
                           <td className="px-4 py-4">
                             <div className="flex justify-end gap-2">
                               <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                              {canManage ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
-                              {canManage ? (
-                                <ActionButton icon="delete" label="Delete" onClick={() => setDeleteTarget(item)} danger />
+                              {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
+                              {canDelete ? (
+                                <ActionButton
+                                  icon="delete"
+                                  label="Delete"
+                                  onClick={() => openDelete(item)}
+                                  tone="danger"
+                                  disabled={item.status === 'discontinued'}
+                                />
                               ) : null}
                             </div>
                           </td>
@@ -253,23 +295,24 @@ export function ProductManagement() {
         onClose={() => setIsSheetOpen(false)}
         mode={sheetMode}
         product={selectedProduct}
-        categories={categoriesQuery.data?.data ?? []}
+        categories={(categoriesQuery.data ?? []).map((item) => ({ id: item.id, name: item.name }))}
         units={unitsQuery.data ?? []}
         brands={brandsQuery.data ?? []}
-        onSubmit={async (payload) => {
+        manufacturers={manufacturersQuery.data ?? []}
+        onSubmit={async (payload: ProductFormData) => {
           try {
             if (sheetMode === 'edit' && selectedProduct) {
               await updateMutation.mutateAsync({ id: selectedProduct.id, payload });
-              toast({ title: 'Đã cập nhật sản phẩm', description: 'Product master đã được lưu.' });
+              toast({ title: 'Product updated', description: 'The product record has been saved.' });
             } else {
               await createMutation.mutateAsync(payload);
-              toast({ title: 'Đã tạo sản phẩm', description: 'Sản phẩm mới đã sẵn sàng để dùng.' });
+              toast({ title: 'Product created', description: 'The product is now available in the system.' });
             }
             setIsSheetOpen(false);
           } catch (error) {
             toast({
-              title: 'Không thể lưu sản phẩm',
-              description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+              title: 'Unable to save product',
+              description: error instanceof Error ? error.message : 'An unexpected error occurred.',
               variant: 'destructive',
             });
           }
@@ -278,226 +321,47 @@ export function ProductManagement() {
         isOptionsLoading={isOptionsLoading}
       />
 
-      <DeleteDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Xóa sản phẩm"
-        description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.name ?? ''}" khỏi product master không?`}
-        onConfirm={() => void handleDelete()}
-        isPending={deleteMutation.isPending}
-      />
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md overflow-hidden rounded-[28px] border border-slate-200 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+          <DialogHeader className="space-y-4 px-6 py-6 pb-5 text-left">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+              <span className="material-symbols-outlined text-[22px]">delete</span>
+            </div>
+            <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
+              Delete Product
+            </DialogTitle>
+            <DialogDescription className="text-base leading-7 text-slate-600">
+              Delete is implemented as a soft delete in Sprint 1. <span className="font-semibold text-slate-900">{deletingProduct?.name}</span> will be moved to discontinued status.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 sm:justify-end">
+            <button
+              type="button"
+              onClick={closeDeleteDialog}
+              disabled={discontinueMutation.isPending}
+              className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={discontinueMutation.isPending}
+              className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {discontinueMutation.isPending ? 'Deleting...' : 'Delete Product'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-interface ProductFormSheetProps {
-  open: boolean;
-  onClose: () => void;
-  mode: 'create' | 'edit' | 'view';
-  product: ProductItem | null;
-  categories: Array<{ id: string; name: string }>;
-  units: Array<{ id: string; name: string }>;
-  brands: Array<{ id: string; name: string }>;
-  onSubmit: (payload: ProductFormData) => Promise<void>;
-  isPending: boolean;
-  isOptionsLoading: boolean;
-}
-
-function ProductFormSheet({
-  open,
-  onClose,
-  mode,
-  product,
-  categories,
-  units,
-  brands,
-  onSubmit,
-  isPending,
-  isOptionsLoading,
-}: ProductFormSheetProps) {
-  const isView = mode === 'view';
-  const form = useForm<ProductFormData>({
-    resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      sku: '',
-      name: '',
-      categoryId: '',
-      unitId: '',
-      brandId: '',
-      manufacturer: '',
-      minStock: 0,
-      maxStock: 0,
-      trackedByLot: false,
-      trackedByExpiry: false,
-      status: 'active',
-      description: '',
-    },
-  });
-
-  const { register, reset, handleSubmit, formState: { errors } } = form;
-
-  useEffect(() => {
-    if (!open) return;
-    reset({
-      sku: product?.sku ?? '',
-      name: product?.name ?? '',
-      categoryId: product?.categoryId ?? '',
-      unitId: product?.unitId ?? '',
-      brandId: product?.brandId ?? '',
-      manufacturer: product?.manufacturer ?? '',
-      minStock: product?.minStock ?? 0,
-      maxStock: product?.maxStock ?? 0,
-      trackedByLot: product?.trackedByLot ?? false,
-      trackedByExpiry: product?.trackedByExpiry ?? false,
-      status: product?.status ?? 'active',
-      description: product?.description ?? '',
-    });
-  }, [open, product, reset]);
-
-  const title = {
-    create: 'Create product',
-    edit: 'Update product',
-    view: 'Product detail',
-  }[mode];
-
-  return (
-    <Sheet open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isPending) onClose(); }}>
-      <SheetContent className="w-full gap-0 p-0 sm:max-w-2xl" showCloseButton={false}>
-        <form onSubmit={handleSubmit(async (payload) => { if (!isView) await onSubmit(payload); })} className="flex h-full flex-col">
-          <SheetHeader className="border-b border-slate-200 px-6 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <SheetTitle>{title}</SheetTitle>
-                <SheetDescription>
-                  {isView
-                    ? 'Xem chi tiết dữ liệu gốc của sản phẩm.'
-                    : 'Thiết lập thông tin cốt lõi và chính sách tồn kho để các transaction modules tái sử dụng.'}
-                </SheetDescription>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isPending}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-          </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto px-6 py-5">
-            {isOptionsLoading ? (
-              <StatePanel title="Đang chuẩn bị form" description="Danh mục, đơn vị và thương hiệu đang được tải." icon="hourglass_top" />
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="SKU" error={errors.sku?.message}>
-                  <input {...register('sku')} disabled={isView || isPending} className={inputClass(!!errors.sku)} />
-                </Field>
-                <Field label="Status" error={errors.status?.message}>
-                  <select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </Field>
-                <Field label="Product name" error={errors.name?.message}>
-                  <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
-                </Field>
-                <Field label="Manufacturer" error={errors.manufacturer?.message}>
-                  <input {...register('manufacturer')} disabled={isView || isPending} className={inputClass(!!errors.manufacturer)} />
-                </Field>
-                <Field label="Category" error={errors.categoryId?.message}>
-                  <select {...register('categoryId')} disabled={isView || isPending} className={inputClass(!!errors.categoryId)}>
-                    <option value="">Select category</option>
-                    {categories.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Unit of measure" error={errors.unitId?.message}>
-                  <select {...register('unitId')} disabled={isView || isPending} className={inputClass(!!errors.unitId)}>
-                    <option value="">Select unit</option>
-                    {units.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Brand" error={errors.brandId?.message}>
-                  <select {...register('brandId')} disabled={isView || isPending} className={inputClass(!!errors.brandId)}>
-                    <option value="">Select brand</option>
-                    {brands.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Min stock" error={errors.minStock?.message}>
-                    <input type="number" {...register('minStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.minStock)} />
-                  </Field>
-                  <Field label="Max stock" error={errors.maxStock?.message}>
-                    <input type="number" {...register('maxStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.maxStock)} />
-                  </Field>
-                </div>
-                <Field label="Description" error={errors.description?.message}>
-                  <textarea {...register('description')} disabled={isView || isPending} className={`${inputClass(!!errors.description)} min-h-32 resize-none`} />
-                </Field>
-                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-700">Tracking rules</p>
-                  <label className="flex items-center gap-3 text-sm text-slate-600">
-                    <input type="checkbox" {...register('trackedByLot')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300" />
-                    Track by lot / batch
-                  </label>
-                  <label className="flex items-center gap-3 text-sm text-slate-600">
-                    <input type="checkbox" {...register('trackedByExpiry')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300" />
-                    Track expiry date
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <SheetFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">
-            <div className="flex w-full items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isPending}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-              >
-                {isView ? 'Đóng' : 'Hủy'}
-              </button>
-              {!isView ? (
-                <button
-                  type="submit"
-                  disabled={isPending || isOptionsLoading}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isPending ? 'Đang lưu...' : 'Lưu sản phẩm'}
-                </button>
-              ) : null}
-            </div>
-          </SheetFooter>
-        </form>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="space-y-2 text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      {children}
-      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
-    </label>
   );
 }
 
@@ -511,8 +375,8 @@ function SearchInput({
   placeholder: string;
 }) {
   return (
-    <div className="relative min-w-60">
-      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+    <div className="relative">
+      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -536,45 +400,10 @@ function FilterSelect({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
     >
       {children}
     </select>
-  );
-}
-
-function DeleteDialog({
-  open,
-  onClose,
-  title,
-  description,
-  onConfirm,
-  isPending,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  description: string;
-  onConfirm: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isPending) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="bg-transparent p-0 pt-4">
-          <button type="button" onClick={onClose} disabled={isPending} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-            Hủy
-          </button>
-          <button type="button" onClick={onConfirm} disabled={isPending} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white">
-            {isPending ? 'Đang xóa...' : 'Xóa'}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -582,18 +411,25 @@ function ActionButton({
   icon,
   label,
   onClick,
-  danger = false,
+  tone = 'default',
+  disabled = false,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
-  danger?: boolean;
+  tone?: 'default' | 'danger';
+  disabled?: boolean;
 }) {
+  const toneClass = tone === 'danger'
+    ? 'text-red-500 hover:bg-red-50 hover:text-red-700 disabled:hover:bg-transparent disabled:hover:text-red-400'
+    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500';
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg p-2 transition ${danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+      disabled={disabled}
+      className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>
@@ -636,9 +472,8 @@ function Pagination({
               key={targetPage}
               type="button"
               onClick={() => onChange(targetPage)}
-              className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
-                page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
             >
               {targetPage}
             </button>
@@ -649,9 +484,8 @@ function Pagination({
           <button
             type="button"
             onClick={() => onChange(totalPages)}
-            className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
-              page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
           >
             {totalPages}
           </button>
@@ -668,8 +502,4 @@ function Pagination({
       </div>
     </div>
   );
-}
-
-function inputClass(hasError: boolean) {
-  return `w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 ${hasError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-primary focus:ring-primary/15'}`;
 }

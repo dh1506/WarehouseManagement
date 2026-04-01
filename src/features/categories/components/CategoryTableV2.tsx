@@ -92,9 +92,9 @@ export function CategoryTableV2({
           <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Category Name</th>
             <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Description</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Sub-categories</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Total Products</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Sub-categories</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Total Products</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -134,10 +134,10 @@ export function CategoryTableV2({
                 </div>
               </td>
               <td className="px-4 py-4 text-sm text-slate-600">{category.description || 'No description'}</td>
-              <td className="px-4 py-4 text-sm font-medium text-slate-700">{category.childrenCount}</td>
-              <td className="px-4 py-4 text-sm font-medium text-slate-700">{category.totalProducts}</td>
+              <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.childrenCount}</td>
+              <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.totalProducts}</td>
               <td className="px-4 py-4">
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-center gap-2">
                   <ActionButton icon="visibility" label="View" onClick={() => onView(category)} />
                   {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(category)} /> : null}
                   {canDelete ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(category)} /> : null}

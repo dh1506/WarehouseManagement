@@ -166,7 +166,6 @@
 **Decision:** Ship the API-backed categories page without fake status mutation. FE renders status as unknown and documents the contract gap instead of inventing unsupported persistence.  
 **Rationale:** Keeps FE behavior honest to the current API contract and avoids misleading users with non-persisted UI state.
 
-
 - 2026-04-01: Categories V2 removed status UI/export because backend category contract still has no persisted status field; pagination footer aligned to User Management interaction pattern; delete confirmation dialog refreshed for clearer destructive UX.
 
 - 2026-04-01: Standardized the API-backed Categories V2 module to English for all user-facing copy, validation messages, dialog content, and date formatting (en-US).
@@ -174,3 +173,40 @@
 - 2026-04-01: Categories V2 layout now uses fixed-height flex sections so only the table content scrolls; table header is sticky and pagination stays pinned at the bottom of the page content area.
 
 - 2026-04-01: Product Management list layout now matches Categories with internal table scrolling, sticky table headers, and a bottom-pinned pagination footer using the same numbered paging pattern.
+
+- 2026-04-01: Products module now uses real APIs for list/detail/create/update plus category/brand/unit/manufacturer option loading through productApiService; delete was removed from UI because backend currently exposes no DELETE /api/products endpoint.
+
+## DEC-047 - Product supporting masters switched from mock to real API endpoints
+
+**Date:** 2026-04-01  
+**Context:** Product supporting masters (`unit`, `brand`) were still using in-memory mock arrays and did not include manufacturer in the same management flow.  
+**Decision:** Replace `productReferenceService.ts` with API-backed calls to `/api/units-of-measure`, `/api/brands`, and `/api/manufacturers`; extend FE type and UI tabs to support `manufacturer`.  
+**Rationale:** Keeps supporting masters aligned with backend persistence and removes data drift before Sprint 2 transaction modules.
+
+## DEC-048 - Warehouse and location master CRUD switched to backend contract
+
+**Date:** 2026-04-01  
+**Context:** `warehouseService.ts` was using local mutable mock datasets for warehouses and locations while backend routes already exist.  
+**Decision:** Map FE warehouse/location queries and mutations to `/api/warehouses` and `/api/warehouses/locations*`, including envelope unwrapping and status mapping.  
+**Rationale:** Ensures master data in Warehouse Management reflects persisted backend state and keeps architecture boundary `services -> hooks -> feature UI` unchanged.
+
+## DEC-049 - Keep unsupported delete actions as explicit backend dependency
+
+**Date:** 2026-04-01  
+**Context:** Current backend contracts for product references and warehouses expose GET/POST/PATCH only (no DELETE routes).  
+**Decision:** Keep delete mutations in FE flow but return explicit contract error messages from service layer instead of fake local deletion.  
+**Rationale:** Prevents misleading users with non-persisted destructive actions while preserving current UI structure and scope.
+
+## DEC-050 - Fix role permission matrix 404 without backend changes
+
+**Date:** 2026-04-01  
+**Context:** FE permission matrix was calling `GET /api/roles/:id/permissions` and `PATCH /api/roles/:id/permissions`, but backend currently exposes `GET /api/roles/:id` and `PUT /api/roles/:id/permissions`.  
+**Decision:** Read assigned permissions from `GET /api/roles/:id` response and save matrix via `PUT /api/roles/:id/permissions`; also align role update to `PATCH /api/roles/:id`.  
+**Rationale:** Removes runtime 404 immediately while keeping FE consistent with current deployed backend contract.
+
+## DEC-051 - Advanced permissions projected from sidebar modules and real role permissions
+
+**Date:** 2026-04-01  
+**Context:** Advanced Permissions UI was entirely mock-backed and disconnected from real role assignments.  
+**Decision:** Replace mock service with API-backed projection: fetch role + permission catalog, map backend module/actions to sidebar modules, and persist through `PUT /api/roles/:id/permissions`.  
+**Rationale:** Keeps advanced permission UX aligned with actual access control state and enforces Sprint 1 requirement that advanced modules reflect sidebar pages.

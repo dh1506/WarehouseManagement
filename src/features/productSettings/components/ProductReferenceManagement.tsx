@@ -52,11 +52,17 @@ export function ProductReferenceManagement() {
   const deleteMutation = useDeleteProductReference();
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
-  const title = tab === 'unit' ? 'Units of Measure' : 'Brands & Manufacturers';
+  const title = tab === 'unit'
+    ? 'Units of Measure'
+    : tab === 'brand'
+      ? 'Brands'
+      : 'Manufacturers';
   const description =
     tab === 'unit'
       ? 'Chuẩn hóa đơn vị tính để product master và giao dịch kho dùng lại xuyên suốt các sprint.'
-      : 'Quản lý thương hiệu và nhà sản xuất làm dữ liệu gốc cho danh mục sản phẩm.';
+      : tab === 'brand'
+        ? 'Quản lý thương hiệu để đồng bộ dữ liệu nguồn cho danh mục sản phẩm.'
+        : 'Quản lý nhà sản xuất làm dữ liệu gốc cho nguồn gốc sản phẩm.';
 
   const openCreate = () => {
     setDialogMode('create');
@@ -106,7 +112,7 @@ export function ProductReferenceManagement() {
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
               >
                 <span className="material-symbols-outlined text-[18px]">add</span>
-                New {tab === 'unit' ? 'Unit' : 'Brand'}
+                New {tab === 'unit' ? 'Unit' : tab === 'brand' ? 'Brand' : 'Manufacturer'}
               </button>
             ) : null
           }
@@ -119,6 +125,9 @@ export function ProductReferenceManagement() {
             </TabsTrigger>
             <TabsTrigger value="brand" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
               Brands
+            </TabsTrigger>
+            <TabsTrigger value="manufacturer" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+              Manufacturers
             </TabsTrigger>
           </TabsList>
 
@@ -141,7 +150,7 @@ export function ProductReferenceManagement() {
                         setSearch(event.target.value);
                         setPage(1);
                       }}
-                      placeholder={`Search ${tab === 'unit' ? 'unit' : 'brand'}...`}
+                      placeholder={`Search ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}...`}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
                     />
                   </div>
@@ -188,7 +197,7 @@ export function ProductReferenceManagement() {
                     <StatePanel
                       title="Chưa có dữ liệu phù hợp"
                       description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
-                      icon={tab === 'unit' ? 'straighten' : 'branding_watermark'}
+                      icon={tab === 'unit' ? 'straighten' : tab === 'brand' ? 'branding_watermark' : 'factory'}
                       action={
                         canManage ? (
                           <button
@@ -269,7 +278,7 @@ export function ProductReferenceManagement() {
         onSubmit={async (payload) => {
           try {
             if (dialogMode === 'edit' && selectedItem) {
-              await updateMutation.mutateAsync({ id: selectedItem.id, payload });
+              await updateMutation.mutateAsync({ id: selectedItem.id, type: tab, payload });
               toast({ title: 'Đã cập nhật', description: 'Thông tin tham chiếu đã được lưu.' });
             } else {
               await createMutation.mutateAsync({ type: tab, payload });
@@ -290,7 +299,7 @@ export function ProductReferenceManagement() {
       <DeleteDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title={`Xóa ${tab === 'unit' ? 'unit' : 'brand'}`}
+        title={`Xóa ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}`}
         description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.name ?? ''}" không?`}
         onConfirm={() => void handleDelete()}
         isPending={deleteMutation.isPending}
@@ -342,10 +351,13 @@ function ReferenceFormDialog({
     });
   }, [item, open, reset]);
 
+  const typeLabel = type === 'unit' ? 'unit' : type === 'brand' ? 'brand' : 'manufacturer';
+  const typeLabelTitle = type === 'unit' ? 'Unit' : type === 'brand' ? 'Brand' : 'Manufacturer';
+
   const heading = {
-    create: `Create ${type === 'unit' ? 'unit' : 'brand'}`,
-    edit: `Update ${type === 'unit' ? 'unit' : 'brand'}`,
-    view: `${type === 'unit' ? 'Unit' : 'Brand'} detail`,
+    create: `Create ${typeLabel}`,
+    edit: `Update ${typeLabel}`,
+    view: `${typeLabelTitle} detail`,
   }[mode];
 
   return (

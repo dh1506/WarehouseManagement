@@ -3,6 +3,11 @@ import { StatePanel } from '@/components/StatePanel';
 import { useToast } from '@/hooks/use-toast';
 import { useRoles, useRolePermissions, useUpdateRolePermissions } from '../hooks/useRolePermissions';
 import type { Permission } from '../types/roleType';
+import {
+  SIDEBAR_PAGE_ACCESS_CONFIG,
+  hasPageAccessFromRoleMatrix,
+  setPageAccessInRoleMatrix,
+} from '@/lib/pageAccess';
 
 export function RolePermissions() {
   const { toast } = useToast();
@@ -35,12 +40,16 @@ export function RolePermissions() {
     }
   }, [rolePermissions]);
 
-  const handleToggle = (moduleName: string, action: keyof Omit<Permission, 'module'>) => {
-    setLocalPermissions((prev) =>
-      prev.map((perm) =>
-        perm.module === moduleName ? { ...perm, [action]: !perm[action] } : perm
-      )
-    );
+  const handlePageAccessToggle = (pagePath: string) => {
+    const pageConfig = SIDEBAR_PAGE_ACCESS_CONFIG.find((page) => page.path === pagePath);
+    if (!pageConfig || pageConfig.modules.length === 0) {
+      return;
+    }
+
+    setLocalPermissions((prev) => {
+      const currentlyAllowed = hasPageAccessFromRoleMatrix(pageConfig, prev);
+      return setPageAccessInRoleMatrix(pageConfig, prev, !currentlyAllowed);
+    });
   };
 
   const hasChanges = useMemo(() => {
@@ -167,7 +176,7 @@ export function RolePermissions() {
               <h3 className="text-xl font-bold text-gray-900">
                 Permission Matrix: <span className="text-primary">{selectedRole?.name}</span>
               </h3>
-              <p className="text-sm text-gray-500">Configure access levels for each system module.</p>
+              <p className="text-sm text-gray-500">Toggle whether each sidebar page is visible and accessible for this role.</p>
             </div>
             {selectedRole?.name === 'Director' && (
               <div className="flex gap-1">
@@ -211,84 +220,46 @@ export function RolePermissions() {
               <table className="w-full border-separate border-spacing-y-4">
                 <thead>
                   <tr className="text-left">
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider pl-4">System Module</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">View</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Create</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Edit</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Delete</th>
-                    <th className="pb-2 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center pr-4">Approve</th>
+                    <th className="pb-2 pl-4 font-headline text-xs font-bold uppercase tracking-wider text-gray-400">Sidebar Page</th>
+                    <th className="pb-2 text-center font-headline text-xs font-bold uppercase tracking-wider text-gray-400">Can Access</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {localPermissions.map((perm) => {
-                    const moduleName = formatModuleName(perm.module);
-                    const isAiForecast = isAiForecastModule(perm.module);
+                  {SIDEBAR_PAGE_ACCESS_CONFIG.map((page) => {
+                    const canAccess = hasPageAccessFromRoleMatrix(page, localPermissions);
+                    const isControlDisabled = isInteractionDisabled || page.modules.length === 0;
                     return (
-                      <tr key={perm.module} className="group hover:bg-slate-50/50 transition-colors">
-                        <td className={`py-4 pl-4 rounded-l-xl ${isAiForecast ? 'bg-cyan-50/30 group-hover:bg-cyan-100/10' : 'bg-gray-50/30 group-hover:bg-primary/5'} transition-colors`}>
+                      <tr key={page.path} className="group transition-colors hover:bg-slate-50/50">
+                        <td className="rounded-l-xl bg-gray-50/30 py-4 pl-4 transition-colors group-hover:bg-primary/5">
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg shadow-sm ${isAiForecast ? 'bg-cyan-600 text-white' : 'bg-white text-primary'
-                              }`}>
+                            <div className="rounded-lg bg-white p-2 text-primary shadow-sm">
                               <span
                                 className="material-symbols-outlined text-xl"
-                                data-icon={getIconForModule(perm.module)}
-                                style={isAiForecast ? { fontVariationSettings: "'FILL' 1" } : {}}
+                                data-icon={getIconForModule(page.id)}
                               >
-                                {getIconForModule(perm.module)}
+                                {getIconForModule(page.id)}
                               </span>
                             </div>
                             <div>
-                              <span className="font-bold text-gray-900">{moduleName}</span>
-                              {isAiForecast && (
-                                <span className="block text-[10px] text-cyan-700 font-bold uppercase tracking-tighter">Predictive Analysis</span>
-                              )}
+                              <span className="font-bold text-gray-900">{page.label}</span>
+                              <span className="block text-[11px] text-gray-500">{page.path}</span>
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={perm.view}
-                            onChange={() => handleToggle(perm.module, 'view')}
-                            disabled={isInteractionDisabled}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={perm.create}
-                            onChange={() => handleToggle(perm.module, 'create')}
-                            disabled={isInteractionDisabled}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={perm.edit}
-                            onChange={() => handleToggle(perm.module, 'edit')}
-                            disabled={isInteractionDisabled}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={perm.delete}
-                            onChange={() => handleToggle(perm.module, 'delete')}
-                            disabled={isInteractionDisabled}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center pr-4 rounded-r-xl">
-                          <input
-                            type="checkbox"
-                            checked={perm.approve}
-                            onChange={() => handleToggle(perm.module, 'approve')}
-                            disabled={isInteractionDisabled}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
+                        <td className="rounded-r-xl py-4 pr-4 text-center">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={canAccess}
+                            onClick={() => handlePageAccessToggle(page.path)}
+                            disabled={isControlDisabled}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors ${canAccess ? 'bg-primary' : 'bg-slate-300'} ${isControlDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                            title={page.modules.length === 0 ? 'Trang này chưa có mapping permission backend trong Sprint 1.' : undefined}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${canAccess ? 'translate-x-5' : 'translate-x-0'}`}
+                            />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -318,7 +289,7 @@ export function RolePermissions() {
                 className="px-8 py-3 rounded-xl font-bold text-white bg-primary shadow-lg shadow-primary/20 hover:bg-blue-800 active:scale-[0.99] transition-all disabled:opacity-75 flex items-center gap-2"
               >
                 {updateMutation.isPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
-                Update Permissions
+                Save Access
               </button>
             </div>
           </div>
@@ -333,30 +304,26 @@ function getIconForModule(module: string): string {
   const normalized = module.trim().toLowerCase();
 
   switch (normalized) {
+    case 'warehouse-hub':
+      return 'warehouse';
+    case 'categories':
+      return 'category';
+    case 'product-settings':
+      return 'straighten';
     case 'dashboard': return 'dashboard';
     case 'inventory': return 'inventory';
     case 'products': return 'inventory_2';
-    case 'reports': return 'bar_chart';
+    case 'import-export': return 'swap_horiz';
     case 'users': return 'person';
+    case 'advanced-permissions':
+      return 'admin_panel_settings';
+    case 'approval-configuration':
+      return 'approval';
     case 'roles': return 'security';
-    case 'permissions': return 'shield';
     case 'ai-forecast':
     case 'ai_forecast':
     case 'ai forecast':
       return 'auto_awesome';
     default: return 'widgets';
   }
-}
-
-function formatModuleName(module: string): string {
-  return module
-    .split(/[-_\s]+/)
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function isAiForecastModule(module: string): boolean {
-  const normalized = module.trim().toLowerCase();
-  return normalized === 'ai forecast' || normalized === 'ai-forecast' || normalized === 'ai_forecast';
 }

@@ -15,7 +15,7 @@ import { CategoryTableV2 } from './CategoryTableV2';
 import { CategoryFormSheetV2 } from './CategoryFormSheetV2';
 import { CategoryActionDialogsV2 } from './CategoryActionDialogsV2';
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 10;
 
 function hasPermission(permissions: string[], tokens: string[], role?: string | null) {
   if ((role ?? '').trim().toUpperCase() === 'CEO') {
@@ -226,9 +226,8 @@ export function CategoryManagementV2() {
                         key={targetPage}
                         type="button"
                         onClick={() => setPage(targetPage)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
-                          page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
+                        className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                          }`}
                       >
                         {targetPage}
                       </button>
@@ -239,9 +238,8 @@ export function CategoryManagementV2() {
                     <button
                       type="button"
                       onClick={() => setPage(totalPages)}
-                      className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${
-                        page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-                      }`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
                     >
                       {totalPages}
                     </button>

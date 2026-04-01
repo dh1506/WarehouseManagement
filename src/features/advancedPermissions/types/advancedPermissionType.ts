@@ -10,6 +10,7 @@ export interface ModulePermission {
   description: string;
   iconBg: string;
   iconColor: string;
+  isConfigurable: boolean;
   view: boolean;
   create: boolean;
   edit: boolean;
@@ -48,9 +49,9 @@ export function computeAccessLevel(perm: ModulePermission): AccessLevel {
 }
 
 export const ACCESS_LEVEL_META: Record<AccessLevel, { label: string; className: string }> = {
-  full_control:  { label: 'Full Control',  className: 'bg-blue-100 text-blue-700' },
-  ai_augmented:  { label: 'AI Augmented',  className: 'bg-teal-100 text-teal-700' },
-  restricted:    { label: 'Restricted',    className: 'bg-slate-200 text-slate-600' },
-  read_only:     { label: 'Read Only',     className: 'bg-slate-200 text-slate-600' },
-  no_access:     { label: 'No Access',     className: 'bg-red-100 text-red-600' },
+  full_control: { label: 'Full Control', className: 'bg-blue-100 text-blue-700' },
+  ai_augmented: { label: 'AI Augmented', className: 'bg-teal-100 text-teal-700' },
+  restricted: { label: 'Restricted', className: 'bg-slate-200 text-slate-600' },
+  read_only: { label: 'Read Only', className: 'bg-slate-200 text-slate-600' },
+  no_access: { label: 'No Access', className: 'bg-red-100 text-red-600' },
 };

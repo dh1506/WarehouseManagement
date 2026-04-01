@@ -235,13 +235,13 @@ export const lockUser = (id: string, payload: LockUserPayload): Promise<UserItem
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
 /**
- * PATCH /api/users/:id/reset-password
+ * PATCH /api/users/:id
  * Đặt lại mật khẩu người dùng
  */
 export const resetUserPassword = (id: string, payload: ResetPasswordPayload): Promise<void> =>
   apiClient
-    .patch<ApiResponse<unknown>>(`/api/users/${id}/reset-password`, {
-      new_password: payload.newPassword,
+    .patch<ApiResponse<unknown>>(`/api/users/${id}`, {
+      password: payload.newPassword,
     })
     .then(() => undefined);
 

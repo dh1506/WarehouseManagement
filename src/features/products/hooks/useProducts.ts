@@ -1,7 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getProductCategories } from '@/services/categoryService';
-import { getProductReferenceOptions } from '@/services/productReferenceService';
-import { createProduct, deleteProduct, getProducts, updateProduct } from '@/services/productService';
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getProductCategories } from '@/services/categoryApiService';
+import {
+  createProduct,
+  discontinueProduct,
+  getBrandOptions,
+  getManufacturerOptions,
+  getProducts,
+  getUnitOptions,
+  updateProduct,
+} from '@/services/productApiService';
 import type { ProductFormValues, ProductListParams } from '../types/productType';
 
 export const PRODUCT_KEYS = {
@@ -10,6 +17,7 @@ export const PRODUCT_KEYS = {
   categories: ['products', 'categories'] as const,
   units: ['products', 'units'] as const,
   brands: ['products', 'brands'] as const,
+  manufacturers: ['products', 'manufacturers'] as const,
 };
 
 export function useProducts(params: ProductListParams) {
@@ -22,21 +30,31 @@ export function useProducts(params: ProductListParams) {
 export function useProductCategoryOptions() {
   return useQuery({
     queryKey: PRODUCT_KEYS.categories,
-    queryFn: () => getProductCategories({ page: 1, pageSize: 100, status: 'active' }),
+    queryFn: async () => {
+      const response = await getProductCategories({ page: 1, pageSize: 100 });
+      return response.data.map((item) => ({ id: item.id, name: item.name }));
+    },
   });
 }
 
 export function useProductUnitOptions() {
   return useQuery({
     queryKey: PRODUCT_KEYS.units,
-    queryFn: () => getProductReferenceOptions('unit'),
+    queryFn: () => getUnitOptions(),
   });
 }
 
 export function useProductBrandOptions() {
   return useQuery({
     queryKey: PRODUCT_KEYS.brands,
-    queryFn: () => getProductReferenceOptions('brand'),
+    queryFn: () => getBrandOptions(),
+  });
+}
+
+export function useProductManufacturerOptions() {
+  return useQuery({
+    queryKey: PRODUCT_KEYS.manufacturers,
+    queryFn: () => getManufacturerOptions(),
   });
 }
 
@@ -62,11 +80,11 @@ export function useUpdateProduct() {
   });
 }
 
-export function useDeleteProduct() {
+export function useDiscontinueProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => deleteProduct(id),
+    mutationFn: (id: string) => discontinueProduct(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
     },

@@ -123,9 +123,21 @@
 - src/features/categories/utils/exportCategories.ts
   - Export now includes code and sub-category count from API-backed data.
 
-
 - categories/components/CategoryManagementV2.tsx: API-backed category list page with search, permission-aware actions, and User Management-style pagination.
 - categories/components/CategoryActionDialogsV2.tsx: destructive delete confirmation dialog for category removal.
 - categories/components/CategoryFormSheetV2.tsx: category create/edit/detail sheet without status UI.
 
 - categories/components/CategoryManagementV2.tsx, CategoryFormSheetV2.tsx, CategoryActionDialogsV2.tsx, CategoryTableV2.tsx, schemas/categorySchemas.ts, utils/exportCategories.ts: English-only API-backed Categories V2 flow.
+
+- services/productApiService.ts: real API integration for products, brands, manufacturers, and units-of-measure used by Products UI.
+- features/products/hooks/useProducts.ts, useProductDetail.ts: React Query hooks bound to real product APIs.
+- features/products/components/ProductManagement.tsx, ProductDetail.tsx, ProductFormSheets.tsx: API-backed product list/detail/form flows.
+
+- services/productReferenceService.ts: API-backed product supporting master service (`/api/units-of-measure`, `/api/brands`, `/api/manufacturers`), replacing mutable mock arrays.
+- features/productSettings/types/referenceType.ts: reference type now includes `manufacturer`.
+- features/productSettings/components/ProductReferenceManagement.tsx: tabs and form flow now support Unit/Brand/Manufacturer with real API mutations.
+- services/warehouseService.ts: warehouse and location list/create/update now map to real backend routes (`/api/warehouses`, `/api/warehouses/locations/search`, `/api/warehouses/locations`); hub/zone/bin flows remain mock by design.
+- services/roleService.ts: role permission matrix now reads assigned permissions from `GET /api/roles/:id` and writes via `PUT /api/roles/:id/permissions` to match current backend routes.
+- services/advancedPermissionService.ts: advanced permission matrix is API-backed and projected from sidebar modules using role permissions + permission catalog.
+- services/categoryService.ts: legacy category service now re-exports `categoryApiService` (no in-memory mock dataset).
+- services/approvalConfigService.ts: scenario list derived from `/api/roles`; create/delete scenario operations now surface explicit backend dependency errors.

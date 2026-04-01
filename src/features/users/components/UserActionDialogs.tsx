@@ -160,6 +160,7 @@ interface ResetPasswordDialogProps {
 
 export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordDialogProps) {
   const { mutateAsync, isPending } = useResetUserPassword();
+  const { toast } = useToast();
   const [showPwd, setShowPwd] = useState(false);
 
   const {
@@ -187,11 +188,18 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
     if (!user) return;
     try {
       await mutateAsync({ id: user.id, payload: { newPassword: data.newPassword } });
-      reset();
+      toast({
+        title: 'Đặt lại mật khẩu thành công',
+        description: `Mật khẩu của ${user.name} đã được cập nhật.`,
+      });
       onSuccess?.();
-      onClose();
-    } catch {
-      // Lỗi đã được xử lý trong hook
+      handleClose();
+    } catch (error) {
+      toast({
+        title: 'Không thể đặt lại mật khẩu',
+        description: error instanceof Error ? error.message : 'Vui lòng thử lại sau.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -219,7 +227,7 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
           </div>
         </DialogHeader>
 
-        <form id="reset-pwd-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Mật khẩu mới */}
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-gray-700">
@@ -283,8 +291,8 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
             Huỷ
           </button>
           <button
-            type="submit"
-            form="reset-pwd-form"
+            type="button"
+            onClick={() => void handleSubmit(onSubmit)()}
             disabled={isPending}
             className={`px-5 py-2 text-sm font-semibold text-white rounded-xl flex items-center gap-2 transition-all
               ${isPending ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]'}`}

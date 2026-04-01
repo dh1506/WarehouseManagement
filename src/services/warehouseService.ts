@@ -16,99 +16,129 @@ import type {
   WarehouseZoneFormValues,
   Zone,
 } from '@/features/warehouses/types/warehouseType';
+import type { ApiResponse } from '@/types/api';
+import apiClient from './apiClient';
 
-let WAREHOUSES: WarehouseItem[] = [
-  {
-    id: 'wh-1',
-    code: 'HCM-DC',
-    name: 'Ho Chi Minh Distribution Center',
-    manager: 'Nguyen Quoc Bao',
-    address: 'District 9, Ho Chi Minh City',
-    description: 'Trung tâm phân phối chính cho khu vực miền Nam.',
-    capacityUsage: 72,
-    locationCount: 18,
-    status: 'operational',
-    createdAt: '2026-03-01T08:00:00Z',
-    updatedAt: '2026-03-28T08:00:00Z',
-  },
-  {
-    id: 'wh-2',
-    code: 'HN-HUB',
-    name: 'Hanoi Fulfillment Hub',
-    manager: 'Tran Hai Nam',
-    address: 'Gia Lam, Hanoi',
-    description: 'Kho trung chuyển và đóng gói đơn hàng miền Bắc.',
-    capacityUsage: 58,
-    locationCount: 12,
-    status: 'operational',
-    createdAt: '2026-03-03T08:00:00Z',
-    updatedAt: '2026-03-26T08:00:00Z',
-  },
-  {
-    id: 'wh-3',
-    code: 'DNG-RSV',
-    name: 'Da Nang Reserve Storage',
-    manager: 'Le Minh Duc',
-    address: 'Hoa Vang, Da Nang',
-    description: 'Kho dự phòng cho luồng hàng dự án và an toàn tồn kho.',
-    capacityUsage: 24,
-    locationCount: 9,
-    status: 'maintenance',
-    createdAt: '2026-03-05T08:00:00Z',
-    updatedAt: '2026-03-24T08:00:00Z',
-  },
-];
+interface PaginationApiModel {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
-let WAREHOUSE_LOCATIONS: WarehouseLocationItem[] = [
-  {
-    id: 'loc-1',
-    warehouseId: 'wh-1',
-    warehouseName: 'Ho Chi Minh Distribution Center',
-    code: 'HCM-A-01-01',
-    zone: 'A',
-    aisle: '01',
-    bin: '01',
-    capacity: 120,
-    currentLoad: 92,
-    productCount: 18,
-    status: 'active',
-    createdAt: '2026-03-06T08:00:00Z',
-    updatedAt: '2026-03-28T08:00:00Z',
-  },
-  {
-    id: 'loc-2',
-    warehouseId: 'wh-1',
-    warehouseName: 'Ho Chi Minh Distribution Center',
-    code: 'HCM-B-03-07',
-    zone: 'B',
-    aisle: '03',
-    bin: '07',
-    capacity: 90,
-    currentLoad: 90,
-    productCount: 11,
-    status: 'blocked',
-    createdAt: '2026-03-06T08:00:00Z',
-    updatedAt: '2026-03-27T08:00:00Z',
-  },
-  {
-    id: 'loc-3',
-    warehouseId: 'wh-2',
-    warehouseName: 'Hanoi Fulfillment Hub',
-    code: 'HN-C-02-03',
-    zone: 'C',
-    aisle: '02',
-    bin: '03',
-    capacity: 60,
-    currentLoad: 26,
-    productCount: 7,
-    status: 'active',
-    createdAt: '2026-03-07T08:00:00Z',
-    updatedAt: '2026-03-28T09:00:00Z',
-  },
-];
+interface WarehouseApiItem {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  _count?: {
+    locations?: number;
+  };
+}
 
-let nextWarehouseId = 50;
-let nextLocationId = 90;
+interface WarehouseListApiData {
+  warehouses: WarehouseApiItem[];
+  pagination: PaginationApiModel;
+}
+
+interface WarehouseLocationApiItem {
+  id: number;
+  warehouse_id: number;
+  location_code: string;
+  zone_code: string | null;
+  aisle_code: string | null;
+  bin_code: string | null;
+  location_status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
+  is_active: boolean;
+  max_weight: number | null;
+  current_weight: number | null;
+  occupancy_percent: number | null;
+  created_at: string;
+  updated_at: string;
+  warehouse?: {
+    name: string;
+    code: string;
+  };
+}
+
+interface WarehouseLocationListApiData {
+  locations: WarehouseLocationApiItem[];
+  pagination: PaginationApiModel;
+}
+
+function unwrapApiData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const level1 = (response as { data: unknown }).data;
+    if (level1 && typeof level1 === 'object' && 'data' in level1) {
+      return (level1 as { data: T }).data;
+    }
+
+    return level1 as T;
+  }
+
+  return response as T;
+}
+
+function mapWarehouseStatus(isActive: boolean): 'operational' | 'inactive' {
+  return isActive ? 'operational' : 'inactive';
+}
+
+function mapWarehouse(item: WarehouseApiItem): WarehouseItem {
+  return {
+    id: String(item.id),
+    code: item.code,
+    name: item.name,
+    manager: 'N/A',
+    address: 'N/A',
+    description: '',
+    capacityUsage: 0,
+    locationCount: item._count?.locations ?? 0,
+    status: mapWarehouseStatus(item.is_active),
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+function mapLocationStatus(status: WarehouseLocationApiItem['location_status'], isActive: boolean): WarehouseLocationItem['status'] {
+  if (!isActive) {
+    return 'inactive';
+  }
+
+  if (status === 'MAINTENANCE') {
+    return 'blocked';
+  }
+
+  return 'active';
+}
+
+function mapLocation(item: WarehouseLocationApiItem): WarehouseLocationItem {
+  return {
+    id: String(item.id),
+    warehouseId: String(item.warehouse_id),
+    warehouseName: item.warehouse?.name ?? 'N/A',
+    code: item.location_code,
+    zone: item.zone_code ?? '',
+    aisle: item.aisle_code ?? '',
+    bin: item.bin_code ?? '',
+    capacity: item.max_weight ?? 0,
+    currentLoad: item.current_weight ?? 0,
+    productCount: 0,
+    status: mapLocationStatus(item.location_status, item.is_active),
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+function mapLocationStatusForRequest(status: WarehouseLocationItem['status']): WarehouseLocationApiItem['location_status'] {
+  if (status === 'blocked') {
+    return 'MAINTENANCE';
+  }
+
+  return 'AVAILABLE';
+}
+
 let nextHubId = 10;
 let nextZoneId = 100;
 
@@ -212,16 +242,6 @@ let WAREHOUSE_HUBS: WarehouseHub[] = [
 ];
 
 const delay = async (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function syncWarehouseStats() {
-  WAREHOUSES = WAREHOUSES.map((warehouse) => {
-    const locations = WAREHOUSE_LOCATIONS.filter((location) => location.warehouseId === warehouse.id);
-    return {
-      ...warehouse,
-      locationCount: locations.length,
-    };
-  });
-}
 
 function syncHubZoneStats() {
   WAREHOUSE_HUBS = WAREHOUSE_HUBS.map((hub) => ({
@@ -333,183 +353,113 @@ function syncZoneOccupancy(warehouseId: string, zoneId: string) {
 }
 
 export async function getWarehouses(params: WarehouseListParams = {}): Promise<WarehouseListResponse> {
-  await delay(250);
+  const response = await apiClient.get<ApiResponse<WarehouseListApiData>>('/api/warehouses', {
+    params: {
+      page: params.page ?? 1,
+      limit: params.pageSize ?? 10,
+      search: params.search,
+      is_active: params.status && params.status !== 'all'
+        ? params.status !== 'inactive'
+        : undefined,
+    },
+  });
 
-  let filtered = [...WAREHOUSES];
-
-  if (params.search) {
-    const keyword = params.search.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.code.toLowerCase().includes(keyword) ||
-        item.name.toLowerCase().includes(keyword) ||
-        item.manager.toLowerCase().includes(keyword),
-    );
-  }
-
-  if (params.status && params.status !== 'all') {
-    filtered = filtered.filter((item) => item.status === params.status);
-  }
-
-  const page = params.page ?? 1;
-  const pageSize = params.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
+  const payload = unwrapApiData<WarehouseListApiData>(response);
 
   return {
-    data: filtered.slice(start, start + pageSize),
-    total: filtered.length,
-    page,
-    pageSize,
+    data: payload.warehouses.map(mapWarehouse),
+    total: payload.pagination.total,
+    page: payload.pagination.page,
+    pageSize: payload.pagination.limit,
   };
 }
 
 export async function createWarehouse(payload: WarehouseFormValues): Promise<WarehouseItem> {
-  await delay(300);
-
-  const warehouse: WarehouseItem = {
-    id: `wh-${nextWarehouseId++}`,
-    ...payload,
+  const response = await apiClient.post<ApiResponse<WarehouseApiItem>>('/api/warehouses', {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    manager: payload.manager.trim(),
-    address: payload.address.trim(),
-    description: payload.description.trim(),
-    locationCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    is_active: payload.status !== 'inactive',
+  });
 
-  WAREHOUSES = [warehouse, ...WAREHOUSES];
-  return warehouse;
+  return mapWarehouse(unwrapApiData<WarehouseApiItem>(response));
 }
 
 export async function updateWarehouse(id: string, payload: WarehouseFormValues): Promise<WarehouseItem> {
-  await delay(300);
-
-  const index = WAREHOUSES.findIndex((item) => item.id === id);
-  if (index === -1) {
-    throw new Error('Không tìm thấy kho cần cập nhật.');
-  }
-
-  WAREHOUSES[index] = {
-    ...WAREHOUSES[index],
-    ...payload,
+  const response = await apiClient.patch<ApiResponse<WarehouseApiItem>>(`/api/warehouses/${Number(id)}`, {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    manager: payload.manager.trim(),
-    address: payload.address.trim(),
-    description: payload.description.trim(),
-    updatedAt: new Date().toISOString(),
-  };
+    is_active: payload.status !== 'inactive',
+  });
 
-  return { ...WAREHOUSES[index] };
+  return mapWarehouse(unwrapApiData<WarehouseApiItem>(response));
 }
 
 export async function deleteWarehouse(id: string): Promise<void> {
-  await delay(250);
-  WAREHOUSES = WAREHOUSES.filter((item) => item.id !== id);
-  WAREHOUSE_LOCATIONS = WAREHOUSE_LOCATIONS.filter((location) => location.warehouseId !== id);
+  void id;
+  throw new Error('Backend hiện chưa hỗ trợ xóa kho trong API contract.');
 }
 
 export async function getWarehouseLocations(
   params: WarehouseLocationListParams = {},
 ): Promise<WarehouseLocationListResponse> {
-  await delay(250);
+  const response = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
+    params: {
+      page: params.page ?? 1,
+      limit: params.pageSize ?? 10,
+      search: params.search,
+      warehouse_id: params.warehouseId ? Number(params.warehouseId) : undefined,
+      location_status: params.status === 'blocked' ? 'MAINTENANCE' : undefined,
+    },
+  });
 
-  let filtered = [...WAREHOUSE_LOCATIONS];
-
-  if (params.search) {
-    const keyword = params.search.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.code.toLowerCase().includes(keyword) ||
-        item.warehouseName.toLowerCase().includes(keyword) ||
-        item.zone.toLowerCase().includes(keyword),
-    );
-  }
-
-  if (params.status && params.status !== 'all') {
-    filtered = filtered.filter((item) => item.status === params.status);
-  }
-
-  if (params.warehouseId) {
-    filtered = filtered.filter((item) => item.warehouseId === params.warehouseId);
-  }
-
-  const page = params.page ?? 1;
-  const pageSize = params.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
+  const payload = unwrapApiData<WarehouseLocationListApiData>(response);
+  const mappedLocations = payload.locations
+    .map(mapLocation)
+    .filter((item) => (params.status && params.status !== 'all' ? item.status === params.status : true));
 
   return {
-    data: filtered.slice(start, start + pageSize),
-    total: filtered.length,
-    page,
-    pageSize,
+    data: mappedLocations,
+    total: params.status && params.status !== 'all' ? mappedLocations.length : payload.pagination.total,
+    page: payload.pagination.page,
+    pageSize: payload.pagination.limit,
   };
 }
 
 export async function createWarehouseLocation(
   payload: WarehouseLocationFormValues,
 ): Promise<WarehouseLocationItem> {
-  await delay(300);
+  const response = await apiClient.post<ApiResponse<WarehouseLocationApiItem>>('/api/warehouses/locations', {
+    warehouse_id: Number(payload.warehouseId),
+    location_code: payload.code.trim().toUpperCase(),
+    zone_code: payload.zone.trim().toUpperCase() || null,
+    aisle_code: payload.aisle.trim().toUpperCase() || null,
+    bin_code: payload.bin.trim().toUpperCase() || null,
+    location_status: mapLocationStatusForRequest(payload.status),
+    is_active: payload.status !== 'inactive',
+    max_weight: payload.capacity,
+    current_weight: payload.currentLoad,
+  });
 
-  const warehouse = WAREHOUSES.find((item) => item.id === payload.warehouseId);
-  if (!warehouse) {
-    throw new Error('Kho được chọn không còn tồn tại.');
-  }
-
-  const location: WarehouseLocationItem = {
-    id: `loc-${nextLocationId++}`,
-    ...payload,
-    warehouseName: warehouse.name,
-    code: payload.code.trim().toUpperCase(),
-    zone: payload.zone.trim().toUpperCase(),
-    aisle: payload.aisle.trim().toUpperCase(),
-    bin: payload.bin.trim().toUpperCase(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  WAREHOUSE_LOCATIONS = [location, ...WAREHOUSE_LOCATIONS];
-  syncWarehouseStats();
-  return location;
+  return mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
 }
 
 export async function updateWarehouseLocation(
   id: string,
   payload: WarehouseLocationFormValues,
 ): Promise<WarehouseLocationItem> {
-  await delay(300);
+  const response = await apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(id)}`, {
+    location_status: mapLocationStatusForRequest(payload.status),
+    is_active: payload.status !== 'inactive',
+    max_weight: payload.capacity,
+    current_weight: payload.currentLoad,
+  });
 
-  const index = WAREHOUSE_LOCATIONS.findIndex((item) => item.id === id);
-  if (index === -1) {
-    throw new Error('Không tìm thấy vị trí kho cần cập nhật.');
-  }
-
-  const warehouse = WAREHOUSES.find((item) => item.id === payload.warehouseId);
-  if (!warehouse) {
-    throw new Error('Kho được chọn không còn tồn tại.');
-  }
-
-  WAREHOUSE_LOCATIONS[index] = {
-    ...WAREHOUSE_LOCATIONS[index],
-    ...payload,
-    warehouseName: warehouse.name,
-    code: payload.code.trim().toUpperCase(),
-    zone: payload.zone.trim().toUpperCase(),
-    aisle: payload.aisle.trim().toUpperCase(),
-    bin: payload.bin.trim().toUpperCase(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  syncWarehouseStats();
-  return { ...WAREHOUSE_LOCATIONS[index] };
+  return mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
 }
 
 export async function deleteWarehouseLocation(id: string): Promise<void> {
-  await delay(250);
-  WAREHOUSE_LOCATIONS = WAREHOUSE_LOCATIONS.filter((item) => item.id !== id);
-  syncWarehouseStats();
+  void id;
+  throw new Error('Backend hiện chưa hỗ trợ xóa vị trí kho trong API contract.');
 }
 
 export async function getWarehouseHubs(): Promise<WarehouseHub[]> {

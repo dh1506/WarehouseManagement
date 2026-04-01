@@ -54,8 +54,15 @@ export function useUpdateProductReference() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: ProductReferenceFormValues }) =>
-      updateProductReference(id, payload),
+    mutationFn: ({
+      id,
+      type,
+      payload,
+    }: {
+      id: string;
+      type: ProductReferenceType;
+      payload: ProductReferenceFormValues;
+    }) => updateProductReference(id, type, payload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_REFERENCE_KEYS.all });
       queryClient.invalidateQueries({ queryKey: PRODUCT_REFERENCE_KEYS.options(data.type) });

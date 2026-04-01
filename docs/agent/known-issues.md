@@ -15,7 +15,7 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 1. FE hiện map action backend `read/create/update/delete(/approve)` sang cột matrix `view/create/edit/delete/approve`.
 2. Nếu backend không có action `approve`, cột Approve sẽ luôn false và không sinh `permission_id` khi lưu.
 3. Backend schema hiện yêu cầu `permission_ids` tối thiểu 1 phần tử khi update role permission; FE đã chặn lưu khi tất cả quyền bị bỏ chọn.
-4. FE đã đổi endpoint phân quyền sang `GET/PATCH /api/roles/:id/permissions` theo API design table.
+4. FE đã căn theo backend hiện tại: đọc matrix qua `GET /api/roles/:id` (trường `permissions`) và lưu qua `PUT /api/roles/:id/permissions`.
 
 ## API design gaps from approved table (2026-03-31)
 
@@ -24,6 +24,8 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 3. `GET /api/audit-logs?page={}&limit={}&module={}` chưa có module/service FE tương ứng trong scope hiện tại.
 4. API table dùng `PUT /api/roles/:id`, trong khi backend route hiện tại trong repo đang là `PATCH /api/roles/:id`; cần backend chốt một chuẩn cuối cùng để tránh mismatch môi trường.
 5. Payload/response shape cho `approval-config` chưa được định nghĩa chính thức trong backend schemas, FE hiện map theo `WorkflowScenario` hiện có.
+6. `GET /api/roles/:id/permissions` và `PATCH /api/roles/:id/permissions` hiện chưa tồn tại trong backend; FE đã tránh gọi để không còn 404 ở Permission Matrix.
+7. `PUT /api/roles/:id` chưa có trong backend hiện tại (backend dùng `PATCH /api/roles/:id`), FE đã đổi sang PATCH để đồng bộ.
 
 ## Backend role-domain note (2026-03-31)
 
@@ -85,7 +87,16 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
    - business rule for inactive categories with child categories or linked products
 5. FE validation prevents selecting self or descendant as parent using current loaded tree, but final integrity still depends on backend validation remaining in place.
 
-
 - 2026-04-01: Category status remains intentionally absent from FE categories screens until backend exposes a real status field and mutation contract.
 
 - 2026-04-01: The wider FE codebase still contains many Vietnamese user-facing strings outside Categories; this task standardized the live Categories V2 flow only.
+
+- 2026-04-01: Products UI hides hard delete because backend currently supports GET/POST/PATCH for /api/products but not DELETE.
+- 2026-04-01: Backend has no explicit boolean expiry-tracking field; FE derives expiry tracking from whether expiry_date is set and requires an expiry date when enabled.
+- 2026-04-01: Product images and richer supplier/UOM conversion editing are still limited by the current screen design and were not expanded beyond the current sprint scope.
+
+- 2026-04-01: Product supporting masters (unit/brand/manufacturer) are now API-backed, but backend still does not expose DELETE endpoints for these resources; FE delete action returns explicit backend-dependency error.
+- 2026-04-01: Warehouse and warehouse-location list/create/update are API-backed, but backend currently has no DELETE warehouse/location routes; FE destructive actions are blocked with explicit error feedback.
+- 2026-04-01: Warehouse backend contract does not currently persist manager/address/description/capacityUsage fields used by the existing FE design; FE keeps these fields in UI but only contract-supported fields (`code`, `name`, `is_active`) are persisted.
+- 2026-04-01: Approval Configuration screen no longer uses in-memory mock scenarios; list is derived from real `/api/roles`. Create/delete scenario is blocked with explicit backend-dependency errors until dedicated endpoints exist.
+- 2026-04-01: Advanced Permissions screen no longer uses mock matrices; permissions are derived from role assignments and permission catalog, projected to sidebar modules.
