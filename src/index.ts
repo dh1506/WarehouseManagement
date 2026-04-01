@@ -12,6 +12,7 @@ import manufacturerRoutes from './routes/manufacturer.route';
 import unitOfMeasureRoutes from './routes/unit-of-measure.route';
 import supplierRoutes from './routes/supplier.route';
 import productRoutes from './routes/product.route';
+import warehouseRoutes from './routes/warehouse.route';
 import { globalErrorHandler } from './middlewares/error.middleware';
 
 
@@ -35,6 +36,7 @@ app.use('/api/manufacturers', manufacturerRoutes);
 app.use('/api/units-of-measure', unitOfMeasureRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/warehouses', warehouseRoutes);
 
 // Error Middleware
 app.use(globalErrorHandler);

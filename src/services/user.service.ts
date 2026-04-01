@@ -1,11 +1,11 @@
-import bcrypt from 'bcryptjs';
-import { prisma } from '../config/db.config';
-import { AppError } from '../utils/app-error';
+import bcrypt from "bcryptjs";
+import { prisma } from "../config/db.config";
+import { AppError } from "../utils/app-error";
 import type {
   GetUsersQuery,
   CreateUserInput,
   UpdateUserInput,
-} from '../schemas/user.schema';
+} from "../schemas/user.schema";
 
 /**
  * Select fields chuẩn khi trả về user - loại bỏ password_hash
@@ -18,6 +18,7 @@ const userSelectFields = {
   phone: true,
   avatar_url: true,
   role_id: true,
+  warehouse_id: true,
   user_status: true,
   created_at: true,
   updated_at: true,
@@ -28,13 +29,21 @@ const userSelectFields = {
       description: true,
     },
   },
+  warehouse: {
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      is_active: true,
+    },
+  },
 } as const;
 
 /**
  * Lấy danh sách users với phân trang, tìm kiếm và lọc
  */
 export const getUsers = async (query: GetUsersQuery) => {
-  const { page, limit, search, status, role_id } = query;
+  const { page, limit, search, status, role_id, warehouse_id } = query;
   const skip = (page - 1) * limit;
 
   // Xây dựng điều kiện where
@@ -57,6 +66,10 @@ export const getUsers = async (query: GetUsersQuery) => {
     where.role_id = role_id;
   }
 
+  if (warehouse_id) {
+    where.warehouse_id = warehouse_id;
+  }
+
   // Query song song: lấy data + đếm tổng
   const [users, total] = await Promise.all([
     prisma.user.findMany({
@@ -64,7 +77,7 @@ export const getUsers = async (query: GetUsersQuery) => {
       select: userSelectFields,
       skip,
       take: limit,
-      orderBy: { created_at: 'desc' },
+      orderBy: { created_at: "desc" },
     }),
     prisma.user.count({ where }),
   ]);
@@ -112,7 +125,7 @@ export const getUserById = async (id: number) => {
   });
 
   if (!user) {
-    throw new AppError('Không tìm thấy người dùng', 404);
+    throw new AppError("Không tìm thấy người dùng", 404);
   }
 
   // Format lại permissions cho gọn
@@ -133,14 +146,24 @@ export const getUserById = async (id: number) => {
  * Tạo mới user
  */
 export const createUser = async (data: CreateUserInput) => {
-  const { username, password, full_name, email, phone, avatar_url, role_id, user_status } = data;
+  const {
+    username,
+    password,
+    full_name,
+    email,
+    phone,
+    avatar_url,
+    role_id,
+    warehouse_id,
+    user_status,
+  } = data;
 
   // Kiểm tra username đã tồn tại
   const existingUsername = await prisma.user.findUnique({
     where: { username },
   });
   if (existingUsername) {
-    throw new AppError('Tên đăng nhập đã được sử dụng', 400);
+    throw new AppError("Tên đăng nhập đã được sử dụng", 400);
   }
 
   // Kiểm tra email đã tồn tại (nếu có)
@@ -149,7 +172,7 @@ export const createUser = async (data: CreateUserInput) => {
       where: { email },
     });
     if (existingEmail) {
-      throw new AppError('Email đã được sử dụng', 400);
+      throw new AppError("Email đã được sử dụng", 400);
     }
   }
 
@@ -159,7 +182,7 @@ export const createUser = async (data: CreateUserInput) => {
       where: { phone },
     });
     if (existingPhone) {
-      throw new AppError('Số điện thoại đã được sử dụng', 400);
+      throw new AppError("Số điện thoại đã được sử dụng", 400);
     }
   }
 
@@ -168,7 +191,17 @@ export const createUser = async (data: CreateUserInput) => {
     where: { id: role_id },
   });
   if (!role) {
-    throw new AppError('Vai trò không tồn tại', 400);
+    throw new AppError("Vai trò không tồn tại", 400);
+  }
+
+  // Kiểm tra warehouse tồn tại (nếu có)
+  if (warehouse_id) {
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: warehouse_id },
+    });
+    if (!warehouse) {
+      throw new AppError("Kho không tồn tại", 400);
+    }
   }
 
   // Hash mật khẩu
@@ -185,7 +218,8 @@ export const createUser = async (data: CreateUserInput) => {
       phone: phone ?? null,
       avatar_url: avatar_url ?? null,
       role_id,
-      user_status: user_status ?? 'ACTIVE',
+      warehouse_id: warehouse_id ?? null,
+      user_status: user_status ?? "ACTIVE",
     },
     select: userSelectFields,
   });
@@ -202,7 +236,7 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
     where: { id },
   });
   if (!existingUser) {
-    throw new AppError('Không tìm thấy người dùng', 404);
+    throw new AppError("Không tìm thấy người dùng", 404);
   }
 
   // Kiểm tra email trùng lặp (nếu thay đổi)
@@ -211,7 +245,7 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
       where: { email: data.email },
     });
     if (existingEmail) {
-      throw new AppError('Email đã được sử dụng', 400);
+      throw new AppError("Email đã được sử dụng", 400);
     }
   }
 
@@ -221,7 +255,7 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
       where: { phone: data.phone },
     });
     if (existingPhone) {
-      throw new AppError('Số điện thoại đã được sử dụng', 400);
+      throw new AppError("Số điện thoại đã được sử dụng", 400);
     }
   }
 
@@ -231,7 +265,19 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
       where: { id: data.role_id },
     });
     if (!role) {
-      throw new AppError('Vai trò không tồn tại', 400);
+      throw new AppError("Vai trò không tồn tại", 400);
+    }
+  }
+
+  // Kiểm tra warehouse tồn tại (nếu thay đổi)
+  if (data.warehouse_id !== undefined) {
+    if (data.warehouse_id) {
+      const warehouse = await prisma.warehouse.findUnique({
+        where: { id: data.warehouse_id },
+      });
+      if (!warehouse) {
+        throw new AppError("Kho không tồn tại", 400);
+      }
     }
   }
 
@@ -243,6 +289,8 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;
   if (data.role_id !== undefined) updateData.role_id = data.role_id;
+  if (data.warehouse_id !== undefined)
+    updateData.warehouse_id = data.warehouse_id;
   if (data.user_status !== undefined) updateData.user_status = data.user_status;
 
   // Hash mật khẩu mới (nếu thay đổi)
