@@ -94,11 +94,69 @@ interface RoleApiItem {
 
 interface RolesListApiData {
   roles: RoleApiItem[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+function isForbiddenError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  if ('response' in error) {
+    const response = (error as { response?: { status?: unknown } }).response;
+    if (response?.status === 403) {
+      return true;
+    }
+  }
+
+  if ('statusCode' in error && (error as { statusCode?: unknown }).statusCode === 403) {
+    return true;
+  }
+
+  if ('error' in error) {
+    const nestedError = (error as { error?: { code?: unknown } }).error;
+    if (nestedError?.code === 'FORBIDDEN') {
+      return true;
+    }
+  }
+
+  if ('message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.toLowerCase().includes('không có quyền')) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export interface UserRoleOption {
   id: string;
   name: string;
+}
+
+function mapRoleOptionsFromUsers(users: UserApiItem[]): UserRoleOption[] {
+  const roleMap = new Map<string, UserRoleOption>();
+
+  for (const user of users) {
+    const roleId = String(user.role_id);
+    const roleName = user.role?.name?.trim();
+
+    if (!roleName) {
+      continue;
+    }
+
+    if (!roleMap.has(roleId)) {
+      roleMap.set(roleId, { id: roleId, name: roleName });
+    }
+  }
+
+  return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function unwrapApiData<T>(response: unknown): T {
@@ -245,18 +303,59 @@ export const resetUserPassword = (id: string, payload: ResetPasswordPayload): Pr
     })
     .then(() => undefined);
 
-export const getUserRoleOptions = (): Promise<UserRoleOption[]> =>
-  apiClient
-    .get<ApiResponse<RolesListApiData>>('/api/roles', {
-      params: {
-        page: 1,
-        limit: 100,
-      },
-    })
-    .then((response) => {
-      const payload = unwrapApiData<RolesListApiData>(response);
+export const getUserRoleOptions = async (): Promise<UserRoleOption[]> => {
+  try {
+    const limit = 10;
+    let page = 1;
+    let totalPages = 1;
+    const roleMap = new Map<string, UserRoleOption>();
 
-      return payload.roles
-        .filter((role) => role.is_active)
-        .map((role) => ({ id: String(role.id), name: role.name }));
-    });
+    while (page <= totalPages) {
+      const roleResponse = await apiClient.get<ApiResponse<RolesListApiData>>('/api/roles', {
+        params: {
+          page,
+          limit,
+        },
+      });
+
+      const payload = unwrapApiData<RolesListApiData>(roleResponse);
+
+      for (const role of payload.roles) {
+        if (!role.is_active) {
+          continue;
+        }
+        roleMap.set(String(role.id), { id: String(role.id), name: role.name });
+      }
+
+      totalPages = payload.pagination?.totalPages ?? 1;
+      page += 1;
+    }
+
+    return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    if (!isForbiddenError(error)) {
+      throw error;
+    }
+
+    const limit = 10;
+    let page = 1;
+    let totalPages = 1;
+    const allUsers: UserApiItem[] = [];
+
+    while (page <= totalPages) {
+      const usersResponse = await apiClient.get<ApiResponse<UsersListApiData>>('/api/users', {
+        params: {
+          page,
+          limit,
+        },
+      });
+
+      const payload = unwrapApiData<UsersListApiData>(usersResponse);
+      allUsers.push(...payload.users);
+      totalPages = payload.pagination.totalPages;
+      page += 1;
+    }
+
+    return mapRoleOptionsFromUsers(allUsers);
+  }
+};

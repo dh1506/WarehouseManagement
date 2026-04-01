@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { StatePanel } from '@/components/StatePanel';
 import { useToast } from '@/hooks/use-toast';
 import { sidebarNavItems } from '@/layouts/sidebar-navigation';
-import { useRoles, useRolePermissions, useUpdateRolePermissions } from '../hooks/useRolePermissions';
-import type { Permission, PermissionAction } from '../types/roleType';
+import { RoleFormDialog, type RoleFormValues } from './RoleFormDialog';
+import { useCreateRole, useRoles, useRolePermissions, useUpdateRole, useUpdateRolePermissions } from '../hooks/useRolePermissions';
+import { ROLE_NAME_OPTIONS } from '../schemas/roleSchemas';
+import type { Permission } from '../types/roleType';
 
 interface PermissionPageRow {
   module: string;
@@ -12,7 +14,6 @@ interface PermissionPageRow {
   route: string;
   description: string;
   permission: Permission;
-  actions: Set<PermissionAction>;
   isBackedByApi: boolean;
 }
 
@@ -35,6 +36,10 @@ export function RolePermissions() {
     refetch: refetchPermissions,
   } = useRolePermissions(selectedRoleId);
   const updateMutation = useUpdateRolePermissions();
+  const createRoleMutation = useCreateRole();
+  const updateRoleMutation = useUpdateRole();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const [localPermissions, setLocalPermissions] = useState<Permission[]>([]);
 
@@ -63,24 +68,29 @@ export function RolePermissions() {
       const backingPermission = matchedModule ? localPermissionMap.get(matchedModule) : undefined;
 
       return {
-        module: item.permissionModule,
+        module: matchedModule ?? item.permissionModule,
         label: item.label,
         icon: item.icon,
         route: item.to,
         description: item.pageDescription ?? `Truy cập trang ${item.label}.`,
-        permission: backingPermission ?? createEmptyPermission(item.permissionModule),
-        actions: new Set(availableModule?.actions ?? []),
-        isBackedByApi: Boolean(availableModule && backingPermission),
+        permission: backingPermission ?? createEmptyPermission(matchedModule ?? item.permissionModule),
+        isBackedByApi: Boolean(availableModule),
       };
     });
   }, [localPermissions, rolePermissions?.availableModules]);
 
-  const handleToggle = (moduleName: string, action: PermissionAction) => {
-    setLocalPermissions((prev) =>
-      prev.map((perm) =>
-        perm.module === moduleName ? { ...perm, [action]: !perm[action] } : perm
-      )
-    );
+  const handleToggleView = (moduleName: string) => {
+    setLocalPermissions((prev) => {
+      const existingIndex = prev.findIndex((perm) => normalizePermissionKey(perm.module) === normalizePermissionKey(moduleName));
+
+      if (existingIndex === -1) {
+        return [...prev, { ...createEmptyPermission(moduleName), view: true }];
+      }
+
+      return prev.map((perm, index) =>
+        index === existingIndex ? { ...perm, view: !perm.view } : perm
+      );
+    });
   };
 
   const hasChanges = useMemo(() => {
@@ -118,9 +128,89 @@ export function RolePermissions() {
   };
 
   const selectedRole = roles?.find((r) => r.id === selectedRoleId);
+  const availableRoleNames = useMemo(
+    () => ROLE_NAME_OPTIONS.filter((roleName) => !roles?.some((role) => role.name === roleName)),
+    [roles]
+  );
   const showEmptyRoles = !rolesLoading && !rolesError && (roles?.length ?? 0) === 0;
   const showEmptyPermissions = !permissionsLoading && !permissionsError && pageRows.length === 0;
   const isInteractionDisabled = updateMutation.isPending || permissionsLoading;
+
+  const handleOpenCreate = () => {
+    if (availableRoleNames.length === 0) {
+      toast({
+        title: 'Khong con role de tao moi',
+        description: 'He thong hien chi cho phep CEO, MANAGER va STAFF. Tat ca role nay da ton tai.',
+      });
+      return;
+    }
+
+    setCreateDialogOpen(true);
+  };
+
+  const handleCreateRole = async (payload: RoleFormValues) => {
+    const createdRole = await createRoleMutation.mutateAsync({
+      name: payload.name,
+      description: payload.description || undefined,
+      isActive: payload.isActive,
+    });
+
+    setCreateDialogOpen(false);
+    setSelectedRoleId(createdRole.id);
+    toast({
+      title: 'Da tao role',
+      description: `Role ${createdRole.name} da duoc tao thanh cong.`,
+    });
+  };
+
+  const handleUpdateRoleMeta = async (payload: RoleFormValues) => {
+    if (!selectedRole) {
+      return;
+    }
+    await updateRoleMutation.mutateAsync({
+      roleId: selectedRole.id,
+      payload: {
+        name: payload.name,
+        description: payload.description || undefined,
+        isActive: payload.isActive,
+      },
+    });
+
+    setEditDialogOpen(false);
+    toast({
+      title: 'Da cap nhat role',
+      description: `Thong tin role ${selectedRole.name} da duoc cap nhat.`,
+    });
+  };
+
+  const handleToggleRoleStatus = async (roleId: string, nextStatus: boolean) => {
+    const targetRole = roles?.find((role) => role.id === roleId);
+    if (!targetRole) {
+      return;
+    }
+
+    try {
+      await updateRoleMutation.mutateAsync({
+        roleId,
+        payload: {
+          name: targetRole.name,
+          description: targetRole.description,
+          isActive: nextStatus,
+        },
+      });
+
+      toast({
+        title: nextStatus ? 'Da bat role' : 'Da tat role',
+        description: `Role ${targetRole.name} da duoc ${nextStatus ? 'kich hoat' : 'vo hieu hoa'}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Khong the cap nhat trang thai role',
+        description: error instanceof Error ? error.message : 'Da xay ra loi khi cap nhat role.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
@@ -139,7 +229,11 @@ export function RolePermissions() {
         <div className="w-80 flex flex-col gap-4 bg-gray-50 rounded-xl p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2">Role Hierarchy</span>
-            <button className="text-primary hover:bg-primary/10 p-1 rounded transition-colors">
+            <button
+              className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
+              onClick={handleOpenCreate}
+              type="button"
+            >
               <span className="material-symbols-outlined text-[20px]" data-icon="add">add</span>
             </button>
           </div>
@@ -190,6 +284,44 @@ export function RolePermissions() {
                         {role.name}
                       </span>
                     </div>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${role.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'
+                          }`}
+                      >
+                        {role.isActive ? 'Active' : 'Disabled'}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedRoleId(role.id);
+                            setEditDialogOpen(true);
+                          }}
+                          className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary"
+                          title="Chinh sua role"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleToggleRoleStatus(role.id, !role.isActive);
+                          }}
+                          className={`rounded-lg p-1 transition-colors ${role.isActive
+                            ? 'text-gray-400 hover:bg-red-50 hover:text-red-600'
+                            : 'text-gray-400 hover:bg-emerald-50 hover:text-emerald-600'
+                            }`}
+                          title={role.isActive ? 'Tat role' : 'Bat role'}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            {role.isActive ? 'toggle_off' : 'toggle_on'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                     <p className="text-xs text-gray-500 leading-relaxed">
                       {role.description}
                     </p>
@@ -207,7 +339,7 @@ export function RolePermissions() {
               <h3 className="text-xl font-bold text-gray-900">
                 Permission Matrix: <span className="text-primary">{selectedRole?.name}</span>
               </h3>
-              <p className="text-sm text-gray-500">Configure access levels for each page currently exposed in the sidebar.</p>
+              <p className="text-sm text-gray-500">Bật hoặc tắt quyền xem từng trang. Quyền thao tác nâng cao được cấu hình tại Advanced Permissions.</p>
             </div>
             {selectedRole?.name === 'Director' && (
               <div className="flex gap-1">
@@ -219,7 +351,7 @@ export function RolePermissions() {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-auto p-4">
+          <div className="flex-1 min-h-0 overflow-hidden p-4">
             {permissionsLoading ? (
               <div className="animate-pulse space-y-2">
                 <div className="h-10 bg-gray-100 rounded"></div>
@@ -248,101 +380,72 @@ export function RolePermissions() {
                 icon="shield_lock"
               />
             ) : (
-              <table className="w-full border-separate border-spacing-y-4">
-                <thead className="sticky top-0 z-10">
-                  <tr className="text-left">
-                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider pl-4">System Module</th>
-                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">View</th>
-                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Create</th>
-                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Edit</th>
-                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Delete</th>
-                    <th className="bg-white pb-2 pt-1 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center pr-4">Approve</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map((row) => {
-                    const moduleName = row.label;
-                    const isAiForecast = isAiForecastModule(row.module);
-                    const rowDisabled = isInteractionDisabled || !row.isBackedByApi;
-                    return (
-                      <tr key={row.route} className="group hover:bg-slate-50/50 transition-colors">
-                        <td className={`py-4 pl-4 rounded-l-xl ${isAiForecast ? 'bg-cyan-50/30 group-hover:bg-cyan-100/10' : 'bg-gray-50/30 group-hover:bg-primary/5'} transition-colors`}>
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg shadow-sm ${isAiForecast ? 'bg-cyan-600 text-white' : 'bg-white text-primary'
-                              }`}>
-                              <span
-                                className="material-symbols-outlined text-xl"
-                                data-icon={row.icon}
-                                style={isAiForecast ? { fontVariationSettings: "'FILL' 1" } : {}}
-                              >
-                                {row.icon}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="font-bold text-gray-900">{moduleName}</span>
-                              <span className="block text-xs text-gray-500">{row.route}</span>
-                              <span className="block text-xs text-gray-500">{row.description}</span>
-                              {isAiForecast && (
-                                <span className="block text-[10px] text-cyan-700 font-bold uppercase tracking-tighter">Predictive Analysis</span>
-                              )}
-                              {!row.isBackedByApi && (
-                                <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
-                                  Chưa có permission backend
+              <div className="h-full overflow-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <table className="w-full border-collapse text-left">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-gray-100 bg-gray-50 text-left">
+                      <th className="px-4 py-3.5 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider">System Module</th>
+                      <th className="px-4 py-3.5 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Visible</th>
+                      <th className="px-4 py-3.5 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {pageRows.map((row) => {
+                      const moduleName = row.label;
+                      const isAiForecast = isAiForecastModule(row.module);
+                      const rowDisabled = isInteractionDisabled || !row.isBackedByApi;
+                      return (
+                        <tr key={row.route} className="group transition-colors duration-150 hover:bg-gray-50/60">
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg shadow-sm ${isAiForecast ? 'bg-cyan-600 text-white' : 'bg-gray-50 text-primary'
+                                }`}>
+                                <span
+                                  className="material-symbols-outlined text-xl"
+                                  data-icon={row.icon}
+                                  style={isAiForecast ? { fontVariationSettings: "'FILL' 1" } : {}}
+                                >
+                                  {row.icon}
                                 </span>
-                              )}
+                              </div>
+                              <div>
+                                <span className="font-bold text-gray-900">{moduleName}</span>
+                                <span className="block text-xs text-gray-500">{row.route}</span>
+                                <span className="block text-xs text-gray-500">{row.description}</span>
+                                {isAiForecast && (
+                                  <span className="block text-[10px] text-cyan-700 font-bold uppercase tracking-tighter">Predictive Analysis</span>
+                                )}
+                                {!row.isBackedByApi && (
+                                  <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                                    Chưa có permission backend
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={row.permission.view}
-                            onChange={() => handleToggle(row.permission.module, 'view')}
-                            disabled={rowDisabled || !row.actions.has('view')}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={row.permission.create}
-                            onChange={() => handleToggle(row.permission.module, 'create')}
-                            disabled={rowDisabled || !row.actions.has('create')}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={row.permission.edit}
-                            onChange={() => handleToggle(row.permission.module, 'edit')}
-                            disabled={rowDisabled || !row.actions.has('edit')}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center">
-                          <input
-                            type="checkbox"
-                            checked={row.permission.delete}
-                            onChange={() => handleToggle(row.permission.module, 'delete')}
-                            disabled={rowDisabled || !row.actions.has('delete')}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                        <td className="py-4 text-center pr-4 rounded-r-xl">
-                          <input
-                            type="checkbox"
-                            checked={row.permission.approve}
-                            onChange={() => handleToggle(row.permission.module, 'approve')}
-                            disabled={rowDisabled || !row.actions.has('approve')}
-                            className={`w-5 h-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={row.permission.view}
+                              onChange={() => handleToggleView(row.permission.module)}
+                              disabled={rowDisabled}
+                              className={`h-5 w-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
+                            />
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${row.permission.view ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                                }`}
+                            >
+                              {row.permission.view ? 'Visible' : 'Hidden'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -366,13 +469,31 @@ export function RolePermissions() {
                 className="px-8 py-3 rounded-xl font-bold text-white bg-primary shadow-lg shadow-primary/20 hover:bg-blue-800 active:scale-[0.99] transition-all disabled:opacity-75 flex items-center gap-2"
               >
                 {updateMutation.isPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
-                Update Permissions
+                Lưu quyền xem trang
               </button>
             </div>
           </div>
 
         </div>
       </div>
+
+      <RoleFormDialog
+        mode="create"
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        availableRoleNames={availableRoleNames}
+        isPending={createRoleMutation.isPending}
+        onSubmit={handleCreateRole}
+      />
+
+      <RoleFormDialog
+        mode="edit"
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        initialRole={selectedRole}
+        isPending={updateRoleMutation.isPending}
+        onSubmit={handleUpdateRoleMeta}
+      />
     </div>
   );
 }

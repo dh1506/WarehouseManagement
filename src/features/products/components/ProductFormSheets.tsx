@@ -21,6 +21,7 @@ export interface ProductFormSheetProps {
   categories: Array<{ id: string; name: string }>;
   units: Array<{ id: string; name: string }>;
   brands: Array<{ id: string; name: string }>;
+  manufacturers: Array<{ id: string; name: string }>;
   onSubmit: (payload: ProductFormData) => Promise<void>;
   isPending: boolean;
   isOptionsLoading: boolean;
@@ -34,6 +35,7 @@ export function ProductFormSheet({
   categories,
   units,
   brands,
+  manufacturers,
   onSubmit,
   isPending,
   isOptionsLoading,
@@ -47,7 +49,7 @@ export function ProductFormSheet({
       categoryId: '',
       unitId: '',
       brandId: '',
-      manufacturer: '',
+      manufacturerId: '',
       minStock: 0,
       maxStock: 0,
       trackedByLot: false,
@@ -72,7 +74,7 @@ export function ProductFormSheet({
       categoryId: product?.categoryId ?? '',
       unitId: product?.unitId ?? '',
       brandId: product?.brandId ?? '',
-      manufacturer: product?.manufacturer ?? '',
+      manufacturerId: product?.manufacturerId ?? '',
       minStock: product?.minStock ?? 0,
       maxStock: product?.maxStock ?? 0,
       trackedByLot: product?.trackedByLot ?? false,
@@ -149,12 +151,19 @@ export function ProductFormSheet({
                 <Field label="Tên sản phẩm" error={errors.name?.message}>
                   <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
                 </Field>
-                <Field label="Nhà sản xuất" error={errors.manufacturer?.message}>
-                  <input
-                    {...register('manufacturer')}
+                <Field label="Nhà sản xuất" error={errors.manufacturerId?.message}>
+                  <select
+                    {...register('manufacturerId')}
                     disabled={isView || isPending}
-                    className={inputClass(!!errors.manufacturer)}
-                  />
+                    className={inputClass(!!errors.manufacturerId)}
+                  >
+                    <option value="">Chọn nhà sản xuất</option>
+                    {manufacturers.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Danh mục" error={errors.categoryId?.message}>
                   <select
@@ -295,7 +304,7 @@ function Field({
 
 function inputClass(hasError: boolean) {
   return `w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 ${hasError
-      ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-      : 'border-slate-200 focus:border-primary focus:ring-primary/15'
+    ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+    : 'border-slate-200 focus:border-primary focus:ring-primary/15'
     }`;
 }

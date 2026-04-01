@@ -1,5 +1,7 @@
 import apiClient from './apiClient';
 import type { ApiResponse } from '@/types/api';
+import { useAuthStore } from '@/store/authStore';
+import { hasModuleActionPermission } from '@/utils/module-permission';
 import type {
   CreateRolePayload,
   Permission,
@@ -67,24 +69,26 @@ function toColorClass(roleName: string): string {
   return PRIMARY_ROLE_NAMES.has(roleName.toUpperCase()) ? 'bg-primary' : 'bg-slate-300';
 }
 
-function toToggleKey(action: string): PermissionToggleKey | null {
-  const normalizedAction = action.trim().toLowerCase();
+function toToggleKey(permission: Pick<PermissionApiItem, 'name' | 'action'>): PermissionToggleKey | null {
+  const normalizedName = permission.name.trim().toLowerCase();
+  const actionFromName = normalizedName.includes(':') ? normalizedName.split(':').pop() ?? '' : '';
+  const normalizedAction = actionFromName || permission.action.trim().toLowerCase();
 
-  if (normalizedAction === 'read') return 'view';
+  if (normalizedAction === 'view' || normalizedAction === 'read') return 'view';
   if (normalizedAction === 'create') return 'create';
-  if (normalizedAction === 'update') return 'edit';
-  if (normalizedAction === 'delete') return 'delete';
+  if (normalizedAction === 'edit' || normalizedAction === 'update') return 'edit';
+  if (normalizedAction === 'delete' || normalizedAction === 'remove') return 'delete';
   if (normalizedAction === 'approve') return 'approve';
 
   return null;
 }
 
-function toActionKey(toggleKey: PermissionToggleKey): string {
-  if (toggleKey === 'view') return 'read';
-  if (toggleKey === 'create') return 'create';
-  if (toggleKey === 'edit') return 'update';
-  if (toggleKey === 'delete') return 'delete';
-  return 'approve';
+function toActionAliases(toggleKey: PermissionToggleKey): string[] {
+  if (toggleKey === 'view') return ['view', 'read'];
+  if (toggleKey === 'create') return ['create'];
+  if (toggleKey === 'edit') return ['edit', 'update'];
+  if (toggleKey === 'delete') return ['delete', 'remove'];
+  return ['approve'];
 }
 
 function createEmptyPermission(moduleName: string): Permission {
@@ -112,7 +116,7 @@ function buildPermissionMatrix(availablePermissions: PermissionApiItem[], assign
       permissionByModule.set(assignedPermission.module, createEmptyPermission(assignedPermission.module));
     }
 
-    const toggleKey = toToggleKey(assignedPermission.action);
+    const toggleKey = toToggleKey(assignedPermission);
     if (!toggleKey) {
       continue;
     }
@@ -130,7 +134,7 @@ function buildAvailableModules(permissionCatalog: PermissionApiItem[]): Permissi
   const moduleActionMap = new Map<string, Set<PermissionAction>>();
 
   for (const permission of permissionCatalog) {
-    const toggleKey = toToggleKey(permission.action);
+    const toggleKey = toToggleKey(permission);
     if (!toggleKey) {
       continue;
     }
@@ -166,6 +170,19 @@ async function getPermissionCatalog(): Promise<PermissionApiItem[]> {
   return payload.permissions.filter((permission) => permission.is_active);
 }
 
+function canReadPermissionCatalog(): boolean {
+  const user = useAuthStore.getState().user;
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+
+  return hasModuleActionPermission({
+    permissions,
+    moduleName: 'permissions',
+    moduleAliases: ['advanced-permissions', 'advanced_permissions'],
+    action: 'view',
+    roleName: user?.role,
+  });
+}
+
 function mapPayloadToPermissionIds(payload: UpdateRolePermissionPayload, permissionCatalog: PermissionApiItem[]): number[] {
   const selectedActionMap = new Map<string, Set<string>>();
 
@@ -175,7 +192,9 @@ function mapPayloadToPermissionIds(payload: UpdateRolePermissionPayload, permiss
 
     for (const toggleKey of toggleEntries) {
       if (modulePermission[toggleKey]) {
-        actionSet.add(toActionKey(toggleKey));
+        for (const actionName of toActionAliases(toggleKey)) {
+          actionSet.add(actionName);
+        }
       }
     }
 
@@ -183,7 +202,18 @@ function mapPayloadToPermissionIds(payload: UpdateRolePermissionPayload, permiss
   }
 
   return permissionCatalog
-    .filter((permission) => selectedActionMap.get(permission.module)?.has(permission.action))
+    .filter((permission) => {
+      const selectedActions = selectedActionMap.get(permission.module);
+      if (!selectedActions) {
+        return false;
+      }
+
+      const normalizedName = permission.name.trim().toLowerCase();
+      const actionFromName = normalizedName.includes(':') ? normalizedName.split(':').pop() ?? '' : '';
+      const normalizedAction = (actionFromName || permission.action).trim().toLowerCase();
+
+      return selectedActions.has(normalizedAction);
+    })
     .map((permission) => permission.id);
 }
 
@@ -220,18 +250,19 @@ export const updateRole = async (id: string, payload: UpdateRolePayload): Promis
 };
 
 export const getRolePermissions = async (id: string): Promise<RolePermissionResponse> => {
-  const [roleResponse, permissionCatalog] = await Promise.all([
-    apiClient.get<ApiResponse<RolePermissionsApiData>>(`/api/roles/${id}`),
-    getPermissionCatalog(),
-  ]);
+  const roleResponse = await apiClient.get<ApiResponse<RolePermissionsApiData>>(`/api/roles/${id}`);
 
   const rolePayload = unwrapApiData<RolePermissionsApiData>(roleResponse);
   const roleId = rolePayload.roleId ?? rolePayload.role_id ?? Number(id);
 
+  const assignedPermissions = rolePayload.permissions ?? [];
+  const permissionCatalog = canReadPermissionCatalog() ? await getPermissionCatalog() : assignedPermissions;
+  const matrixSource = permissionCatalog.length > 0 ? permissionCatalog : assignedPermissions;
+
   return {
     roleId: String(roleId),
-    permissions: buildPermissionMatrix(permissionCatalog, rolePayload.permissions),
-    availableModules: buildAvailableModules(permissionCatalog),
+    permissions: buildPermissionMatrix(matrixSource, assignedPermissions),
+    availableModules: buildAvailableModules(matrixSource),
   };
 };
 

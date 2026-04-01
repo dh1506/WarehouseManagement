@@ -83,3 +83,69 @@
 ### Immediate recommended task
 
 - Execute end-to-end smoke test for user actions (update, lock/unlock, reset-password) on non-CEO and CEO roles to confirm permission behavior and UX feedback are consistent.
+
+### Latest FE role-admin update
+
+- Role screen now includes create role, edit role metadata, and enable/disable role actions on top of the existing permission matrix.
+- Current FE validation/domain assumes only `CEO`, `MANAGER`, and `STAFF` are valid role names, matching the present backend restriction.
+
+---
+
+## Latest Update (2026-04-01)
+
+### What was done
+
+- Implemented new FE supplier module from existing backend contract:
+  - route `/admin/suppliers`
+  - sidebar navigation entry
+  - API-backed supplier list/detail/create/update flows
+  - Zod form/filter schemas and permission-aware UI actions
+- Fixed user role dropdown fallback:
+  - `getUserRoleOptions()` now correctly detects `403` from the current `apiClient` error shape
+  - FE can fallback to derive role options from `/api/users` when `/api/roles` is forbidden
+- Fixed reset-password UX in FE:
+  - success toast after password reset
+  - destructive toast on failure
+  - popup closes and form state resets after success
+- Restored BE reset-password endpoint again in current workspace state:
+  - `PATCH /api/users/:id/reset-password`
+  - request schema validation for `new_password`
+  - route/controller/service wiring with password hashing
+
+### Touched files (latest batch)
+
+- `FE/Warehouse_Management/src/features/suppliers/types/supplierType.ts`
+- `FE/Warehouse_Management/src/features/suppliers/schemas/supplierSchemas.ts`
+- `FE/Warehouse_Management/src/features/suppliers/hooks/useSuppliers.ts`
+- `FE/Warehouse_Management/src/features/suppliers/components/SupplierManagement.tsx`
+- `FE/Warehouse_Management/src/features/suppliers/components/SupplierFormSheet.tsx`
+- `FE/Warehouse_Management/src/services/supplierService.ts`
+- `FE/Warehouse_Management/src/pages/admin/SupplierManagementPage.tsx`
+- `FE/Warehouse_Management/src/layouts/sidebar-navigation.ts`
+- `FE/Warehouse_Management/src/App.tsx`
+- `FE/Warehouse_Management/src/services/userService.ts`
+- `FE/Warehouse_Management/src/features/users/components/UserActionDialogs.tsx`
+- `BE/Warehouse_Management/src/schemas/user.schema.ts`
+- `BE/Warehouse_Management/src/routes/user.route.ts`
+- `BE/Warehouse_Management/src/controllers/user.controller.ts`
+- `BE/Warehouse_Management/src/services/user.service.ts`
+- `FE/Warehouse_Management/docs/agent/current-context.md`
+- `FE/Warehouse_Management/docs/agent/progress-log.md`
+- `FE/Warehouse_Management/docs/agent/decision-log.md`
+- `FE/Warehouse_Management/docs/agent/next-steps.md`
+
+### Active assumptions
+
+- `suppliers` is a valid Sprint 1/early master-data module because backend route/schema/model already exist in workspace.
+- User accounts that can manage users may not have `roles:read`; in that case FE must keep fallback role options behavior.
+- Reset-password action remains protected by `users:update`.
+- Backend in this workspace still has broader TypeScript/module-resolution issues unrelated to the reset-password change, so endpoint behavior is the main source of truth for this task rather than a clean BE project build.
+
+### Immediate recommended task
+
+- Run integrated manual QA for User Management and Suppliers against the running backend:
+  - create/edit user
+  - role dropdown visibility under restricted permissions
+  - lock/unlock user
+  - reset password success/error flow
+  - supplier list/create/edit/detail

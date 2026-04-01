@@ -1,7 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
 import { sidebarNavItems } from './sidebar-navigation';
+import { hasModuleActionPermission } from '@/utils/module-permission';
 
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
@@ -10,6 +12,21 @@ export function Sidebar() {
 
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+
+  const allowedNavItems = useMemo(() => {
+    const roleName = user?.role;
+    const userPermissions = Array.isArray(user?.permissions) ? user.permissions : [];
+
+    return sidebarNavItems.filter((item) =>
+      hasModuleActionPermission({
+        permissions: userPermissions,
+        moduleName: item.permissionModule,
+        moduleAliases: item.permissionAliases,
+        action: 'view',
+        roleName,
+      })
+    );
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -60,7 +77,7 @@ export function Sidebar() {
 
         {/* ── Navigation ────────────────────────────────────────────────────── */}
         <nav className="p-2 space-y-0.5 mt-2 flex-1 overflow-y-auto overflow-x-hidden">
-          {sidebarNavItems.map((item) => (
+          {allowedNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

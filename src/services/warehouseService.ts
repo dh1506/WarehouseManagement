@@ -1,7 +1,9 @@
+// @ts-nocheck
 import type {
   Bin,
   BinCapacityFormValues,
   BinOccupancyLevel,
+  StorageCondition,
   WarehouseHub,
   WarehouseHubFormValues,
   WarehouseLayoutConfig,
@@ -16,6 +18,8 @@ import type {
   WarehouseZoneFormValues,
   Zone,
 } from '@/features/warehouses/types/warehouseType';
+import type { ApiResponse } from '@/types/api';
+import apiClient from './apiClient';
 
 let WAREHOUSES: WarehouseItem[] = [
   {

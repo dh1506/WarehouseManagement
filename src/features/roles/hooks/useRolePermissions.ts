@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRoles, getRolePermissions, updateRolePermissions } from '@/services/roleService';
-import type { UpdateRolePermissionPayload } from '../types/roleType';
+import {
+  createRole,
+  getRoles,
+  getRolePermissions,
+  updateRole,
+  updateRolePermissions,
+} from '@/services/roleService';
+import type { CreateRolePayload, UpdateRolePayload, UpdateRolePermissionPayload } from '../types/roleType';
 
 export const ROLE_KEYS = {
   all: ['roles'] as const,
@@ -31,6 +37,29 @@ export function useUpdateRolePermissions() {
       updateRolePermissions(roleId, payload),
     onSuccess: (_, { roleId }) => {
       // Invalidate cache for the updated role
+      queryClient.invalidateQueries({ queryKey: ROLE_KEYS.permissions(roleId) });
+    },
+  });
+}
+
+export function useCreateRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateRolePayload) => createRole(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ROLE_KEYS.lists() });
+    },
+  });
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) => updateRole(roleId, payload),
+    onSuccess: (_, { roleId }) => {
+      queryClient.invalidateQueries({ queryKey: ROLE_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: ROLE_KEYS.permissions(roleId) });
     },
   });

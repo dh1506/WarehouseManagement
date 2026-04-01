@@ -1,24 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  createWarehouseHub,
-  createWarehouseZone,
   createWarehouse,
   createWarehouseLocation,
-  deleteWarehouseHub,
-  deleteWarehouseZone,
   deleteWarehouse,
   deleteWarehouseLocation,
-  getZoneBins,
-  getWarehouseHubs,
   getWarehouseLocations,
   getWarehouses,
+} from '@/services/warehouseMasterService';
+import {
+  createWarehouseHub,
+  createWarehouseZone,
+  deleteWarehouseHub,
+  deleteWarehouseZone,
+  getZoneBins,
+  getWarehouseHubs,
   updateWarehouseHub,
   updateWarehouseLayoutConfig,
   updateWarehouseZone,
   updateZoneBinCapacity,
+} from '@/services/warehouseService';
+import {
   updateWarehouse,
   updateWarehouseLocation,
-} from '@/services/warehouseService';
+} from '@/services/warehouseMasterService';
 import type {
   BinCapacityFormValues,
   WarehouseHubFormValues,

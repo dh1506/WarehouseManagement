@@ -1,228 +1,285 @@
-import { getProductCategories } from '@/services/categoryService';
-import { getProductReferenceOptions } from '@/services/productReferenceService';
-import type { ProductFormValues, ProductItem, ProductListParams, ProductListResponse } from '@/features/products/types/productType';
+import apiClient from './apiClient';
+import type { ApiResponse } from '@/types/api';
+import type {
+  ProductFormValues,
+  ProductItem,
+  ProductListParams,
+  ProductListResponse,
+  ProductStatus,
+} from '@/features/products/types/productType';
 
-let PRODUCTS: ProductItem[] = [
-  {
-    id: 'prd-1',
-    sku: 'ELX-CPU-01',
-    name: 'Industrial Edge CPU',
-    categoryId: '2',
-    categoryName: 'Chips & Semiconductors',
-    unitId: 'unit-1',
-    unitName: 'Piece',
-    brandId: 'brand-2',
-    brandName: 'Nova Tech',
-    manufacturer: 'Nova Electronics Vietnam',
-    minStock: 40,
-    maxStock: 180,
-    trackedByLot: true,
-    trackedByExpiry: false,
-    status: 'active',
-    description: 'Bộ xử lý edge dành cho gateway theo dõi điều kiện kho.',
-    images: [
-      {
-        id: 'img-1-1',
-        url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
-        alt: 'Industrial CPU chip front view',
-      },
-      {
-        id: 'img-1-2',
-        url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80',
-        alt: 'Industrial CPU chip side view',
-      },
-      {
-        id: 'img-1-3',
-        url: 'https://images.unsplash.com/photo-1517419439891-471d9d16d9f7?w=800&q=80',
-        alt: 'Industrial CPU chip technical view',
-      },
-    ],
-    createdAt: '2026-03-10T08:00:00Z',
-    updatedAt: '2026-03-26T11:00:00Z',
-  },
-  {
-    id: 'prd-2',
-    sku: 'PKG-TAPE-24',
-    name: 'Heavy Duty Packing Tape',
-    categoryId: '6',
-    categoryName: 'Packaging Materials',
-    unitId: 'unit-2',
-    unitName: 'Box',
-    brandId: 'brand-1',
-    brandName: 'ACME Industrial',
-    manufacturer: 'ACME Packaging Ltd.',
-    minStock: 20,
-    maxStock: 120,
-    trackedByLot: false,
-    trackedByExpiry: false,
-    status: 'active',
-    description: 'Băng keo công nghiệp dùng cho đóng gói pallet và kiện hàng.',
-    images: [
-      {
-        id: 'img-2-1',
-        url: 'https://images.unsplash.com/photo-1528148343865-34218f1bbb89?w=800&q=80',
-        alt: 'Heavy duty packing tape roll',
-      },
-      {
-        id: 'img-2-2',
-        url: 'https://images.unsplash.com/photo-1616763355603-9755a640a287?w=800&q=80',
-        alt: 'Packing tape dispenser',
-      },
-    ],
-    createdAt: '2026-03-12T08:00:00Z',
-    updatedAt: '2026-03-25T14:00:00Z',
-  },
-  {
-    id: 'prd-3',
-    sku: 'SAFE-GLV-09',
-    name: 'Warehouse Grip Gloves',
-    categoryId: '7',
-    categoryName: 'Safety Equipment',
-    unitId: 'unit-1',
-    unitName: 'Piece',
-    brandId: 'brand-3',
-    brandName: 'River Safety',
-    manufacturer: 'River Safety Co.',
-    minStock: 50,
-    maxStock: 200,
-    trackedByLot: true,
-    trackedByExpiry: false,
-    status: 'inactive',
-    description: 'Găng tay chống trượt cho nhân sự bốc dỡ trong kho.',
-    images: [
-      {
-        id: 'img-3-1',
-        url: 'https://images.unsplash.com/photo-1589385881134-37a89c4d1dd9?w=800&q=80',
-        alt: 'Warehouse safety gloves',
-      },
-    ],
-    createdAt: '2026-03-15T08:00:00Z',
-    updatedAt: '2026-03-19T14:00:00Z',
-  },
-];
+interface PaginationApiModel {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
-let nextProductId = 500;
+interface CategoryApiModel {
+  id: number;
+  code: string;
+  name: string;
+}
 
-const delay = async (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+interface UnitApiModel {
+  id: number;
+  code: string;
+  name: string;
+  uom_type?: string;
+}
 
-async function resolveReferenceNames(payload: ProductFormValues) {
-  const categoriesResponse = await getProductCategories({ page: 1, pageSize: 100 });
-  const units = await getProductReferenceOptions('unit');
-  const brands = await getProductReferenceOptions('brand');
+interface BrandApiModel {
+  id: number;
+  code: string;
+  name: string;
+}
 
-  const category = categoriesResponse.data.find((item) => item.id === payload.categoryId);
-  const unit = units.find((item) => item.id === payload.unitId);
-  const brand = brands.find((item) => item.id === payload.brandId);
+interface ManufacturerApiModel {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
-  if (!category || !unit || !brand) {
-    throw new Error('Dữ liệu danh mục, đơn vị tính hoặc thương hiệu không còn hợp lệ.');
+interface ProductApiModel {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  product_status: 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED';
+  has_batch: boolean;
+  has_expiry: boolean;
+  min_stock: number | null;
+  max_stock: number | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  categories: CategoryApiModel[];
+  base_uom: UnitApiModel;
+  brand: BrandApiModel | null;
+  manufacturer: ManufacturerApiModel | null;
+}
+
+interface ProductListApiData {
+  products: ProductApiModel[];
+  pagination: PaginationApiModel;
+}
+
+interface ProductCategoryApiModel {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  parent_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProductCategoryListApiData {
+  categories: ProductCategoryApiModel[];
+  pagination: PaginationApiModel;
+}
+
+interface ManufacturerListApiData {
+  manufacturers: ManufacturerApiModel[];
+  pagination: PaginationApiModel;
+}
+
+function unwrapApiData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const level1 = (response as { data: unknown }).data;
+    if (level1 && typeof level1 === 'object' && 'data' in level1) {
+      return (level1 as { data: T }).data;
+    }
+
+    return level1 as T;
   }
 
+  return response as T;
+}
+
+const toApiProductStatus = (status: ProductStatus): ProductApiModel['product_status'] => {
+  if (status === 'active') {
+    return 'ACTIVE';
+  }
+  if (status === 'inactive') {
+    return 'INACTIVE';
+  }
+  return 'DISCONTINUED';
+};
+
+const toFeProductStatus = (status: ProductApiModel['product_status']): ProductStatus => {
+  if (status === 'ACTIVE') {
+    return 'active';
+  }
+  if (status === 'INACTIVE') {
+    return 'inactive';
+  }
+  return 'draft';
+};
+
+const toNumberId = (value: string, label: string): number => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} không hợp lệ.`);
+  }
+  return parsed;
+};
+
+const toProductItem = (product: ProductApiModel): ProductItem => {
+  const firstCategory = product.categories[0];
+  const imageUrl = product.image_url?.trim() ?? '';
+
   return {
-    categoryName: category.name,
-    unitName: unit.name,
-    brandName: brand.name,
+    id: String(product.id),
+    sku: product.code,
+    name: product.name,
+    categoryId: firstCategory ? String(firstCategory.id) : '',
+    categoryName: firstCategory?.name ?? 'Chưa phân loại',
+    unitId: String(product.base_uom.id),
+    unitName: product.base_uom.name,
+    brandId: product.brand ? String(product.brand.id) : '',
+    brandName: product.brand?.name ?? 'N/A',
+    manufacturerId: product.manufacturer ? String(product.manufacturer.id) : '',
+    manufacturer: product.manufacturer?.name ?? 'N/A',
+    minStock: product.min_stock ?? 0,
+    maxStock: product.max_stock ?? 0,
+    trackedByLot: product.has_batch,
+    trackedByExpiry: product.has_expiry,
+    status: toFeProductStatus(product.product_status),
+    description: product.description ?? '',
+    images: imageUrl
+      ? [
+        {
+          id: `img-${product.id}`,
+          url: imageUrl,
+          alt: product.name,
+        },
+      ]
+      : [],
+    createdAt: product.created_at,
+    updatedAt: product.updated_at,
+  };
+};
+
+export async function getProducts(params: ProductListParams = {}): Promise<ProductListResponse> {
+  const response = await apiClient.get<ApiResponse<ProductListApiData>>('/api/products', {
+    params: {
+      page: params.page ?? 1,
+      limit: params.pageSize ?? 10,
+      search: params.search,
+      product_status:
+        params.status && params.status !== 'all' ? toApiProductStatus(params.status) : undefined,
+      category_id: params.categoryId ? toNumberId(params.categoryId, 'Danh mục') : undefined,
+      brand_id: params.brandId ? toNumberId(params.brandId, 'Thương hiệu') : undefined,
+    },
+  });
+
+  const payload = unwrapApiData<ProductListApiData>(response);
+
+  return {
+    data: payload.products.map(toProductItem),
+    total: payload.pagination.total,
+    page: payload.pagination.page,
+    pageSize: payload.pagination.limit,
   };
 }
 
-export async function getProducts(params: ProductListParams = {}): Promise<ProductListResponse> {
-  await delay(250);
+export async function getProductCategoryOptions(): Promise<Array<{ id: string; name: string }>> {
+  const response = await apiClient.get<ApiResponse<ProductCategoryListApiData>>('/api/product-categories', {
+    params: {
+      page: 1,
+      limit: 10,
+    },
+  });
 
-  let filtered = [...PRODUCTS];
+  const payload = unwrapApiData<ProductCategoryListApiData>(response);
 
-  if (params.search) {
-    const keyword = params.search.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.sku.toLowerCase().includes(keyword) ||
-        item.name.toLowerCase().includes(keyword) ||
-        item.manufacturer.toLowerCase().includes(keyword),
-    );
-  }
+  return payload.categories.map((item) => ({
+    id: String(item.id),
+    name: item.name,
+  }));
+}
 
-  if (params.status && params.status !== 'all') {
-    filtered = filtered.filter((item) => item.status === params.status);
-  }
+export async function getProductManufacturerOptions(): Promise<Array<{ id: string; name: string }>> {
+  const response = await apiClient.get<ApiResponse<ManufacturerListApiData>>('/api/manufacturers', {
+    params: {
+      page: 1,
+      limit: 10,
+      is_active: true,
+    },
+  });
 
-  if (params.categoryId) {
-    filtered = filtered.filter((item) => item.categoryId === params.categoryId);
-  }
+  const payload = unwrapApiData<ManufacturerListApiData>(response);
 
-  if (params.brandId) {
-    filtered = filtered.filter((item) => item.brandId === params.brandId);
-  }
-
-  const page = params.page ?? 1;
-  const pageSize = params.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
-
-  return {
-    data: filtered.slice(start, start + pageSize),
-    total: filtered.length,
-    page,
-    pageSize,
-  };
+  return payload.manufacturers.map((item) => ({
+    id: String(item.id),
+    name: item.name,
+  }));
 }
 
 export async function createProduct(payload: ProductFormValues): Promise<ProductItem> {
-  await delay(300);
-  const references = await resolveReferenceNames(payload);
-
-  const product: ProductItem = {
-    id: `prd-${nextProductId++}`,
-    ...payload,
-    ...references,
-    manufacturer: payload.manufacturer.trim(),
+  const createResponse = await apiClient.post<ApiResponse<ProductApiModel>>('/api/products', {
+    code: payload.sku.trim().toUpperCase(),
     name: payload.name.trim(),
-    sku: payload.sku.trim().toUpperCase(),
-    description: payload.description.trim(),
-    images: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    description: payload.description.trim() || undefined,
+    brand_id: toNumberId(payload.brandId, 'Thương hiệu'),
+    manufacturer_id: toNumberId(payload.manufacturerId, 'Nhà sản xuất'),
+    base_uom_id: toNumberId(payload.unitId, 'Đơn vị tính'),
+    category_ids: [toNumberId(payload.categoryId, 'Danh mục')],
+    has_batch: payload.trackedByLot,
+    has_expiry: payload.trackedByExpiry,
+    min_stock: payload.minStock,
+    max_stock: payload.maxStock,
+  });
 
-  PRODUCTS = [product, ...PRODUCTS];
-  return product;
+  const createdProduct = unwrapApiData<ProductApiModel>(createResponse);
+
+  if (payload.status !== 'active') {
+    const updateResponse = await apiClient.patch<ApiResponse<ProductApiModel>>(
+      `/api/products/${createdProduct.id}`,
+      {
+        product_status: toApiProductStatus(payload.status),
+      },
+    );
+    return toProductItem(unwrapApiData<ProductApiModel>(updateResponse));
+  }
+
+  return toProductItem(createdProduct);
 }
 
 export async function updateProduct(id: string, payload: ProductFormValues): Promise<ProductItem> {
-  await delay(300);
-  const index = PRODUCTS.findIndex((item) => item.id === id);
+  const numericId = toNumberId(id, 'Sản phẩm');
 
-  if (index === -1) {
-    throw new Error('Không tìm thấy sản phẩm cần cập nhật.');
-  }
-
-  const references = await resolveReferenceNames(payload);
-
-  PRODUCTS[index] = {
-    ...PRODUCTS[index],
-    ...payload,
-    ...references,
-    manufacturer: payload.manufacturer.trim(),
+  const response = await apiClient.patch<ApiResponse<ProductApiModel>>(`/api/products/${numericId}`, {
+    code: payload.sku.trim().toUpperCase(),
     name: payload.name.trim(),
-    sku: payload.sku.trim().toUpperCase(),
-    description: payload.description.trim(),
-    updatedAt: new Date().toISOString(),
-  };
+    description: payload.description.trim() || null,
+    product_status: toApiProductStatus(payload.status),
+    brand_id: toNumberId(payload.brandId, 'Thương hiệu'),
+    manufacturer_id: toNumberId(payload.manufacturerId, 'Nhà sản xuất'),
+    base_uom_id: toNumberId(payload.unitId, 'Đơn vị tính'),
+    category_ids: [toNumberId(payload.categoryId, 'Danh mục')],
+    has_batch: payload.trackedByLot,
+    has_expiry: payload.trackedByExpiry,
+    min_stock: payload.minStock,
+    max_stock: payload.maxStock,
+  });
 
-  return { ...PRODUCTS[index] };
+  return toProductItem(unwrapApiData<ProductApiModel>(response));
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  await delay(250);
-  PRODUCTS = PRODUCTS.filter((item) => item.id !== id);
+  void id;
+  throw new Error('Backend hiện chưa hỗ trợ xóa sản phẩm trong API contract.');
 }
 
 export async function getProductById(id: string): Promise<ProductItem> {
-  await delay(200);
-  const product = PRODUCTS.find((item) => item.id === id);
-
-  if (!product) {
-    throw new Error('Không tìm thấy sản phẩm.');
-  }
-
-  return { ...product };
+  const numericId = toNumberId(id, 'Sản phẩm');
+  const response = await apiClient.get<ApiResponse<ProductApiModel>>(`/api/products/${numericId}`);
+  return toProductItem(unwrapApiData<ProductApiModel>(response));
 }
 
 export const productService = {

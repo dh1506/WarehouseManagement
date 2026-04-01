@@ -4,6 +4,8 @@ import {
   useRolesForAdvanced,
   useUpdateAdvancedPermissions,
 } from '../hooks/useAdvancedPermissions';
+import { useRolePermissions } from '@/features/roles/hooks/useRolePermissions';
+import { useToast } from '@/hooks/use-toast';
 import { ACCESS_LEVEL_META, computeAccessLevel } from '../types/advancedPermissionType';
 import type { ModulePermission } from '../types/advancedPermissionType';
 
@@ -21,6 +23,10 @@ const MODULE_ICON: Record<string, string> = {
   permissions: 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7l3-7z',
   'approval-configuration': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
 };
+
+function normalizePermissionKey(value: string): string {
+  return value.trim().toLowerCase().replace(/_/g, '-');
+}
 
 function ApproveToggle({
   checked,
@@ -78,6 +84,7 @@ function PermCheckbox({
 }
 
 export function AdvancedPagePermissions() {
+  const { toast } = useToast();
   const { data: roles, isLoading: rolesLoading } = useRolesForAdvanced();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
@@ -91,6 +98,7 @@ export function AdvancedPagePermissions() {
   }, [roles, selectedRoleId]);
 
   const { data: permData, isLoading: permLoading } = useAdvancedRolePermissions(selectedRoleId);
+  const { data: rolePagePermissions } = useRolePermissions(selectedRoleId);
   const updateMutation = useUpdateAdvancedPermissions();
 
   useEffect(() => {
@@ -99,18 +107,38 @@ export function AdvancedPagePermissions() {
     }
   }, [permData]);
 
+  const viewEnabledModules = useMemo(() => {
+    if (!rolePagePermissions) {
+      return null;
+    }
+
+    return new Set(
+      rolePagePermissions.permissions
+        .filter((permission) => permission.view)
+        .map((permission) => normalizePermissionKey(permission.module))
+    );
+  }, [rolePagePermissions]);
+
   const filteredModules = useMemo(
     () =>
-      localModules.filter((module) => {
-        const keyword = filterText.trim().toLowerCase();
-        if (!keyword) return true;
+      localModules
+        .filter((module) => {
+          if (!viewEnabledModules) {
+            return true;
+          }
 
-        return (
-          module.moduleName.toLowerCase().includes(keyword) ||
-          (module.pagePath ?? '').toLowerCase().includes(keyword)
-        );
-      }),
-    [filterText, localModules],
+          return viewEnabledModules.has(normalizePermissionKey(module.moduleId));
+        })
+        .filter((module) => {
+          const keyword = filterText.trim().toLowerCase();
+          if (!keyword) return true;
+
+          return (
+            module.moduleName.toLowerCase().includes(keyword) ||
+            (module.pagePath ?? '').toLowerCase().includes(keyword)
+          );
+        }),
+    [filterText, localModules, viewEnabledModules],
   );
 
   const selectedRole = roles?.find((role) => role.id === selectedRoleId);
@@ -128,17 +156,35 @@ export function AdvancedPagePermissions() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedRoleId) return;
-    updateMutation.mutate({
-      roleId: selectedRoleId,
-      payload: { modules: localModules },
-    });
+
+    try {
+      await updateMutation.mutateAsync({
+        roleId: selectedRoleId,
+        payload: { modules: localModules },
+      });
+
+      toast({
+        title: 'Da luu phan quyen nang cao',
+        description: 'Quyen thao tac cua vai tro da duoc cap nhat thanh cong.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Khong the luu cau hinh',
+        description: error instanceof Error ? error.message : 'Da co loi xay ra khi cap nhat quyen.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDiscard = () => {
     if (permData) {
       setLocalModules(permData.modules.map((module) => ({ ...module })));
+      toast({
+        title: 'Da hoan tac thay doi',
+        description: 'Du lieu da quay ve trang thai da luu gan nhat.',
+      });
     }
   };
 
@@ -411,7 +457,7 @@ export function AdvancedPagePermissions() {
 
         <div className="flex items-center justify-between px-1 text-xs text-slate-500">
           <p className="italic">
-            Note: cot View quyet dinh role co vao duoc page hay khong.
+            Note: Roles page quyet dinh page nao duoc hien thi, Advanced Permissions chi cau hinh them cac thao tac nang cao.
           </p>
           <span className="font-medium text-slate-700">
             {filteredModules.length} page{filteredModules.length !== 1 ? 's' : ''} shown

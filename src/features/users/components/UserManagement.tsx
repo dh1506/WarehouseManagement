@@ -7,10 +7,43 @@ import { LockUserDialog, ResetPasswordDialog } from './UserActionDialogs';
 import { exportUsersToExcel } from '../utils/exportUsers';
 import { getUsers } from '@/services/userService';
 import type { UserItem } from '@/services/userService';
+import { useAuthStore } from '@/store/authStore';
+import { hasModuleActionPermission } from '@/utils/module-permission';
+import { useToast } from '@/hooks/use-toast';
 
 const PAGE_LIMIT = 10;
 
 export function UserManagement() {
+  const { toast } = useToast();
+  const user = useAuthStore((state) => state.user);
+  const userPermissions = user?.permissions ?? [];
+
+  const canCreate = hasModuleActionPermission({
+    permissions: userPermissions,
+    moduleName: 'users',
+    moduleAliases: ['user'],
+    action: 'create',
+    roleName: user?.role,
+  });
+
+  const canEdit = hasModuleActionPermission({
+    permissions: userPermissions,
+    moduleName: 'users',
+    moduleAliases: ['user'],
+    action: 'edit',
+    roleName: user?.role,
+  });
+
+  const canUpdate = canEdit;
+
+  const showNoPermissionToast = (actionLabel: string) => {
+    toast({
+      title: 'Khong co quyen thuc hien',
+      description: `Ban khong co quyen ${actionLabel} nguoi dung nay.`,
+      variant: 'destructive',
+    });
+  };
+
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -107,8 +140,44 @@ export function UserManagement() {
   );
 
   // --- Handlers ---
-  const handleAddUser = () => { setEditUser(null); setSheetOpen(true); };
-  const handleEditUser = useCallback((user: UserItem) => { setEditUser(user); setSheetOpen(true); }, []);
+  const handleAddUser = () => {
+    if (!canCreate) {
+      showNoPermissionToast('tao moi');
+      return;
+    }
+
+    setEditUser(null);
+    setSheetOpen(true);
+  };
+
+  const handleEditUser = useCallback((targetUser: UserItem) => {
+    if (!canEdit) {
+      showNoPermissionToast('chinh sua');
+      return;
+    }
+
+    setEditUser(targetUser);
+    setSheetOpen(true);
+  }, [canEdit]);
+
+  const handleLockUser = useCallback((targetUser: UserItem) => {
+    if (!canUpdate) {
+      showNoPermissionToast('khoa/mo khoa');
+      return;
+    }
+
+    setLockTarget(targetUser);
+  }, [canUpdate]);
+
+  const handleResetPassword = useCallback((targetUser: UserItem) => {
+    if (!canUpdate) {
+      showNoPermissionToast('dat lai mat khau');
+      return;
+    }
+
+    setResetPwdTarget(targetUser);
+  }, [canUpdate]);
+
   const handleCloseSheet = () => { setSheetOpen(false); setEditUser(null); };
 
   const handleExport = async () => {
@@ -147,6 +216,7 @@ export function UserManagement() {
         </div>
         <button
           onClick={handleAddUser}
+          disabled={!canCreate}
           className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
         >
           <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
@@ -229,8 +299,8 @@ export function UserManagement() {
             onToggleSelectAll={handleToggleSelectAll}
             onToggleSelectUser={handleToggleSelectUser}
             onEdit={handleEditUser}
-            onLock={setLockTarget}
-            onResetPassword={setResetPwdTarget}
+            onLock={handleLockUser}
+            onResetPassword={handleResetPassword}
           />
         </div>
 

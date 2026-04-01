@@ -19,6 +19,13 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 5. Role matrix hiện đã hiển thị đủ các page đang có trong sidebar, nhưng backend seed mới chỉ có permission thật cho một phần module.
 6. Các page chưa có permission backend tương ứng đang hiển thị read-only với nhãn `Chưa có permission backend`; cần backend seed/thêm module permission nếu muốn lưu được quyền cho các page đó.
 
+## Role CRUD note (2026-03-31)
+
+1. Role screen hiện đã hỗ trợ tạo mới, cập nhật metadata và bật/tắt trạng thái role qua API thật.
+2. FE đang chủ động khóa create role theo whitelist `CEO`, `MANAGER`, `STAFF`; nếu cả 3 role đã tồn tại thì luồng tạo mới sẽ không mở.
+3. Luồng edit hiện giữ `name` ở trạng thái read-only để tránh đổi identity role ngoài scope nghiệp vụ hiện tại; phần cập nhật tập trung vào `description` và `isActive`.
+4. Nếu backend mở rộng thêm role names hoặc lifecycle rules trong tương lai, cần cập nhật `src/features/roles/schemas/roleSchemas.ts` để đồng bộ validation FE.
+
 ## API design gaps from approved table (2026-03-31)
 
 1. `PATCH /api/roles/:id/approval-config` chưa có backend implementation trong repo hiện tại; FE module approval config vẫn cần backend contract chính thức để bỏ mock hoàn toàn.
@@ -43,13 +50,15 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 1. User list/create/update/lock/reset-password hiện dùng API thật qua `/api/users` (lock/reset map qua PATCH update user).
 2. User role filter và form role select đã chuyển sang role options thật từ `/api/roles`.
 3. Nếu backend trả role names không tương ứng business labels cũ, FE vẫn hiển thị được nhờ role badge fallback style.
-4. **Sprint 1 Backend Dependencies**
+4. Role dropdown trong Add/Edit User hiện có fallback khi `/api/roles` bị 403: FE suy ra role options từ danh sách `/api/users`. Truong hop dữ liệu users hiện tại không chứa đủ mọi role hệ thống, dropdown có thể thiếu role chưa được gán cho user nào.
+5. Để đảm bảo dropdown role luôn đầy đủ khi user không có `roles:read`, backend nên bổ sung endpoint role-options dành riêng cho user creation flow (permission theo `users:create`).
+6. **Sprint 1 Backend Dependencies**
    - Product Settings cần BE cung cấp CRUD cho unit of measure và brand/manufacturer master data.
    - Product Master cần BE cung cấp CRUD endpoint cùng option APIs cho category/unit/brand theo contract chính thức.
    - Warehouse Structure cần BE cung cấp CRUD cho kho và vị trí kho, bao gồm validation khi xóa kho có phát sinh location hoặc transaction.
    - Permission keys cho Product / Warehouse modules chưa được chốt từ backend. FE hiện tạm dùng `usePermission()` + wildcard `*`.
 
-5. **Design / Contract Availability**
+7. **Design / Contract Availability**
    - Chưa thấy file API contract, database design, hoặc design reference riêng cho Product / Warehouse modules trong workspace hiện tại. FE đang suy luận theo design language và pattern đã có trong repo.
 
 ## Warehouse Hub open items (2026-03-30)
@@ -68,6 +77,14 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 2. Bin update actions in Zone Detail now follow warehouse manage permission and disable controls for read-only users.
 3. Remaining gap is backend contract + persistent storage, not frontend architecture or module separation.
 
+## Product integration note (2026-04-01)
+
+1. Product Settings (unit/brand) và Product Management đã chuyển từ mock sang API thật theo contract BE hiện tại.
+2. FE product form đã đổi manufacturer input sang manufacturer select (`manufacturer_id`) để khớp schema BE.
+3. Backend hiện chưa có endpoint delete cho `products`, `brands`, `units-of-measure` theo route hiện tại; FE đang giữ action xóa ở mức cảnh báo lỗi contract nếu người dùng bấm.
+4. Product create schema BE không nhận trực tiếp `product_status`; FE xử lý bằng bước cập nhật trạng thái sau create khi trạng thái form khác `active`.
+5. Nếu muốn hỗ trợ đầy đủ luồng xóa trên UI, backend cần bổ sung API contract delete tương ứng hoặc FE cần tắt hẳn action delete theo quyết định nghiệp vụ.
+
 ## Runtime incident note (2026-03-30)
 
 1. White-screen risk from auth payload mismatch was mitigated by:
@@ -78,6 +95,43 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 
 ## Advanced page permission note (2026-03-31)
 
-1. `/admin/advanced-permission` hiện dùng mock service page-based tại `src/services/advancedPagePermissionService.ts`.
-2. Ma trận này đã bám theo sidebar pages thật, nhưng chưa có backend API/storage chính thức cho page-level access.
-3. Nếu muốn quyền ở đây thực sự chặn route trong runtime cho từng user, bước tiếp theo là thống nhất backend contract và nối auth guard/router với page-permission source of truth đó.
+1. `/admin/advanced-permission` da doi sang API-backed flow thong qua `roleService` (khong con mock in-memory).
+2. Save advanced permissions hien da persist vao role permissions backend va refetch lai ngay sau khi luu.
+3. Runtime quyen cua user dang login co the can re-auth (hoac refresh profile endpoint) de nhan bo permission moi neu role cua chinh user vua bi thay doi trong cung session.
+
+## Action-level permission behavior (2026-04-01)
+
+1. Product module da ap dung guard rieng cho `create`, `edit`, `delete` va hien toast khi user thao tac vuot quyen.
+2. Cac module khac (warehouses, categories, users, import-export...) can duoc chuyen dan sang guard module-action tuong tu neu can dong nhat UX toan he thong.
+
+## RBAC runtime note (2026-04-01)
+
+1. FE da ap dung route guard + sidebar hide theo module `view` permission tu token login.
+2. Advanced Permissions da bi rang buoc boi Roles view grants (module co `view=false` se khong hien de cau hinh action nang cao).
+3. `roleService.getRolePermissions` hien fallback bo qua `/api/permissions` khi user khong co quyen doc catalog, de tranh vo trang Roles vi 403 khong can thiet.
+4. De quyen hien/hidden trang hoat dong chinh xac o production, backend can dam bao payload login tra ve day du permission names theo module-action convention (`<module>:read|create|update|delete|approve`).
+5. FE currently coi role `CEO` la admin bypass; neu backend doi role super-admin khac ten, can cap nhat `src/utils/module-permission.ts`.
+
+## Roles visibility note (2026-04-01)
+
+1. Trang Roles da doi sang che do bat/tat `view` cho tung page (visible/hidden) thay vi sua action nang cao.
+2. Neu mot page chua co permission module tu backend seed, row se hien read-only va khong the luu toggle cho page do.
+
+## Supplier module note (2026-04-01)
+
+1. FE da co module Suppliers theo contract backend hien tai: list/detail/create/update.
+2. Backend chua co delete supplier endpoint trong workspace nay, nen FE khong hien action xoa.
+3. Sidebar va route guard dang ky theo permission module `suppliers`; backend login payload can tra ve `suppliers:read|create|update` de UI hien dung theo role.
+4. Supplier view drawer hien danh sach san pham lien ket dua tren `productSuppliers`; neu backend thay doi select shape nay, can cap nhat mapper trong `src/services/supplierService.ts`.
+
+## Warehouse master integration note (2026-04-01)
+
+1. FE warehouse master and location master now call real backend routes through `src/services/warehouseMasterService.ts`.
+2. Current backend workspace route shape is:
+   - `GET/POST/PATCH /api/warehouses`
+   - `GET /api/warehouses/locations/search`
+   - `POST/PATCH /api/warehouses/locations/:id?` with create at `/api/warehouses/locations`
+3. This differs from the higher-level sprint table that described `/api/locations` and `PUT` methods. FE currently follows the contract that actually exists in the running workspace to stay executable.
+4. Backend currently does not expose delete endpoints for warehouse master or warehouse locations, so FE intentionally hides delete actions.
+5. Warehouse location update in backend only supports mutable operational fields (`status`, `is_active`, weight/volume, storage condition). FE therefore locks warehouse/path/code fields during edit mode.
+6. `src/services/warehouseService.ts` and `src/features/warehouses/components/WarehouseManagement.tsx` remain legacy mock/hub codepaths for non-sprint hub-zone visualization; they were left isolated to avoid unrelated refactor during this task.

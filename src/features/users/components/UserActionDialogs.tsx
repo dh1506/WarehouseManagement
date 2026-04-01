@@ -160,6 +160,7 @@ interface ResetPasswordDialogProps {
 
 export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordDialogProps) {
   const { mutateAsync, isPending } = useResetUserPassword();
+  const { toast } = useToast();
   const [showPwd, setShowPwd] = useState(false);
 
   const {
@@ -187,11 +188,20 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
     if (!user) return;
     try {
       await mutateAsync({ id: user.id, payload: { newPassword: data.newPassword } });
+      toast({
+        title: '??t l?i m?t kh?u th?nh c?ng',
+        description: `M?t kh?u c?a ${user.name} ?? ???c c?p nh?t.`,
+      });
       reset();
+      setShowPwd(false);
       onSuccess?.();
       onClose();
-    } catch {
-      // Lỗi đã được xử lý trong hook
+    } catch (error) {
+      toast({
+        title: 'Kh?ng th? ??t l?i m?t kh?u',
+        description: error instanceof Error ? error.message : 'Vui l?ng th? l?i sau.',
+        variant: 'destructive',
+      });
     }
   };
 

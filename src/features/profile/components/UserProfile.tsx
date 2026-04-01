@@ -1,97 +1,60 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { StatePanel } from '@/components/StatePanel';
-import { useToast } from '@/hooks/use-toast';
 import { changePasswordSchema, updateProfileSchema } from '../schemas/profileSchema';
 import type { ChangePasswordFormValues, UpdateProfileFormValues } from '../schemas/profileSchema';
-import { getApiErrorMessage, useCurrentUserProfile, useResetProfilePassword, useUpdateProfile } from '../hooks/useProfile';
 
 export function UserProfile() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser); // to update local state
-  const { toast } = useToast();
+
+  // States for password change feedback
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // States for password visibility
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // States for Profile update feedback
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
   // States for Avatar Upload
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const {
-    data: profileData,
-    isLoading: isProfileLoading,
-    isError: isProfileError,
-    error: profileError,
-    refetch: refetchProfile,
-  } = useCurrentUserProfile(user?.id);
-
-  const updateProfileMutation = useUpdateProfile(user?.id);
-  const resetPasswordMutation = useResetProfilePassword(user?.id);
 
   // Profile Info Form Setup
   const {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
-    reset: resetProfileForm,
     formState: { errors: profileErrors, isSubmitting: isSubmittingProfile },
   } = useForm<UpdateProfileFormValues>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
-      phone: '',
-      address: '',
+      phone: '+84 (0) 90 123 4567',
+      address: 'Tầng 15, Keangnam Landmark Tower, Hà Nội',
     },
   });
 
-  useEffect(() => {
-    resetProfileForm({
-      name: profileData?.fullName ?? user?.name ?? '',
-      email: profileData?.email ?? user?.email ?? '',
-      phone: profileData?.phone ?? '',
-      address: '',
-    });
-
-    if (profileData) {
-      updateUser({
-        name: profileData.fullName,
-        email: profileData.email,
-        avatar: profileData.avatar,
-      });
-    }
-  }, [profileData, resetProfileForm, updateUser, user?.email, user?.name]);
-
   const onSubmitProfile = async (data: UpdateProfileFormValues) => {
+    setProfileSuccess(null);
+    setIsUpdatingProfile(true);
     try {
-      const updatedProfile = await updateProfileMutation.mutateAsync({
-        fullName: data.name,
-        email: data.email,
-        phone: data.phone,
-      });
-
-      updateUser({
-        name: updatedProfile.fullName,
-        email: updatedProfile.email,
-        avatar: updatedProfile.avatar,
-      });
-
-      toast({
-        title: 'Đã cập nhật hồ sơ',
-        description: 'Thông tin cá nhân đã được lưu thành công.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Không thể cập nhật hồ sơ',
-        description: getApiErrorMessage(error, 'Vui lòng kiểm tra dữ liệu và thử lại.'),
-        variant: 'destructive',
-      });
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      updateUser({ name: data.name, email: data.email });
+      setProfileSuccess('Cập nhật thông tin thành công!');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
@@ -99,7 +62,8 @@ export function UserProfile() {
   const {
     register,
     handleSubmit,
-    reset: resetPasswordForm,
+    reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -122,11 +86,7 @@ export function UserProfile() {
 
     // Validate size (e.g. max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'Ảnh vượt quá giới hạn',
-        description: 'Vui lòng chọn ảnh dung lượng dưới 5MB.',
-        variant: 'destructive',
-      });
+      alert('Vui lòng chọn ảnh dung lượng dưới 5MB.');
       return;
     }
 
@@ -143,14 +103,7 @@ export function UserProfile() {
         if (user) {
           updateUser({ avatar: base64Url });
         }
-
-        toast({
-          title: 'Đã cập nhật ảnh đại diện',
-          description: 'Ảnh đại diện đã được cập nhật trên phiên làm việc hiện tại.',
-        });
-
         setIsUploadingAvatar(false);
-        e.target.value = '';
       };
       // Giả lập delay mạng tải ảnh
       setTimeout(() => {
@@ -158,58 +111,50 @@ export function UserProfile() {
       }, 1000);
 
     } catch (err) {
+      console.error(err);
       setIsUploadingAvatar(false);
-      toast({
-        title: 'Tải ảnh thất bại',
-        description: getApiErrorMessage(err, 'Vui lòng thử lại sau.'),
-        variant: 'destructive',
-      });
-      e.target.value = '';
+      alert('Tải ảnh thất bại, vui lòng thử lại.');
     }
   };
 
+  // Mock API Call for Password Change
   const onSubmitPassword = async (data: ChangePasswordFormValues) => {
+    setPasswordSuccess(null);
+    setPasswordError(null);
+    setIsChangingPassword(true);
+
     try {
-      await resetPasswordMutation.mutateAsync(data.newPassword);
-
-      toast({
-        title: 'Đã cập nhật mật khẩu',
-        description: 'Mật khẩu mới đã được lưu thành công.',
+      // Giả lập thời gian call API
+      await new Promise((resolve, reject) => {
+        setTimeout(() => {
+          // Mock validation: Giả dụ mật khẩu hiện tại CỦA MỌI USER LÀ "admin123" để test
+          if (data.currentPassword !== 'admin123') {
+            reject(new Error('INVALID_PASSWORD'));
+          } else {
+            resolve(true);
+          }
+        }, 800);
       });
 
-      resetPasswordForm();
-    } catch (error) {
-      toast({
-        title: 'Không thể cập nhật mật khẩu',
-        description: getApiErrorMessage(error, 'Vui lòng kiểm tra dữ liệu và thử lại.'),
-        variant: 'destructive',
-      });
+      setPasswordSuccess('Đổi mật khẩu thành công! Hãy lưu lại mật khẩu mới.');
+      reset(); // Xoá form
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.message === 'INVALID_PASSWORD') {
+          setError('currentPassword', {
+            type: 'manual',
+            message: 'Mật khẩu hiện tại không chính xác.',
+          });
+        } else {
+          setPasswordError(err.message || 'Có lỗi xảy ra khi đổi mật khẩu.');
+        }
+      } else {
+        setPasswordError('Có lỗi xảy ra khi đổi mật khẩu.');
+      }
+    } finally {
+      setIsChangingPassword(false);
     }
   };
-
-  if (!user) {
-    return (
-      <div className="h-full bg-[#fbfbfe] p-6">
-        <StatePanel
-          title="Phiên đăng nhập không hợp lệ"
-          description="Không tìm thấy thông tin tài khoản hiện tại. Vui lòng đăng nhập lại để tiếp tục."
-          icon="account_circle"
-          tone="error"
-          action={(
-            <button
-              onClick={() => navigate('/login')}
-              className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-            >
-              Đi đến đăng nhập
-            </button>
-          )}
-        />
-      </div>
-    );
-  }
-
-  const isUpdatingProfile = updateProfileMutation.isPending;
-  const isChangingPassword = resetPasswordMutation.isPending;
 
   return (
     <div className="h-full overflow-y-auto bg-[#fbfbfe]">
@@ -328,21 +273,11 @@ export function UserProfile() {
               </div>
 
               <form onSubmit={handleProfileSubmit(onSubmitProfile)} className="space-y-2 sm:space-y-3">
-                {isProfileError && (
-                  <StatePanel
-                    title="Không tải được hồ sơ"
-                    description={getApiErrorMessage(profileError, 'Vui lòng thử tải lại để tiếp tục cập nhật thông tin cá nhân.')}
-                    icon="error"
-                    tone="error"
-                    action={(
-                      <button
-                        onClick={() => void refetchProfile()}
-                        className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                      >
-                        Thử lại
-                      </button>
-                    )}
-                  />
+                {profileSuccess && (
+                  <div className="p-3 bg-green-50 text-green-700 text-sm rounded-xl font-medium flex items-center gap-2 animate-in fade-in duration-300">
+                    <span className="material-symbols-outlined text-green-600 text-[18px]">check_circle</span>
+                    {profileSuccess}
+                  </div>
                 )}
 
                 {/* Full Name */}
@@ -354,7 +289,6 @@ export function UserProfile() {
                     id="name"
                     type="text"
                     {...registerProfile('name')}
-                    disabled={isSubmittingProfile || isUpdatingProfile || isProfileLoading}
                     className={`w-full bg-gray-50 hover:bg-gray-100 border rounded-xl px-4 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:ring-2 outline-none transition-all duration-200 ${profileErrors.name ? 'border-red-500 focus:ring-red-500/20' : 'border-transparent focus:border-primary focus:ring-primary/20'
                       }`}
                   />
@@ -371,7 +305,6 @@ export function UserProfile() {
                       id="email"
                       type="email"
                       {...registerProfile('email')}
-                      disabled={isSubmittingProfile || isUpdatingProfile || isProfileLoading}
                       className={`w-full bg-gray-50 hover:bg-gray-100 border rounded-xl px-4 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:ring-2 outline-none transition-all duration-200 ${profileErrors.email ? 'border-red-500 focus:ring-red-500/20' : 'border-transparent focus:border-primary focus:ring-primary/20'
                         }`}
                     />
@@ -386,10 +319,8 @@ export function UserProfile() {
                       id="phone"
                       type="tel"
                       {...registerProfile('phone')}
-                      disabled={isSubmittingProfile || isUpdatingProfile || isProfileLoading}
                       className="w-full bg-gray-50 hover:bg-gray-100 border border-transparent rounded-xl px-4 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-200"
                     />
-                    {profileErrors.phone && <p className="mt-1.5 text-xs font-medium text-red-500">{profileErrors.phone.message}</p>}
                   </div>
                 </div>
 
@@ -402,7 +333,6 @@ export function UserProfile() {
                     id="address"
                     type="text"
                     {...registerProfile('address')}
-                    disabled={isSubmittingProfile || isUpdatingProfile || isProfileLoading}
                     className="w-full bg-gray-50 hover:bg-gray-100 border border-transparent rounded-xl px-4 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-200"
                   />
                 </div>
@@ -411,7 +341,7 @@ export function UserProfile() {
                 <div className="flex justify-end pt-2 sm:pt-4">
                   <button
                     type="submit"
-                    disabled={isSubmittingProfile || isUpdatingProfile || isProfileLoading}
+                    disabled={isSubmittingProfile || isUpdatingProfile}
                     className={`w-full sm:w-auto bg-primary text-white font-bold py-3 sm:py-2.5 px-6 rounded-xl shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary flex items-center justify-center gap-2 ${isSubmittingProfile || isUpdatingProfile
                       ? 'opacity-80 cursor-not-allowed'
                       : 'hover:bg-[#00307a] hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
@@ -427,10 +357,6 @@ export function UserProfile() {
                     )}
                   </button>
                 </div>
-
-                {isProfileLoading && (
-                  <p className="text-xs font-medium text-gray-500">Đang đồng bộ dữ liệu hồ sơ từ hệ thống...</p>
-                )}
               </form>
             </div>
 
@@ -445,6 +371,20 @@ export function UserProfile() {
 
               <form onSubmit={handleSubmit(onSubmitPassword)} className="space-y-5 sm:space-y-6">
 
+                {/* Thông báo trạng thái */}
+                {passwordSuccess && (
+                  <div className="p-3 bg-green-50 text-green-700 text-sm rounded-xl font-medium flex items-center gap-2 animate-in fade-in duration-300">
+                    <span className="material-symbols-outlined text-green-600 text-[18px]">check_circle</span>
+                    {passwordSuccess}
+                  </div>
+                )}
+                {passwordError && (
+                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl font-medium flex items-center gap-2 animate-in fade-in duration-300">
+                    <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
+                    {passwordError}
+                  </div>
+                )}
+
                 {/* Current Password */}
                 <div>
                   <label htmlFor="currentPassword" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
@@ -456,7 +396,6 @@ export function UserProfile() {
                       type={showCurrentPassword ? 'text' : 'password'}
                       placeholder="Nhập mật khẩu hiện tại..."
                       {...register('currentPassword')}
-                      disabled={isSubmitting || isChangingPassword}
                       className={`w-full bg-gray-50 hover:bg-gray-100 border rounded-xl pl-4 pr-12 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:ring-2 outline-none transition-all duration-200 ${errors.currentPassword ? 'border-red-500 focus:ring-red-500/20' : 'border-transparent focus:border-primary focus:ring-primary/20'
                         }`}
                     />
@@ -485,7 +424,6 @@ export function UserProfile() {
                         type={showNewPassword ? 'text' : 'password'}
                         placeholder="Mật khẩu mới..."
                         {...register('newPassword')}
-                        disabled={isSubmitting || isChangingPassword}
                         className={`w-full bg-gray-50 hover:bg-gray-100 border rounded-xl pl-4 pr-12 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:ring-2 outline-none transition-all duration-200 ${errors.newPassword ? 'border-red-500 focus:ring-red-500/20' : 'border-transparent focus:border-primary focus:ring-primary/20'
                           }`}
                       />
@@ -512,7 +450,6 @@ export function UserProfile() {
                         type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="Nhập lại mật khẩu mới..."
                         {...register('confirmPassword')}
-                        disabled={isSubmitting || isChangingPassword}
                         className={`w-full bg-gray-50 hover:bg-gray-100 border rounded-xl pl-4 pr-12 py-3 sm:py-3.5 text-sm text-gray-900 focus:bg-white focus:ring-2 outline-none transition-all duration-200 ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500/20' : 'border-transparent focus:border-primary focus:ring-primary/20'
                           }`}
                       />

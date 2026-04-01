@@ -3,11 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/store/authStore';
+import { hasModuleActionPermission } from '@/utils/module-permission';
 import { useProductDetail } from '@/features/products/hooks/useProductDetail';
 import {
   useProductCategoryOptions,
   useProductUnitOptions,
   useProductBrandOptions,
+  useProductManufacturerOptions,
   useUpdateProduct,
 } from '../hooks/useProducts';
 
@@ -21,6 +24,23 @@ export function ProductDetail() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [fullscreenImageIndex, setFullscreenImageIndex] = useState<number | null>(null);
+  const user = useAuthStore((state) => state.user);
+  const userPermissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  const canEdit = hasModuleActionPermission({
+    permissions: userPermissions,
+    moduleName: 'products',
+    moduleAliases: ['product'],
+    action: 'edit',
+    roleName: user?.role,
+  });
+
+  const showNoPermissionToast = () => {
+    toast({
+      title: 'Khong co quyen thuc hien',
+      description: 'Ban khong co quyen chinh sua san pham nay.',
+      variant: 'destructive',
+    });
+  };
 
   if (!id) {
     return <StatePanel title="Invalid Product" description="No product ID provided." icon="error" tone="error" />;
@@ -30,9 +50,14 @@ export function ProductDetail() {
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
+  const manufacturersQuery = useProductManufacturerOptions();
   const updateMutation = useUpdateProduct();
 
-  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
+  const isOptionsLoading =
+    categoriesQuery.isLoading ||
+    unitsQuery.isLoading ||
+    brandsQuery.isLoading ||
+    manufacturersQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -106,7 +131,14 @@ export function ProductDetail() {
                 In nhãn
               </button>
               <button
-                onClick={() => setIsEditSheetOpen(true)}
+                onClick={() => {
+                  if (!canEdit) {
+                    showNoPermissionToast();
+                    return;
+                  }
+
+                  setIsEditSheetOpen(true);
+                }}
                 className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-primary to-primary-container px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:scale-[0.98]"
               >
                 <span className="material-symbols-outlined text-lg">edit</span>
@@ -399,11 +431,17 @@ export function ProductDetail() {
           onClose={() => setIsEditSheetOpen(false)}
           mode="edit"
           product={product}
-          categories={categoriesQuery.data?.data ?? []}
+          categories={categoriesQuery.data ?? []}
           units={unitsQuery.data ?? []}
           brands={brandsQuery.data ?? []}
+          manufacturers={manufacturersQuery.data ?? []}
           onSubmit={async (payload: ProductFormData) => {
             try {
+              if (!canEdit) {
+                showNoPermissionToast();
+                return;
+              }
+
               await updateMutation.mutateAsync({ id: product.id, payload });
               toast({ title: 'Đã cập nhật sản phẩm', description: 'Product master đã được lưu.' });
               setIsEditSheetOpen(false);

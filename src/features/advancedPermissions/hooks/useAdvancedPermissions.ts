@@ -35,6 +35,7 @@ export function useUpdateAdvancedPermissions() {
       updateAdvancedRolePermissions(roleId, payload),
     onSuccess: (_, { roleId }) => {
       queryClient.invalidateQueries({ queryKey: ADVANCED_PERM_KEYS.byRole(roleId) });
+      queryClient.invalidateQueries({ queryKey: ['roles', 'permissions', roleId] });
     },
   });
 }

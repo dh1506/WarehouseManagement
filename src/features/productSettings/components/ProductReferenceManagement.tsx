@@ -269,7 +269,7 @@ export function ProductReferenceManagement() {
         onSubmit={async (payload) => {
           try {
             if (dialogMode === 'edit' && selectedItem) {
-              await updateMutation.mutateAsync({ id: selectedItem.id, payload });
+              await updateMutation.mutateAsync({ id: selectedItem.id, type: selectedItem.type, payload });
               toast({ title: 'Đã cập nhật', description: 'Thông tin tham chiếu đã được lưu.' });
             } else {
               await createMutation.mutateAsync({ type: tab, payload });

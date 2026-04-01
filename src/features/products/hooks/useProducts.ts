@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getProductCategories } from '@/services/categoryService';
 import { getProductReferenceOptions } from '@/services/productReferenceService';
-import { createProduct, deleteProduct, getProducts, updateProduct } from '@/services/productService';
+import {
+  createProduct,
+  deleteProduct,
+  getProductCategoryOptions,
+  getProductManufacturerOptions,
+  getProducts,
+  updateProduct,
+} from '@/services/productService';
 import type { ProductFormValues, ProductListParams } from '../types/productType';
 
 export const PRODUCT_KEYS = {
@@ -10,6 +16,7 @@ export const PRODUCT_KEYS = {
   categories: ['products', 'categories'] as const,
   units: ['products', 'units'] as const,
   brands: ['products', 'brands'] as const,
+  manufacturers: ['products', 'manufacturers'] as const,
 };
 
 export function useProducts(params: ProductListParams) {
@@ -22,7 +29,7 @@ export function useProducts(params: ProductListParams) {
 export function useProductCategoryOptions() {
   return useQuery({
     queryKey: PRODUCT_KEYS.categories,
-    queryFn: () => getProductCategories({ page: 1, pageSize: 100, status: 'active' }),
+    queryFn: () => getProductCategoryOptions(),
   });
 }
 
@@ -37,6 +44,13 @@ export function useProductBrandOptions() {
   return useQuery({
     queryKey: PRODUCT_KEYS.brands,
     queryFn: () => getProductReferenceOptions('brand'),
+  });
+}
+
+export function useProductManufacturerOptions() {
+  return useQuery({
+    queryKey: PRODUCT_KEYS.manufacturers,
+    queryFn: () => getProductManufacturerOptions(),
   });
 }
 

@@ -1,5 +1,5 @@
-import { WarehouseManagement } from '@/features/warehouses/components/WarehouseManagement';
+import { WarehouseManagementV2 } from '@/features/warehouses/components/WarehouseManagementV2';
 
 export function WarehouseManagementPage() {
-  return <WarehouseManagement />;
+  return <WarehouseManagementV2 />;
 }

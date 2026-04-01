@@ -14,13 +14,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/store/authStore';
+import { hasModuleActionPermission } from '@/utils/module-permission';
 import {
   useCreateProduct,
   useDeleteProduct,
   useProductBrandOptions,
   useProductCategoryOptions,
+  useProductManufacturerOptions,
   useProducts,
   useProductUnitOptions,
   useUpdateProduct,
@@ -33,7 +35,40 @@ const PAGE_SIZE = 8;
 export function ProductManagement() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const canManage = usePermission('master_data.products.manage');
+  const user = useAuthStore((state) => state.user);
+  const userPermissions = Array.isArray(user?.permissions) ? user.permissions : [];
+
+  const canCreate = hasModuleActionPermission({
+    permissions: userPermissions,
+    moduleName: 'products',
+    moduleAliases: ['product'],
+    action: 'create',
+    roleName: user?.role,
+  });
+
+  const canEdit = hasModuleActionPermission({
+    permissions: userPermissions,
+    moduleName: 'products',
+    moduleAliases: ['product'],
+    action: 'edit',
+    roleName: user?.role,
+  });
+
+  const canDelete = hasModuleActionPermission({
+    permissions: userPermissions,
+    moduleName: 'products',
+    moduleAliases: ['product'],
+    action: 'delete',
+    roleName: user?.role,
+  });
+
+  const showNoPermissionToast = (actionLabel: string) => {
+    toast({
+      title: 'Khong co quyen thuc hien',
+      description: `Ban khong co quyen ${actionLabel} san pham nay.`,
+      variant: 'destructive',
+    });
+  };
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -56,6 +91,7 @@ export function ProductManagement() {
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
+  const manufacturersQuery = useProductManufacturerOptions();
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -64,12 +100,22 @@ export function ProductManagement() {
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
 
   const openCreate = () => {
+    if (!canCreate) {
+      showNoPermissionToast('tao moi');
+      return;
+    }
+
     setSheetMode('create');
     setSelectedProduct(null);
     setIsSheetOpen(true);
   };
 
   const openEdit = (item: ProductItem) => {
+    if (!canEdit) {
+      showNoPermissionToast('chinh sua');
+      return;
+    }
+
     setSheetMode('edit');
     setSelectedProduct(item);
     setIsSheetOpen(true);
@@ -79,8 +125,22 @@ export function ProductManagement() {
     navigate(`/admin/products/${item.id}`);
   };
 
+  const openDelete = (item: ProductItem) => {
+    if (!canDelete) {
+      showNoPermissionToast('xoa');
+      return;
+    }
+
+    setDeleteTarget(item);
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    if (!canDelete) {
+      showNoPermissionToast('xoa');
+      setDeleteTarget(null);
+      return;
+    }
 
     try {
       await deleteMutation.mutateAsync(deleteTarget.id);
@@ -95,7 +155,11 @@ export function ProductManagement() {
     }
   };
 
-  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
+  const isOptionsLoading =
+    categoriesQuery.isLoading ||
+    unitsQuery.isLoading ||
+    brandsQuery.isLoading ||
+    manufacturersQuery.isLoading;
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
@@ -105,15 +169,13 @@ export function ProductManagement() {
           title="Product Management"
           description="Xây dựng dữ liệu sản phẩm gốc làm nền cho nhập, xuất, tồn và các workflow kho ở Sprint 2 trở đi."
           actions={
-            canManage ? (
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
-              >
-                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                New Product
-              </button>
-            ) : null
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+            >
+              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+              New Product
+            </button>
           }
         />
 
@@ -136,7 +198,7 @@ export function ProductManagement() {
               </FilterSelect>
               <FilterSelect value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1); }}>
                 <option value="">All categories</option>
-                {categoriesQuery.data?.data.map((item) => (
+                {categoriesQuery.data?.map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </FilterSelect>
@@ -178,14 +240,12 @@ export function ProductManagement() {
                   description="Tạo product master đầu tiên để các nghiệp vụ nhập, xuất và kiểm kê có thể kế thừa."
                   icon="inventory_2"
                   action={
-                    canManage ? (
-                      <button
-                        onClick={openCreate}
-                        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Tạo sản phẩm
-                      </button>
-                    ) : null
+                    <button
+                      onClick={openCreate}
+                      className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Tạo sản phẩm
+                    </button>
                   }
                 />
               </div>
@@ -226,10 +286,8 @@ export function ProductManagement() {
                           <td className="px-4 py-4">
                             <div className="flex justify-end gap-2">
                               <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                              {canManage ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
-                              {canManage ? (
-                                <ActionButton icon="delete" label="Delete" onClick={() => setDeleteTarget(item)} danger />
-                              ) : null}
+                              <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} />
+                              <ActionButton icon="delete" label="Delete" onClick={() => openDelete(item)} danger />
                             </div>
                           </td>
                         </tr>
@@ -250,15 +308,26 @@ export function ProductManagement() {
         onClose={() => setIsSheetOpen(false)}
         mode={sheetMode}
         product={selectedProduct}
-        categories={categoriesQuery.data?.data ?? []}
+        categories={categoriesQuery.data ?? []}
         units={unitsQuery.data ?? []}
         brands={brandsQuery.data ?? []}
+        manufacturers={manufacturersQuery.data ?? []}
         onSubmit={async (payload) => {
           try {
             if (sheetMode === 'edit' && selectedProduct) {
+              if (!canEdit) {
+                showNoPermissionToast('chinh sua');
+                return;
+              }
+
               await updateMutation.mutateAsync({ id: selectedProduct.id, payload });
               toast({ title: 'Đã cập nhật sản phẩm', description: 'Product master đã được lưu.' });
             } else {
+              if (!canCreate) {
+                showNoPermissionToast('tao moi');
+                return;
+              }
+
               await createMutation.mutateAsync(payload);
               toast({ title: 'Đã tạo sản phẩm', description: 'Sản phẩm mới đã sẵn sàng để dùng.' });
             }
@@ -295,6 +364,7 @@ interface ProductFormSheetProps {
   categories: Array<{ id: string; name: string }>;
   units: Array<{ id: string; name: string }>;
   brands: Array<{ id: string; name: string }>;
+  manufacturers: Array<{ id: string; name: string }>;
   onSubmit: (payload: ProductFormData) => Promise<void>;
   isPending: boolean;
   isOptionsLoading: boolean;
@@ -308,6 +378,7 @@ function ProductFormSheet({
   categories,
   units,
   brands,
+  manufacturers,
   onSubmit,
   isPending,
   isOptionsLoading,
@@ -321,7 +392,7 @@ function ProductFormSheet({
       categoryId: '',
       unitId: '',
       brandId: '',
-      manufacturer: '',
+      manufacturerId: '',
       minStock: 0,
       maxStock: 0,
       trackedByLot: false,
@@ -341,7 +412,7 @@ function ProductFormSheet({
       categoryId: product?.categoryId ?? '',
       unitId: product?.unitId ?? '',
       brandId: product?.brandId ?? '',
-      manufacturer: product?.manufacturer ?? '',
+      manufacturerId: product?.manufacturerId ?? '',
       minStock: product?.minStock ?? 0,
       maxStock: product?.maxStock ?? 0,
       trackedByLot: product?.trackedByLot ?? false,
@@ -400,8 +471,17 @@ function ProductFormSheet({
                 <Field label="Product name" error={errors.name?.message}>
                   <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
                 </Field>
-                <Field label="Manufacturer" error={errors.manufacturer?.message}>
-                  <input {...register('manufacturer')} disabled={isView || isPending} className={inputClass(!!errors.manufacturer)} />
+                <Field label="Manufacturer" error={errors.manufacturerId?.message}>
+                  <select
+                    {...register('manufacturerId')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.manufacturerId)}
+                  >
+                    <option value="">Select manufacturer</option>
+                    {manufacturers.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Category" error={errors.categoryId?.message}>
                   <select {...register('categoryId')} disabled={isView || isPending} className={inputClass(!!errors.categoryId)}>

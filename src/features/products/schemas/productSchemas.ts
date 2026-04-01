@@ -12,7 +12,7 @@ export const productFormSchema = z
     categoryId: z.string().trim().min(1, 'Vui lòng chọn danh mục'),
     unitId: z.string().trim().min(1, 'Vui lòng chọn đơn vị tính'),
     brandId: z.string().trim().min(1, 'Vui lòng chọn thương hiệu'),
-    manufacturer: z.string().trim().min(2, 'Vui lòng nhập nhà sản xuất').max(120, 'Tối đa 120 ký tự'),
+    manufacturerId: z.string().trim().min(1, 'Vui lòng chọn nhà sản xuất'),
     minStock: z.number().min(0, 'Tồn tối thiểu không hợp lệ'),
     maxStock: z.number().min(1, 'Tồn tối đa phải lớn hơn 0'),
     trackedByLot: z.boolean(),

@@ -126,3 +126,89 @@
 
 - `npx tsc -p tsconfig.json` (BE): pass
 - `npx tsc -b` (FE): pass
+
+## 2026-03-31 - Role create/update/status management on Role screen
+
+### Completed
+
+- Added role create flow on the Role page using the real `POST /api/roles` backend contract.
+- Added role edit flow for metadata (`description`, `isActive`) using `PATCH /api/roles/:id`.
+- Added active/inactive toggle action directly in the role hierarchy list.
+- Added Zod-backed role form schema constrained to `CEO | MANAGER | STAFF`.
+- Added reusable `RoleFormDialog` for create/edit flows and wired React Query mutations in `useRolePermissions.ts`.
+
+### Touched Files
+
+- `FE/Warehouse_Management/src/features/roles/components/RolePermissions.tsx`
+- `FE/Warehouse_Management/src/features/roles/components/RoleFormDialog.tsx`
+- `FE/Warehouse_Management/src/features/roles/hooks/useRolePermissions.ts`
+- `FE/Warehouse_Management/src/features/roles/schemas/roleSchemas.ts`
+- `FE/Warehouse_Management/docs/agent/decision-log.md`
+- `FE/Warehouse_Management/docs/agent/module-map.md`
+- `FE/Warehouse_Management/docs/agent/known-issues.md`
+
+### Assumptions
+
+- Backend continues to restrict role names to `CEO`, `MANAGER`, and `STAFF`.
+- Editing role name is not needed in this task; FE keeps it read-only in edit mode to avoid changing role identity unexpectedly.
+
+### Verification
+
+- `npx tsc -b` (FE): pass
+
+## 2026-04-01 - Supplier module + user admin stabilization
+
+### Done
+
+- Added FE Suppliers module using existing backend contract:
+  - supplier list with search/status filter/pagination
+  - create/edit/view sheet
+  - route `/admin/suppliers`
+  - sidebar navigation entry
+- Added supplier service/hook/schema/type layers following AGENTS architecture:
+  - raw API calls in `services/`
+  - React Query hooks in `features/suppliers/hooks/`
+  - Zod schemas in `features/suppliers/schemas/`
+- Fixed user role dropdown fallback:
+  - `userService.getUserRoleOptions()` now recognizes forbidden errors from current `apiClient` shape
+  - fallback to `/api/users` derived roles works again for accounts without `roles:read`
+- Improved reset-password UX in FE:
+  - success toast after reset
+  - error toast on failure
+  - dialog closes and resets state after success
+- Restored BE reset-password route in current workspace:
+  - `PATCH /api/users/:id/reset-password`
+  - schema/controller/service wiring with password hashing
+
+### Touched Files
+
+- `FE/Warehouse_Management/src/features/suppliers/types/supplierType.ts`
+- `FE/Warehouse_Management/src/features/suppliers/schemas/supplierSchemas.ts`
+- `FE/Warehouse_Management/src/features/suppliers/hooks/useSuppliers.ts`
+- `FE/Warehouse_Management/src/features/suppliers/components/SupplierManagement.tsx`
+- `FE/Warehouse_Management/src/features/suppliers/components/SupplierFormSheet.tsx`
+- `FE/Warehouse_Management/src/services/supplierService.ts`
+- `FE/Warehouse_Management/src/pages/admin/SupplierManagementPage.tsx`
+- `FE/Warehouse_Management/src/layouts/sidebar-navigation.ts`
+- `FE/Warehouse_Management/src/App.tsx`
+- `FE/Warehouse_Management/src/services/userService.ts`
+- `FE/Warehouse_Management/src/features/users/components/UserActionDialogs.tsx`
+- `BE/Warehouse_Management/src/schemas/user.schema.ts`
+- `BE/Warehouse_Management/src/routes/user.route.ts`
+- `BE/Warehouse_Management/src/controllers/user.controller.ts`
+- `BE/Warehouse_Management/src/services/user.service.ts`
+- `FE/Warehouse_Management/docs/agent/current-context.md`
+- `FE/Warehouse_Management/docs/agent/progress-log.md`
+- `FE/Warehouse_Management/docs/agent/decision-log.md`
+- `FE/Warehouse_Management/docs/agent/next-steps.md`
+
+### Assumptions
+
+- Supplier delete is intentionally out of scope because the current backend contract has no delete endpoint.
+- Role dropdown fallback from `/api/users` is acceptable UX when `roles:read` is denied.
+- Running backend server must be restarted to pick up restored reset-password route changes.
+
+### Verification
+
+- `npx tsc -b` (FE): pass
+- `npx tsc -p tsconfig.json` (BE): not a reliable regression signal in this workspace because unrelated NodeNext/module-resolution errors already exist outside this task

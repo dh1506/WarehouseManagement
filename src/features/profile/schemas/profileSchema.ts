@@ -18,40 +18,11 @@ export const changePasswordSchema = z
 
 export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
-const vietnamPhoneRegex = /^(\+84|0)(3|5|7|8|9)\d{8}$/;
-
-const optionalPhoneSchema = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') {
-      return value;
-    }
-
-    const normalized = value.trim();
-    return normalized.length > 0 ? normalized : undefined;
-  },
-  z
-    .string()
-    .regex(vietnamPhoneRegex, 'Số điện thoại phải đúng chuẩn Việt Nam (VD: 09xxxxxxxx hoặc +849xxxxxxxx)')
-    .optional()
-);
-
-const optionalTextSchema = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') {
-      return value;
-    }
-
-    const normalized = value.trim();
-    return normalized.length > 0 ? normalized : undefined;
-  },
-  z.string().optional()
-);
-
 export const updateProfileSchema = z.object({
-  name: z.string().trim().min(1, 'Vui lòng nhập họ tên'),
-  email: z.string().trim().email('Email không đúng định dạng'),
-  phone: optionalPhoneSchema,
-  address: optionalTextSchema,
+  name: z.string().min(1, 'Vui lòng nhập họ tên'),
+  email: z.string().email('Email không đúng định dạng'),
+  phone: z.string().optional(),
+  address: z.string().optional(),
 });
 
 export type UpdateProfileFormValues = z.infer<typeof updateProfileSchema>;

@@ -1,3 +1,5 @@
+import apiClient from './apiClient';
+import type { ApiResponse } from '@/types/api';
 import type {
   ProductReferenceFormValues,
   ProductReferenceItem,
@@ -6,114 +8,135 @@ import type {
   ProductReferenceType,
 } from '@/features/productSettings/types/referenceType';
 
-let PRODUCT_REFERENCES: ProductReferenceItem[] = [
-  {
-    id: 'unit-1',
-    code: 'PCS',
-    name: 'Piece',
-    description: 'Đơn vị chiếc cho sản phẩm đóng gói riêng lẻ.',
-    type: 'unit',
-    status: 'active',
-    usageCount: 128,
-    createdAt: '2026-03-01T08:00:00Z',
-    updatedAt: '2026-03-26T08:00:00Z',
-  },
-  {
-    id: 'unit-2',
-    code: 'BOX',
-    name: 'Box',
-    description: 'Đơn vị thùng cho các SKU lưu kho theo kiện.',
-    type: 'unit',
-    status: 'active',
-    usageCount: 64,
-    createdAt: '2026-03-01T08:00:00Z',
-    updatedAt: '2026-03-26T08:00:00Z',
-  },
-  {
-    id: 'unit-3',
-    code: 'PALLET',
-    name: 'Pallet',
-    description: 'Đơn vị pallet cho hàng cồng kềnh và nhập container.',
-    type: 'unit',
-    status: 'inactive',
-    usageCount: 12,
-    createdAt: '2026-03-03T08:00:00Z',
-    updatedAt: '2026-03-22T09:00:00Z',
-  },
-  {
-    id: 'brand-1',
-    code: 'ACME',
-    name: 'ACME Industrial',
-    description: 'Nhà cung cấp thiết bị lưu kho công nghiệp.',
-    type: 'brand',
-    status: 'active',
-    usageCount: 38,
-    createdAt: '2026-03-02T08:00:00Z',
-    updatedAt: '2026-03-25T10:00:00Z',
-  },
-  {
-    id: 'brand-2',
-    code: 'NOVA',
-    name: 'Nova Tech',
-    description: 'Thương hiệu điện tử và cảm biến theo dõi kho.',
-    type: 'brand',
-    status: 'active',
-    usageCount: 52,
-    createdAt: '2026-03-02T08:00:00Z',
-    updatedAt: '2026-03-27T11:00:00Z',
-  },
-  {
-    id: 'brand-3',
-    code: 'RIVER',
-    name: 'River Safety',
-    description: 'Nhà sản xuất đồ bảo hộ và vật tư an toàn kho.',
-    type: 'brand',
-    status: 'inactive',
-    usageCount: 9,
-    createdAt: '2026-03-05T08:00:00Z',
-    updatedAt: '2026-03-19T07:00:00Z',
-  },
-];
+interface UnitOfMeasureApiModel {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
-let nextReferenceId = 100;
+interface BrandApiModel {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  _count?: {
+    products?: number;
+  };
+}
 
-const delay = async (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+interface PaginationApiModel {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+interface UnitListApiData {
+  units_of_measure: UnitOfMeasureApiModel[];
+  pagination: PaginationApiModel;
+}
+
+interface BrandListApiData {
+  brands: BrandApiModel[];
+  pagination: PaginationApiModel;
+}
+
+function unwrapApiData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const level1 = (response as { data: unknown }).data;
+    if (level1 && typeof level1 === 'object' && 'data' in level1) {
+      return (level1 as { data: T }).data;
+    }
+
+    return level1 as T;
+  }
+
+  return response as T;
+}
+
+const toReferenceStatus = (isActive: boolean): 'active' | 'inactive' =>
+  isActive ? 'active' : 'inactive';
+
+const toUnitReferenceItem = (unit: UnitOfMeasureApiModel): ProductReferenceItem => ({
+  id: String(unit.id),
+  code: unit.code,
+  name: unit.name,
+  description: '',
+  type: 'unit',
+  status: toReferenceStatus(unit.is_active),
+  usageCount: 0,
+  createdAt: unit.created_at,
+  updatedAt: unit.updated_at,
+});
+
+const toBrandReferenceItem = (brand: BrandApiModel): ProductReferenceItem => ({
+  id: String(brand.id),
+  code: brand.code,
+  name: brand.name,
+  description: '',
+  type: 'brand',
+  status: toReferenceStatus(brand.is_active),
+  usageCount: brand._count?.products ?? 0,
+  createdAt: brand.created_at,
+  updatedAt: brand.updated_at,
+});
 
 export async function getProductReferences(
   params: ProductReferenceListParams,
 ): Promise<ProductReferenceListResponse> {
-  await delay(250);
-
-  let filtered = PRODUCT_REFERENCES.filter((item) => item.type === params.type);
-
-  if (params.search) {
-    const keyword = params.search.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.name.toLowerCase().includes(keyword) ||
-        item.code.toLowerCase().includes(keyword) ||
-        item.description.toLowerCase().includes(keyword),
-    );
-  }
-
-  if (params.status && params.status !== 'all') {
-    filtered = filtered.filter((item) => item.status === params.status);
-  }
-
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
+  const isActive =
+    params.status === 'all' || params.status === undefined
+      ? undefined
+      : params.status === 'active';
+
+  if (params.type === 'unit') {
+    const response = await apiClient.get<ApiResponse<UnitListApiData>>('/api/units-of-measure', {
+      params: {
+        page,
+        limit: pageSize,
+        search: params.search,
+        is_active: isActive,
+      },
+    });
+
+    const payload = unwrapApiData<UnitListApiData>(response);
+
+    return {
+      data: payload.units_of_measure.map(toUnitReferenceItem),
+      total: payload.pagination.total,
+      page: payload.pagination.page,
+      pageSize: payload.pagination.limit,
+    };
+  }
+
+  const response = await apiClient.get<ApiResponse<BrandListApiData>>('/api/brands', {
+    params: {
+      page,
+      limit: pageSize,
+      search: params.search,
+      is_active: isActive,
+    },
+  });
+
+  const payload = unwrapApiData<BrandListApiData>(response);
 
   return {
-    data: filtered.slice(start, start + pageSize),
-    total: filtered.length,
-    page,
-    pageSize,
+    data: payload.brands.map(toBrandReferenceItem),
+    total: payload.pagination.total,
+    page: payload.pagination.page,
+    pageSize: payload.pagination.limit,
   };
 }
 
 export async function getProductReferenceOptions(type: ProductReferenceType) {
-  const response = await getProductReferences({ type, page: 1, pageSize: 100, status: 'active' });
+  const response = await getProductReferences({ type, page: 1, pageSize: 10, status: 'active' });
   return response.data;
 }
 
@@ -121,48 +144,57 @@ export async function createProductReference(
   type: ProductReferenceType,
   payload: ProductReferenceFormValues,
 ): Promise<ProductReferenceItem> {
-  await delay(300);
+  if (type === 'unit') {
+    const response = await apiClient.post<ApiResponse<UnitOfMeasureApiModel>>('/api/units-of-measure', {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      // FE form hiện chưa có chọn loại đơn vị, dùng QUANTITY làm mặc định ổn định.
+      uom_type: 'QUANTITY',
+      is_active: payload.status === 'active',
+    });
+    return toUnitReferenceItem(unwrapApiData<UnitOfMeasureApiModel>(response));
+  }
 
-  const newItem: ProductReferenceItem = {
-    id: `${type}-${nextReferenceId++}`,
-    type,
+  const response = await apiClient.post<ApiResponse<BrandApiModel>>('/api/brands', {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    description: payload.description.trim(),
-    status: payload.status,
-    usageCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  PRODUCT_REFERENCES = [newItem, ...PRODUCT_REFERENCES];
-  return newItem;
+    is_active: payload.status === 'active',
+  });
+  return toBrandReferenceItem(unwrapApiData<BrandApiModel>(response));
 }
 
 export async function updateProductReference(
   id: string,
+  type: ProductReferenceType,
   payload: ProductReferenceFormValues,
 ): Promise<ProductReferenceItem> {
-  await delay(300);
+  const numericId = Number(id);
 
-  const index = PRODUCT_REFERENCES.findIndex((item) => item.id === id);
-  if (index === -1) {
-    throw new Error('Không tìm thấy danh mục tham chiếu cần cập nhật.');
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    throw new Error('ID tham chiếu không hợp lệ.');
   }
 
-  PRODUCT_REFERENCES[index] = {
-    ...PRODUCT_REFERENCES[index],
+  if (type === 'unit') {
+    const unitResponse = await apiClient.patch<ApiResponse<UnitOfMeasureApiModel>>(
+      `/api/units-of-measure/${numericId}`,
+      {
+        code: payload.code.trim().toUpperCase(),
+        name: payload.name.trim(),
+        is_active: payload.status === 'active',
+      },
+    );
+    return toUnitReferenceItem(unwrapApiData<UnitOfMeasureApiModel>(unitResponse));
+  }
+
+  const brandResponse = await apiClient.patch<ApiResponse<BrandApiModel>>(`/api/brands/${numericId}`, {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    description: payload.description.trim(),
-    status: payload.status,
-    updatedAt: new Date().toISOString(),
-  };
-
-  return { ...PRODUCT_REFERENCES[index] };
+    is_active: payload.status === 'active',
+  });
+  return toBrandReferenceItem(unwrapApiData<BrandApiModel>(brandResponse));
 }
 
 export async function deleteProductReference(id: string): Promise<void> {
-  await delay(250);
-  PRODUCT_REFERENCES = PRODUCT_REFERENCES.filter((item) => item.id !== id);
+  void id;
+  throw new Error('Backend hiện chưa hỗ trợ xóa đơn vị tính/thương hiệu trong API contract.');
 }

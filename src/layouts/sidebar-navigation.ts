@@ -50,6 +50,14 @@ export const sidebarNavItems: SidebarNavItem[] = [
     pageDescription: 'Quản lý product master và thông tin mặt hàng.',
   },
   {
+    to: '/admin/suppliers',
+    icon: 'local_shipping',
+    label: 'Suppliers',
+    permissionModule: 'suppliers',
+    permissionAliases: ['supplier'],
+    pageDescription: 'Quản lý hồ sơ nhà cung cấp và đầu mối liên hệ mua hàng.',
+  },
+  {
     to: '/import-export',
     icon: 'swap_horiz',
     label: 'Import / Export',

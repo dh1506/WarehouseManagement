@@ -16,6 +16,7 @@ export interface ProductItem {
   unitName: string;
   brandId: string;
   brandName: string;
+  manufacturerId: string;
   manufacturer: string;
   minStock: number;
   maxStock: number;
@@ -50,7 +51,7 @@ export interface ProductFormValues {
   categoryId: string;
   unitId: string;
   brandId: string;
-  manufacturer: string;
+  manufacturerId: string;
   minStock: number;
   maxStock: number;
   trackedByLot: boolean;
