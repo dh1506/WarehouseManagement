@@ -2,37 +2,41 @@
 
 ## Sprint / Task hien tai
 
-**Sprint 1 - FE integration voi backend contract (Warehouse Hub focus)**
+**Warehouse occupancy warning and color threshold update**
 
 ## Trang thai
 
-- Warehouse Hub khong con dung mock dataset cho hub/zone/bin.
-- Du lieu hub duoc aggregate tu API warehouses + warehouse locations.
-- UI da phan biet ro:
-  - `Locations` = so dong `warehouse_location` thuc te
-  - `Total Zones` = so nhom sau khi group theo `zone_code`
-- Technical verification:
-  - `npx tsc -b`: pass
+- Warehouse, zone, rack, and bin views now surface occupancy warnings when capacity is low or overloaded.
+- Occupancy thresholds were updated to:
+  - empty = 0%
+  - low = 1-20% (amber/orange)
+  - partial = 21-60%
+  - full = 61-100%
+  - overloaded = >100%
+- FE build verification passed after the UI and service updates.
 
 ## What was done in latest implementation
 
-- Xac dinh nguyen nhan user thay "DB 9 locations nhung UI 3": Hub view dang group theo `zone_code`.
-- Bo sung truong `totalLocations` trong model Warehouse Hub.
-- Mapping `totalLocations = locations.length` khi build hub data.
-- Cap nhat Warehouse Hub card de hien thi dong thoi:
-  - Total Space
-  - Locations
-  - Total Zones
-- Them nhan UX `Grouped by zone code` tai khu vuc list zone de tranh nham.
+- Updated shared occupancy classification in warehouse service and bin type definitions.
+- Changed Warehouse Hub cards to show warning badges and color-coded capacity bars for low/overloaded warehouses.
+- Added zone occupancy display and warnings in the hub zone cards.
+- Updated Zone Detail legend, rack buttons, zone header, and selected bin inspector to highlight low occupancy.
+- Updated Spatial Layout Map legend and thresholds to match the new scheme.
 
 ## Files touched (latest delta)
 
 - `src/features/warehouses/types/warehouseType.ts`
 - `src/services/warehouseService.ts`
 - `src/features/warehouses/components/WarehouseHub.tsx`
+- `src/features/warehouses/components/ZoneDetail.tsx`
+- `src/features/warehouses/components/SpatialLayoutMap.tsx`
+- `docs/agent/current-context.md`
+- `docs/agent/progress-log.md`
+- `docs/agent/decision-log.md`
+- `docs/agent/next-steps.md`
 
 ## Assumptions dang ap dung
 
-- Hub page la aggregated visualization theo zone, khong phai raw location table.
-- Zone duoc dinh nghia logic bang group `warehouse_location.zone_code`.
-- Neu backend tra ve 9 rows nhung chi co 3 zone_code thi Hub hien 3 zones la dung.
+- Low occupancy is treated as a warning state rather than a normal neutral state.
+- The 1-20 and 21-60 split should be reused consistently across all warehouse occupancy visuals.
+- Overloaded remains any value above 100%.

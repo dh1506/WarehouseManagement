@@ -1,5 +1,36 @@
 # Progress Log
 
+## 2026-04-02 - Warehouse occupancy warning thresholds
+
+### Done
+
+- Added a new low occupancy tier for warehouse visuals: 1-20%.
+- Shifted partial occupancy to 21-60% and kept full at 61-100%.
+- Updated warehouse service classification so bin occupancy state matches the new tiering.
+- Added warning badges and color cues for warehouse cards, zone cards, rack buttons, and selected bins.
+- Updated Spatial Layout Map legend and color coding to match the new thresholds.
+
+### Touched Files
+
+- `src/features/warehouses/types/warehouseType.ts`
+- `src/services/warehouseService.ts`
+- `src/features/warehouses/components/WarehouseHub.tsx`
+- `src/features/warehouses/components/ZoneDetail.tsx`
+- `src/features/warehouses/components/SpatialLayoutMap.tsx`
+- `docs/agent/current-context.md`
+- `docs/agent/progress-log.md`
+- `docs/agent/decision-log.md`
+- `docs/agent/next-steps.md`
+
+### Assumptions
+
+- Low occupancy should be visually highlighted instead of blending into partial occupancy.
+- The same threshold model must remain consistent for hub summaries and detailed zone views.
+
+### Verification
+
+- `npm run -s build`: pass
+
 ## 2026-04-02 - Warehouse Hub location count clarification
 
 ### Done

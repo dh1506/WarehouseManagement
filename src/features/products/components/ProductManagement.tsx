@@ -1,8 +1,10 @@
 ﻿import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRef } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
+import { getProducts } from '@/services/productApiService';
 import {
   useCreateProduct,
   useDiscontinueProduct,
@@ -25,6 +28,8 @@ import {
 } from '../hooks/useProducts';
 import type { ProductFormData } from '../schemas/productSchemas';
 import type { ProductItem, ProductStatus } from '../types/productType';
+import { exportProductsToExcel } from '../utils/exportProducts';
+import { parseProductsFromExcel } from '../utils/importProducts';
 import { ProductFormSheet } from './ProductFormSheets';
 
 const PAGE_SIZE = 10;
@@ -41,11 +46,15 @@ export function ProductManagement() {
   const [status, setStatus] = useState<ProductStatus | 'all'>('all');
   const [categoryId, setCategoryId] = useState('');
   const [brandId, setBrandId] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isHeaderChecked, setIsHeaderChecked] = useState(false);
   const [sheetMode, setSheetMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<ProductItem | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const listQuery = useProducts({
     search: search || undefined,
@@ -74,7 +83,10 @@ export function ProductManagement() {
   const pageStart = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, totalItems);
   const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
-  const optionSourceProducts = optionSourceQuery.data?.data ?? listQuery.data?.data ?? [];
+  const optionSourceProducts = useMemo(
+    () => optionSourceQuery.data?.data ?? listQuery.data?.data ?? [],
+    [listQuery.data?.data, optionSourceQuery.data?.data],
+  );
 
   const fallbackCategoryOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -113,6 +125,177 @@ export function ProductManagement() {
 
   const categoryOptions = categoriesQuery.data ?? fallbackCategoryOptions;
   const brandOptions = brandsQuery.data ?? fallbackBrandOptions;
+  const currentProducts = useMemo(() => listQuery.data?.data ?? [], [listQuery.data?.data]);
+  const currentProductIdSet = useMemo(() => new Set(currentProducts.map((item) => item.id)), [currentProducts]);
+  const selectedCountInCurrentPage = useMemo(
+    () => selectedProductIds.filter((id) => currentProductIdSet.has(id)).length,
+    [currentProductIdSet, selectedProductIds],
+  );
+  const isAllRowsSelected = currentProducts.length > 0 && selectedCountInCurrentPage === currentProducts.length;
+  const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
+  const selectedProductsForExport = useMemo(
+    () => currentProducts.filter((item) => selectedProductIds.includes(item.id)),
+    [currentProducts, selectedProductIds],
+  );
+
+  const resetSelection = () => {
+    setSelectedProductIds([]);
+    setIsHeaderChecked(false);
+  };
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    setIsHeaderChecked(checked);
+    if (checked) {
+      setSelectedProductIds(currentProducts.map((item) => item.id));
+      return;
+    }
+
+    setSelectedProductIds([]);
+  };
+
+  const handleToggleSelectProduct = (productId: string, checked: boolean) => {
+    setIsHeaderChecked(false);
+    setSelectedProductIds((prev) => {
+      if (checked) {
+        if (prev.includes(productId)) {
+          return prev;
+        }
+
+        return [...prev, productId];
+      }
+
+      return prev.filter((id) => id !== productId);
+    });
+  };
+
+  const handleExport = async () => {
+    if (totalItems === 0) {
+      return;
+    }
+
+    try {
+      if (isHeaderChecked) {
+        const allProducts = await getProducts({
+          search: search || undefined,
+          status,
+          categoryId: categoryId || undefined,
+          brandId: brandId || undefined,
+          page: 1,
+          pageSize: totalItems,
+        });
+
+        if (allProducts.data.length > 0) {
+          await exportProductsToExcel(allProducts.data);
+        }
+        return;
+      }
+
+      if (selectedProductsForExport.length > 0) {
+        await exportProductsToExcel(selectedProductsForExport);
+      }
+    } catch (error) {
+      toast({
+        title: 'Unable to export products',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImportClick = () => {
+    if (!canCreate) {
+      toast({
+        title: 'Access denied',
+        description: 'You do not have permission to create products.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    importInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (isOptionsLoading) {
+      toast({
+        title: 'Import is not ready',
+        description: 'Please wait until category, unit, brand, and manufacturer options finish loading.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      const parsed = await parseProductsFromExcel(file, {
+        categories: categoryOptions,
+        units: unitsQuery.data ?? [],
+        brands: brandsQuery.data ?? [],
+        manufacturers: manufacturersQuery.data ?? [],
+      });
+
+      let successCount = 0;
+      const importErrors = [...parsed.errors];
+
+      for (const item of parsed.products) {
+        try {
+          await createMutation.mutateAsync(item.payload);
+          successCount += 1;
+        } catch (error) {
+          importErrors.push({
+            rowNumber: item.rowNumber,
+            message: error instanceof Error ? error.message : 'Unable to create product from imported row.',
+          });
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: 'Product import completed',
+          description: importErrors.length > 0
+            ? `${successCount} products imported, ${importErrors.length} rows failed.`
+            : `${successCount} products imported successfully.`,
+        });
+      }
+
+      if (importErrors.length > 0) {
+        const preview = importErrors
+          .slice(0, 3)
+          .map((item) => `Row ${item.rowNumber}: ${item.message}`)
+          .join(' | ');
+
+        toast({
+          title: successCount > 0 ? 'Some rows could not be imported' : 'Import failed',
+          description: preview,
+          variant: 'destructive',
+        });
+      }
+
+      if (successCount === 0 && importErrors.length === 0) {
+        toast({
+          title: 'No products found',
+          description: 'The selected file does not contain any importable product rows.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Unable to import products',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const openCreate = () => {
     if (!canCreate) {
@@ -200,15 +383,33 @@ export function ProductManagement() {
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
           actions={(
-            <button
-              type="button"
-              onClick={openCreate}
-              disabled={!canCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-              New Product
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={(event) => void handleImportFileChange(event)}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={handleImportClick}
+                disabled={!canCreate || isImporting}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                {isImporting ? 'Importing...' : 'Import'}
+              </button>
+              <button
+                type="button"
+                onClick={openCreate}
+                disabled={!canCreate}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                New Product
+              </button>
+            </div>
           )}
         />
 
@@ -223,27 +424,67 @@ export function ProductManagement() {
 
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-12">
               <div className="xl:col-span-5">
-                <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search code, name, or manufacturer..." />
+                <SearchInput
+                  value={search}
+                  onChange={(value) => {
+                    setSearch(value);
+                    setPage(1);
+                    resetSelection();
+                  }}
+                  placeholder="Search code, name, or manufacturer..."
+                />
               </div>
               <div className="xl:col-span-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <FilterSelect value={status} onChange={(value) => { setStatus(value as ProductStatus | 'all'); setPage(1); }}>
+                <FilterSelect
+                  value={status}
+                  onChange={(value) => {
+                    setStatus(value as ProductStatus | 'all');
+                    setPage(1);
+                    resetSelection();
+                  }}
+                >
                   <option value="all">All status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="discontinued">Discontinued</option>
                 </FilterSelect>
-                <FilterSelect value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1); }}>
+                <FilterSelect
+                  value={categoryId}
+                  onChange={(value) => {
+                    setCategoryId(value);
+                    setPage(1);
+                    resetSelection();
+                  }}
+                >
                   <option value="">All categories</option>
                   {categoryOptions.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </FilterSelect>
-                <FilterSelect value={brandId} onChange={(value) => { setBrandId(value); setPage(1); }}>
-                  <option value="">All brands</option>
-                  {brandOptions.map((item) => (
-                    <option key={item.id} value={item.id}>{item.name}</option>
-                  ))}
-                </FilterSelect>
+                <div className="flex items-center gap-3">
+                  <FilterSelect
+                    value={brandId}
+                    onChange={(value) => {
+                      setBrandId(value);
+                      setPage(1);
+                      resetSelection();
+                    }}
+                  >
+                    <option value="">All brands</option>
+                    {brandOptions.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </FilterSelect>
+                  <button
+                    type="button"
+                    onClick={() => void handleExport()}
+                    disabled={!isHeaderChecked && selectedProductsForExport.length === 0}
+                    className="inline-flex h-[42px] shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Export products"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">download</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -294,6 +535,14 @@ export function ProductManagement() {
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="sticky top-0 z-10 bg-slate-50">
                       <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        <th className="px-4 py-3">
+                          <Checkbox
+                            checked={isAllRowsSelected ? true : isPartiallySelected ? 'indeterminate' : false}
+                            onCheckedChange={(checked) => handleToggleSelectAll(checked === true)}
+                            aria-label="Select all products"
+                            disabled={currentProducts.length === 0}
+                          />
+                        </th>
                         <th className="px-4 py-3">Product</th>
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3">Unit / Brand</th>
@@ -303,8 +552,15 @@ export function ProductManagement() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
-                      {listQuery.data?.data.map((item) => (
+                      {currentProducts.map((item) => (
                         <tr key={item.id} className="align-top">
+                          <td className="px-4 py-4">
+                            <Checkbox
+                              checked={selectedProductIds.includes(item.id)}
+                              onCheckedChange={(checked) => handleToggleSelectProduct(item.id, checked === true)}
+                              aria-label={`Select ${item.name}`}
+                            />
+                          </td>
                           <td className="px-4 py-4">
                             <div className="font-semibold text-slate-900">{item.name}</div>
                             <div className="mt-1 text-sm text-slate-500">{item.sku}</div>
@@ -345,7 +601,17 @@ export function ProductManagement() {
                 </div>
 
                 {totalItems > 0 ? (
-                  <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageStart={pageStart} pageEnd={pageEnd} onChange={setPage} />
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    pageStart={pageStart}
+                    pageEnd={pageEnd}
+                    onChange={(nextPage) => {
+                      setPage(nextPage);
+                      resetSelection();
+                    }}
+                  />
                 ) : null}
               </>
             )}

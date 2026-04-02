@@ -2,45 +2,40 @@
 
 ## Recommended Next Task
 
-**Add raw warehouse location drill-down on Warehouse Hub**
+**Review remaining warehouse dashboards for the same occupancy threshold model**
 
 ## Why this is next
 
-- Current update already clarifies `Locations` vs `Total Zones`, but users still need easy row-level verification in the same Hub screen.
-- Adding a compact location table/filter per selected warehouse will make QA faster when cross-checking DB (for example, 9 rows).
-- This change is FE-only and does not require BE schema changes.
+- The new low/partial split should stay consistent everywhere the warehouse occupancy state is rendered.
+- Any remaining summary cards or charts still using the old threshold ranges can now show inconsistent colors to users.
+- A quick consistency pass is lower risk than adding new functionality immediately.
 
 ## Priority Tasks
 
-### NEXT-001 - Add location drill-down panel in Warehouse Hub
+### NEXT-001 - Audit remaining occupancy visuals
 
 - Target files:
-  - `src/services/warehouseService.ts`
+  - `src/features/warehouses/components/SpatialLayoutMap.tsx`
   - `src/features/warehouses/components/WarehouseHub.tsx`
-  - `src/features/warehouses/types/warehouseType.ts` (if extra UI-only fields are needed)
-- Viec can lam:
-  - show top N location rows for selected warehouse (code, zone, aisle, rack, level, bin, status)
-  - add quick filter by `zone_code`
-  - keep existing zone cards unchanged
+  - `src/features/warehouses/components/ZoneDetail.tsx`
+  - `src/services/warehouseService.ts`
+- Verify any other occupancy badge, legend, or progress bar still uses the new 1-20 / 21-60 split.
 
-### NEXT-002 - Add explicit count consistency indicators
+### NEXT-002 - Decide whether the low tier needs a dedicated icon or tooltip
 
-- Hien thi `Locations in warehouse` va `Locations rendered in selected zone` de debug nhanh.
-- Show empty-state hint when locations are filtered out by inactive status.
+- If the low tier should be even more visible, add a consistent icon or tooltip pattern instead of more color-only cues.
 
-### NEXT-003 - Add QA helper notes in UI copy
+### NEXT-003 - Keep audit notes aligned with the same rule set
 
-- Explain in helper text that zone cards are grouped by `zone_code`.
-- Keep wording consistent between Hub card labels and zone section.
+- Document any future threshold changes in the agent logs before extending new warehouse visualizations.
 
-### NEXT-004 - Optional FE optimization
+### NEXT-004 - Optional follow-up if requested
 
-- Cache location rows per warehouse in memory for smoother tab/warehouse switching.
-- Keep current contract-safe source of truth from `/api/warehouses/locations/search`.
+- If the user wants, add a small legend or helper text explaining why low is separated from partial.
 
 ### NEXT-005 - Contract review checkpoint
 
-- Re-check BE support for bulk zone operations (rename `zone_code`, bulk status update) before extending zone edit UX.
+- Re-check whether any backend dashboard or reporting contract already uses a different occupancy definition before extending the new thresholds further.
 
 ## Assumptions to verify next
 

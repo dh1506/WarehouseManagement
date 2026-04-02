@@ -94,6 +94,10 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 - 2026-04-01: Products UI hides hard delete because backend currently supports GET/POST/PATCH for /api/products but not DELETE.
 - 2026-04-01: Backend has no explicit boolean expiry-tracking field; FE derives expiry tracking from whether expiry_date is set and requires an expiry date when enabled.
 - 2026-04-01: Product images and richer supplier/UOM conversion editing are still limited by the current screen design and were not expanded beyond the current sprint scope.
+- 2026-04-02: Product export currently uses the existing list API by re-fetching the full filtered dataset with `pageSize = total`; if product volume grows large, backend may need a dedicated export endpoint or streaming export contract.
+- 2026-04-02: Product import currently creates new products only; it does not update existing rows by SKU.
+- 2026-04-02: Product import maps `Categories` from the export file to the first category name only because the current create contract accepts a single `categoryId`.
+- 2026-04-02: Exported rows with unmapped master data labels such as missing Brand/Manufacturer/Unit in the current system will fail validation during import until those references exist again.
 
 - 2026-04-01: Product supporting masters (unit/brand/manufacturer) are now API-backed, but backend still does not expose DELETE endpoints for these resources; FE delete action returns explicit backend-dependency error.
 - 2026-04-01: Warehouse and warehouse-location list/create/update are API-backed, but backend currently has no DELETE warehouse/location routes; FE destructive actions are blocked with explicit error feedback.

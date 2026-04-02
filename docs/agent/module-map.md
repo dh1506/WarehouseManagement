@@ -132,6 +132,10 @@
 - services/productApiService.ts: real API integration for products, brands, manufacturers, and units-of-measure used by Products UI.
 - features/products/hooks/useProducts.ts, useProductDetail.ts: React Query hooks bound to real product APIs.
 - features/products/components/ProductManagement.tsx, ProductDetail.tsx, ProductFormSheets.tsx: API-backed product list/detail/form flows.
+- features/products/components/ProductManagement.tsx: product list now supports row selection + header selection for export, with full filtered export behavior matching User Management.
+- features/products/utils/exportProducts.ts: ExcelJS exporter for product catalog fields (SKU, type, categories, unit, brand, manufacturer, stock policy, tracking, status, timestamps).
+- features/products/components/ProductManagement.tsx: header actions now include product Excel import, file selection, row-by-row create flow, and import result toast summaries.
+- features/products/utils/importProducts.ts: `.xlsx` parser for the product export format, including header validation, master-data name-to-ID mapping, stock/tracking parsing, and per-row schema validation.
 
 - services/productReferenceService.ts: API-backed product supporting master service (`/api/units-of-measure`, `/api/brands`, `/api/manufacturers`), replacing mutable mock arrays.
 - features/productSettings/types/referenceType.ts: reference type now includes `manufacturer`.
