@@ -231,3 +231,59 @@
 **Context:** Zone list can be interpreted as raw row list if not labeled.  
 **Decision:** Add a clear contextual label `Grouped by zone code` at the zone section heading.  
 **Rationale:** Reduces interpretation ambiguity during QA/DB cross-check without changing backend contract or data model.
+
+## DEC-055 - Warehouse zone configuration now provisions real location slots
+
+**Date:** 2026-04-02  
+**Context:** Zone create/edit form accepted `rows/shelves/levels` but service previously created only one placeholder location, causing mismatch between UI intent and persisted backend data.  
+**Decision:** Re-implement zone create/update in `warehouseService.ts` so zone structure is materialized through `/api/warehouses/locations` records (contract-backed aggregation model), with guard limit `<= 500` generated locations per request.  
+**Rationale:** Keeps FE truthful to backend storage design (`warehouse_locations` is source of truth for zones) while preserving existing architecture and avoiding fake zone persistence.
+
+## DEC-056 - Warehouse location form aligned to DB coordinate model
+
+**Date:** 2026-04-02  
+**Context:** FE location form omitted `rack` and `level`, while backend schema and DB design include `rack_code` and `level_code` and hub/zone visualization relies on these coordinates.  
+**Decision:** Extend FE location type/schema/form/service payload with `rack` and `level`, and update location table coordinates display accordingly.  
+**Rationale:** Improves contract fidelity, keeps zone/bin mapping consistent, and prevents partial coordinate data entry in warehouse administration flow.
+
+## DEC-057 - Warehouse category scope configured at warehouse level
+
+**Date:** 2026-04-02  
+**Context:** Business rule requires each warehouse to define one-or-many categories eligible for storage before zone/bin configuration. Backend currently has no dedicated warehouse-category mapping endpoint.  
+**Decision:** Add warehouse-level category multi-select in Warehouse Hub form and persist FE scope map by warehouse ID in local storage via `warehouseService.ts`.  
+**Rationale:** Enforces operational rule immediately in FE while keeping backend contract untouched and architecture boundaries intact.
+
+## DEC-058 - Zone category scope is constrained by parent warehouse scope
+
+**Date:** 2026-04-02  
+**Context:** Business rule states zone categories must be a subset of categories configured on the parent warehouse.  
+**Decision:** Extend zone form with category multi-select limited to warehouse scope; service validation rejects out-of-scope category IDs during create/update.  
+**Rationale:** Prevents invalid storage configuration early and keeps zone setup behavior deterministic for downstream bin assignment.
+
+## DEC-059 - Bin assignment enforces single product within allowed category scope
+
+**Date:** 2026-04-02  
+**Context:** Each storage bin must hold one specific product type, and that product must belong to the zone-allowed category set.  
+**Decision:** Add bin inspector fields (`categoryId`, `productId`) with Zod-required validation; on save, service verifies category-in-zone and product-in-category, then stores assignment state per bin in FE local storage.  
+**Rationale:** Implements strict bin-level storage governance now, despite lacking backend persistence fields for product-slot assignment.
+
+## DEC-060 - Warehouse Hub add/edit flow standardized to shadcn Sheet
+
+**Date:** 2026-04-02  
+**Context:** User requested add/edit forms in warehouse area to use side sheet UI instead of modal dialog.  
+**Decision:** Replace warehouse and zone form containers in `WarehouseHub.tsx` from `Dialog` to `Sheet` with the same validation/mutation flow.  
+**Rationale:** Keeps UI interaction consistent with existing admin form patterns in the project and improves data-entry workflow for larger forms.
+
+## DEC-061 - Warehouse card now exposes direct edit/delete actions
+
+**Date:** 2026-04-02  
+**Context:** User requested warehouse edit/delete controls to be visible directly on each warehouse card.  
+**Decision:** Add per-card action buttons (edit/delete) in warehouse hub card grid and keep selection behavior intact.  
+**Rationale:** Reduces extra clicks and aligns action discoverability with card-centric management UX.
+
+## DEC-062 - Category API refreshed on warehouse/zone form open
+
+**Date:** 2026-04-02  
+**Context:** User requested category list must be called when opening create/edit flows for warehouse or zone.  
+**Decision:** Trigger category option refetch whenever warehouse sheet or zone sheet opens in Warehouse Hub.  
+**Rationale:** Ensures form options stay up to date with current category master data.

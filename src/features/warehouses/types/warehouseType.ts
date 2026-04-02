@@ -1,17 +1,16 @@
 export type WarehouseStatus = 'operational' | 'maintenance' | 'inactive';
 export type WarehouseLocationStatus = 'active' | 'blocked' | 'inactive';
-export type BinOccupancyLevel = 'empty' | 'partial' | 'full' | 'overloaded';
+export type BinOccupancyLevel = 'empty' | 'low' | 'partial' | 'full' | 'overloaded';
 
 export interface WarehouseHub {
   id: string;
   code: string;
   name: string;
-  location: string;
-  tier: string;
   totalSpace: number;
   totalLocations: number;
   totalZones: number;
   usedCapacity: number;
+  allowedCategoryIds: string[];
   layoutConfig: WarehouseLayoutConfig;
   zones: Zone[];
 }
@@ -29,6 +28,7 @@ export interface Zone {
   code: string;
   name: string;
   type: string;
+  allowedCategoryIds: string[];
   aisleCodes: string[];
   rackCodes: string[];
   levelCodes: string[];
@@ -44,20 +44,19 @@ export interface Zone {
 export interface WarehouseHubFormValues {
   code: string;
   name: string;
-  location: string;
-  tier: string;
   totalSpace: number;
   usedCapacity: number;
+  categoryIds: string[];
 }
 
 export interface WarehouseZoneFormValues {
   code: string;
   name: string;
   type: string;
-  rows: number;
-  shelves: number;
+  racks: number;
   levels: number;
-  occupancy: number;
+  bins: number;
+  categoryIds: string[];
 }
 
 export interface Bin {
@@ -72,6 +71,9 @@ export interface Bin {
   currentLoad: number;
   items: number;
   productCount: number;
+  assignedCategoryId?: string;
+  assignedProductId?: string;
+  assignedProductName?: string;
   temperature?: number;
   humidity?: number;
   lastUpdated: string;
@@ -88,6 +90,21 @@ export interface BinCapacityFormValues {
   currentLoad: number;
   items: number;
   productCount: number;
+  categoryId: string;
+  productId: string;
+}
+
+export interface WarehouseCategoryOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface WarehouseProductOption {
+  id: string;
+  sku: string;
+  name: string;
+  categoryIds: string[];
 }
 
 export interface WarehouseItem {
@@ -168,6 +185,8 @@ export interface WarehouseLocationFormValues {
   code: string;
   zone: string;
   aisle: string;
+  rack: string;
+  level: string;
   bin: string;
   capacity: number;
   currentLoad: number;

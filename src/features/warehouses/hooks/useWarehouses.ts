@@ -10,7 +10,9 @@ import {
   deleteWarehouseLocation,
   getZoneBins,
   getWarehouseHubs,
+  getWarehouseCategoryOptions,
   getWarehouseLocations,
+  getWarehouseProductOptions,
   getWarehouses,
   updateWarehouseHub,
   updateWarehouseLayoutConfig,
@@ -37,8 +39,26 @@ export const WAREHOUSE_KEYS = {
   locations: (params: WarehouseLocationListParams) => [...WAREHOUSE_KEYS.all, 'locations', params] as const,
   options: ['warehouses', 'options'] as const,
   hubs: ['warehouses', 'hubs'] as const,
+  categoryOptions: ['warehouses', 'category-options'] as const,
+  productOptions: (categoryId?: string) => ['warehouses', 'product-options', categoryId ?? 'all'] as const,
   zoneBins: (warehouseId: string, zoneId: string) => ['warehouses', 'zone-bins', warehouseId, zoneId] as const,
 };
+
+export function useWarehouseCategoryOptions(enabled = true) {
+  return useQuery({
+    queryKey: WAREHOUSE_KEYS.categoryOptions,
+    queryFn: () => getWarehouseCategoryOptions(),
+    enabled,
+  });
+}
+
+export function useWarehouseProductOptions(categoryId?: string, enabled = true) {
+  return useQuery({
+    queryKey: WAREHOUSE_KEYS.productOptions(categoryId),
+    queryFn: () => getWarehouseProductOptions(categoryId),
+    enabled,
+  });
+}
 
 export function useWarehouseHubs() {
   return useQuery({

@@ -137,6 +137,19 @@
 - features/productSettings/types/referenceType.ts: reference type now includes `manufacturer`.
 - features/productSettings/components/ProductReferenceManagement.tsx: tabs and form flow now support Unit/Brand/Manufacturer with real API mutations.
 - services/warehouseService.ts: warehouse and location list/create/update now map to real backend routes (`/api/warehouses`, `/api/warehouses/locations/search`, `/api/warehouses/locations`); hub/zone/bin flows remain mock by design.
+- services/warehouseService.ts: zone create/update now provisions and reconciles real `warehouse_locations` from `rows/shelves/levels` (aggregate zone model from contract-backed location records, limit 500 slots/request).
+- features/warehouses/schemas/warehouseSchemas.ts: location schema now requires `rack` + `level`; zone schema now enforces bounded structure sizing (`rows * shelves * levels <= 500`).
+- features/warehouses/components/WarehouseSheets.tsx: location sheet now captures full coordinate set (`zone/aisle/rack/level/bin`) to match backend storage model.
+- features/warehouses/components/WarehouseManagement.tsx: location coordinate column now shows `rack` and `level` for operational traceability.
+- features/warehouses/components/WarehouseHub.tsx: zone dialog messaging updated to reflect location-slot provisioning behavior; removed non-contract occupancy input from zone form.
+- features/warehouses/components/WarehouseHub.tsx: warehouse form now configures allowed storage categories (multi-select); zone form now only allows subset category selection from parent warehouse scope.
+- features/warehouses/components/WarehouseHub.tsx: add/edit warehouse and zone forms now render in shadcn `Sheet`; warehouse cards expose inline edit/delete actions.
+- features/warehouses/components/WarehouseHub.tsx: each warehouse card now includes its own `Add Zone` action and category option data is refetched when warehouse/zone sheet is opened.
+- features/warehouses/components/ZoneDetail.tsx: bin inspector now enforces category + single-product assignment for each bin, filtered by zone scope.
+- features/warehouses/hooks/useWarehouses.ts: added warehouse-specific option hooks for category list and product list by category.
+- features/warehouses/types/warehouseType.ts: added scope fields (`allowedCategoryIds`) and bin assignment fields (`assignedCategoryId`, `assignedProductId`, `assignedProductName`).
+- features/warehouses/schemas/warehouseSchemas.ts: added Zod rules for warehouse categories, zone category subset selection, and mandatory bin category/product assignment.
+- services/warehouseService.ts: added FE-persisted maps for warehouse scope, zone scope, and bin assignment; validates scope chain warehouse -> zone -> bin product on mutations; warehouse category option list is sourced from Category API service.
 - services/roleService.ts: role permission matrix now reads assigned permissions from `GET /api/roles/:id` and writes via `PUT /api/roles/:id/permissions` to match current backend routes.
 - services/advancedPermissionService.ts: advanced permission matrix is API-backed and projected from sidebar modules using role permissions + permission catalog.
 - services/categoryService.ts: legacy category service now re-exports `categoryApiService` (no in-memory mock dataset).

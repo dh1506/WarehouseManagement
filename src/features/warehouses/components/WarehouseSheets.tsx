@@ -107,6 +107,8 @@ export function LocationFormDialog({
       code: '',
       zone: '',
       aisle: '',
+      rack: '',
+      level: '',
       bin: '',
       capacity: 0,
       currentLoad: 0,
@@ -123,6 +125,8 @@ export function LocationFormDialog({
       code: location?.code ?? '',
       zone: location?.zone ?? '',
       aisle: location?.aisle ?? '',
+      rack: location?.rack ?? '',
+      level: location?.level ?? '',
       bin: location?.bin ?? '',
       capacity: location?.capacity ?? 0,
       currentLoad: location?.currentLoad ?? 0,
@@ -144,6 +148,8 @@ export function LocationFormDialog({
             <Field label="Code" error={errors.code?.message}><input {...register('code')} disabled={isView || isPending} className={inputClass(!!errors.code)} /></Field>
             <Field label="Zone" error={errors.zone?.message}><input {...register('zone')} disabled={isView || isPending} className={inputClass(!!errors.zone)} /></Field>
             <Field label="Aisle" error={errors.aisle?.message}><input {...register('aisle')} disabled={isView || isPending} className={inputClass(!!errors.aisle)} /></Field>
+            <Field label="Rack" error={errors.rack?.message}><input {...register('rack')} disabled={isView || isPending} className={inputClass(!!errors.rack)} /></Field>
+            <Field label="Level" error={errors.level?.message}><input {...register('level')} disabled={isView || isPending} className={inputClass(!!errors.level)} /></Field>
             <Field label="Bin" error={errors.bin?.message}><input {...register('bin')} disabled={isView || isPending} className={inputClass(!!errors.bin)} /></Field>
             <Field label="Status" error={errors.status?.message}><select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}><option value="active">Active</option><option value="blocked">Blocked</option><option value="inactive">Inactive</option></select></Field>
             <Field label="Capacity" error={errors.capacity?.message}><input type="number" {...register('capacity', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.capacity)} /></Field>

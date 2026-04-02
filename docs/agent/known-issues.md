@@ -104,3 +104,8 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 - 2026-04-02: Import/Export module is now implemented as a readiness dashboard using existing APIs, but backend still has no dedicated inbound/outbound transaction endpoints for creating/persisting import-export requests.
 - 2026-04-02: AI Forecast module currently provides heuristic, read-only insights derived from product master signals; backend forecast model/endpoints are still required for persisted forecasting workflows.
 - 2026-04-02: Inventory module is read-only and based on product policy + location load snapshots from existing contracts; transaction-level inventory movement APIs are still a backend dependency.
+
+- 2026-04-02: Warehouse zone create/update now materializes rows/shelves/levels via multiple location API calls. For very large zone structures, backend rate-limit/timeout behavior may need dedicated bulk endpoints to optimize performance.
+- 2026-04-02: Zone-level naming and metadata (`zone name`) are still derived on FE because backend contract currently persists zone through `warehouse_locations` only and has no dedicated zone resource/table.
+- 2026-04-02: Warehouse-category scope, zone-category scope, and bin product assignment are currently FE-persisted (local storage) because backend has no dedicated mapping endpoints/tables for these constraints yet.
+- 2026-04-02: Multi-user consistency for zone/bin assignment constraints depends on backend contract support; current FE-only persistence is per-browser and suitable for sprint behavior validation, not cross-user source of truth.
