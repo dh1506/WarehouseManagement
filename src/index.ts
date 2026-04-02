@@ -14,6 +14,7 @@ import supplierRoutes from "./routes/supplier.route";
 import productRoutes from "./routes/product.route";
 import warehouseRoutes from "./routes/warehouse.route";
 import inventoryRoutes from "./routes/inventory.route";
+import locationAllowedCategoryRoutes from "./routes/location-allowed-category.route";
 import { globalErrorHandler } from "./middlewares/error.middleware";
 
 dotenv.config();
@@ -35,9 +36,11 @@ app.use("/api/brands", brandRoutes);
 app.use("/api/manufacturers", manufacturerRoutes);
 app.use("/api/units-of-measure", unitOfMeasureRoutes);
 app.use("/api/suppliers", supplierRoutes);
+app.use("/api/suppliers", supplierRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/inventories", inventoryRoutes);
+app.use("/api/location-allowed-categories", locationAllowedCategoryRoutes);
 
 // Error Middleware
 app.use(globalErrorHandler);
