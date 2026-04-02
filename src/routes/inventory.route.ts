@@ -26,7 +26,7 @@ router.post(
   validateRequest(createInventorySchema),
   inventoryController.createInventory,
 );
-router.put(
+router.patch(
   "/:id",
   validateRequest(updateInventorySchema),
   inventoryController.updateInventory,

@@ -79,6 +79,7 @@ model ProductCategory {
   parent      ProductCategory?     @relation("CategoryHierarchy", fields: [parent_id], references: [id])
   children    ProductCategory[]    @relation("CategoryHierarchy")
   products    ProductCategoryMap[]
+  location_rules LocationAllowedCategory[]
 
   @@index([parent_id], map: "product_categories_parent_id_fkey")
   @@map("product_categories")
@@ -267,9 +268,10 @@ model WarehouseLocation {
   occupancy_percent Decimal        @default(0.00) @db.Decimal(5, 2)
   storage_condition StorageType    @default(AMBIENT)
   created_at        DateTime       @default(now())
-  updated_at        DateTime       @updatedAt
+  updated_at        DateTime            @updatedAt
   inventories       Inventory[]
-  warehouse         Warehouse      @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+  warehouse         Warehouse           @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+  allowed_categories LocationAllowedCategory[]
 
   @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")
   @@map("warehouse_locations")
@@ -313,4 +315,31 @@ enum StorageType {
   CHILLED
   FROZEN
   DRY
+}
+
+enum RuleSource {
+  DIRECT
+  INHERITED
+  OVERRIDE
+}
+
+model LocationAllowedCategory {
+  id                   Int               @id @default(autoincrement())
+  location_id          Int
+  category_id          Int
+  is_allowed           Boolean           @default(true)
+  rule_source          RuleSource        @default(DIRECT)
+  inherit_from_parent  Boolean           @default(true)
+  priority             Int               @default(0)
+  effective_from       DateTime          @default(now())
+  effective_to         DateTime?
+  note                 String?           @db.Text
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+  
+  location             WarehouseLocation @relation(fields: [location_id], references: [id], onDelete: Cascade)
+  category             ProductCategory   @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@unique([location_id, category_id])
+  @@map("location_allowed_categories")
 }
