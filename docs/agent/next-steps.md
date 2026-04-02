@@ -1,52 +1,49 @@
 # Next Steps
 
 ## Recommended Next Task
-**Connect real backend contracts for Sprint 1 master-data modules**
+
+**Add raw warehouse location drill-down on Warehouse Hub**
 
 ## Why this is next
-- Product Settings, Product Master, Warehouse, và Warehouse Locations dã có frontend flows hoàn ch?nh.
-- Các sprint transaction sau s? ph? thu?c tr?c ti?p vào các master-data modules này.
-- Ðây là bu?c có ROI cao nh?t tru?c khi m? r?ng sang inbound/outbound/inventory.
+
+- Current update already clarifies `Locations` vs `Total Zones`, but users still need easy row-level verification in the same Hub screen.
+- Adding a compact location table/filter per selected warehouse will make QA faster when cross-checking DB (for example, 9 rows).
+- This change is FE-only and does not require BE schema changes.
 
 ## Priority Tasks
 
-### NEXT-001 - Replace mock services with real APIs
+### NEXT-001 - Add location drill-down panel in Warehouse Hub
+
 - Target files:
-  - `src/services/productReferenceService.ts`
-  - `src/services/productService.ts`
   - `src/services/warehouseService.ts`
-  - các services cu còn mock khi backend tuong ?ng s?n sàng
-- Vi?c c?n làm:
-  - map chính xác request/response theo backend contract th?t
-  - b? mock arrays
-  - gi? nguyên hooks và UI n?u contract tuong thích
+  - `src/features/warehouses/components/WarehouseHub.tsx`
+  - `src/features/warehouses/types/warehouseType.ts` (if extra UI-only fields are needed)
+- Viec can lam:
+  - show top N location rows for selected warehouse (code, zone, aisle, rack, level, bin, status)
+  - add quick filter by `zone_code`
+  - keep existing zone cards unchanged
 
-### NEXT-002 - Finalize permission keys for new modules
-- C?n ch?t permission keys cho:
-  - product settings
-  - products
-  - warehouses
-  - warehouse locations
-- Sau dó c?p nh?t `usePermission()` usage ? t?ng action/button cho dúng permission th?t.
+### NEXT-002 - Add explicit count consistency indicators
 
-### NEXT-003 - Add stable option endpoints for dependent masters
-- Product form ph? thu?c category/unit/brand.
-- Location form ph? thu?c warehouse options.
-- Nên uu tiên có endpoint option/list don gi?n d? form và filters không ph?i fetch shape l?n.
+- Hien thi `Locations in warehouse` va `Locations rendered in selected zone` de debug nhanh.
+- Show empty-state hint when locations are filtered out by inactive status.
 
-### NEXT-004 - Confirm deletion/business rules with backend
-- Làm rõ rule khi:
-  - xóa warehouse còn locations
-  - xóa unit/brand dang du?c product dùng
-  - d?i tr?ng thái inactive c?a product master dang có transaction
+### NEXT-003 - Add QA helper notes in UI copy
 
-### NEXT-005 - Prepare Sprint 2 transaction modules
-- Sau khi master data APIs n?i th?t, task nên làm ti?p là:
-  - inbound / import requests
-  - outbound / export requests
-  - inventory transactions
+- Explain in helper text that zone cards are grouped by `zone_code`.
+- Keep wording consistent between Hub card labels and zone section.
+
+### NEXT-004 - Optional FE optimization
+
+- Cache location rows per warehouse in memory for smoother tab/warehouse switching.
+- Keep current contract-safe source of truth from `/api/warehouses/locations/search`.
+
+### NEXT-005 - Contract review checkpoint
+
+- Re-check BE support for bulk zone operations (rename `zone_code`, bulk status update) before extending zone edit UX.
 
 ## Assumptions to verify next
-- Unit of measure và brand/manufacturer có thu?c cùng domain API v?i product hay là service riêng.
-- Warehouse location có c?n thêm c?p hierarchy nhu area/zone/rack/bin ngoài shape hi?n t?i hay không.
-- Product master có c?n thêm barcode, lot policy, expiry policy, ho?c metadata khác ngoài scope hi?n t?i không.
+
+- Hub page should remain zone-centric for quick operations view.
+- Users need an optional row-level view in the same page for data auditing.
+- Inactive warehouse/location filters should remain consistent across hub summary and detail blocks.

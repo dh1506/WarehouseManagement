@@ -43,13 +43,19 @@ interface WarehouseListApiData {
   pagination: PaginationApiModel;
 }
 
+interface WarehouseDetailApiData extends WarehouseApiItem { }
+
 interface WarehouseLocationApiItem {
   id: number;
   warehouse_id: number;
   location_code: string;
   zone_code: string | null;
   aisle_code: string | null;
+  rack_code: string | null;
+  level_code: string | null;
   bin_code: string | null;
+  full_path: string;
+  storage_condition: 'AMBIENT' | 'CHILLED' | 'FROZEN' | 'DRY' | null;
   location_status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
   is_active: boolean;
   max_weight: number | null;
@@ -121,7 +127,11 @@ function mapLocation(item: WarehouseLocationApiItem): WarehouseLocationItem {
     code: item.location_code,
     zone: item.zone_code ?? '',
     aisle: item.aisle_code ?? '',
+    rack: item.rack_code ?? '',
+    level: item.level_code ?? '',
     bin: item.bin_code ?? '',
+    fullPath: item.full_path,
+    storageCondition: item.storage_condition ?? 'AMBIENT',
     capacity: item.max_weight ?? 0,
     currentLoad: item.current_weight ?? 0,
     productCount: 0,
@@ -129,6 +139,17 @@ function mapLocation(item: WarehouseLocationApiItem): WarehouseLocationItem {
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   };
+}
+
+function resolveZoneTypeFromStorageCondition(locations: WarehouseLocationItem[]): string {
+  const counter = locations.reduce<Record<string, number>>((accumulator, location) => {
+    const key = (location.storageCondition ?? 'AMBIENT').trim().toUpperCase();
+    accumulator[key] = (accumulator[key] ?? 0) + 1;
+    return accumulator;
+  }, {});
+
+  const sorted = Object.entries(counter).sort((left, right) => right[1] - left[1]);
+  return sorted[0]?.[0] ?? 'AMBIENT';
 }
 
 function mapLocationStatusForRequest(status: WarehouseLocationItem['status']): WarehouseLocationApiItem['location_status'] {
@@ -139,132 +160,12 @@ function mapLocationStatusForRequest(status: WarehouseLocationItem['status']): W
   return 'AVAILABLE';
 }
 
-let nextHubId = 10;
-let nextZoneId = 100;
-
 const DEFAULT_LAYOUT_CONFIG: WarehouseLayoutConfig = {
   viewMode: 'grid',
   colorMode: 'occupancy',
   columns: 4,
   zoneOrder: [],
 };
-
-let WAREHOUSE_HUBS: WarehouseHub[] = [
-  {
-    id: 'hub-1',
-    code: 'WH-CHI-01',
-    name: 'Central Hub',
-    location: 'Chicago, IL - Tier 1 Node',
-    tier: 'Tier 1',
-    totalSpace: 125000,
-    totalZones: 4,
-    usedCapacity: 84,
-    layoutConfig: { ...DEFAULT_LAYOUT_CONFIG },
-    zones: [
-      {
-        id: 'zone-1',
-        warehouseId: 'hub-1',
-        code: 'ZONE-A',
-        name: 'High-Velocity Picking',
-        type: 'Picking',
-        rows: 12,
-        shelves: 8,
-        levels: 5,
-        binCount: 480,
-        occupancy: 92,
-        bins: [],
-      },
-      {
-        id: 'zone-2',
-        warehouseId: 'hub-1',
-        code: 'ZONE-B',
-        name: 'Bulk Storage',
-        type: 'Storage',
-        rows: 6,
-        shelves: 4,
-        levels: 10,
-        binCount: 240,
-        occupancy: 76,
-        bins: [],
-      },
-      {
-        id: 'zone-3',
-        warehouseId: 'hub-1',
-        code: 'ZONE-C',
-        name: 'Cold Storage',
-        type: 'Cold',
-        rows: 4,
-        shelves: 6,
-        levels: 4,
-        binCount: 96,
-        occupancy: 88,
-        bins: [],
-      },
-      {
-        id: 'zone-4',
-        warehouseId: 'hub-1',
-        code: 'ZONE-D',
-        name: 'Returns Processing',
-        type: 'Returns',
-        rows: 8,
-        shelves: 12,
-        levels: 3,
-        binCount: 288,
-        occupancy: 45,
-        bins: [],
-      },
-    ],
-  },
-  {
-    id: 'hub-2',
-    code: 'WH-TOR-02',
-    name: 'North Branch',
-    location: 'Toronto, ON - Regional',
-    tier: 'Regional',
-    totalSpace: 85000,
-    totalZones: 0,
-    usedCapacity: 42,
-    layoutConfig: { ...DEFAULT_LAYOUT_CONFIG, columns: 3 },
-    zones: [],
-  },
-  {
-    id: 'hub-3',
-    code: 'WH-PHX-03',
-    name: 'West Distribution',
-    location: 'Phoenix, AZ - Fulfillment',
-    tier: 'Fulfillment',
-    totalSpace: 210000,
-    totalZones: 0,
-    usedCapacity: 96,
-    layoutConfig: { ...DEFAULT_LAYOUT_CONFIG, columns: 5 },
-    zones: [],
-  },
-];
-
-const delay = async (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function syncHubZoneStats() {
-  WAREHOUSE_HUBS = WAREHOUSE_HUBS.map((hub) => ({
-    ...hub,
-    totalZones: hub.zones.length,
-  }));
-}
-
-function toZonePayload(warehouseId: string, payload: WarehouseZoneFormValues): Zone {
-  return {
-    id: `zone-${nextZoneId++}`,
-    warehouseId,
-    code: payload.code.trim().toUpperCase(),
-    name: payload.name.trim(),
-    type: payload.type.trim(),
-    rows: payload.rows,
-    shelves: payload.shelves,
-    levels: payload.levels,
-    binCount: payload.rows * payload.shelves * payload.levels,
-    occupancy: payload.occupancy,
-    bins: [],
-  };
-}
 
 function getBinOccupancyLevel(occupancy: number): BinOccupancyLevel {
   if (occupancy === 0) return 'empty';
@@ -273,82 +174,205 @@ function getBinOccupancyLevel(occupancy: number): BinOccupancyLevel {
   return 'overloaded';
 }
 
-function createZoneBins(zone: Zone): Bin[] {
-  const bins: Bin[] = [];
-
-  for (let level = zone.levels; level >= 1; level -= 1) {
-    for (let row = 1; row <= zone.rows; row += 1) {
-      for (let shelf = 1; shelf <= zone.shelves; shelf += 1) {
-        const stableSeed = (row * 17 + shelf * 23 + level * 31 + zone.code.length * 13) % 97;
-        const capacity = 80 + stableSeed;
-        const currentLoad = Math.min(capacity, Math.max(0, Math.floor(capacity * ((stableSeed % 70) / 100))));
-        const occupancy = Math.round((currentLoad / capacity) * 100);
-
-        bins.push({
-          id: `${zone.id}-bin-${row}-${shelf}-${level}`,
-          code: `${String.fromCharCode(64 + row)}-${String(level).padStart(2, '0')}-${String(shelf).padStart(2, '0')}`,
-          row,
-          shelf,
-          level,
-          occupancy,
-          occupancyLevel: getBinOccupancyLevel(occupancy),
-          capacity,
-          currentLoad,
-          items: 1 + (stableSeed % 12),
-          productCount: 1 + (stableSeed % 5),
-          temperature: zone.type.toLowerCase().includes('cold') ? 4 + (stableSeed % 4) : 18 + (stableSeed % 8),
-          humidity: 35 + (stableSeed % 20),
-          lastUpdated: new Date().toISOString(),
-        });
-      }
-    }
-  }
-
-  return bins;
+function zoneCodeKey(zoneCode: string): string {
+  const value = zoneCode.trim().toUpperCase();
+  return value.length > 0 ? value : 'UNASSIGNED';
 }
 
-function ensureZoneBins(zone: Zone): Zone {
-  if (zone.bins.length > 0) {
-    return zone;
+function getLocationStatusFromLoad(currentLoad: number, capacity: number): WarehouseLocationApiItem['location_status'] {
+  if (capacity <= 0 || currentLoad <= 0) {
+    return 'AVAILABLE';
   }
+
+  if (currentLoad >= capacity) {
+    return 'FULL';
+  }
+
+  return 'PARTIAL';
+}
+
+function collectUniqueCodes(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim().toUpperCase())
+        .filter((value) => value.length > 0),
+    ),
+  ).sort((left, right) => left.localeCompare(right));
+}
+
+function createCodeIndexMap(codes: string[]): Record<string, number> {
+  return codes.reduce<Record<string, number>>((accumulator, code, index) => {
+    accumulator[code] = index + 1;
+    return accumulator;
+  }, {});
+}
+
+function normalizeStorageCondition(type: string): 'AMBIENT' | 'CHILLED' | 'FROZEN' | 'DRY' {
+  const normalized = type.trim().toUpperCase();
+  if (normalized === 'CHILLED' || normalized === 'FROZEN' || normalized === 'DRY') {
+    return normalized;
+  }
+
+  return 'AMBIENT';
+}
+
+function deriveLocationStatus(currentWeight: number, maxWeight: number): WarehouseLocationApiItem['location_status'] {
+  if (maxWeight <= 0 || currentWeight <= 0) {
+    return 'AVAILABLE';
+  }
+
+  if (currentWeight >= maxWeight) {
+    return 'FULL';
+  }
+
+  return 'PARTIAL';
+}
+
+async function fetchLocationsByZoneCode(
+  warehouseId: string,
+  zoneCode: string,
+  includeInactive = true,
+): Promise<WarehouseLocationItem[]> {
+  const response = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
+    params: {
+      page: 1,
+      limit: 1000,
+      warehouse_id: Number(warehouseId),
+      zone_code: zoneCodeKey(zoneCode),
+    },
+  });
+
+  const payload = unwrapApiData<WarehouseLocationListApiData>(response);
+  const mapped = payload.locations.map(mapLocation);
+  if (includeInactive) {
+    return mapped;
+  }
+
+  return mapped.filter((location) => location.status !== 'inactive');
+}
+
+function extractZoneCodeFromId(warehouseId: string, zoneId: string): string {
+  const prefix = `${warehouseId}-`;
+  if (zoneId.startsWith(prefix)) {
+    return zoneId.slice(prefix.length);
+  }
+
+  return zoneId;
+}
+
+function toZoneBin(
+  location: WarehouseLocationItem,
+  aisleMap: Record<string, number>,
+  rackMap: Record<string, number>,
+  levelMap: Record<string, number>,
+  fallbackIndex: number,
+): Bin {
+  const normalizedAisle = location.aisle.trim().toUpperCase();
+  const normalizedRack = location.rack.trim().toUpperCase();
+  const normalizedLevel = location.level.trim().toUpperCase();
+
+  const row = aisleMap[normalizedAisle] ?? Math.floor(fallbackIndex / 10) + 1;
+  const shelf = rackMap[normalizedRack] ?? (fallbackIndex % 10) + 1;
+  const level = levelMap[normalizedLevel] ?? 1;
+  const capacity = location.capacity > 0 ? location.capacity : 1;
+  const currentLoad = Math.max(0, location.currentLoad);
+  const occupancy = Math.min(999, Math.round((currentLoad / capacity) * 100));
 
   return {
-    ...zone,
-    bins: createZoneBins(zone),
+    id: `loc-${location.id}`,
+    code: location.code,
+    row,
+    shelf,
+    level,
+    occupancy,
+    occupancyLevel: getBinOccupancyLevel(occupancy),
+    capacity,
+    currentLoad,
+    items: location.productCount,
+    productCount: location.productCount,
+    lastUpdated: location.updatedAt,
   };
 }
 
-function syncZoneOccupancy(warehouseId: string, zoneId: string) {
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) return;
+function toZone(warehouseId: string, zoneCode: string, locations: WarehouseLocationItem[]): Zone {
+  const aisleCodes = collectUniqueCodes(locations.map((location) => location.aisle));
+  const rackCodes = collectUniqueCodes(locations.map((location) => location.rack));
+  const levelCodes = collectUniqueCodes(locations.map((location) => location.level));
+  const binCodes = collectUniqueCodes(locations.map((location) => location.bin || location.code));
 
-  const zone = WAREHOUSE_HUBS[hubIndex].zones.find((item) => item.id === zoneId);
-  if (!zone) return;
+  const aisleMap = createCodeIndexMap(aisleCodes);
+  const rackMap = createCodeIndexMap(rackCodes);
+  const levelMap = createCodeIndexMap(levelCodes);
 
-  const ensuredZone = ensureZoneBins(zone);
-  const zoneOccupancy = ensuredZone.bins.length > 0
-    ? Math.round(ensuredZone.bins.reduce((sum, bin) => sum + bin.occupancy, 0) / ensuredZone.bins.length)
+  const bins = locations.map((location, index) => toZoneBin(location, aisleMap, rackMap, levelMap, index));
+  const binCount = bins.length;
+  const rows = Math.max(1, aisleCodes.length || Math.ceil(Math.sqrt(Math.max(1, binCount))));
+  const shelves = Math.max(1, rackCodes.length || Math.ceil(binCount / rows));
+  const levels = Math.max(1, levelCodes.length);
+  const occupancy = binCount > 0
+    ? Math.round(bins.reduce((sum, bin) => sum + bin.occupancy, 0) / binCount)
     : 0;
 
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    zones: WAREHOUSE_HUBS[hubIndex].zones.map((zone) => (
-      zone.id === zoneId
-        ? {
-          ...ensuredZone,
-          occupancy: zoneOccupancy,
-          binCount: ensuredZone.bins.length,
-        }
-        : zone
-    )),
+  return {
+    id: `${warehouseId}-${zoneCodeKey(zoneCode)}`,
+    warehouseId,
+    code: zoneCodeKey(zoneCode),
+    name: zoneCodeKey(zoneCode) === 'UNASSIGNED' ? 'Unassigned Zone' : `Zone ${zoneCodeKey(zoneCode)}`,
+    type: resolveZoneTypeFromStorageCondition(locations),
+    aisleCodes,
+    rackCodes,
+    levelCodes,
+    binCodes,
+    rows,
+    shelves,
+    levels,
+    binCount,
+    occupancy,
+    bins,
   };
+}
 
-  const zones = WAREHOUSE_HUBS[hubIndex].zones;
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    usedCapacity: zones.length > 0
-      ? Math.round(zones.reduce((sum, zone) => sum + zone.occupancy, 0) / zones.length)
-      : WAREHOUSE_HUBS[hubIndex].usedCapacity,
+function toHub(warehouse: WarehouseItem, locations: WarehouseLocationItem[]): WarehouseHub {
+  const groups = locations.reduce<Record<string, WarehouseLocationItem[]>>((accumulator, location) => {
+    const key = zoneCodeKey(location.zone);
+    if (!accumulator[key]) {
+      accumulator[key] = [];
+    }
+    accumulator[key].push(location);
+    return accumulator;
+  }, {});
+
+  const zones = Object.entries(groups)
+    .map(([zoneCode, zoneLocations]) => toZone(warehouse.id, zoneCode, zoneLocations))
+    .sort((left, right) => left.code.localeCompare(right.code));
+
+  const usedCapacity = zones.length > 0
+    ? Math.round(zones.reduce((sum, zone) => sum + zone.occupancy, 0) / zones.length)
+    : 0;
+  const totalSpace = locations.reduce((sum, location) => sum + Math.max(0, location.capacity), 0);
+
+  const tier = warehouse.status === 'operational'
+    ? 'Operational'
+    : warehouse.status === 'maintenance'
+      ? 'Maintenance'
+      : 'Inactive';
+
+  return {
+    id: warehouse.id,
+    code: warehouse.code,
+    name: warehouse.name,
+    location: `Code: ${warehouse.code}`,
+    tier,
+    totalSpace,
+    totalLocations: locations.length,
+    totalZones: zones.length,
+    usedCapacity,
+    layoutConfig: {
+      ...DEFAULT_LAYOUT_CONFIG,
+      zoneOrder: zones.map((zone) => zone.id),
+    },
+    zones,
   };
 }
 
@@ -395,8 +419,19 @@ export async function updateWarehouse(id: string, payload: WarehouseFormValues):
 }
 
 export async function deleteWarehouse(id: string): Promise<void> {
-  void id;
-  throw new Error('Backend hiện chưa hỗ trợ xóa kho trong API contract.');
+  const warehouseId = Number(id);
+  if (Number.isNaN(warehouseId) || warehouseId <= 0) {
+    throw new Error('ID warehouse không hợp lệ để xóa.');
+  }
+
+  const detailResponse = await apiClient.get<ApiResponse<WarehouseDetailApiData>>(`/api/warehouses/${warehouseId}`);
+  const detail = unwrapApiData<WarehouseDetailApiData>(detailResponse);
+
+  await apiClient.patch<ApiResponse<WarehouseApiItem>>(`/api/warehouses/${warehouseId}`, {
+    code: detail.code,
+    name: detail.name,
+    is_active: false,
+  });
 }
 
 export async function getWarehouseLocations(
@@ -463,78 +498,80 @@ export async function deleteWarehouseLocation(id: string): Promise<void> {
 }
 
 export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
-  await delay(250);
-  return WAREHOUSE_HUBS.map((item) => ({
-    ...item,
-    zones: item.zones.map((zone) => ({
-      ...zone,
-      bins: zone.bins.map((bin) => ({ ...bin })),
-    })),
-  }));
+  const [warehouses, locations] = await Promise.all([
+    getWarehouses({ page: 1, pageSize: 100, status: 'all' }),
+    getWarehouseLocations({ page: 1, pageSize: 1000, status: 'all' }),
+  ]);
+
+  return warehouses.data
+    .filter((warehouse) => warehouse.status !== 'inactive')
+    .map((warehouse) => {
+      const locationList = locations.data.filter(
+        (location) => location.warehouseId === warehouse.id && location.status !== 'inactive',
+      );
+      return toHub(warehouse, locationList);
+    });
 }
 
 export async function createWarehouseHub(payload: WarehouseHubFormValues): Promise<WarehouseHub> {
-  await delay(300);
-  const hub: WarehouseHub = {
-    id: `hub-${nextHubId++}`,
+  const response = await apiClient.post<ApiResponse<WarehouseApiItem>>('/api/warehouses', {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    location: payload.location.trim(),
-    tier: payload.tier.trim(),
-    totalSpace: payload.totalSpace,
-    totalZones: 0,
-    usedCapacity: payload.usedCapacity,
-    layoutConfig: { ...DEFAULT_LAYOUT_CONFIG, zoneOrder: [] },
-    zones: [],
-  };
+    is_active: true,
+  });
 
-  WAREHOUSE_HUBS = [hub, ...WAREHOUSE_HUBS];
-  return { ...hub };
+  const warehouse = mapWarehouse(unwrapApiData<WarehouseApiItem>(response));
+  return toHub(warehouse, []);
 }
 
 export async function updateWarehouseHub(id: string, payload: WarehouseHubFormValues): Promise<WarehouseHub> {
-  await delay(300);
-  const index = WAREHOUSE_HUBS.findIndex((item) => item.id === id);
-  if (index === -1) {
-    throw new Error('Không tìm thấy warehouse hub cần cập nhật.');
-  }
-
-  WAREHOUSE_HUBS[index] = {
-    ...WAREHOUSE_HUBS[index],
+  const response = await apiClient.patch<ApiResponse<WarehouseApiItem>>(`/api/warehouses/${Number(id)}`, {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    location: payload.location.trim(),
-    tier: payload.tier.trim(),
-    totalSpace: payload.totalSpace,
-    usedCapacity: payload.usedCapacity,
-  };
+    is_active: true,
+  });
 
-  return {
-    ...WAREHOUSE_HUBS[index],
-    zones: WAREHOUSE_HUBS[index].zones.map((zone) => ({ ...zone })),
-  };
+  const warehouse = mapWarehouse(unwrapApiData<WarehouseApiItem>(response));
+  const locationResult = await getWarehouseLocations({
+    page: 1,
+    pageSize: 1000,
+    warehouseId: warehouse.id,
+    status: 'all',
+  });
+
+  return toHub(warehouse, locationResult.data);
 }
 
 export async function deleteWarehouseHub(id: string): Promise<void> {
-  await delay(250);
-  WAREHOUSE_HUBS = WAREHOUSE_HUBS.filter((item) => item.id !== id);
+  await deleteWarehouse(id);
 }
 
 export async function createWarehouseZone(warehouseId: string, payload: WarehouseZoneFormValues): Promise<Zone> {
-  await delay(300);
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) {
-    throw new Error('Không tìm thấy kho để thêm khu vực.');
+  const zoneCode = payload.code.trim().toUpperCase();
+  const existing = await fetchLocationsByZoneCode(warehouseId, zoneCode);
+  if (existing.length > 0) {
+    throw new Error(`Zone ${zoneCode} đã tồn tại trong kho hiện tại.`);
   }
 
-  const nextZone = toZonePayload(warehouseId, payload);
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    zones: [nextZone, ...WAREHOUSE_HUBS[hubIndex].zones],
-  };
-  syncHubZoneStats();
+  const locationCode = `${zoneCode}-${Date.now().toString().slice(-6)}`;
 
-  return { ...nextZone };
+  const response = await apiClient.post<ApiResponse<WarehouseLocationApiItem>>('/api/warehouses/locations', {
+    warehouse_id: Number(warehouseId),
+    location_code: locationCode,
+    zone_code: zoneCode,
+    aisle_code: 'A1',
+    rack_code: 'R1',
+    level_code: 'L1',
+    bin_code: 'B1',
+    location_status: 'AVAILABLE',
+    is_active: true,
+    max_weight: 1,
+    current_weight: 0,
+    storage_condition: normalizeStorageCondition(payload.type),
+  });
+
+  const location = mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
+  return toZone(warehouseId, zoneCode, [location]);
 }
 
 export async function updateWarehouseZone(
@@ -542,115 +579,98 @@ export async function updateWarehouseZone(
   zoneId: string,
   payload: WarehouseZoneFormValues,
 ): Promise<Zone> {
-  await delay(300);
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) {
-    throw new Error('Không tìm thấy kho để cập nhật khu vực.');
+  const nextZoneCode = zoneCodeKey(payload.code);
+  const currentZoneCode = zoneCodeKey(extractZoneCodeFromId(warehouseId, zoneId));
+  if (nextZoneCode !== currentZoneCode) {
+    throw new Error('Backend chưa hỗ trợ đổi zone code. Vui lòng giữ nguyên mã zone khi chỉnh sửa.');
   }
 
-  const zoneIndex = WAREHOUSE_HUBS[hubIndex].zones.findIndex((item) => item.id === zoneId);
-  if (zoneIndex === -1) {
-    throw new Error('Không tìm thấy khu vực cần cập nhật.');
+  const zoneLocations = await fetchLocationsByZoneCode(warehouseId, currentZoneCode, false);
+  if (zoneLocations.length === 0) {
+    throw new Error('Không tìm thấy warehouse location thuộc zone này để cập nhật.');
   }
 
-  const currentZone = WAREHOUSE_HUBS[hubIndex].zones[zoneIndex];
-  const draftZone: Zone = {
-    ...currentZone,
-    code: payload.code.trim().toUpperCase(),
-    name: payload.name.trim(),
-    type: payload.type.trim(),
-    rows: payload.rows,
-    shelves: payload.shelves,
-    levels: payload.levels,
-    occupancy: payload.occupancy,
-    binCount: payload.rows * payload.shelves * payload.levels,
-    bins: currentZone.bins,
-  };
+  const updates = await Promise.all(
+    zoneLocations.map((location) =>
+      apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(location.id)}`, {
+        is_active: true,
+        storage_condition: normalizeStorageCondition(payload.type),
+        max_weight: location.capacity,
+        current_weight: location.currentLoad,
+        location_status: deriveLocationStatus(location.currentLoad, location.capacity),
+      }),
+    ),
+  );
 
-  const shouldRegenerateBins =
-    currentZone.rows !== draftZone.rows ||
-    currentZone.shelves !== draftZone.shelves ||
-    currentZone.levels !== draftZone.levels ||
-    currentZone.code !== draftZone.code ||
-    currentZone.type !== draftZone.type;
-
-  const nextZone: Zone = {
-    ...draftZone,
-    bins: shouldRegenerateBins ? createZoneBins(draftZone) : draftZone.bins,
-    binCount: shouldRegenerateBins
-      ? draftZone.rows * draftZone.shelves * draftZone.levels
-      : (draftZone.bins.length > 0
-        ? draftZone.bins.length
-        : draftZone.rows * draftZone.shelves * draftZone.levels),
-  };
-
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    zones: WAREHOUSE_HUBS[hubIndex].zones.map((zone) => (zone.id === zoneId ? nextZone : zone)),
-  };
-
-  return { ...nextZone };
+  const mapped = updates.map((item) => mapLocation(unwrapApiData<WarehouseLocationApiItem>(item)));
+  return toZone(warehouseId, currentZoneCode, mapped);
 }
 
 export async function deleteWarehouseZone(warehouseId: string, zoneId: string): Promise<void> {
-  await delay(250);
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) {
-    throw new Error('Không tìm thấy kho để xóa khu vực.');
+  const zoneCode = zoneCodeKey(extractZoneCodeFromId(warehouseId, zoneId));
+  const zoneLocations = await fetchLocationsByZoneCode(warehouseId, zoneCode, false);
+  if (zoneLocations.length === 0) {
+    return;
   }
 
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    zones: WAREHOUSE_HUBS[hubIndex].zones.filter((zone) => zone.id !== zoneId),
-  };
-  syncHubZoneStats();
+  await Promise.all(
+    zoneLocations.map((location) =>
+      apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(location.id)}`, {
+        is_active: false,
+        location_status: 'MAINTENANCE',
+        max_weight: location.capacity,
+        current_weight: location.currentLoad,
+      }),
+    ),
+  );
 }
 
 export async function updateWarehouseLayoutConfig(
   warehouseId: string,
   payload: WarehouseLayoutConfig,
 ): Promise<WarehouseLayoutConfig> {
-  await delay(250);
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) {
-    throw new Error('Không tìm thấy kho để cấu hình sơ đồ.');
-  }
-
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    layoutConfig: {
-      viewMode: payload.viewMode,
-      colorMode: payload.colorMode,
-      columns: payload.columns,
-      zoneOrder: payload.zoneOrder,
-    },
+  void warehouseId;
+  return {
+    viewMode: payload.viewMode,
+    colorMode: payload.colorMode,
+    columns: payload.columns,
+    zoneOrder: payload.zoneOrder,
   };
-
-  return { ...WAREHOUSE_HUBS[hubIndex].layoutConfig };
 }
 
 export async function getZoneBins(warehouseId: string, zoneId: string): Promise<Bin[]> {
-  await delay(200);
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) {
+  const [hubs, locationResult] = await Promise.all([
+    getWarehouseHubs(),
+    getWarehouseLocations({
+      page: 1,
+      pageSize: 1000,
+      warehouseId,
+      status: 'all',
+    }),
+  ]);
+
+  const hub = hubs.find((item) => item.id === warehouseId);
+  if (!hub) {
     throw new Error('Không tìm thấy kho cần xem sơ đồ.');
   }
 
-  const zone = WAREHOUSE_HUBS[hubIndex].zones.find((item) => item.id === zoneId);
+  const zone = hub.zones.find((item) => item.id === zoneId);
   if (!zone) {
     throw new Error('Không tìm thấy khu vực kho cần xem.');
   }
 
-  const ensuredZone = ensureZoneBins(zone);
-  if (ensuredZone !== zone) {
-    WAREHOUSE_HUBS[hubIndex] = {
-      ...WAREHOUSE_HUBS[hubIndex],
-      zones: WAREHOUSE_HUBS[hubIndex].zones.map((item) => (item.id === ensuredZone.id ? ensuredZone : item)),
-    };
-    syncZoneOccupancy(warehouseId, zoneId);
-  }
+  const zoneLocations = locationResult.data.filter(
+    (location) => zoneCodeKey(location.zone) === zoneCodeKey(zone.code),
+  );
 
-  return ensuredZone.bins.map((bin) => ({ ...bin }));
+  const aisleCodes = collectUniqueCodes(zoneLocations.map((location) => location.aisle));
+  const rackCodes = collectUniqueCodes(zoneLocations.map((location) => location.rack));
+  const levelCodes = collectUniqueCodes(zoneLocations.map((location) => location.level));
+  const aisleMap = createCodeIndexMap(aisleCodes);
+  const rackMap = createCodeIndexMap(rackCodes);
+  const levelMap = createCodeIndexMap(levelCodes);
+
+  return zoneLocations.map((location, index) => toZoneBin(location, aisleMap, rackMap, levelMap, index));
 }
 
 export async function updateZoneBinCapacity(
@@ -659,49 +679,36 @@ export async function updateZoneBinCapacity(
   binId: string,
   payload: BinCapacityFormValues,
 ): Promise<Bin> {
-  await delay(220);
-  const hubIndex = WAREHOUSE_HUBS.findIndex((item) => item.id === warehouseId);
-  if (hubIndex === -1) {
-    throw new Error('Không tìm thấy kho cần cập nhật sức chứa.');
+  void warehouseId;
+  void zoneId;
+  const locationId = binId.replace('loc-', '').trim();
+  if (!locationId || Number.isNaN(Number(locationId))) {
+    throw new Error('Không thể cập nhật bin vì id vị trí kho không hợp lệ.');
   }
 
-  const zone = WAREHOUSE_HUBS[hubIndex].zones.find((item) => item.id === zoneId);
-  if (!zone) {
-    throw new Error('Không tìm thấy khu vực kho cần cập nhật.');
-  }
+  const response = await apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(
+    `/api/warehouses/locations/${Number(locationId)}`,
+    {
+      max_weight: payload.capacity,
+      current_weight: payload.currentLoad,
+      location_status: getLocationStatusFromLoad(payload.currentLoad, payload.capacity),
+      is_active: true,
+    },
+  );
 
-  const ensuredZone = ensureZoneBins(zone);
-  const index = ensuredZone.bins.findIndex((item) => item.id === binId);
-  if (index === -1) {
-    throw new Error('Không tìm thấy bin cần cập nhật.');
-  }
+  const location = mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
+  const occupancy = payload.capacity > 0
+    ? Math.min(999, Math.round((payload.currentLoad / payload.capacity) * 100))
+    : 0;
 
-  const occupancy = Math.min(999, Math.round((payload.currentLoad / payload.capacity) * 100));
-  const nextBins = ensuredZone.bins.map((bin, binIndex) => (binIndex === index
-    ? {
-      ...bin,
-      capacity: payload.capacity,
-      currentLoad: payload.currentLoad,
-      items: payload.items,
-      productCount: payload.productCount,
-      occupancy,
-      occupancyLevel: getBinOccupancyLevel(occupancy),
-      lastUpdated: new Date().toISOString(),
-    }
-    : bin));
-
-  const nextZone: Zone = {
-    ...ensuredZone,
-    bins: nextBins,
-    binCount: nextBins.length,
+  return {
+    ...toZoneBin(location, {}, {}, {}, 0),
+    occupancy,
+    occupancyLevel: getBinOccupancyLevel(occupancy),
+    capacity: payload.capacity,
+    currentLoad: payload.currentLoad,
+    items: payload.items,
+    productCount: payload.productCount,
+    lastUpdated: new Date().toISOString(),
   };
-
-  WAREHOUSE_HUBS[hubIndex] = {
-    ...WAREHOUSE_HUBS[hubIndex],
-    zones: WAREHOUSE_HUBS[hubIndex].zones.map((item) => (item.id === zoneId ? nextZone : item)),
-  };
-
-  syncZoneOccupancy(warehouseId, zoneId);
-
-  return { ...nextBins[index] };
 }

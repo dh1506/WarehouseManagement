@@ -210,3 +210,24 @@
 **Context:** Advanced Permissions UI was entirely mock-backed and disconnected from real role assignments.  
 **Decision:** Replace mock service with API-backed projection: fetch role + permission catalog, map backend module/actions to sidebar modules, and persist through `PUT /api/roles/:id/permissions`.  
 **Rationale:** Keeps advanced permission UX aligned with actual access control state and enforces Sprint 1 requirement that advanced modules reflect sidebar pages.
+
+## DEC-052 - Implement operations placeholders as contract-safe insight modules
+
+**Date:** 2026-04-02  
+**Context:** Routes `/import-export`, `/inventory`, `/ai-forecast` were placeholders while backend currently has no dedicated transaction/forecast endpoints in contract.  
+**Decision:** Implement these modules as production-ready insight screens using only existing APIs (`/api/products`, `/api/warehouses`, `/api/warehouses/locations/search`) and keep unsupported actions (create import/export request, persistent forecast actions) as explicit backend dependencies with clear user feedback.  
+**Rationale:** Unblocks frontend navigation and operational visibility without inventing unsupported API shapes, while preserving architecture boundaries `services -> feature hooks -> feature UI`.
+
+## DEC-053 - Warehouse Hub shows both raw location count and grouped zone count
+
+**Date:** 2026-04-02  
+**Context:** User validated database and found 9 rows in `warehouse_locations`, but Hub card showed only 3 which looked like API data loss.  
+**Decision:** Keep current zone aggregation behavior for Hub visualization, and add explicit `totalLocations` metric alongside `totalZones` in Hub summary UI.  
+**Rationale:** Preserves the intended zone-centric UX while making raw data volume visible and auditable.
+
+## DEC-054 - Keep zone aggregation labeling explicit in UI
+
+**Date:** 2026-04-02  
+**Context:** Zone list can be interpreted as raw row list if not labeled.  
+**Decision:** Add a clear contextual label `Grouped by zone code` at the zone section heading.  
+**Rationale:** Reduces interpretation ambiguity during QA/DB cross-check without changing backend contract or data model.

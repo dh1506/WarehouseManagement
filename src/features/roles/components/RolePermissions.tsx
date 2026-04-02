@@ -1,8 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import { StatePanel } from '@/components/StatePanel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useRoles, useRolePermissions, useUpdateRolePermissions } from '../hooks/useRolePermissions';
-import type { Permission } from '../types/roleType';
+import { usePermission } from '@/hooks/usePermission';
+import {
+  useCreateRole,
+  useRoles,
+  useRolePermissions,
+  useUpdateRole,
+  useUpdateRolePermissions,
+} from '../hooks/useRolePermissions';
+import type { Permission, Role } from '../types/roleType';
 import {
   SIDEBAR_PAGE_ACCESS_CONFIG,
   hasPageAccessFromRoleMatrix,
@@ -11,8 +26,19 @@ import {
 
 export function RolePermissions() {
   const { toast } = useToast();
+  const canCreateRole = usePermission('roles:create');
+  const canUpdateRolePermissions = usePermission('roles:update');
   const { data: roles, isLoading: rolesLoading, isError: rolesError, refetch: refetchRoles } = useRoles();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [roleDialogMode, setRoleDialogMode] = useState<'create' | 'edit'>('create');
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [roleForm, setRoleForm] = useState({
+    name: '',
+    description: '',
+    isActive: true,
+  });
+  const [statusTarget, setStatusTarget] = useState<Role | null>(null);
 
   // Set selected role when roles are loaded initially
   useEffect(() => {
@@ -28,6 +54,8 @@ export function RolePermissions() {
     refetch: refetchPermissions,
   } = useRolePermissions(selectedRoleId);
   const updateMutation = useUpdateRolePermissions();
+  const createRoleMutation = useCreateRole();
+  const updateRoleMutation = useUpdateRole();
 
   const [localPermissions, setLocalPermissions] = useState<Permission[]>([]);
 
@@ -41,6 +69,10 @@ export function RolePermissions() {
   }, [rolePermissions]);
 
   const handlePageAccessToggle = (pagePath: string) => {
+    if (!canUpdateRolePermissions) {
+      return;
+    }
+
     const pageConfig = SIDEBAR_PAGE_ACCESS_CONFIG.find((page) => page.path === pagePath);
     if (!pageConfig || pageConfig.modules.length === 0) {
       return;
@@ -59,6 +91,15 @@ export function RolePermissions() {
 
   const handleSave = async () => {
     if (!selectedRoleId) {
+      return;
+    }
+
+    if (!canUpdateRolePermissions) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi quyền.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -81,15 +122,167 @@ export function RolePermissions() {
   };
 
   const handleDiscard = () => {
+    if (!canUpdateRolePermissions) {
+      return;
+    }
+
     if (rolePermissions) {
       setLocalPermissions(rolePermissions.permissions);
+    }
+  };
+
+  const openCreateRoleDialog = () => {
+    if (!canCreateRole) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn không có quyền tạo role mới.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setRoleDialogMode('create');
+    setEditingRole(null);
+    setRoleForm({
+      name: '',
+      description: '',
+      isActive: true,
+    });
+    setIsRoleDialogOpen(true);
+  };
+
+  const openEditRoleDialog = (role: Role) => {
+    if (!canUpdateRolePermissions) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn không có quyền chỉnh sửa role.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setRoleDialogMode('edit');
+    setEditingRole(role);
+    setRoleForm({
+      name: role.name,
+      description: role.description ?? '',
+      isActive: role.isActive ?? true,
+    });
+    setIsRoleDialogOpen(true);
+  };
+
+  const handleRoleSubmit = async () => {
+    const normalizedName = roleForm.name.trim();
+    if (normalizedName.length < 2) {
+      toast({
+        title: 'Dữ liệu chưa hợp lệ',
+        description: 'Tên role phải có ít nhất 2 ký tự.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      if (roleDialogMode === 'create') {
+        if (!canCreateRole) {
+          toast({
+            title: 'Access denied',
+            description: 'Bạn không có quyền tạo role mới.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const createdRole = await createRoleMutation.mutateAsync({
+          name: normalizedName,
+          description: roleForm.description,
+          isActive: roleForm.isActive,
+        });
+
+        setSelectedRoleId(createdRole.id);
+        toast({
+          title: 'Tạo role thành công',
+          description: `Role ${createdRole.name} đã được thêm vào hệ thống.`,
+        });
+      } else if (editingRole) {
+        if (!canUpdateRolePermissions) {
+          toast({
+            title: 'Access denied',
+            description: 'Bạn không có quyền chỉnh sửa role.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const updatedRole = await updateRoleMutation.mutateAsync({
+          roleId: editingRole.id,
+          payload: {
+            name: normalizedName,
+            description: roleForm.description,
+            isActive: roleForm.isActive,
+          },
+        });
+
+        setSelectedRoleId(updatedRole.id);
+        toast({
+          title: 'Cập nhật role thành công',
+          description: `Đã lưu thay đổi cho role ${updatedRole.name}.`,
+        });
+      }
+
+      setIsRoleDialogOpen(false);
+      setEditingRole(null);
+    } catch (error) {
+      toast({
+        title: roleDialogMode === 'create' ? 'Không thể tạo role' : 'Không thể cập nhật role',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi thao tác role.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleConfirmToggleStatus = async () => {
+    if (!statusTarget) {
+      return;
+    }
+
+    if (!canUpdateRolePermissions) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn không có quyền đổi trạng thái role.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const nextStatus = !(statusTarget.isActive ?? true);
+      const updatedRole = await updateRoleMutation.mutateAsync({
+        roleId: statusTarget.id,
+        payload: {
+          isActive: nextStatus,
+        },
+      });
+
+      toast({
+        title: 'Đổi trạng thái thành công',
+        description: `Role ${updatedRole.name} đã chuyển sang ${nextStatus ? 'Active' : 'Inactive'}.`,
+      });
+      setStatusTarget(null);
+    } catch (error) {
+      toast({
+        title: 'Không thể đổi trạng thái role',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi đổi trạng thái.',
+        variant: 'destructive',
+      });
     }
   };
 
   const selectedRole = roles?.find((r) => r.id === selectedRoleId);
   const showEmptyRoles = !rolesLoading && !rolesError && (roles?.length ?? 0) === 0;
   const showEmptyPermissions = !permissionsLoading && !permissionsError && localPermissions.length === 0;
-  const isInteractionDisabled = updateMutation.isPending || permissionsLoading;
+  const isRoleMutationPending = createRoleMutation.isPending || updateRoleMutation.isPending;
+  const isInteractionDisabled = updateMutation.isPending || permissionsLoading || !canUpdateRolePermissions;
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
@@ -108,7 +301,12 @@ export function RolePermissions() {
         <div className="w-80 flex flex-col gap-4 bg-gray-50 rounded-xl p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2">Role Hierarchy</span>
-            <button className="text-primary hover:bg-primary/10 p-1 rounded transition-colors">
+            <button
+              onClick={openCreateRoleDialog}
+              disabled={!canCreateRole || isRoleMutationPending}
+              className="text-primary hover:bg-primary/10 p-1 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+              title={!canCreateRole ? 'Bạn không có quyền tạo role mới.' : 'Thêm role mới'}
+            >
               <span className="material-symbols-outlined text-[20px]" data-icon="add">add</span>
             </button>
           </div>
@@ -144,25 +342,52 @@ export function RolePermissions() {
               roles?.map((role) => {
                 const isActive = role.id === selectedRoleId;
                 return (
-                  <button
+                  <div
                     key={role.id}
-                    onClick={() => setSelectedRoleId(role.id)}
                     className={`w-full text-left p-4 rounded-xl transition-all group ${isActive
                       ? 'bg-white shadow-sm ring-2 ring-primary'
                       : 'bg-white/50 hover:bg-white'
                       }`}
                   >
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className={`w-2 h-2 rounded-full transition-colors ${isActive ? 'bg-primary' : role.colorClass || 'bg-slate-300 group-hover:bg-primary/50'
-                        }`}></div>
-                      <span className={`font-bold ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
-                        {role.name}
-                      </span>
+                    <button onClick={() => setSelectedRoleId(role.id)} className="w-full text-left">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className={`w-2 h-2 rounded-full transition-colors ${isActive ? 'bg-primary' : role.colorClass || 'bg-slate-300 group-hover:bg-primary/50'
+                          }`}></div>
+                        <span className={`font-bold ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
+                          {role.name}
+                        </span>
+                        <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${role.isActive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {role.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        {role.description}
+                      </p>
+                    </button>
+
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button
+                        onClick={() => openEditRoleDialog(role)}
+                        disabled={!canUpdateRolePermissions || isRoleMutationPending}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+                        title="Chỉnh sửa role"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setStatusTarget(role)}
+                        disabled={!canUpdateRolePermissions || isRoleMutationPending}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+                        title={role.isActive ? 'Inactivate role' : 'Activate role'}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {role.isActive ? 'block' : 'check_circle'}
+                        </span>
+                        {role.isActive ? 'Inactivate' : 'Activate'}
+                      </button>
                     </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      {role.description}
-                    </p>
-                  </button>
+                  </div>
                 );
               })
             )}
@@ -278,14 +503,14 @@ export function RolePermissions() {
             <div className="flex gap-2">
               <button
                 onClick={handleDiscard}
-                disabled={!hasChanges || updateMutation.isPending}
+                disabled={!hasChanges || isInteractionDisabled}
                 className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-200/50 transition-all disabled:opacity-50"
               >
                 Discard Changes
               </button>
               <button
                 onClick={() => void handleSave()}
-                disabled={!hasChanges || updateMutation.isPending || showEmptyPermissions}
+                disabled={!hasChanges || isInteractionDisabled || showEmptyPermissions}
                 className="px-8 py-3 rounded-xl font-bold text-white bg-primary shadow-lg shadow-primary/20 hover:bg-blue-800 active:scale-[0.99] transition-all disabled:opacity-75 flex items-center gap-2"
               >
                 {updateMutation.isPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
@@ -296,6 +521,100 @@ export function RolePermissions() {
 
         </div>
       </div>
+
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{roleDialogMode === 'create' ? 'Create New Role' : 'Edit Role'}</DialogTitle>
+            <DialogDescription>
+              {roleDialogMode === 'create'
+                ? 'Thêm role mới để phân quyền cho nhóm người dùng.'
+                : 'Cập nhật thông tin role hiện có.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Role Name</label>
+              <input
+                value={roleForm.name}
+                onChange={(event) => setRoleForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="Ví dụ: Warehouse Supervisor"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Description</label>
+              <textarea
+                rows={3}
+                value={roleForm.description}
+                onChange={(event) => setRoleForm((prev) => ({ ...prev, description: event.target.value }))}
+                placeholder="Mô tả phạm vi công việc của role"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Status</label>
+              <select
+                value={roleForm.isActive ? 'active' : 'inactive'}
+                onChange={(event) => setRoleForm((prev) => ({ ...prev, isActive: event.target.value === 'active' }))}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setIsRoleDialogOpen(false)}
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleRoleSubmit()}
+              disabled={isRoleMutationPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isRoleMutationPending ? <span className="material-symbols-outlined animate-spin text-sm">sync</span> : null}
+              {roleDialogMode === 'create' ? 'Create Role' : 'Save Changes'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!statusTarget} onOpenChange={(open) => !open && setStatusTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{statusTarget?.isActive ? 'Inactivate Role' : 'Activate Role'}</DialogTitle>
+            <DialogDescription>
+              {statusTarget
+                ? `Bạn có chắc muốn chuyển role ${statusTarget.name} sang trạng thái ${statusTarget.isActive ? 'Inactive' : 'Active'}?`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setStatusTarget(null)}
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleConfirmToggleStatus()}
+              disabled={isRoleMutationPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isRoleMutationPending ? <span className="material-symbols-outlined animate-spin text-sm">sync</span> : null}
+              Confirm
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

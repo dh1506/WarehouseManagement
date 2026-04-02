@@ -141,3 +141,27 @@
 - services/advancedPermissionService.ts: advanced permission matrix is API-backed and projected from sidebar modules using role permissions + permission catalog.
 - services/categoryService.ts: legacy category service now re-exports `categoryApiService` (no in-memory mock dataset).
 - services/approvalConfigService.ts: scenario list derived from `/api/roles`; create/delete scenario operations now surface explicit backend dependency errors.
+
+## Operations Modules (2026-04-02)
+
+- `src/features/import-export/`
+  - `components/ImportExportBoard.tsx`: import/export readiness dashboard with filters, product readiness table, and capacity alerts.
+  - `hooks/useImportExportInsights.ts`: React Query hook deriving readiness insights from existing products/warehouses/location APIs.
+  - `schemas/importExportSchemas.ts`: Zod filter validation for search/status/warehouse filter inputs.
+  - `types/importExportType.ts`: typed insight models for readiness rows and capacity alerts.
+- `src/features/inventory/`
+  - `components/InventoryOverview.tsx`: inventory load overview with warehouse/location usage and product policy snapshot.
+  - `hooks/useInventorySnapshot.ts`: React Query hook aggregating location load and policy metrics.
+  - `schemas/inventorySchemas.ts`: Zod filter validation for inventory filters.
+  - `types/inventoryType.ts`: typed snapshot models for location loads and policy rows.
+- `src/features/ai-forecast/`
+  - `components/AiForecastDashboard.tsx`: demand confidence board with heuristic forecast list and recommendations.
+  - `hooks/useAiForecastInsights.ts`: React Query hook deriving forecast insights from approved product master fields.
+  - `schemas/aiForecastSchemas.ts`: Zod filter validation for search/status filters.
+  - `types/aiForecastType.ts`: typed forecast item models.
+- `src/services/operationsInsightService.ts`
+  - Orchestrates read-only aggregation calls via existing contracts: `/api/products`, `/api/warehouses`, `/api/warehouses/locations/search`.
+- `src/pages/operations/`
+  - `ImportExportPage.tsx`, `InventoryPage.tsx`, `AiForecastPage.tsx`: thin route/page wrappers.
+- `src/App.tsx`
+  - Replaced placeholder redirects with real route bindings for `/import-export`, `/inventory`, `/ai-forecast`.

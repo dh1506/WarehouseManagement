@@ -21,6 +21,7 @@ import {
 } from '@/services/warehouseService';
 import type {
   BinCapacityFormValues,
+  WarehouseHub,
   WarehouseHubFormValues,
   WarehouseLayoutConfig,
   WarehouseFormValues,
@@ -161,6 +162,22 @@ export function useDeleteWarehouseHub() {
 
   return useMutation({
     mutationFn: (id: string) => deleteWarehouseHub(id),
+    onMutate: async (warehouseId: string) => {
+      await queryClient.cancelQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      const previousHubs = queryClient.getQueryData<WarehouseHub[]>(WAREHOUSE_KEYS.hubs) ?? [];
+
+      queryClient.setQueryData<WarehouseHub[]>(
+        WAREHOUSE_KEYS.hubs,
+        previousHubs.filter((hub) => hub.id !== warehouseId),
+      );
+
+      return { previousHubs };
+    },
+    onError: (_error, _warehouseId, context) => {
+      if (context?.previousHubs) {
+        queryClient.setQueryData(WAREHOUSE_KEYS.hubs, context.previousHubs);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
     },
@@ -196,6 +213,42 @@ export function useDeleteWarehouseZone() {
 
   return useMutation({
     mutationFn: ({ warehouseId, zoneId }: { warehouseId: string; zoneId: string }) => deleteWarehouseZone(warehouseId, zoneId),
+    onMutate: async ({ warehouseId, zoneId }: { warehouseId: string; zoneId: string }) => {
+      await queryClient.cancelQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      const previousHubs = queryClient.getQueryData<WarehouseHub[]>(WAREHOUSE_KEYS.hubs) ?? [];
+
+      queryClient.setQueryData<WarehouseHub[]>(
+        WAREHOUSE_KEYS.hubs,
+        previousHubs.map((hub) => {
+          if (hub.id !== warehouseId) {
+            return hub;
+          }
+
+          const nextZones = hub.zones.filter((zone) => zone.id !== zoneId);
+          const nextUsedCapacity = nextZones.length > 0
+            ? Math.round(nextZones.reduce((sum, zone) => sum + zone.occupancy, 0) / nextZones.length)
+            : 0;
+
+          return {
+            ...hub,
+            zones: nextZones,
+            totalZones: nextZones.length,
+            usedCapacity: nextUsedCapacity,
+            layoutConfig: {
+              ...hub.layoutConfig,
+              zoneOrder: hub.layoutConfig.zoneOrder.filter((item) => item !== zoneId),
+            },
+          };
+        }),
+      );
+
+      return { previousHubs };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousHubs) {
+        queryClient.setQueryData(WAREHOUSE_KEYS.hubs, context.previousHubs);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
     },

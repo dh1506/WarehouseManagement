@@ -9,6 +9,7 @@ export interface WarehouseHub {
   location: string;
   tier: string;
   totalSpace: number;
+  totalLocations: number;
   totalZones: number;
   usedCapacity: number;
   layoutConfig: WarehouseLayoutConfig;
@@ -28,6 +29,10 @@ export interface Zone {
   code: string;
   name: string;
   type: string;
+  aisleCodes: string[];
+  rackCodes: string[];
+  levelCodes: string[];
+  binCodes: string[];
   rows: number;
   shelves: number;
   levels: number;
@@ -106,7 +111,11 @@ export interface WarehouseLocationItem {
   code: string;
   zone: string;
   aisle: string;
+  rack: string;
+  level: string;
   bin: string;
+  fullPath?: string;
+  storageCondition?: string;
   capacity: number;
   currentLoad: number;
   productCount: number;

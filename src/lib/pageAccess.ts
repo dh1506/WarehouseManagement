@@ -87,7 +87,14 @@ export function setPageAccessInRoleMatrix(
     }
 
     if (allowAccess) {
-      return { ...item, view: true };
+      return {
+        ...item,
+        view: true,
+        create: false,
+        edit: false,
+        delete: false,
+        approve: false,
+      };
     }
 
     return {

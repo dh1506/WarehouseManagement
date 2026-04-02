@@ -100,3 +100,7 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 - 2026-04-01: Warehouse backend contract does not currently persist manager/address/description/capacityUsage fields used by the existing FE design; FE keeps these fields in UI but only contract-supported fields (`code`, `name`, `is_active`) are persisted.
 - 2026-04-01: Approval Configuration screen no longer uses in-memory mock scenarios; list is derived from real `/api/roles`. Create/delete scenario is blocked with explicit backend-dependency errors until dedicated endpoints exist.
 - 2026-04-01: Advanced Permissions screen no longer uses mock matrices; permissions are derived from role assignments and permission catalog, projected to sidebar modules.
+
+- 2026-04-02: Import/Export module is now implemented as a readiness dashboard using existing APIs, but backend still has no dedicated inbound/outbound transaction endpoints for creating/persisting import-export requests.
+- 2026-04-02: AI Forecast module currently provides heuristic, read-only insights derived from product master signals; backend forecast model/endpoints are still required for persisted forecasting workflows.
+- 2026-04-02: Inventory module is read-only and based on product policy + location load snapshots from existing contracts; transaction-level inventory movement APIs are still a backend dependency.

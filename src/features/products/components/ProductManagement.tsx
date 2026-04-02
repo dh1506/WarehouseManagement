@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
@@ -55,6 +55,11 @@ export function ProductManagement() {
     page,
     pageSize: PAGE_SIZE,
   });
+  const optionSourceQuery = useProducts({
+    page: 1,
+    pageSize: 1000,
+    status: 'all',
+  });
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
@@ -69,6 +74,45 @@ export function ProductManagement() {
   const pageStart = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, totalItems);
   const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
+  const optionSourceProducts = optionSourceQuery.data?.data ?? listQuery.data?.data ?? [];
+
+  const fallbackCategoryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const item of optionSourceProducts) {
+      if (item.categoryIds.length === 0) {
+        continue;
+      }
+
+      item.categoryIds.forEach((id, index) => {
+        const name = item.categoryNames[index] ?? item.categoryName;
+        if (id && name && !map.has(id)) {
+          map.set(id, name);
+        }
+      });
+    }
+
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [optionSourceProducts]);
+
+  const fallbackBrandOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const item of optionSourceProducts) {
+      if (!item.brandId || !item.brandName || item.brandName === 'Unassigned') {
+        continue;
+      }
+
+      if (!map.has(item.brandId)) {
+        map.set(item.brandId, item.brandName);
+      }
+    }
+
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [optionSourceProducts]);
+
+  const categoryOptions = categoriesQuery.data ?? fallbackCategoryOptions;
+  const brandOptions = brandsQuery.data ?? fallbackBrandOptions;
 
   const openCreate = () => {
     if (!canCreate) {
@@ -155,16 +199,17 @@ export function ProductManagement() {
           // eyebrow="Sprint 1 · Product Master"
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
-          actions={canCreate ? (
+          actions={(
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+              disabled={!canCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
             >
               <span className="material-symbols-outlined text-[18px]">inventory_2</span>
               New Product
             </button>
-          ) : null}
+          )}
         />
 
         <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -189,13 +234,13 @@ export function ProductManagement() {
                 </FilterSelect>
                 <FilterSelect value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1); }}>
                   <option value="">All categories</option>
-                  {(categoriesQuery.data ?? []).map((item) => (
+                  {categoryOptions.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </FilterSelect>
                 <FilterSelect value={brandId} onChange={(value) => { setBrandId(value); setPage(1); }}>
                   <option value="">All brands</option>
-                  {(brandsQuery.data ?? []).map((item) => (
+                  {brandOptions.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </FilterSelect>
@@ -283,16 +328,14 @@ export function ProductManagement() {
                           <td className="px-4 py-4">
                             <div className="flex justify-end gap-2">
                               <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                              {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
-                              {canDelete ? (
-                                <ActionButton
-                                  icon="delete"
-                                  label="Delete"
-                                  onClick={() => openDelete(item)}
-                                  tone="danger"
-                                  disabled={item.status === 'discontinued'}
-                                />
-                              ) : null}
+                              <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} disabled={!canEdit} />
+                              <ActionButton
+                                icon="delete"
+                                label="Delete"
+                                onClick={() => openDelete(item)}
+                                tone="danger"
+                                disabled={!canDelete || item.status === 'discontinued'}
+                              />
                             </div>
                           </td>
                         </tr>

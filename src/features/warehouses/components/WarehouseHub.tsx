@@ -35,6 +35,21 @@ import type { WarehouseHub, WarehouseLayoutConfig, Zone } from '../types/warehou
 type WarehouseMode = 'create' | 'edit';
 type ZoneMode = 'create' | 'edit';
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  return 'Đã có lỗi xảy ra.';
+}
+
 function withNormalizedZoneOrder(config: WarehouseLayoutConfig, zones: Zone[]): WarehouseLayoutConfig {
   const uniqueOrdered = config.zoneOrder.filter((zoneId, index, list) => list.indexOf(zoneId) === index);
   const existingIds = new Set(zones.map((zone) => zone.id));
@@ -121,7 +136,7 @@ export function WarehouseHub() {
     } catch (error) {
       toast({
         title: 'Không thể lưu kho',
-        description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -146,7 +161,7 @@ export function WarehouseHub() {
     } catch (error) {
       toast({
         title: 'Không thể lưu khu vực',
-        description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -166,7 +181,7 @@ export function WarehouseHub() {
     } catch (error) {
       toast({
         title: 'Không thể xóa',
-        description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -185,7 +200,7 @@ export function WarehouseHub() {
     } catch (error) {
       toast({
         title: 'Không thể lưu sơ đồ',
-        description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -282,10 +297,14 @@ export function WarehouseHub() {
                       <div className="h-full rounded-full bg-blue-600" style={{ width: `${warehouse.usedCapacity}%` }} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-lg bg-slate-100 p-3">
                       <p className="text-[10px] font-bold uppercase text-slate-600">Total Space</p>
                       <p className="text-lg font-extrabold">{Math.round(warehouse.totalSpace / 1000)}k <span className="text-xs font-normal">m3</span></p>
+                    </div>
+                    <div className="rounded-lg bg-slate-100 p-3">
+                      <p className="text-[10px] font-bold uppercase text-slate-600">Locations</p>
+                      <p className="text-lg font-extrabold">{warehouse.totalLocations}</p>
                     </div>
                     <div className="rounded-lg bg-slate-100 p-3">
                       <p className="text-[10px] font-bold uppercase text-slate-600">Total Zones</p>
@@ -303,6 +322,9 @@ export function WarehouseHub() {
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-cyan-700">grid_view</span>
                   <h3 className="text-xl font-bold tracking-tight">Zones in {selectedHub.name}</h3>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                    Grouped by zone code
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {canManage ? (
@@ -336,6 +358,7 @@ export function WarehouseHub() {
                         <div>
                           <h4 className="font-bold text-blue-600">{zone.code}</h4>
                           <p className="text-[10px] font-bold uppercase text-slate-600">{zone.name}</p>
+                          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-700">{zone.type}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
@@ -370,10 +393,13 @@ export function WarehouseHub() {
                         </div>
                       </div>
                       <div className="space-y-2 text-sm text-slate-600">
-                        <p className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Rows</span><span className="font-semibold text-slate-900">{zone.rows}</span></p>
-                        <p className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Shelves / Row</span><span className="font-semibold text-slate-900">{zone.shelves}</span></p>
-                        <p className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Levels / Shelf</span><span className="font-semibold text-slate-900">{zone.levels}</span></p>
-                        <p className="flex items-center justify-between"><span>Bin Count</span><span className="font-extrabold text-blue-700">{zone.binCount}</span></p>
+                        <p className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Aisle Codes</span><span className="font-semibold text-slate-900">{zone.aisleCodes.length}</span></p>
+                        <p className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Rack Codes</span><span className="font-semibold text-slate-900">{zone.rackCodes.length}</span></p>
+                        <p className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Level Codes</span><span className="font-semibold text-slate-900">{zone.levelCodes.length}</span></p>
+                        <p className="flex items-center justify-between"><span>Bin Codes</span><span className="font-extrabold text-blue-700">{zone.binCodes.length}</span></p>
+                        <p className="rounded-lg bg-slate-50 px-2 py-1 text-[11px] text-slate-500">
+                          {zone.aisleCodes.slice(0, 2).join(', ') || 'N/A'} | {zone.rackCodes.slice(0, 2).join(', ') || 'N/A'} | {zone.levelCodes.slice(0, 2).join(', ') || 'N/A'}
+                        </p>
                       </div>
                     </div>
                   ))}

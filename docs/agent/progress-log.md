@@ -1,24 +1,57 @@
 # Progress Log
 
+## 2026-04-02 - Warehouse Hub location count clarification
+
+### Done
+
+- Investigated mismatch: DB has 9 warehouse locations while Hub showed 3.
+- Confirmed data is not dropped; Hub groups location rows by `zone_code`.
+- Added explicit `totalLocations` to Warehouse Hub model and service mapping.
+- Updated Hub summary cards to show both `Locations` and `Total Zones`.
+- Added visual label `Grouped by zone code` near zone section.
+
+### Touched Files
+
+- `src/features/warehouses/types/warehouseType.ts`
+- `src/services/warehouseService.ts`
+- `src/features/warehouses/components/WarehouseHub.tsx`
+- `docs/agent/current-context.md`
+- `docs/agent/progress-log.md`
+- `docs/agent/decision-log.md`
+- `docs/agent/next-steps.md`
+
+### Assumptions
+
+- Hub remains an aggregated zone-centric view.
+- Users also need visibility of raw location count to avoid confusion during verification with DB.
+
+### Verification
+
+- `npx tsc -b`: pass
+
 ## 2026-03-28 - User Management Module
-- Kh?i t?o `features/users/` theo dúng ki?n trúc AGENTS.
-- Hoàn thi?n list/filter/pagination/sheet/dialog cho user management.
-- Thêm mock CRUD, export Excel, dev login bypass, profile page, và UI fixes liên quan.
+
+- Kh?i t?o `features/users/` theo dï¿½ng ki?n trï¿½c AGENTS.
+- Hoï¿½n thi?n list/filter/pagination/sheet/dialog cho user management.
+- Thï¿½m mock CRUD, export Excel, dev login bypass, profile page, vï¿½ UI fixes liï¿½n quan.
 
 ## 2026-03-28 - Role Permissions Foundation
+
 - T?o page `/admin/role-permissions`.
-- Thêm mock role service và React Query hooks cho role permissions.
-- G?n route và sidebar cho module role permissions.
+- Thï¿½m mock role service vï¿½ React Query hooks cho role permissions.
+- G?n route vï¿½ sidebar cho module role permissions.
 
 ## 2026-03-29 - Category Management
+
 - T?o page `/admin/categories`.
-- Hoàn thi?n category tree, drawer form, delete dialog, và export categories.
-- Ð?ng b? route/sidebar v?i module category.
+- Hoï¿½n thi?n category tree, drawer form, delete dialog, vï¿½ export categories.
+- ï¿½?ng b? route/sidebar v?i module category.
 
 ## 2026-03-29 - Sprint 1 Master Data Completion
 
-### Ðã làm
-- Thêm reusable foundations nh?:
+### ï¿½ï¿½ lï¿½m
+
+- Thï¿½m reusable foundations nh?:
   - `PageHeader`
   - `StatusBadge`
   - `StatePanel`
@@ -38,13 +71,14 @@
   - tabs warehouses / locations
   - validation b?ng Zod
 - C?p nh?t di?u hu?ng:
-  - thêm route `/admin/product-settings`
-  - thêm route `/admin/products`
+  - thï¿½m route `/admin/product-settings`
+  - thï¿½m route `/admin/products`
   - thay `/warehouse` t? placeholder sang module th?t
-  - c?p nh?t sidebar d? truy c?p các module m?i
+  - c?p nh?t sidebar d? truy c?p cï¿½c module m?i
 - C?p nh?t working memory docs cho Sprint 1.
 
 ### Touched Files
+
 - `src/App.tsx`
 - `src/layouts/Sidebar.tsx`
 - `src/components/PageHeader.tsx`
@@ -77,11 +111,13 @@
 - `docs/agent/known-issues.md`
 
 ### Assumptions
-- Product supporting masters trong Sprint 1 g?m unit of measure và brand/manufacturer.
-- Mock services hi?n t?i là cách phù h?p d? FE ti?p t?c ti?n d? trong khi backend chua s?n sàng.
-- Product/Warehouse UI du?c re-implement theo ki?n trúc repo hi?n t?i, ch? dùng design language có s?n làm reference.
+
+- Product supporting masters trong Sprint 1 g?m unit of measure vï¿½ brand/manufacturer.
+- Mock services hi?n t?i lï¿½ cï¿½ch phï¿½ h?p d? FE ti?p t?c ti?n d? trong khi backend chua s?n sï¿½ng.
+- Product/Warehouse UI du?c re-implement theo ki?n trï¿½c repo hi?n t?i, ch? dï¿½ng design language cï¿½ s?n lï¿½m reference.
 
 ### Verification
+
 - `npx tsc -b`: pass
-- `npm run build`: fail do môi tru?ng sandbox khi load Vite/Tailwind native binary
+- `npm run build`: fail do mï¿½i tru?ng sandbox khi load Vite/Tailwind native binary
 - ESLint theo ph?m vi file m?i/ch?nh s?a: pass

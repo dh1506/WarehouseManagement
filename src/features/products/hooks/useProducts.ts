@@ -27,13 +27,14 @@ export function useProducts(params: ProductListParams) {
   });
 }
 
-export function useProductCategoryOptions() {
+export function useProductCategoryOptions(enabled = true) {
   return useQuery({
     queryKey: PRODUCT_KEYS.categories,
     queryFn: async () => {
       const response = await getProductCategories({ page: 1, pageSize: 100 });
       return response.data.map((item) => ({ id: item.id, name: item.name }));
     },
+    enabled,
   });
 }
 
@@ -44,10 +45,11 @@ export function useProductUnitOptions() {
   });
 }
 
-export function useProductBrandOptions() {
+export function useProductBrandOptions(enabled = true) {
   return useQuery({
     queryKey: PRODUCT_KEYS.brands,
     queryFn: () => getBrandOptions(),
+    enabled,
   });
 }
 

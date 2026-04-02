@@ -19,6 +19,9 @@ import { ProductDetailPage } from './pages/admin/ProductDetailPage';
 import { WarehouseManagementPage } from './pages/admin/WarehouseManagementPage';
 import { WarehouseHubPage } from './pages/admin/WarehouseHubPage';
 import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
+import { ImportExportPage } from './pages/operations/ImportExportPage';
+import { InventoryPage } from './pages/operations/InventoryPage';
+import { AiForecastPage } from './pages/operations/AiForecastPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,10 +109,9 @@ function App() {
             <Route path="/warehouse" element={<PageAccessRoute path="/admin/warehouses"><WarehouseHubPage /></PageAccessRoute>} />
             <Route path="/warehouse/master" element={<PageAccessRoute path="/admin/warehouses"><WarehouseManagementPage /></PageAccessRoute>} />
 
-            {/* Placeholder routes — sẽ implement trong Sprint 1 tiếp theo */}
-            <Route path="/import-export" element={<Navigate to="/admin/users" replace />} />
-            <Route path="/inventory" element={<Navigate to="/admin/users" replace />} />
-            <Route path="/ai-forecast" element={<Navigate to="/admin/users" replace />} />
+            <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
+            <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
+            <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
           </Route>
 
           {/* 404 — mọi route không khớp */}
