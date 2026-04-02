@@ -142,6 +142,7 @@ model Product {
   expiry_date        DateTime?
   production_date    DateTime?
   warehouse_id       Int?
+  inventories        Inventory[]
   categories         ProductCategoryMap[]
   productSuppliers   ProductSupplier[]
   uoms               ProductUom[]
@@ -229,6 +230,24 @@ model Warehouse {
   @@map("warehouses")
 }
 
+model Inventory {
+  id                    Int               @id @default(autoincrement())
+  product_id            Int
+  warehouse_location_id Int
+  quantity              Decimal           @default(0.000) @db.Decimal(15, 3)
+  reserved_quantity     Decimal           @default(0.000) @db.Decimal(15, 3)
+  available_quantity    Decimal           @default(0.000) @db.Decimal(15, 3)
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+  product               Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_id, warehouse_location_id])
+  @@index([product_id])
+  @@index([warehouse_location_id])
+  @@map("inventories")
+}
+
 model WarehouseLocation {
   id                Int            @id @default(autoincrement())
   warehouse_id      Int
@@ -249,6 +268,7 @@ model WarehouseLocation {
   storage_condition StorageType    @default(AMBIENT)
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
+  inventories       Inventory[]
   warehouse         Warehouse      @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")

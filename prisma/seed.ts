@@ -633,7 +633,7 @@ async function main() {
   });
   // Warehouse Locations (WH_MAIN)
   // Ambient Zone
-  await prisma.warehouseLocation.upsert({
+  const ambientLocation = await prisma.warehouseLocation.upsert({
     where: { location_code: "WH001-Z1-A1-R1-L1-B1" },
     update: {},
     create: {
@@ -654,7 +654,7 @@ async function main() {
     },
   });
   // Frozen Zone
-  await prisma.warehouseLocation.upsert({
+  const frozenLocation = await prisma.warehouseLocation.upsert({
     where: { location_code: "WH001-FZ1-A1-R1-L1-B1" },
     update: {},
     create: {
@@ -672,6 +672,41 @@ async function main() {
       max_volume: 40,
       current_weight: 0,
       current_volume: 0,
+    },
+  });
+
+  // Inventory data for product-location
+  await prisma.inventory.upsert({
+    where: {
+      product_id_warehouse_location_id: {
+        product_id: cokeProduct.id,
+        warehouse_location_id: ambientLocation.id,
+      },
+    },
+    update: {},
+    create: {
+      product_id: cokeProduct.id,
+      warehouse_location_id: ambientLocation.id,
+      quantity: 500,
+      reserved_quantity: 20,
+      available_quantity: 480,
+    },
+  });
+
+  await prisma.inventory.upsert({
+    where: {
+      product_id_warehouse_location_id: {
+        product_id: milkProduct.id,
+        warehouse_location_id: frozenLocation.id,
+      },
+    },
+    update: {},
+    create: {
+      product_id: milkProduct.id,
+      warehouse_location_id: frozenLocation.id,
+      quantity: 200,
+      reserved_quantity: 10,
+      available_quantity: 190,
     },
   });
 
