@@ -308,3 +308,38 @@
 **Context:** User requested category list must be called when opening create/edit flows for warehouse or zone.  
 **Decision:** Trigger category option refetch whenever warehouse sheet or zone sheet opens in Warehouse Hub.  
 **Rationale:** Ensures form options stay up to date with current category master data.
+
+## DEC-065 - Suppliers are managed inside Product Settings
+
+**Date:** 2026-04-03  
+**Context:** Backend already exposes supplier CRUD routes and FE permission modeling already groups `suppliers` with Product Settings, but the Product Settings UI had no supplier management surface.  
+**Decision:** Extend the existing `ProductReferenceManagement` module with a fourth `Suppliers` tab instead of creating a separate page/module.  
+**Rationale:** This keeps the sprint change scoped, preserves the existing design language, and matches the current page-access and advanced-permission architecture where suppliers belong to Product Settings.
+
+## DEC-066 - User requests are sanitized before hitting `/api/users`
+
+**Date:** 2026-04-03  
+**Context:** User Management was surfacing runtime `400 Bad Request` errors from malformed query/body values such as whitespace-only optional fields or invalid role identifiers, while UI error feedback stayed too generic for debugging.  
+**Decision:** Sanitize user query and mutation payloads in `userService.ts` (trim empty optional strings, normalize empty values to `undefined` or `null`, validate positive `role_id` before submit) and reuse parsed backend error messages in user forms and action dialogs.  
+**Rationale:** This prevents avoidable contract-invalid requests from leaving the frontend and makes any remaining backend validation failures visible with actionable messages.
+
+## DEC-067 - Users header search is now URL-driven and API-backed
+
+**Date:** 2026-04-03  
+**Context:** The shared top-header search input looked interactive but was still a static UI element, so typing there did not affect the Users list or trigger any API search call.  
+**Decision:** Wire the MainLayout header search for `/admin/users` to the shared `search` URL query param, and make `UserManagement` consume that query param as the source of truth for its debounced `/api/users?search=` request.  
+**Rationale:** This keeps the route/page thin, avoids adding duplicate client state, and makes both the header search and page-level search input drive the same real API flow.
+
+## DEC-068 - FE search falls back to case-insensitive local matching when API search returns empty
+
+**Date:** 2026-04-03  
+**Context:** Multiple backend list endpoints accept `search`, but current BE implementations use direct `contains` matching. In practice this can fail for common admin lookups such as typing `snacks` while the stored value is `Snacks`, especially when BE/database collation is case-sensitive.  
+**Decision:** Keep calling the real API search first, but when a search request returns zero rows, fetch the relevant filtered dataset from the same API contract and apply a frontend case-insensitive fallback match before paginating locally.  
+**Rationale:** This preserves the approved API flow, avoids BE changes, and fixes cross-page search reliability for current sprint modules with minimal UI churn.
+
+## DEC-069 - Category search results render orphan matches as temporary roots
+
+**Date:** 2026-04-03  
+**Context:** Category search can legitimately return child categories without their parents in the current result set. The tree table previously traversed only from `parentId = null`, so matching child rows such as `Snacks` were hidden even when the API/service returned them correctly.  
+**Decision:** Normalize any category whose parent is absent from the current dataset to a temporary root when building the flattened tree in `CategoryTableV2`.  
+**Rationale:** This preserves the hierarchy UI for full lists while ensuring search results remain visible when only descendant matches are returned.

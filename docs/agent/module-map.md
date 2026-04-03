@@ -7,11 +7,13 @@
 - **Users**: Admin có thể quản lí user (`src/features/users/`)
   - `components/UserManagement.tsx`: Container chính, wire các components.
   - `components/UserTable.tsx`: Hiện thị danh sách user.
-  - `components/UserFormSheet.tsx`: Thêm / sửa user với validation từ zods.
+  - `components/UserFormSheet.tsx`: Thêm / sửa user với validation từ zods, và hiện hiển thị message lỗi backend đã parse thay vì generic error.
+  - `components/UserActionDialogs.tsx`: Lock/reset password dialogs dùng cùng parser lỗi backend để toast hiển thị rõ nguyên nhân request fail.
   - `hooks/useUsers.ts`: React Query lấy danh sách data.
   - `hooks/useUserMutations.ts`: Các actions như Create, Update, delete,...
   - `schemas/userSchema.ts`: Zod validate cho user form (đã bỏ gender, thêm phone chuẩn VN, fullName chỉ kiểm tra không rỗng sau trim).
   - `services/userService.ts`: Mapping FE/BE fields, đã thêm `phone` trong model/payload và bỏ `gender` khỏi add/update payload.
+  - `services/userService.ts`: User requests được sanitize trước khi gửi (`search`, `email`, `phone`, `role_id`) và có shared helper để bóc message lỗi API cho UI.
   - Lọc role và submit role dùng `role_id` thay vì label hardcode.
   - User table đã được đồng bộ với header hiện tại (User Name, Role, Full Name, Email, Status, Actions).
 - **Roles**: Admin có thể quản lý phân quyền chức năng (`src/features/roles/`)
@@ -182,3 +184,40 @@
   - `ImportExportPage.tsx`, `InventoryPage.tsx`, `AiForecastPage.tsx`: thin route/page wrappers.
 - `src/App.tsx`
   - Replaced placeholder redirects with real route bindings for `/import-export`, `/inventory`, `/ai-forecast`.
+
+## Product Settings Suppliers (2026-04-03)
+
+- `src/features/productSettings/components/ProductReferenceManagement.tsx`
+  - Product Settings now includes a `Suppliers` tab using the same page shell, table, form dialog, and permission-aware actions as the other supporting masters.
+- `src/features/productSettings/types/referenceType.ts`
+  - `ProductReferenceType` now includes `supplier`, with optional supplier contact fields on reference items/forms.
+- `src/features/productSettings/schemas/referenceSchemas.ts`
+  - Supplier form fields are validated for contact person, phone, email, and address.
+- `src/services/productReferenceService.ts`
+  - Added supplier list/create/update mapping for `/api/suppliers` while keeping units/brands/manufacturers in the same service boundary.
+- `src/lib/pageAccess.ts`
+  - Product Settings page access now also recognizes `suppliers:*` permissions.
+
+## Users Search Sync (2026-04-03)
+
+- `src/layouts/MainLayout.tsx`
+  - Header search is now route-aware for `/admin/users` and writes to the shared `search` URL query param instead of acting as a static input.
+- `src/features/users/components/UserManagement.tsx`
+  - User list search now reads the `search` query param as its source of truth, so both the page filter input and header search trigger the same debounced `/api/users` call.
+
+## Search Fallback Reliability (2026-04-03)
+
+- `src/services/searchFallback.ts`
+  - Shared helpers for collecting paginated API datasets and applying case-insensitive fallback filtering plus local pagination.
+- `src/services/categoryApiService.ts`
+  - Category list search now retries through FE case-insensitive fallback when API search returns no rows.
+- `src/services/productApiService.ts`
+  - Product list search now falls back on FE matching across SKU, name, category, brand, manufacturer, supplier, and descriptive fields.
+- `src/services/productReferenceService.ts`
+  - Unit/Brand/Manufacturer/Supplier searches now share the same case-insensitive fallback behavior.
+- `src/services/userService.ts`
+  - User list search now falls back on FE matching across username, full name, email, phone, and role if API search returns empty.
+- `src/services/warehouseService.ts`
+  - Warehouse and warehouse-location searches now support the same fallback behavior; operations insight screens inherit this through existing service reuse.
+- `src/features/categories/components/CategoryTableV2.tsx`
+  - Category tree rendering now lifts matching child rows to temporary roots when their parents are not included in the current search result set, so search hits remain visible in the table.

@@ -9,6 +9,7 @@ import type {
 } from '@/features/products/types/productType';
 import type { ApiResponse } from '@/types/api';
 import apiClient from './apiClient';
+import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
 interface PaginationApiModel {
   page: number;
@@ -231,11 +232,15 @@ function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update'
 }
 
 export async function getProducts(params: ProductListParams = {}): Promise<ProductListResponse> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 10;
+  const search = params.search?.trim();
+
   const response = await apiClient.get<ApiResponse<ProductListApiData>>('/api/products', {
     params: {
-      page: params.page ?? 1,
-      limit: params.pageSize ?? 10,
-      search: params.search,
+      page,
+      limit: pageSize,
+      search,
       category_id: params.categoryId ? Number(params.categoryId) : undefined,
       brand_id: params.brandId ? Number(params.brandId) : undefined,
       product_status: params.status && params.status !== 'all' ? params.status.toUpperCase() : undefined,
@@ -243,9 +248,54 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
   });
 
   const payload = unwrapApiData<ProductListApiData>(response);
+  const mappedProducts = payload.products.map(mapProduct);
+
+  if (search && mappedProducts.length === 0) {
+    const allProducts = await collectPaginatedItems({
+      fetchPage: async (fallbackPage, fallbackLimit) => {
+        const fallbackResponse = await apiClient.get<ApiResponse<ProductListApiData>>('/api/products', {
+          params: {
+            page: fallbackPage,
+            limit: fallbackLimit,
+            category_id: params.categoryId ? Number(params.categoryId) : undefined,
+            brand_id: params.brandId ? Number(params.brandId) : undefined,
+            product_status: params.status && params.status !== 'all' ? params.status.toUpperCase() : undefined,
+          },
+        });
+
+        return unwrapApiData<ProductListApiData>(fallbackResponse);
+      },
+      getItems: (fallbackPayload) => fallbackPayload.products.map(mapProduct),
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+    });
+
+    const fallbackResult = paginateFallbackItems(
+      allProducts.filter((item) =>
+        matchesCaseInsensitiveSearch(search, [
+          item.sku,
+          item.name,
+          item.categoryName,
+          item.brandName,
+          item.manufacturerName,
+          item.supplierName,
+          item.description,
+          item.storageConditions,
+        ]),
+      ),
+      page,
+      pageSize,
+    );
+
+    return {
+      data: fallbackResult.data,
+      total: fallbackResult.total,
+      page: fallbackResult.page,
+      pageSize: fallbackResult.pageSize,
+    };
+  }
 
   return {
-    data: payload.products.map(mapProduct),
+    data: mappedProducts,
     total: payload.pagination.total,
     page: payload.pagination.page,
     pageSize: payload.pagination.limit,

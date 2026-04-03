@@ -41,6 +41,7 @@ const TAB_LABEL: Record<ProductReferenceType, string> = {
   unit: 'Units of Measure',
   brand: 'Brands',
   manufacturer: 'Manufacturers',
+  supplier: 'Suppliers',
 };
 
 export function ProductReferenceManagement() {
@@ -57,11 +58,16 @@ export function ProductReferenceManagement() {
   const canCreateManufacturer = usePermission('manufacturers:create');
   const canUpdateManufacturer = usePermission('manufacturers:update');
 
+  const canReadSupplier = usePermission('suppliers:read');
+  const canCreateSupplier = usePermission('suppliers:create');
+  const canUpdateSupplier = usePermission('suppliers:update');
+
   const [tab, setTab] = useState<ProductReferenceType>('unit');
   const [tabState, setTabState] = useState<Record<ProductReferenceType, TabUiState>>({
     unit: { ...DEFAULT_TAB_STATE },
     brand: { ...DEFAULT_TAB_STATE },
     manufacturer: { ...DEFAULT_TAB_STATE },
+    supplier: { ...DEFAULT_TAB_STATE },
   });
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedItem, setSelectedItem] = useState<ProductReferenceItem | null>(null);
@@ -84,40 +90,36 @@ export function ProductReferenceManagement() {
       canCreate: canCreateManufacturer,
       canUpdate: canUpdateManufacturer,
     },
+    supplier: {
+      canRead: canReadSupplier,
+      canCreate: canCreateSupplier,
+      canUpdate: canUpdateSupplier,
+    },
   };
 
-  const visibleTabs = (['unit', 'brand', 'manufacturer'] as ProductReferenceType[]).filter(
+  const visibleTabs = (['unit', 'brand', 'manufacturer', 'supplier'] as ProductReferenceType[]).filter(
     (item) => tabPermissions[item].canRead,
   );
 
   const hasAnyReadableTab = visibleTabs.length > 0;
-
-  useEffect(() => {
-    if (!hasAnyReadableTab) {
-      return;
-    }
-
-    if (!visibleTabs.includes(tab)) {
-      setTab(visibleTabs[0]);
-    }
-  }, [hasAnyReadableTab, tab, visibleTabs]);
-
-  const currentState = tabState[tab];
-  const canCreateCurrentTab = tabPermissions[tab].canCreate;
-  const canUpdateCurrentTab = tabPermissions[tab].canUpdate;
+  const activeTab = hasAnyReadableTab && !visibleTabs.includes(tab) ? visibleTabs[0] : tab;
+  const currentState = tabState[activeTab];
+  const canCreateCurrentTab = tabPermissions[activeTab].canCreate;
+  const canUpdateCurrentTab = tabPermissions[activeTab].canUpdate;
+  const isSupplierTab = activeTab === 'supplier';
 
   const setCurrentTabState = (next: Partial<TabUiState>) => {
     setTabState((prev) => ({
       ...prev,
-      [tab]: {
-        ...prev[tab],
+      [activeTab]: {
+        ...prev[activeTab],
         ...next,
       },
     }));
   };
 
   const { data, isLoading, isError, refetch, isFetching } = useProductReferences({
-    type: tab,
+    type: activeTab,
     search: currentState.search || undefined,
     status: currentState.status,
     page: currentState.page,
@@ -128,19 +130,37 @@ export function ProductReferenceManagement() {
   const updateMutation = useUpdateProductReference();
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
-  const title = TAB_LABEL[tab];
+  const title = TAB_LABEL[activeTab];
   const description =
-    tab === 'unit'
+    activeTab === 'unit'
       ? 'Chuẩn hóa đơn vị tính để product master và giao dịch kho dùng lại xuyên suốt các sprint.'
-      : tab === 'brand'
+      : activeTab === 'brand'
         ? 'Quản lý thương hiệu để đồng bộ dữ liệu nguồn cho danh mục sản phẩm.'
-        : 'Quản lý nhà sản xuất làm dữ liệu gốc cho nguồn gốc sản phẩm.';
+        : activeTab === 'manufacturer'
+          ? 'Quản lý nhà sản xuất làm dữ liệu gốc cho nguồn gốc sản phẩm.'
+          : 'Quản lý nhà cung cấp để các nghiệp vụ import/export và product sourcing tái sử dụng nhất quán.';
+
+  const getReferenceSummary = (item: ProductReferenceItem) => {
+    if (item.type !== 'supplier') {
+      return item.description || 'Khong co mo ta';
+    }
+
+    const contactLine = [item.contactPerson, item.phone].filter(Boolean).join(' / ');
+    const infoLine = [item.email, item.address].filter(Boolean).join(' / ');
+
+    return (
+      <>
+        <div>{contactLine || 'Chua co thong tin lien he'}</div>
+        {infoLine ? <div className="mt-1 text-xs text-slate-400">{infoLine}</div> : null}
+      </>
+    );
+  };
 
   const openCreate = () => {
     if (!canCreateCurrentTab) {
       toast({
         title: 'Access denied',
-        description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[tab]}.`,
+        description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[activeTab]}.`,
         variant: 'destructive',
       });
       return;
@@ -155,7 +175,7 @@ export function ProductReferenceManagement() {
     if (!canUpdateCurrentTab) {
       toast({
         title: 'Access denied',
-        description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[tab]}.`,
+        description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[activeTab]}.`,
         variant: 'destructive',
       });
       return;
@@ -178,7 +198,7 @@ export function ProductReferenceManagement() {
     if (!canUpdateCurrentTab) {
       toast({
         title: 'Access denied',
-        description: `Bạn không có quyền cập nhật trạng thái trong tab ${TAB_LABEL[tab]}.`,
+        description: `Bạn không có quyền cập nhật trạng thái trong tab ${TAB_LABEL[activeTab]}.`,
         variant: 'destructive',
       });
       return;
@@ -189,7 +209,7 @@ export function ProductReferenceManagement() {
     try {
       await updateMutation.mutateAsync({
         id: statusTarget.id,
-        type: tab,
+        type: activeTab,
         payload: {
           code: statusTarget.code,
           name: statusTarget.name,
@@ -218,7 +238,7 @@ export function ProductReferenceManagement() {
         <PageHeader
           // eyebrow="Sprint 1 · Product Foundation"
           title="Product Supporting Masters"
-          description="Thiết lập đơn vị tính, thương hiệu, và nhà sản xuất để product master ở Sprint 1–2 có thể tái sử dụng ổn định."
+          description="Thiết lập đơn vị tính, thương hiệu, nhà sản xuất, và nhà cung cấp để product master cùng luồng vận hành có thể tái sử dụng ổn định."
           actions={(
             <button
               onClick={openCreate}
@@ -226,7 +246,7 @@ export function ProductReferenceManagement() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              New {tab === 'unit' ? 'Unit' : tab === 'brand' ? 'Brand' : 'Manufacturer'}
+              New {activeTab === 'unit' ? 'Unit' : activeTab === 'brand' ? 'Brand' : activeTab === 'manufacturer' ? 'Manufacturer' : 'Supplier'}
             </button>
           )}
         />
@@ -235,13 +255,13 @@ export function ProductReferenceManagement() {
           <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
             <StatePanel
               title="Không có quyền truy cập"
-              description="Bạn không có quyền xem Units of Measure, Brands, hoặc Manufacturers."
+              description="Bạn không có quyền xem Units of Measure, Brands, Manufacturers, hoặc Suppliers."
               icon="lock"
               tone="error"
             />
           </div>
         ) : (
-          <Tabs value={tab} onValueChange={(value) => setTab(value as ProductReferenceType)} className="flex min-h-0 flex-1 flex-col">
+          <Tabs value={activeTab} onValueChange={(value) => setTab(value as ProductReferenceType)} className="flex min-h-0 flex-1 flex-col">
             <TabsList variant="line" className="shrink-0 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
               {tabPermissions.unit.canRead ? (
                 <TabsTrigger value="unit" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
@@ -258,9 +278,14 @@ export function ProductReferenceManagement() {
                   Manufacturers
                 </TabsTrigger>
               ) : null}
+              {tabPermissions.supplier.canRead ? (
+                <TabsTrigger value="supplier" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Suppliers
+                </TabsTrigger>
+              ) : null}
             </TabsList>
 
-            <TabsContent value={tab} className="mt-4 flex min-h-0 flex-1 flex-col">
+            <TabsContent value={activeTab} className="mt-4 flex min-h-0 flex-1 flex-col">
               <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -278,7 +303,7 @@ export function ProductReferenceManagement() {
                         onChange={(event) => {
                           setCurrentTabState({ search: event.target.value, page: 1 });
                         }}
-                        placeholder={`Search ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}...`}
+                        placeholder={`Search ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : activeTab === 'manufacturer' ? 'manufacturer' : 'supplier'}...`}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
                       />
                     </div>
@@ -327,7 +352,7 @@ export function ProductReferenceManagement() {
                       <StatePanel
                         title="Chưa có dữ liệu phù hợp"
                         description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
-                        icon={tab === 'unit' ? 'straighten' : tab === 'brand' ? 'branding_watermark' : 'factory'}
+                        icon={activeTab === 'unit' ? 'straighten' : activeTab === 'brand' ? 'branding_watermark' : activeTab === 'manufacturer' ? 'factory' : 'local_shipping'}
                         action={
                           <button
                             onClick={openCreate}
@@ -347,7 +372,7 @@ export function ProductReferenceManagement() {
                             <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                               <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Code</th>
                               <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Name</th>
-                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Description</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">{isSupplierTab ? 'Contact' : 'Description'}</th>
                               <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Usage</th>
                               <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Status</th>
                               <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
@@ -363,7 +388,7 @@ export function ProductReferenceManagement() {
                                   </div>
                                 </td>
                                 <td className="px-4 py-4 text-sm font-medium text-slate-800">{item.name}</td>
-                                <td className="px-4 py-4 text-sm text-slate-500">{item.description || 'Khong co mo ta'}</td>
+                                <td className="px-4 py-4 text-sm text-slate-500">{getReferenceSummary(item)}</td>
                                 <td className="px-4 py-4 text-sm text-slate-600">{item.usageCount} products</td>
                                 <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
                                 <td className="px-4 py-4">
@@ -404,7 +429,7 @@ export function ProductReferenceManagement() {
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         mode={dialogMode}
-        type={tab}
+        type={activeTab}
         item={selectedItem}
         onSubmit={async (payload) => {
           try {
@@ -412,25 +437,25 @@ export function ProductReferenceManagement() {
               if (!canUpdateCurrentTab) {
                 toast({
                   title: 'Access denied',
-                  description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[tab]}.`,
+                  description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[activeTab]}.`,
                   variant: 'destructive',
                 });
                 return;
               }
 
-              await updateMutation.mutateAsync({ id: selectedItem.id, type: tab, payload });
+              await updateMutation.mutateAsync({ id: selectedItem.id, type: activeTab, payload });
               toast({ title: 'Đã cập nhật', description: 'Thông tin tham chiếu đã được lưu.' });
             } else {
               if (!canCreateCurrentTab) {
                 toast({
                   title: 'Access denied',
-                  description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[tab]}.`,
+                  description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[activeTab]}.`,
                   variant: 'destructive',
                 });
                 return;
               }
 
-              await createMutation.mutateAsync({ type: tab, payload });
+              await createMutation.mutateAsync({ type: activeTab, payload });
               toast({ title: 'Đã tạo mới', description: 'Dữ liệu tham chiếu đã sẵn sàng để dùng.' });
             }
             setIsFormOpen(false);
@@ -448,7 +473,7 @@ export function ProductReferenceManagement() {
       <DeleteDialog
         open={!!statusTarget}
         onClose={() => setStatusTarget(null)}
-        title={`${statusTarget?.status === 'active' ? 'Inactivate' : 'Activate'} ${tab === 'unit' ? 'unit' : tab === 'brand' ? 'brand' : 'manufacturer'}`}
+        title={`${statusTarget?.status === 'active' ? 'Inactivate' : 'Activate'} ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : activeTab === 'manufacturer' ? 'manufacturer' : 'supplier'}`}
         description={statusTarget?.status === 'active'
           ? `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Inactive không?`
           : `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Active không?`}
@@ -486,6 +511,10 @@ function ReferenceFormDialog({
       name: '',
       description: '',
       status: 'active',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      address: '',
     },
   });
 
@@ -499,11 +528,16 @@ function ReferenceFormDialog({
       name: item?.name ?? '',
       description: item?.description ?? '',
       status: item?.status ?? 'active',
+      contactPerson: item?.contactPerson ?? '',
+      phone: item?.phone ?? '',
+      email: item?.email ?? '',
+      address: item?.address ?? '',
     });
   }, [item, open, reset]);
 
-  const typeLabel = type === 'unit' ? 'unit' : type === 'brand' ? 'brand' : 'manufacturer';
-  const typeLabelTitle = type === 'unit' ? 'Unit' : type === 'brand' ? 'Brand' : 'Manufacturer';
+  const isSupplierType = type === 'supplier';
+  const typeLabel = type === 'unit' ? 'unit' : type === 'brand' ? 'brand' : type === 'manufacturer' ? 'manufacturer' : 'supplier';
+  const typeLabelTitle = type === 'unit' ? 'Unit' : type === 'brand' ? 'Brand' : type === 'manufacturer' ? 'Manufacturer' : 'Supplier';
 
   const heading = {
     create: `Create ${typeLabel}`,
@@ -537,13 +571,47 @@ function ReferenceFormDialog({
             <Field label="Name" error={errors.name?.message}>
               <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
             </Field>
-            <Field label="Description" error={errors.description?.message}>
-              <textarea
-                {...register('description')}
-                disabled={isView || isPending}
-                className={`${inputClass(!!errors.description)} min-h-28 resize-none`}
-              />
-            </Field>
+            {!isSupplierType ? (
+              <Field label="Description" error={errors.description?.message}>
+                <textarea
+                  {...register('description')}
+                  disabled={isView || isPending}
+                  className={`${inputClass(!!errors.description)} min-h-28 resize-none`}
+                />
+              </Field>
+            ) : null}
+            {isSupplierType ? (
+              <>
+                <Field label="Contact Person" error={errors.contactPerson?.message}>
+                  <input
+                    {...register('contactPerson')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.contactPerson)}
+                  />
+                </Field>
+                <Field label="Phone" error={errors.phone?.message}>
+                  <input
+                    {...register('phone')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.phone)}
+                  />
+                </Field>
+                <Field label="Email" error={errors.email?.message}>
+                  <input
+                    {...register('email')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.email)}
+                  />
+                </Field>
+                <Field label="Address" error={errors.address?.message}>
+                  <textarea
+                    {...register('address')}
+                    disabled={isView || isPending}
+                    className={`${inputClass(!!errors.address)} min-h-28 resize-none`}
+                  />
+                </Field>
+              </>
+            ) : null}
           </div>
 
           <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">

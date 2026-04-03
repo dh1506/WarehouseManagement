@@ -21,6 +21,7 @@ import type {
 import type { ApiResponse } from '@/types/api';
 import apiClient from './apiClient';
 import { getProductCategories } from './categoryApiService';
+import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
 interface PaginationApiModel {
   page: number;
@@ -60,7 +61,7 @@ interface WarehouseListApiData {
   pagination: PaginationApiModel;
 }
 
-interface WarehouseDetailApiData extends WarehouseApiItem { }
+type WarehouseDetailApiData = WarehouseApiItem;
 
 interface WarehouseLocationApiItem {
   id: number;
@@ -698,21 +699,58 @@ function toHub(
 }
 
 export async function getWarehouses(params: WarehouseListParams = {}): Promise<WarehouseListResponse> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 10;
+  const search = params.search?.trim();
+  const isActive = params.status && params.status !== 'all'
+    ? params.status !== 'inactive'
+    : undefined;
+
   const response = await apiClient.get<ApiResponse<WarehouseListApiData>>('/api/warehouses', {
     params: {
-      page: params.page ?? 1,
-      limit: params.pageSize ?? 10,
-      search: params.search,
-      is_active: params.status && params.status !== 'all'
-        ? params.status !== 'inactive'
-        : undefined,
+      page,
+      limit: pageSize,
+      search,
+      is_active: isActive,
     },
   });
 
   const payload = unwrapApiData<WarehouseListApiData>(response);
+  const mappedWarehouses = payload.warehouses.map(mapWarehouse);
+
+  if (search && mappedWarehouses.length === 0) {
+    const allWarehouses = await collectPaginatedItems({
+      fetchPage: async (fallbackPage, fallbackLimit) => {
+        const fallbackResponse = await apiClient.get<ApiResponse<WarehouseListApiData>>('/api/warehouses', {
+          params: {
+            page: fallbackPage,
+            limit: fallbackLimit,
+            is_active: isActive,
+          },
+        });
+
+        return unwrapApiData<WarehouseListApiData>(fallbackResponse);
+      },
+      getItems: (fallbackPayload) => fallbackPayload.warehouses.map(mapWarehouse),
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+    });
+
+    const fallbackResult = paginateFallbackItems(
+      allWarehouses.filter((item) => matchesCaseInsensitiveSearch(search, [item.code, item.name])),
+      page,
+      pageSize,
+    );
+
+    return {
+      data: fallbackResult.data,
+      total: fallbackResult.total,
+      page: fallbackResult.page,
+      pageSize: fallbackResult.pageSize,
+    };
+  }
 
   return {
-    data: payload.warehouses.map(mapWarehouse),
+    data: mappedWarehouses,
     total: payload.pagination.total,
     page: payload.pagination.page,
     pageSize: payload.pagination.limit,
@@ -758,11 +796,15 @@ export async function deleteWarehouse(id: string): Promise<void> {
 export async function getWarehouseLocations(
   params: WarehouseLocationListParams = {},
 ): Promise<WarehouseLocationListResponse> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 10;
+  const search = params.search?.trim();
+
   const response = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
     params: {
-      page: params.page ?? 1,
-      limit: params.pageSize ?? 10,
-      search: params.search,
+      page,
+      limit: pageSize,
+      search,
       warehouse_id: params.warehouseId ? Number(params.warehouseId) : undefined,
       location_status: params.status === 'blocked' ? 'MAINTENANCE' : undefined,
     },
@@ -772,6 +814,52 @@ export async function getWarehouseLocations(
   const mappedLocations = payload.locations
     .map(mapLocation)
     .filter((item) => (params.status && params.status !== 'all' ? item.status === params.status : true));
+
+  if (search && mappedLocations.length === 0) {
+    const allLocations = await collectPaginatedItems({
+      fetchPage: async (fallbackPage, fallbackLimit) => {
+        const fallbackResponse = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
+          params: {
+            page: fallbackPage,
+            limit: fallbackLimit,
+            warehouse_id: params.warehouseId ? Number(params.warehouseId) : undefined,
+            location_status: params.status === 'blocked' ? 'MAINTENANCE' : undefined,
+          },
+        });
+
+        return unwrapApiData<WarehouseLocationListApiData>(fallbackResponse);
+      },
+      getItems: (fallbackPayload) =>
+        fallbackPayload.locations
+          .map(mapLocation)
+          .filter((item) => (params.status && params.status !== 'all' ? item.status === params.status : true)),
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+    });
+
+    const fallbackResult = paginateFallbackItems(
+      allLocations.filter((item) =>
+        matchesCaseInsensitiveSearch(search, [
+          item.code,
+          item.zone,
+          item.aisle,
+          item.rack,
+          item.level,
+          item.bin,
+          item.fullPath,
+          item.warehouseName,
+        ]),
+      ),
+      page,
+      pageSize,
+    );
+
+    return {
+      data: fallbackResult.data,
+      total: fallbackResult.total,
+      page: fallbackResult.page,
+      pageSize: fallbackResult.pageSize,
+    };
+  }
 
   return {
     data: mappedLocations,

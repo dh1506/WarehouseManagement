@@ -43,13 +43,16 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 1. User list/create/update/lock/reset-password hiện dùng API thật qua `/api/users` (lock/reset map qua PATCH update user).
 2. User role filter và form role select đã chuyển sang role options thật từ `/api/roles`.
 3. Nếu backend trả role names không tương ứng business labels cũ, FE vẫn hiển thị được nhờ role badge fallback style.
-4. **Sprint 1 Backend Dependencies**
+4. FE user service hiện trim optional strings và chặn `role_id` không hợp lệ trước khi submit, nên các lỗi 400 có nguồn gốc từ payload/query sai phía client sẽ không còn bị bắn lên `/api/users`.
+5. Nếu User Management vẫn trả 400 sau bản vá này, cần xem exact request/response trong Network tab vì FE giờ đã hiển thị trực tiếp message validation/backend thay vì toast generic.
+6. Header search ở layout hiện chỉ được nối API thật cho route `/admin/users`; các trang khác vẫn dùng ô search/filter riêng trong từng module.
+7. **Sprint 1 Backend Dependencies**
    - Product Settings cần BE cung cấp CRUD cho unit of measure và brand/manufacturer master data.
    - Product Master cần BE cung cấp CRUD endpoint cùng option APIs cho category/unit/brand theo contract chính thức.
    - Warehouse Structure cần BE cung cấp CRUD cho kho và vị trí kho, bao gồm validation khi xóa kho có phát sinh location hoặc transaction.
    - Permission keys cho Product / Warehouse modules chưa được chốt từ backend. FE hiện tạm dùng `usePermission()` + wildcard `*`.
 
-5. **Design / Contract Availability**
+8. **Design / Contract Availability**
    - Chưa thấy file API contract, database design, hoặc design reference riêng cho Product / Warehouse modules trong workspace hiện tại. FE đang suy luận theo design language và pattern đã có trong repo.
 
 ## Warehouse Hub open items (2026-03-30)
@@ -108,8 +111,12 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 - 2026-04-02: Import/Export module is now implemented as a readiness dashboard using existing APIs, but backend still has no dedicated inbound/outbound transaction endpoints for creating/persisting import-export requests.
 - 2026-04-02: AI Forecast module currently provides heuristic, read-only insights derived from product master signals; backend forecast model/endpoints are still required for persisted forecasting workflows.
 - 2026-04-02: Inventory module is read-only and based on product policy + location load snapshots from existing contracts; transaction-level inventory movement APIs are still a backend dependency.
+- 2026-04-03: FE search now includes a case-insensitive fallback when API search returns empty. This improves reliability without changing backend, but it can trigger extra paginated fetches on zero-result searches until BE exposes guaranteed case-insensitive search behavior.
+- 2026-04-03: Category table search previously hid descendant-only matches because the tree renderer required parents to be present in the current dataset. FE now treats missing-parent matches as temporary roots during search/list rendering.
 
 - 2026-04-02: Warehouse zone create/update now materializes rows/shelves/levels via multiple location API calls. For very large zone structures, backend rate-limit/timeout behavior may need dedicated bulk endpoints to optimize performance.
 - 2026-04-02: Zone-level naming and metadata (`zone name`) are still derived on FE because backend contract currently persists zone through `warehouse_locations` only and has no dedicated zone resource/table.
 - 2026-04-02: Warehouse-category scope, zone-category scope, and bin product assignment are currently FE-persisted (local storage) because backend has no dedicated mapping endpoints/tables for these constraints yet.
 - 2026-04-02: Multi-user consistency for zone/bin assignment constraints depends on backend contract support; current FE-only persistence is per-browser and suitable for sprint behavior validation, not cross-user source of truth.
+- 2026-04-03: Supplier management is now available in Product Settings, but backend still exposes only GET/POST/PATCH for `/api/suppliers`; FE delete remains intentionally blocked until a delete contract exists.
+- 2026-04-03: Product create/update flows still do not expose supplier assignment editing in FE, even though product detail payloads can include supplier relations from backend.

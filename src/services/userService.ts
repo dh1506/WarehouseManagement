@@ -1,5 +1,6 @@
 import apiClient from './apiClient';
 import type { ApiResponse } from '@/types/api';
+import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,6 +102,10 @@ export interface UserRoleOption {
   name: string;
 }
 
+interface ApiErrorShape {
+  message?: string;
+}
+
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -112,6 +117,40 @@ function unwrapApiData<T>(response: unknown): T {
   }
 
   return response as T;
+}
+
+function toTrimmedOrUndefined(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function toTrimmedOrNull(value?: string): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function parsePositiveInt(value: string, fieldLabel: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${fieldLabel} không hợp lệ.`);
+  }
+
+  return parsed;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as ApiErrorShape).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 function fromApiStatus(status: UserApiItem['user_status']): UserItem['status'] {
@@ -152,17 +191,20 @@ function mapUserFromApi(item: UserApiItem): UserItem {
  * Xem danh sách người dùng (có phân trang, tìm kiếm)
  */
 export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
+  const page = params.page;
+  const limit = params.limit;
   const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
+    page,
+    limit,
   };
 
-  if (params.search) {
-    query.search = params.search;
+  const search = toTrimmedOrUndefined(params.search);
+  if (search) {
+    query.search = search;
   }
 
   if (params.roleId) {
-    query.role_id = Number(params.roleId);
+    query.role_id = parsePositiveInt(params.roleId, 'Role ID');
   }
 
   if (params.status) {
@@ -171,11 +213,61 @@ export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
 
   return apiClient
     .get<ApiResponse<UsersListApiData>>('/api/users', { params: query })
-    .then((response) => {
+    .then(async (response) => {
       const payload = unwrapApiData<UsersListApiData>(response);
+      const mappedUsers = payload.users.map(mapUserFromApi);
+
+      if (search && mappedUsers.length === 0) {
+        const allUsers = await collectPaginatedItems({
+          fetchPage: async (fallbackPage, fallbackLimit) => {
+            const fallbackQuery: Record<string, string | number> = {
+              page: fallbackPage,
+              limit: fallbackLimit,
+            };
+
+            if (params.roleId) {
+              fallbackQuery.role_id = parsePositiveInt(params.roleId, 'Role ID');
+            }
+
+            if (params.status) {
+              fallbackQuery.status = toApiStatus(params.status);
+            }
+
+            const fallbackResponse = await apiClient.get<ApiResponse<UsersListApiData>>('/api/users', {
+              params: fallbackQuery,
+            });
+
+            return unwrapApiData<UsersListApiData>(fallbackResponse);
+          },
+          getItems: (fallbackPayload) => fallbackPayload.users.map(mapUserFromApi),
+          getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+        });
+
+        const fallbackResult = paginateFallbackItems(
+          allUsers.filter((item) =>
+            matchesCaseInsensitiveSearch(search, [
+              item.username,
+              item.name,
+              item.fullName,
+              item.email,
+              item.phone,
+              item.role,
+            ]),
+          ),
+          page,
+          limit,
+        );
+
+        return {
+          data: fallbackResult.data,
+          total: fallbackResult.total,
+          page: fallbackResult.page,
+          limit: fallbackResult.pageSize,
+        };
+      }
 
       return {
-        data: payload.users.map(mapUserFromApi),
+        data: mappedUsers,
         total: payload.pagination.total,
         page: payload.pagination.page,
         limit: payload.pagination.limit,
@@ -200,9 +292,9 @@ export const createUser = (payload: CreateUserPayload): Promise<UserItem> =>
       username: payload.username.trim(),
       password: payload.password,
       full_name: payload.fullName.trim(),
-      email: payload.email?.trim() || undefined,
-      phone: payload.phone?.trim() || undefined,
-      role_id: Number(payload.roleId),
+      email: toTrimmedOrUndefined(payload.email),
+      phone: toTrimmedOrUndefined(payload.phone),
+      role_id: parsePositiveInt(payload.roleId, 'Role ID'),
       user_status: 'ACTIVE',
     })
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
@@ -215,9 +307,9 @@ export const updateUser = (id: string, payload: UpdateUserPayload): Promise<User
   apiClient
     .patch<ApiResponse<UserApiItem>>(`/api/users/${id}`, {
       full_name: payload.fullName?.trim(),
-      email: payload.email?.trim() || null,
-      phone: payload.phone?.trim() || null,
-      role_id: payload.roleId ? Number(payload.roleId) : undefined,
+      email: payload.email !== undefined ? toTrimmedOrNull(payload.email) : undefined,
+      phone: payload.phone !== undefined ? toTrimmedOrNull(payload.phone) : undefined,
+      role_id: payload.roleId ? parsePositiveInt(payload.roleId, 'Role ID') : undefined,
       user_status: payload.status ? toApiStatus(payload.status) : undefined,
       password: payload.password,
     })
@@ -260,3 +352,5 @@ export const getUserRoleOptions = (): Promise<UserRoleOption[]> =>
         .filter((role) => role.is_active)
         .map((role) => ({ id: String(role.id), name: role.name }));
     });
+
+export { getApiErrorMessage };

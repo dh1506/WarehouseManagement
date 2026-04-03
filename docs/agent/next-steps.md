@@ -42,3 +42,8 @@
 - Hub page should remain zone-centric for quick operations view.
 - Users need an optional row-level view in the same page for data auditing.
 - Inactive warehouse/location filters should remain consistent across hub summary and detail blocks.
+
+## Product Settings follow-up
+
+- Connect supplier selection/editing into Product create/update flow if the approved sprint scope expands to product-supplier relationships.
+- Re-check whether backend will add `DELETE /api/suppliers` so Product Settings can expose real destructive actions for suppliers.

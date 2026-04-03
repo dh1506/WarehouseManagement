@@ -6,6 +6,7 @@ import type {
 } from '@/features/categories/types/categoryType';
 import type { ApiResponse } from '@/types/api';
 import apiClient from './apiClient';
+import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
 interface PaginationApiModel {
   page: number;
@@ -132,19 +133,57 @@ function mapCategoryFromDetailApi(item: CategoryDetailApiItem): CategoryDetail {
 export async function getProductCategories(
   params: { page?: number; pageSize?: number; search?: string; parentId?: string } = {},
 ): Promise<CategoriesResponse> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 10;
+  const search = params.search?.trim();
+
   const response = await apiClient.get<ApiResponse<CategoryListApiData>>('/api/product-categories', {
     params: {
-      page: params.page ?? 1,
-      limit: params.pageSize ?? 10,
-      search: params.search,
+      page,
+      limit: pageSize,
+      search,
       parent_id: params.parentId ? Number(params.parentId) : undefined,
     },
   });
 
   const payload = unwrapApiData<CategoryListApiData>(response);
+  const mappedCategories = payload.categories.map(mapCategoryFromListApi);
+
+  if (search && mappedCategories.length === 0) {
+    const allCategories = await collectPaginatedItems({
+      fetchPage: async (fallbackPage, fallbackLimit) => {
+        const fallbackResponse = await apiClient.get<ApiResponse<CategoryListApiData>>('/api/product-categories', {
+          params: {
+            page: fallbackPage,
+            limit: fallbackLimit,
+            parent_id: params.parentId ? Number(params.parentId) : undefined,
+          },
+        });
+
+        return unwrapApiData<CategoryListApiData>(fallbackResponse);
+      },
+      getItems: (fallbackPayload) => fallbackPayload.categories.map(mapCategoryFromListApi),
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+    });
+
+    const fallbackResult = paginateFallbackItems(
+      allCategories.filter((item) =>
+        matchesCaseInsensitiveSearch(search, [item.code, item.name, item.description]),
+      ),
+      page,
+      pageSize,
+    );
+
+    return {
+      data: fallbackResult.data,
+      total: fallbackResult.total,
+      page: fallbackResult.page,
+      pageSize: fallbackResult.pageSize,
+    };
+  }
 
   return {
-    data: payload.categories.map(mapCategoryFromListApi),
+    data: mappedCategories,
     total: payload.pagination.total,
     page: payload.pagination.page,
     pageSize: payload.pagination.limit,

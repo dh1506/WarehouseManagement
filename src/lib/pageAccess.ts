@@ -15,7 +15,7 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
     id: 'product-settings',
     label: 'Product Settings',
     path: '/admin/product-settings',
-    modules: ['brands', 'manufacturers', 'uoms'],
+    modules: ['brands', 'manufacturers', 'uoms', 'suppliers'],
   },
   { id: 'products', label: 'Products', path: '/admin/products', modules: ['products'] },
   { id: 'import-export', label: 'Import / Export', path: '/import-export', modules: [] },

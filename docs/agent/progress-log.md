@@ -31,6 +31,40 @@
 
 - `npm run -s build`: pass
 
+## 2026-04-03 - Product Settings supplier tab
+
+### Done
+
+- Extended Product Settings with a `Suppliers` tab on top of the existing supporting-master screen.
+- Added supplier type support across product settings types, schemas, and service mappings.
+- Wired supplier list/create/update to the current backend contract `/api/suppliers`.
+- Added supplier-specific form fields: contact person, phone, email, and address.
+- Updated Product Settings page access so users with supplier permissions can enter the page.
+
+### Touched Files
+
+- `src/features/productSettings/components/ProductReferenceManagement.tsx`
+- `src/features/productSettings/schemas/referenceSchemas.ts`
+- `src/features/productSettings/types/referenceType.ts`
+- `src/services/productReferenceService.ts`
+- `src/lib/pageAccess.ts`
+- `docs/agent/current-context.md`
+- `docs/agent/progress-log.md`
+- `docs/agent/decision-log.md`
+- `docs/agent/module-map.md`
+- `docs/agent/known-issues.md`
+
+### Assumptions
+
+- No separate Figma/Stitch mockup for suppliers exists in the workspace, so the current Product Settings screen serves as the approved visual baseline.
+- Suppliers belong in Product Settings rather than a new standalone route because FE permission architecture already models them there.
+
+### Verification
+
+- `npx tsc -b`: pass
+- `npx eslint src/features/productSettings/components/ProductReferenceManagement.tsx src/features/productSettings/schemas/referenceSchemas.ts src/features/productSettings/types/referenceType.ts src/services/productReferenceService.ts src/lib/pageAccess.ts`: pass
+- `npm run build`: blocked by existing sandbox/native-binary issue while loading Vite/Tailwind on this machine
+
 ## 2026-04-02 - Warehouse Hub location count clarification
 
 ### Done

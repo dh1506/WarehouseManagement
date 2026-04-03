@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLockUser, useResetUserPassword } from '../hooks/useUserMutations';
-import type { UserItem } from '@/services/userService';
+import { getApiErrorMessage, type UserItem } from '@/services/userService';
 
 // ---------------------------------------------------------------------------
 // Utility: generate password (same logic as UserFormSheet)
@@ -81,7 +81,7 @@ export function LockUserDialog({ user, onClose, onSuccess }: LockUserDialogProps
     } catch (error) {
       toast({
         title: 'Không thể cập nhật trạng thái tài khoản',
-        description: error instanceof Error ? error.message : 'Vui lòng kiểm tra quyền thao tác hoặc thử lại sau.',
+        description: getApiErrorMessage(error, 'Vui lòng kiểm tra quyền thao tác hoặc thử lại sau.'),
         variant: 'destructive',
       });
     }
@@ -197,7 +197,7 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
     } catch (error) {
       toast({
         title: 'Không thể đặt lại mật khẩu',
-        description: error instanceof Error ? error.message : 'Vui lòng thử lại sau.',
+        description: getApiErrorMessage(error, 'Vui lòng thử lại sau.'),
         variant: 'destructive',
       });
     }

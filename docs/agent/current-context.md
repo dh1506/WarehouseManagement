@@ -40,3 +40,9 @@
 - Low occupancy is treated as a warning state rather than a normal neutral state.
 - The 1-20 and 21-60 split should be reused consistently across all warehouse occupancy visuals.
 - Overloaded remains any value above 100%.
+
+## Latest follow-up (2026-04-03)
+
+- Product Settings now includes supplier management on the existing `/admin/product-settings` page.
+- Supplier CRUD in FE is aligned to current backend routes: `GET /api/suppliers`, `POST /api/suppliers`, `PATCH /api/suppliers/:id`.
+- Page access for Product Settings now recognizes supplier permissions in the same module grouping as units/brands/manufacturers.

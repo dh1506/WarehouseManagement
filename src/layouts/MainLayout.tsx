@@ -1,7 +1,28 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 
 export function MainLayout() {
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const supportsHeaderSearch = location.pathname === '/admin/users';
+  const headerSearchValue = supportsHeaderSearch ? searchParams.get('search') ?? '' : '';
+
+  const handleHeaderSearchChange = (value: string) => {
+    if (!supportsHeaderSearch) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (value.trim()) {
+      nextParams.set('search', value);
+    } else {
+      nextParams.delete('search');
+    }
+
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#fbfbfe] text-gray-800">
       <Sidebar />
@@ -14,16 +35,20 @@ export function MainLayout() {
           {/* Right Actions */}
           <div className="flex items-center gap-4">
             {/* Search (visible on lg) */}
-            <div className="relative w-80 hidden lg:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]" data-icon="search">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:bg-white transition-colors"
-              />
-            </div>
+            {supportsHeaderSearch && (
+              <div className="relative w-80 hidden lg:block">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]" data-icon="search">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={headerSearchValue}
+                  onChange={(e) => handleHeaderSearchChange(e.target.value)}
+                  placeholder="Search users..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:bg-white transition-colors"
+                />
+              </div>
+            )}
 
             {/* Icon Actions */}
             <div className="flex items-center gap-2 text-gray-500">

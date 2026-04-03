@@ -17,7 +17,7 @@ import {
 } from '../schemas/userSchema';
 import { useCreateUser, useUpdateUser } from '../hooks/useUserMutations';
 import { useUserRoleOptions } from '../hooks/useUsers';
-import type { UserItem } from '@/services/userService';
+import { getApiErrorMessage, type UserItem } from '@/services/userService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -253,8 +253,8 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
       });
       onSuccess?.();
       onClose();
-    } catch {
-      setGlobalError('Có lỗi xảy ra. Vui lòng thử lại.');
+    } catch (error) {
+      setGlobalError(getApiErrorMessage(error, 'Có lỗi xảy ra. Vui lòng thử lại.'));
     }
   };
 
@@ -274,8 +274,8 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
       });
       onSuccess?.();
       onClose();
-    } catch {
-      setGlobalError('Có lỗi xảy ra. Vui lòng thử lại.');
+    } catch (error) {
+      setGlobalError(getApiErrorMessage(error, 'Có lỗi xảy ra. Vui lòng thử lại.'));
     }
   };
 

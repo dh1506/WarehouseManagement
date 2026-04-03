@@ -35,11 +35,15 @@ export function CategoryTableV2({
 
   const treeData = useMemo(() => {
     const map = new Map<string | null, ProductCategory[]>();
+    const existingIds = new Set(categories.map((category) => category.id));
 
     for (const category of categories) {
-      const siblings = map.get(category.parentId) ?? [];
+      const normalizedParentId = category.parentId && existingIds.has(category.parentId)
+        ? category.parentId
+        : null;
+      const siblings = map.get(normalizedParentId) ?? [];
       siblings.push(category);
-      map.set(category.parentId, siblings);
+      map.set(normalizedParentId, siblings);
     }
 
     for (const [key, value] of map.entries()) {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useUserRoleOptions, useUsers } from '../hooks/useUsers';
 import { UserTable } from './UserTable';
@@ -13,12 +14,12 @@ import { usePermission } from '@/hooks/usePermission';
 const PAGE_LIMIT = 10;
 
 export function UserManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const canCreateUser = usePermission('users:create');
   const canUpdateUser = usePermission('users:update');
 
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserItem['status'] | ''>('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -35,6 +36,7 @@ export function UserManagement() {
   const [resetPwdTarget, setResetPwdTarget] = useState<UserItem | null>(null);
 
   // Debounce tìm kiếm
+  const searchInput = searchParams.get('search') ?? '';
   const debouncedSearch = useDebounce(searchInput, 400);
   const roleOptionsQuery = useUserRoleOptions();
 
@@ -60,20 +62,33 @@ export function UserManagement() {
   const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
+    const nextValue = e.target.value;
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextValue.trim()) {
+      nextParams.set('search', nextValue);
+    } else {
+      nextParams.delete('search');
+    }
+
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
     setPage(1);
     setSelectedUserIds([]);
     setIsHeaderChecked(false);
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   const handleReset = useCallback(() => {
-    setSearchInput('');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('search');
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
     setRoleFilter('');
     setStatusFilter('');
     setPage(1);
     setSelectedUserIds([]);
     setIsHeaderChecked(false);
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setSelectedUserIds((prev) => prev.filter((id) => currentUserIdSet.has(id)));
