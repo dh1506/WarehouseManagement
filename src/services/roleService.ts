@@ -191,11 +191,19 @@ export const createRole = async (payload: CreateRolePayload): Promise<Role> => {
 };
 
 export const updateRole = async (id: string, payload: UpdateRolePayload): Promise<Role> => {
-  const response = await apiClient.patch<ApiResponse<RoleDetailApiData>>(`/api/roles/${id}`, {
-    name: payload.name?.trim(),
-    description: payload.description?.trim() || null,
-    is_active: payload.isActive,
-  });
+  const body: Record<string, unknown> = {};
+
+  if (payload.name !== undefined) {
+    body.name = payload.name.trim();
+  }
+  if (payload.description !== undefined) {
+    body.description = payload.description.trim() || undefined;
+  }
+  if (payload.isActive !== undefined) {
+    body.is_active = payload.isActive;
+  }
+
+  const response = await apiClient.patch<ApiResponse<RoleDetailApiData>>(`/api/roles/${id}`, body);
 
   return mapRoleFromApi(unwrapApiData<RoleDetailApiData>(response));
 };

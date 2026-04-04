@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StatePanel } from '@/components/StatePanel';
 import type { ProductCategory } from '../types/categoryType';
 

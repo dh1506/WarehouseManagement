@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -86,7 +86,7 @@ export function ProductDetail() {
                 </span>
                 <StatusBadge status={product.status} />
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{product.name}</h1>
+              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">{product.name}</h1>
               <p className="mt-2 text-sm text-slate-600">
                 SKU: {product.sku} | ID: {product.id}
               </p>
@@ -96,7 +96,7 @@ export function ProductDetail() {
               onClick={() => setIsEditSheetOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-primary to-primary-container px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:scale-[0.98]"
             >
-              <span className="material-symbols-outlined text-lg">edit</span>
+              <span className="material-symbols-outlined text-sm">edit</span>
               Edit Product
             </button>
           </div>
@@ -106,7 +106,7 @@ export function ProductDetail() {
               <div className="rounded-2xl bg-white p-8 shadow-sm">
                 <div className="mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">info</span>
-                  <h3 className="text-lg font-bold">General Information</h3>
+                  <h3 className="text-sm font-bold">General Information</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-x-12 gap-y-6">
                   <InfoBlock label="Product Type" value={capitalize(product.productType)} />
@@ -125,7 +125,7 @@ export function ProductDetail() {
                 <div className="rounded-2xl bg-white p-8 shadow-sm">
                   <div className="mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">tracking_ads</span>
-                    <h3 className="text-lg font-bold">Tracking Rules</h3>
+                    <h3 className="text-sm font-bold">Tracking Rules</h3>
                   </div>
                   <div className="space-y-4 text-sm text-slate-700">
                     <div>{product.trackedByLot ? 'Tracked by lot / batch' : 'No lot tracking'}</div>
@@ -137,7 +137,7 @@ export function ProductDetail() {
                 <div className="rounded-2xl bg-white p-8 shadow-sm">
                   <div className="mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">inventory_2</span>
-                    <h3 className="text-lg font-bold">Stock Policy</h3>
+                    <h3 className="text-sm font-bold">Stock Policy</h3>
                   </div>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 py-2">

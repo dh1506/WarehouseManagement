@@ -13,6 +13,9 @@ interface UserTableProps {
   onEdit?: (user: UserItem) => void;
   onLock?: (user: UserItem) => void;
   onResetPassword?: (user: UserItem) => void;
+  canEdit?: boolean;
+  canLock?: boolean;
+  canResetPassword?: boolean;
 }
 
 function SkeletonRow() {
@@ -68,6 +71,9 @@ export function UserTable({
   onEdit,
   onLock,
   onResetPassword,
+  canEdit = true,
+  canLock = true,
+  canResetPassword = true,
 }: UserTableProps) {
   const selectAllRef = useRef<HTMLInputElement | null>(null);
 
@@ -112,7 +118,7 @@ export function UserTable({
                 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-16 text-center text-gray-400">
-                      <span className="material-symbols-outlined text-5xl block mb-3 opacity-40" data-icon="person_search">person_search</span>
+                      <span className="material-symbols-outlined text-lg sm:text-xl block mb-3 opacity-40" data-icon="person_search">person_search</span>
                       <p className="font-medium">No users found</p>
                     </td>
                   </tr>
@@ -167,33 +173,38 @@ export function UserTable({
                     {/* Cột Actions — luôn hiển thị, căn giữa */}
                     <td className="px-6 py-3.5">
                       <div className="flex items-center justify-center gap-1 text-gray-400">
-                        <button
-                          title="Chỉnh sửa"
-                          onClick={() => onEdit?.(user)}
-                          className="p-1.5 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
-                        </button>
-                        {/* Lựa chọn lock icon theo trạng thái hiện tại */}
-                        <button
-                          title={user.status === 'Active' ? 'Khoá tài khoản' : 'Mở khoá tài khoản'}
-                          onClick={() => onLock?.(user)}
-                          className={`p-1.5 rounded-lg transition-colors ${user.status === 'Active'
-                            ? 'hover:text-yellow-600 hover:bg-yellow-50'
-                            : 'text-yellow-600 hover:text-green-600 hover:bg-green-50'
-                            }`}
-                        >
-                          <span className="material-symbols-outlined text-[18px]" data-icon={user.status === 'Active' ? 'lock' : 'lock_open'}>
-                            {user.status === 'Active' ? 'lock' : 'lock_open'}
-                          </span>
-                        </button>
-                        <button
-                          title="Đặt lại mật khẩu"
-                          onClick={() => onResetPassword?.(user)}
-                          className="p-1.5 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[18px]" data-icon="key">key</span>
-                        </button>
+                        {canEdit && (
+                          <button
+                            title="Chỉnh sửa"
+                            onClick={() => onEdit?.(user)}
+                            className="p-1.5 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
+                          </button>
+                        )}
+                        {canLock && (
+                          <button
+                            title={user.status === 'Active' ? 'Khoá tài khoản' : 'Mở khoá tài khoản'}
+                            onClick={() => onLock?.(user)}
+                            className={`p-1.5 rounded-lg transition-colors ${user.status === 'Active'
+                              ? 'hover:text-yellow-600 hover:bg-yellow-50'
+                              : 'text-yellow-600 hover:text-green-600 hover:bg-green-50'
+                              }`}
+                          >
+                            <span className="material-symbols-outlined text-[18px]" data-icon={user.status === 'Active' ? 'lock' : 'lock_open'}>
+                              {user.status === 'Active' ? 'lock' : 'lock_open'}
+                            </span>
+                          </button>
+                        )}
+                        {canResetPassword && (
+                          <button
+                            title="Đặt lại mật khẩu"
+                            onClick={() => onResetPassword?.(user)}
+                            className="p-1.5 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[18px]" data-icon="key">key</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

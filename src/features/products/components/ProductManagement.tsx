@@ -1,4 +1,4 @@
-ï»¿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import { PageHeader } from '@/components/PageHeader';
@@ -19,6 +19,7 @@ import { getProducts } from '@/services/productApiService';
 import {
   useCreateProduct,
   useDiscontinueProduct,
+  useUpdateProductStatus,
   useProductBrandOptions,
   useProductCategoryOptions,
   useProductManufacturerOptions,
@@ -53,6 +54,7 @@ export function ProductManagement() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<ProductItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ProductItem | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -77,6 +79,7 @@ export function ProductManagement() {
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
   const discontinueMutation = useDiscontinueProduct();
+  const statusToggleMutation = useUpdateProductStatus();
 
   const totalItems = listQuery.data?.total ?? 0;
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
@@ -203,15 +206,6 @@ export function ProductManagement() {
   };
 
   const handleImportClick = () => {
-    if (!canCreate) {
-      toast({
-        title: 'Access denied',
-        description: 'You do not have permission to create products.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     importInputRef.current?.click();
   };
 
@@ -298,30 +292,12 @@ export function ProductManagement() {
   };
 
   const openCreate = () => {
-    if (!canCreate) {
-      toast({
-        title: 'Access denied',
-        description: 'You do not have permission to create products.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSheetMode('create');
     setSelectedProduct(null);
     setIsSheetOpen(true);
   };
 
   const openEdit = (item: ProductItem) => {
-    if (!canEdit) {
-      toast({
-        title: 'Access denied',
-        description: 'You do not have permission to edit products.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSheetMode('edit');
     setSelectedProduct(item);
     setIsSheetOpen(true);
@@ -332,15 +308,6 @@ export function ProductManagement() {
   };
 
   const openDelete = (item: ProductItem) => {
-    if (!canDelete) {
-      toast({
-        title: 'Access denied',
-        description: 'You do not have permission to discontinue products.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setDeletingProduct(item);
     setIsDeleteDialogOpen(true);
   };
@@ -375,40 +342,80 @@ export function ProductManagement() {
     }
   };
 
+  const openStatusToggle = (item: ProductItem) => {
+    setStatusTarget(item);
+  };
+
+  const closeStatusToggleDialog = () => {
+    if (statusToggleMutation.isPending) {
+      return;
+    }
+
+    setStatusTarget(null);
+  };
+
+  const handleStatusToggle = async () => {
+    if (!statusTarget) {
+      return;
+    }
+
+    const nextStatus: ProductStatus = statusTarget.status === 'active' ? 'inactive' : 'active';
+
+    try {
+      await statusToggleMutation.mutateAsync({ id: statusTarget.id, status: nextStatus });
+      toast({
+        title: 'Product status updated',
+        description: `${statusTarget.name} has been changed to ${nextStatus === 'active' ? 'Active' : 'Inactive'}.`,
+      });
+      closeStatusToggleDialog();
+    } catch (error) {
+      toast({
+        title: 'Unable to update product status',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          // eyebrow="Sprint 1 Â· Product Master"
+          // eyebrow="Sprint 1 · Product Master"
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
           actions={(
             <div className="flex flex-wrap items-center gap-3">
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={(event) => void handleImportFileChange(event)}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={handleImportClick}
-                disabled={!canCreate || isImporting}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <span className="material-symbols-outlined text-[18px]">upload_file</span>
-                {isImporting ? 'Importing...' : 'Import'}
-              </button>
-              <button
-                type="button"
-                onClick={openCreate}
-                disabled={!canCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                New Product
-              </button>
+              {canCreate && (
+                <>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    onChange={(event) => void handleImportFileChange(event)}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleImportClick}
+                    disabled={isImporting}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                    {isImporting ? 'Importing...' : 'Import'}
+                  </button>
+                </>
+              )}
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+                >
+                  <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                  New Product
+                </button>
+              )}
             </div>
           )}
         />
@@ -416,7 +423,7 @@ export function ProductManagement() {
         <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">Master catalog</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Master catalog</h3>
               <p className="mt-1 text-sm text-slate-500">
                 Use real category, unit, brand, and manufacturer master data to keep product records consistent across modules.
               </p>
@@ -575,23 +582,35 @@ export function ProductManagement() {
                             <div className="mt-1 text-xs text-slate-400">{item.brandName}</div>
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
-                            <div>Min {item.minStock} Â· Max {item.maxStock}</div>
+                            <div>Min {item.minStock} · Max {item.maxStock}</div>
                             <div className="mt-1 text-xs text-slate-400">
-                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} Â· {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
                             </div>
                           </td>
                           <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
                           <td className="px-4 py-4">
                             <div className="flex justify-end gap-2">
                               <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                              <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} disabled={!canEdit} />
-                              <ActionButton
-                                icon="delete"
-                                label="Delete"
-                                onClick={() => openDelete(item)}
-                                tone="danger"
-                                disabled={!canDelete || item.status === 'discontinued'}
-                              />
+                              {canEdit && (
+                                <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} />
+                              )}
+                              {canEdit && item.status !== 'discontinued' && (
+                                <ActionButton
+                                  icon={item.status === 'active' ? 'block' : 'check_circle'}
+                                  label={item.status === 'active' ? 'Deactivate' : 'Activate'}
+                                  tone={item.status === 'active' ? 'danger' : 'default'}
+                                  onClick={() => openStatusToggle(item)}
+                                />
+                              )}
+                              {canDelete && (
+                                <ActionButton
+                                  icon="delete"
+                                  label="Delete"
+                                  onClick={() => openDelete(item)}
+                                  tone="danger"
+                                  disabled={item.status === 'discontinued'}
+                                />
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -631,27 +650,9 @@ export function ProductManagement() {
         onSubmit={async (payload: ProductFormData) => {
           try {
             if (sheetMode === 'edit' && selectedProduct) {
-              if (!canEdit) {
-                toast({
-                  title: 'Access denied',
-                  description: 'You do not have permission to edit products.',
-                  variant: 'destructive',
-                });
-                return;
-              }
-
               await updateMutation.mutateAsync({ id: selectedProduct.id, payload });
               toast({ title: 'Product updated', description: 'The product record has been saved.' });
             } else {
-              if (!canCreate) {
-                toast({
-                  title: 'Access denied',
-                  description: 'You do not have permission to create products.',
-                  variant: 'destructive',
-                });
-                return;
-              }
-
               await createMutation.mutateAsync(payload);
               toast({ title: 'Product created', description: 'The product is now available in the system.' });
             }
@@ -684,7 +685,7 @@ export function ProductManagement() {
             <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
               Delete Product
             </DialogTitle>
-            <DialogDescription className="text-base leading-7 text-slate-600">
+            <DialogDescription className="text-xs leading-7 text-slate-600">
               Delete is implemented as a soft delete in Sprint 1. <span className="font-semibold text-slate-900">{deletingProduct?.name}</span> will be moved to discontinued status.
             </DialogDescription>
           </DialogHeader>
@@ -704,6 +705,47 @@ export function ProductManagement() {
               className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {discontinueMutation.isPending ? 'Deleting...' : 'Delete Product'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!statusTarget}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeStatusToggleDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md overflow-hidden rounded-[28px] border border-slate-200 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+          <DialogHeader className="space-y-4 px-6 py-6 pb-5 text-left">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${statusTarget?.status === 'active' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              <span className="material-symbols-outlined text-[22px]">{statusTarget?.status === 'active' ? 'block' : 'check_circle'}</span>
+            </div>
+            <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
+              {statusTarget?.status === 'active' ? 'Deactivate Product' : 'Activate Product'}
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-7 text-slate-600">
+              Are you sure you want to change <span className="font-semibold text-slate-900">{statusTarget?.name}</span> to <span className="font-semibold text-slate-900">{statusTarget?.status === 'active' ? 'Inactive' : 'Active'}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 sm:justify-end">
+            <button
+              type="button"
+              onClick={closeStatusToggleDialog}
+              disabled={statusToggleMutation.isPending}
+              className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleStatusToggle()}
+              disabled={statusToggleMutation.isPending}
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${statusTarget?.status === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+            >
+              {statusToggleMutation.isPending ? 'Updating...' : statusTarget?.status === 'active' ? 'Deactivate' : 'Activate'}
             </button>
           </DialogFooter>
         </DialogContent>

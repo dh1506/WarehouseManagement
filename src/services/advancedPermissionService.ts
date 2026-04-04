@@ -212,7 +212,9 @@ function mapToSidebarModules(
         : false,
       create: canCreate ? hasAnyAction(permissionSet, template.backendModules, ['create']) : false,
       edit: canEdit ? hasAnyAction(permissionSet, template.backendModules, ['update']) : false,
-      delete: canDelete ? hasAnyAction(permissionSet, template.backendModules, ['delete']) : false,
+      delete: canDelete
+        ? hasAnyAction(permissionSet, template.backendModules, ['delete', 'update'])
+        : false,
       approve: canApprove ? hasAnyAction(permissionSet, template.backendModules, ['approve']) : false,
     };
   });
@@ -249,7 +251,10 @@ function toActionSet(modulePermission: ModulePermission): string[] {
   if (modulePermission.view) actions.add('read');
   if (modulePermission.create) actions.add('create');
   if (modulePermission.edit) actions.add('update');
-  if (modulePermission.delete) actions.add('delete');
+  if (modulePermission.delete) {
+    actions.add('delete');
+    actions.add('update');
+  }
   if (modulePermission.approve) actions.add('approve');
 
   return Array.from(actions);
@@ -307,8 +312,7 @@ export async function getAdvancedRolePermissions(roleId: string): Promise<Advanc
     ),
   );
 
-  const modules = mapToSidebarModules(assignedPermissionSet, activePermissionKeySet)
-    .filter(hasModuleAccess);
+  const modules = mapToSidebarModules(assignedPermissionSet, activePermissionKeySet);
 
   return {
     roleId: String(rolePayload.id),

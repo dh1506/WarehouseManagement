@@ -22,6 +22,7 @@ import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
+import { Toaster } from './components/ui/toaster';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +118,7 @@ function App() {
           {/* 404 — mọi route không khớp */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        <Toaster />
       </BrowserRouter>
     </QueryClientProvider>
   );

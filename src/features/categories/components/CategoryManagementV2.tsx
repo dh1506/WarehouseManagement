@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -68,22 +68,12 @@ export function CategoryManagementV2() {
   const filteredCategories = useMemo(() => categories, [categories]);
 
   const openCreate = () => {
-    if (!canCreate) {
-      toast({ title: 'Access denied', description: 'You do not have permission to create categories.', variant: 'destructive' });
-      return;
-    }
-
     setEditingCategory(null);
     setViewingCategory(null);
     setIsFormOpen(true);
   };
 
   const openEdit = (category: ProductCategory) => {
-    if (!canEdit) {
-      toast({ title: 'Access denied', description: 'You do not have permission to edit categories.', variant: 'destructive' });
-      return;
-    }
-
     setEditingCategory(category);
     setViewingCategory(null);
     setIsFormOpen(true);
@@ -96,11 +86,6 @@ export function CategoryManagementV2() {
   };
 
   const openDelete = (category: ProductCategory) => {
-    if (!canDelete) {
-      toast({ title: 'Access denied', description: 'You do not have permission to delete categories.', variant: 'destructive' });
-      return;
-    }
-
     setDeletingCategory(category);
     setIsDeleteDialogOpen(true);
   };
@@ -145,11 +130,6 @@ export function CategoryManagementV2() {
   };
 
   const handleExport = async () => {
-    if (!canExport) {
-      toast({ title: 'Access denied', description: 'You do not have permission to export categories.', variant: 'destructive' });
-      return;
-    }
-
     await exportCategoriesToExcel(filteredCategories);
   };
 

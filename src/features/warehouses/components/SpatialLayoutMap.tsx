@@ -178,7 +178,7 @@ export function SpatialLayoutMap({
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-bold tracking-tight text-slate-900">Spatial Layout Map</h3>
+          <h3 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Spatial Layout Map</h3>
           <p className="mt-1 text-sm text-slate-600">{warehouseName} · {zones.length} zones</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

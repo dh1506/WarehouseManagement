@@ -129,58 +129,22 @@ export function UserManagement() {
 
   // --- Handlers ---
   const handleAddUser = () => {
-    if (!canCreateUser) {
-      toast({
-        title: 'Không có quyền tạo người dùng',
-        description: 'Bạn cần quyền users:create để thực hiện thao tác này.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setEditUser(null);
     setSheetOpen(true);
   };
 
   const handleEditUser = useCallback((user: UserItem) => {
-    if (!canUpdateUser) {
-      toast({
-        title: 'Không có quyền cập nhật người dùng',
-        description: 'Bạn cần quyền users:update để thực hiện thao tác này.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setEditUser(user);
     setSheetOpen(true);
-  }, [canUpdateUser, toast]);
+  }, [toast]);
 
   const handleLockUser = useCallback((user: UserItem) => {
-    if (!canUpdateUser) {
-      toast({
-        title: 'Không có quyền khóa/mở khóa',
-        description: 'Bạn cần quyền users:update để thực hiện thao tác này.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setLockTarget(user);
-  }, [canUpdateUser, toast]);
+  }, [toast]);
 
   const handleResetPassword = useCallback((user: UserItem) => {
-    if (!canUpdateUser) {
-      toast({
-        title: 'Không có quyền đặt lại mật khẩu',
-        description: 'Bạn cần quyền users:update để thực hiện thao tác này.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setResetPwdTarget(user);
-  }, [canUpdateUser, toast]);
+  }, [toast]);
 
   const handleCloseSheet = () => { setSheetOpen(false); setEditUser(null); };
 
@@ -215,12 +179,13 @@ export function UserManagement() {
       {/* Page Title & Actions */}
       <div className="flex-none flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">User Management</h2>
-          <p className="text-gray-500 mt-1">Oversee enterprise access and role definitions.</p>
+          <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">User Management</h2>
+          <p className="text-sm text-gray-500 mt-1">Oversee enterprise access and role definitions.</p>
         </div>
         <button
           onClick={handleAddUser}
-          className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+          disabled={!canCreateUser}
+          className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-sm"
         >
           <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
           Add User
@@ -304,6 +269,9 @@ export function UserManagement() {
             onEdit={handleEditUser}
             onLock={handleLockUser}
             onResetPassword={handleResetPassword}
+            canEdit={canUpdateUser}
+            canLock={canUpdateUser}
+            canResetPassword={canUpdateUser}
           />
         </div>
 

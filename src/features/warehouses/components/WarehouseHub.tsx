@@ -326,8 +326,8 @@ export function WarehouseHub() {
     <div className="flex h-full flex-col space-y-8 overflow-y-auto bg-[#fbfbfe] p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Warehouse Hub</h2>
-          <p className="mt-1 text-slate-600">Manage global distribution nodes and spatial optimization.</p>
+          <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">Warehouse Hub</h2>
+          <p className="mt-1 text-sm text-slate-600">Manage global distribution nodes and spatial optimization.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           {canManage ? (
@@ -337,7 +337,7 @@ export function WarehouseHub() {
               disabled={!selectedHub}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="material-symbols-outlined text-lg">add_circle</span>
+              <span className="material-symbols-outlined text-sm">add_circle</span>
               Add Zone
             </button>
           ) : null}
@@ -347,7 +347,7 @@ export function WarehouseHub() {
               onClick={() => openWarehouseDialog('create')}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:opacity-90"
             >
-              <span className="material-symbols-outlined text-lg">add</span>
+              <span className="material-symbols-outlined text-sm">add</span>
               Add Warehouse
             </button>
           ) : null}
@@ -396,10 +396,10 @@ export function WarehouseHub() {
                     <div className="mb-5 flex items-start justify-between gap-3">
                       <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                          <span className="material-symbols-outlined text-2xl">hub</span>
+                          <span className="material-symbols-outlined text-sm">hub</span>
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold leading-tight">{warehouse.name}</h3>
+                          <h3 className="text-sm font-bold leading-tight">{warehouse.name}</h3>
                           <p className="text-xs text-slate-600">Code: {warehouse.code}</p>
                         </div>
                       </div>
@@ -456,15 +456,15 @@ export function WarehouseHub() {
                       <div className="grid grid-cols-3 gap-3">
                         <div className="rounded-lg bg-slate-100 p-3">
                           <p className="text-[10px] font-bold uppercase text-slate-600">Total Space</p>
-                          <p className="text-lg font-extrabold">{Math.round(warehouse.totalSpace / 1000)}k <span className="text-xs font-normal">m3</span></p>
+                          <p className="text-sm font-extrabold">{Math.round(warehouse.totalSpace / 1000)}k <span className="text-xs font-normal">m3</span></p>
                         </div>
                         <div className="rounded-lg bg-slate-100 p-3">
                           <p className="text-[10px] font-bold uppercase text-slate-600">Locations</p>
-                          <p className="text-lg font-extrabold">{warehouse.totalLocations}</p>
+                          <p className="text-sm font-extrabold">{warehouse.totalLocations}</p>
                         </div>
                         <div className="rounded-lg bg-slate-100 p-3">
                           <p className="text-[10px] font-bold uppercase text-slate-600">Total Zones</p>
-                          <p className="text-lg font-extrabold">{warehouse.totalZones}</p>
+                          <p className="text-sm font-extrabold">{warehouse.totalZones}</p>
                         </div>
                       </div>
                       {canManage ? (
@@ -494,7 +494,7 @@ export function WarehouseHub() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-cyan-700">grid_view</span>
-                  <h3 className="text-xl font-bold tracking-tight">Zones in {selectedHub.name}</h3>
+                  <h3 className="text-xs font-bold tracking-tight">Zones in {selectedHub.name}</h3>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
                     Grouped by zone code
                   </span>

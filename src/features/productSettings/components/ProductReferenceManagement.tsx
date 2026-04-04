@@ -157,30 +157,12 @@ export function ProductReferenceManagement() {
   };
 
   const openCreate = () => {
-    if (!canCreateCurrentTab) {
-      toast({
-        title: 'Access denied',
-        description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[activeTab]}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setDialogMode('create');
     setSelectedItem(null);
     setIsFormOpen(true);
   };
 
   const openEdit = (item: ProductReferenceItem) => {
-    if (!canUpdateCurrentTab) {
-      toast({
-        title: 'Access denied',
-        description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[activeTab]}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setDialogMode('edit');
     setSelectedItem(item);
     setIsFormOpen(true);
@@ -194,15 +176,6 @@ export function ProductReferenceManagement() {
 
   const handleChangeStatus = async () => {
     if (!statusTarget) return;
-
-    if (!canUpdateCurrentTab) {
-      toast({
-        title: 'Access denied',
-        description: `Bạn không có quyền cập nhật trạng thái trong tab ${TAB_LABEL[activeTab]}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
 
     const nextStatus = statusTarget.status === 'active' ? 'inactive' : 'active';
 
@@ -239,16 +212,15 @@ export function ProductReferenceManagement() {
           // eyebrow="Sprint 1 · Product Foundation"
           title="Product Supporting Masters"
           description="Thiết lập đơn vị tính, thương hiệu, nhà sản xuất, và nhà cung cấp để product master cùng luồng vận hành có thể tái sử dụng ổn định."
-          actions={(
+          actions={canCreateCurrentTab ? (
             <button
               onClick={openCreate}
-              disabled={!canCreateCurrentTab}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
               New {activeTab === 'unit' ? 'Unit' : activeTab === 'brand' ? 'Brand' : activeTab === 'manufacturer' ? 'Manufacturer' : 'Supplier'}
             </button>
-          )}
+          ) : undefined}
         />
 
         {!hasAnyReadableTab ? (
@@ -289,7 +261,7 @@ export function ProductReferenceManagement() {
               <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
                     <p className="mt-1 text-sm text-slate-500">{description}</p>
                   </div>
 
@@ -353,15 +325,14 @@ export function ProductReferenceManagement() {
                         title="Chưa có dữ liệu phù hợp"
                         description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
                         icon={activeTab === 'unit' ? 'straighten' : activeTab === 'brand' ? 'branding_watermark' : activeTab === 'manufacturer' ? 'factory' : 'local_shipping'}
-                        action={
+                        action={canCreateCurrentTab ? (
                           <button
                             onClick={openCreate}
-                            disabled={!canCreateCurrentTab}
-                            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-45"
+                            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container"
                           >
                             Tạo mới
                           </button>
-                        }
+                        ) : undefined}
                       />
                     </div>
                   ) : (
@@ -394,14 +365,17 @@ export function ProductReferenceManagement() {
                                 <td className="px-4 py-4">
                                   <div className="flex justify-end gap-2">
                                     <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                                    <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} disabled={!canUpdateCurrentTab} />
-                                    <ActionButton
-                                      icon={item.status === 'active' ? 'block' : 'check_circle'}
-                                      label={item.status === 'active' ? 'Inactivate' : 'Activate'}
-                                      danger={item.status === 'active'}
-                                      onClick={() => setStatusTarget(item)}
-                                      disabled={!canUpdateCurrentTab}
-                                    />
+                                    {canUpdateCurrentTab && (
+                                      <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} />
+                                    )}
+                                    {canUpdateCurrentTab && (
+                                      <ActionButton
+                                        icon={item.status === 'active' ? 'block' : 'check_circle'}
+                                        label={item.status === 'active' ? 'Inactivate' : 'Activate'}
+                                        danger={item.status === 'active'}
+                                        onClick={() => setStatusTarget(item)}
+                                      />
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -434,27 +408,9 @@ export function ProductReferenceManagement() {
         onSubmit={async (payload) => {
           try {
             if (dialogMode === 'edit' && selectedItem) {
-              if (!canUpdateCurrentTab) {
-                toast({
-                  title: 'Access denied',
-                  description: `Bạn không có quyền chỉnh sửa trong tab ${TAB_LABEL[activeTab]}.`,
-                  variant: 'destructive',
-                });
-                return;
-              }
-
               await updateMutation.mutateAsync({ id: selectedItem.id, type: activeTab, payload });
               toast({ title: 'Đã cập nhật', description: 'Thông tin tham chiếu đã được lưu.' });
             } else {
-              if (!canCreateCurrentTab) {
-                toast({
-                  title: 'Access denied',
-                  description: `Bạn không có quyền tạo mới trong tab ${TAB_LABEL[activeTab]}.`,
-                  variant: 'destructive',
-                });
-                return;
-              }
-
               await createMutation.mutateAsync({ type: activeTab, payload });
               toast({ title: 'Đã tạo mới', description: 'Dữ liệu tham chiếu đã sẵn sàng để dùng.' });
             }

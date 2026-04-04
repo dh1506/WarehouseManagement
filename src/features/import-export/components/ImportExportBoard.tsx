@@ -186,21 +186,21 @@ export function ImportExportBoard() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Ready Products</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-900">{query.data.readyCount}</p>
+                <p className="mt-2 text-sm font-bold text-emerald-900">{query.data.readyCount}</p>
               </div>
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Action Required</p>
-                <p className="mt-2 text-2xl font-bold text-amber-900">{query.data.actionRequiredCount}</p>
+                <p className="mt-2 text-sm font-bold text-amber-900">{query.data.actionRequiredCount}</p>
               </div>
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Critical Capacity</p>
-                <p className="mt-2 text-2xl font-bold text-rose-900">{query.data.criticalCapacityCount}</p>
+                <p className="mt-2 text-sm font-bold text-rose-900">{query.data.criticalCapacityCount}</p>
               </div>
             </div>
 
             <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-5">
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-3">
-                <h3 className="text-base font-semibold text-slate-900">Product readiness</h3>
+                <h3 className="text-xs font-semibold text-slate-900">Product readiness</h3>
                 <p className="mt-1 text-sm text-slate-500">Validate whether product master data is eligible for operational planning.</p>
 
                 <div className="mt-4 max-h-90 overflow-auto rounded-xl border border-slate-200">
@@ -242,7 +242,7 @@ export function ImportExportBoard() {
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
-                <h3 className="text-base font-semibold text-slate-900">Capacity alerts</h3>
+                <h3 className="text-xs font-semibold text-slate-900">Capacity alerts</h3>
                 <p className="mt-1 text-sm text-slate-500">Locations close to capacity limit for short-term rebalancing.</p>
 
                 {topAlerts.length === 0 ? (

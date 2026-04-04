@@ -1,4 +1,4 @@
-﻿import {
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,7 +33,7 @@ export function CategoryActionDialogsV2({
           <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
             Delete Category
           </DialogTitle>
-          <DialogDescription className="text-base leading-7 text-slate-600">
+          <DialogDescription className="text-xs leading-7 text-slate-600">
             Are you sure you want to delete <span className="font-semibold text-slate-900">{category?.name}</span>? The request will be rejected if the category still has child categories or linked products.
           </DialogDescription>
         </DialogHeader>

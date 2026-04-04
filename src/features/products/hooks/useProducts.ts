@@ -3,6 +3,7 @@ import { getProductCategories } from '@/services/categoryApiService';
 import {
   createProduct,
   discontinueProduct,
+  updateProductStatus,
   getBrandOptions,
   getManufacturerOptions,
   getProducts,
@@ -87,6 +88,17 @@ export function useDiscontinueProduct() {
 
   return useMutation({
     mutationFn: (id: string) => discontinueProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
+    },
+  });
+}
+
+export function useUpdateProductStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: ProductStatus }) => updateProductStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
     },

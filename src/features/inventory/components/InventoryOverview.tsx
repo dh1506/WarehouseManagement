@@ -122,25 +122,25 @@ export function InventoryOverview() {
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Locations</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{query.data.totalLocations}</p>
+                <p className="mt-2 text-sm font-bold text-slate-900">{query.data.totalLocations}</p>
               </div>
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">High Usage</p>
-                <p className="mt-2 text-2xl font-bold text-amber-900">{query.data.highUsageLocations}</p>
+                <p className="mt-2 text-sm font-bold text-amber-900">{query.data.highUsageLocations}</p>
               </div>
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Blocked Locations</p>
-                <p className="mt-2 text-2xl font-bold text-rose-900">{query.data.blockedLocations}</p>
+                <p className="mt-2 text-sm font-bold text-rose-900">{query.data.blockedLocations}</p>
               </div>
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active Products</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-900">{query.data.activeProducts}</p>
+                <p className="mt-2 text-sm font-bold text-emerald-900">{query.data.activeProducts}</p>
               </div>
             </div>
 
             <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-5">
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-3">
-                <h3 className="text-base font-semibold text-slate-900">Location load map</h3>
+                <h3 className="text-xs font-semibold text-slate-900">Location load map</h3>
                 <p className="mt-1 text-sm text-slate-500">Inspect current load against configured capacity limits.</p>
 
                 <div className="mt-4 max-h-90 overflow-auto rounded-xl border border-slate-200">
@@ -184,7 +184,7 @@ export function InventoryOverview() {
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
-                <h3 className="text-base font-semibold text-slate-900">Stock policy sample</h3>
+                <h3 className="text-xs font-semibold text-slate-900">Stock policy sample</h3>
                 <p className="mt-1 text-sm text-slate-500">Quick view of policy ranges and tracking mode.</p>
 
                 {topPolicies.length === 0 ? (

@@ -13,16 +13,82 @@ import { usePermission } from '@/hooks/usePermission';
 import {
   useCreateRole,
   useRoles,
-  useRolePermissions,
   useUpdateRole,
-  useUpdateRolePermissions,
 } from '../hooks/useRolePermissions';
-import type { Permission, Role } from '../types/roleType';
 import {
-  SIDEBAR_PAGE_ACCESS_CONFIG,
-  hasPageAccessFromRoleMatrix,
-  setPageAccessInRoleMatrix,
-} from '@/lib/pageAccess';
+  useAdvancedRolePermissions,
+  useUpdateAdvancedPermissions,
+} from '@/features/advancedPermissions/hooks/useAdvancedPermissions';
+import type { Role } from '../types/roleType';
+import type { ModulePermission } from '@/features/advancedPermissions/types/advancedPermissionType';
+
+// ---------------------------------------------------------------------------
+// Icon map for each module
+// ---------------------------------------------------------------------------
+const MODULE_ICON: Record<string, string> = {
+  'finance-reports': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  'user-management': 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+  'system-settings': 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  'order-fulfillment': 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+  'vendor-portal': 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  'audit-logs': 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+  'notifications': 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+  'dashboard': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+  'warehouse-hub': 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  'categories': 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+  'product-settings': 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4',
+  'products': 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  'import-export': 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+  'inventory': 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+  'ai-forecast': 'M13 10V3L4 14h7v7l9-11h-7z',
+  'roles': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  'advanced-permissions': 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+  'approval-configuration': 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',
+};
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function PermCheckbox({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled}
+      className={`mx-auto w-[1.25rem] h-[1.25rem] rounded-[0.25em] border-[1.5px] flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${checked
+        ? 'bg-blue-800 border-blue-800'
+        : 'bg-white border-slate-300 hover:border-blue-400'
+        }`}
+    >
+      {checked && (
+        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M1.5 6.5L4.5 9.5L10.5 2.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
 
 export function RolePermissions() {
   const { toast } = useToast();
@@ -39,8 +105,8 @@ export function RolePermissions() {
     isActive: true,
   });
   const [statusTarget, setStatusTarget] = useState<Role | null>(null);
+  const [filterText, setFilterText] = useState('');
 
-  // Set selected role when roles are loaded initially
   useEffect(() => {
     if (roles && roles.length > 0 && !selectedRoleId) {
       setSelectedRoleId(roles[0].id);
@@ -48,46 +114,49 @@ export function RolePermissions() {
   }, [roles, selectedRoleId]);
 
   const {
-    data: rolePermissions,
-    isLoading: permissionsLoading,
-    isError: permissionsError,
+    data: permData,
+    isLoading: permLoading,
+    isError: permError,
     refetch: refetchPermissions,
-  } = useRolePermissions(selectedRoleId);
-  const updateMutation = useUpdateRolePermissions();
+  } = useAdvancedRolePermissions(selectedRoleId);
+
+  const updateMutation = useUpdateAdvancedPermissions();
   const createRoleMutation = useCreateRole();
   const updateRoleMutation = useUpdateRole();
 
-  const [localPermissions, setLocalPermissions] = useState<Permission[]>([]);
+  const [localModules, setLocalModules] = useState<ModulePermission[]>([]);
 
-  // Sync server data to local state when role changes or finishes loading
   useEffect(() => {
-    if (rolePermissions) {
-      setLocalPermissions(rolePermissions.permissions);
+    if (permData) {
+      setLocalModules(permData.modules.map((m) => ({ ...m })));
     } else {
-      setLocalPermissions([]);
+      setLocalModules([]);
     }
-  }, [rolePermissions]);
+  }, [permData]);
 
-  const handlePageAccessToggle = (pagePath: string) => {
+  const handleToggleCheckbox = (
+    moduleId: string,
+    field: 'view' | 'create' | 'edit' | 'delete',
+  ) => {
     if (!canUpdateRolePermissions) {
       return;
     }
 
-    const pageConfig = SIDEBAR_PAGE_ACCESS_CONFIG.find((page) => page.path === pagePath);
-    if (!pageConfig || pageConfig.modules.length === 0) {
-      return;
-    }
+    setLocalModules((prev) =>
+      prev.map((m) => {
+        if (m.moduleId !== moduleId) {
+          return m;
+        }
 
-    setLocalPermissions((prev) => {
-      const currentlyAllowed = hasPageAccessFromRoleMatrix(pageConfig, prev);
-      return setPageAccessInRoleMatrix(pageConfig, prev, !currentlyAllowed);
-    });
+        return { ...m, [field]: !m[field] };
+      }),
+    );
   };
 
   const hasChanges = useMemo(() => {
-    const source = rolePermissions?.permissions ?? [];
-    return JSON.stringify(source) !== JSON.stringify(localPermissions);
-  }, [localPermissions, rolePermissions]);
+    const source = permData?.modules ?? [];
+    return JSON.stringify(source) !== JSON.stringify(localModules);
+  }, [localModules, permData]);
 
   const handleSave = async () => {
     if (!selectedRoleId) {
@@ -97,7 +166,7 @@ export function RolePermissions() {
     if (!canUpdateRolePermissions) {
       toast({
         title: 'Access denied',
-        description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi quyền.',
+        description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi phân quyền.',
         variant: 'destructive',
       });
       return;
@@ -106,11 +175,12 @@ export function RolePermissions() {
     try {
       await updateMutation.mutateAsync({
         roleId: selectedRoleId,
-        payload: { permissions: localPermissions },
+        payload: { modules: localModules },
       });
+
       toast({
         title: 'Đã cập nhật quyền',
-        description: 'Permission matrix đã được lưu thành công.',
+        description: 'Cấu hình phân quyền đã được lưu thành công.',
       });
     } catch (error) {
       toast({
@@ -126,10 +196,18 @@ export function RolePermissions() {
       return;
     }
 
-    if (rolePermissions) {
-      setLocalPermissions(rolePermissions.permissions);
+    if (permData) {
+      setLocalModules(permData.modules.map((m) => ({ ...m })));
     }
   };
+
+  const filteredModules = useMemo(
+    () =>
+      localModules.filter((m) =>
+        m.moduleName.toLowerCase().includes(filterText.toLowerCase()),
+      ),
+    [localModules, filterText],
+  );
 
   const openCreateRoleDialog = () => {
     if (!canCreateRole) {
@@ -280,21 +358,22 @@ export function RolePermissions() {
 
   const selectedRole = roles?.find((r) => r.id === selectedRoleId);
   const showEmptyRoles = !rolesLoading && !rolesError && (roles?.length ?? 0) === 0;
-  const showEmptyPermissions = !permissionsLoading && !permissionsError && localPermissions.length === 0;
+  const showEmptyPermissions = !permLoading && !permError && localModules.length === 0;
   const isRoleMutationPending = createRoleMutation.isPending || updateRoleMutation.isPending;
-  const isInteractionDisabled = updateMutation.isPending || permissionsLoading || !canUpdateRolePermissions;
+  const isInteractionDisabled = updateMutation.isPending || permLoading || !canUpdateRolePermissions;
+  const context = permData?.context;
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
       {/* Title and Context */}
       <div className="flex flex-col gap-1">
-        <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
-        <p className="text-gray-500 max-w-2xl">
+        <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
+        <p className="text-sm text-gray-500 max-w-2xl">
           Define operational boundaries and AI forecasting access levels across your enterprise warehouse workforce.
         </p>
       </div>
 
-      {/* Three-Pane Management Layout */}
+      {/* Two-Pane Layout */}
       <div className="flex-1 flex gap-6 min-h-0">
 
         {/* Left Pane: List of Roles */}
@@ -394,33 +473,66 @@ export function RolePermissions() {
           </div>
         </div>
 
-        {/* Right Pane: Permission Matrix */}
+        {/* Right Pane: Advanced Module Permission Matrix */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+          {/* Matrix Header */}
           <div className="p-4 bg-slate-50 flex items-center justify-between border-b border-gray-100">
             <div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Permission Matrix: <span className="text-primary">{selectedRole?.name}</span>
+              <h3 className="text-sm font-bold text-gray-900">
+                Module Permissions Matrix: <span className="text-primary">{selectedRole?.name}</span>
               </h3>
-              <p className="text-sm text-gray-500">Toggle whether each sidebar page is visible and accessible for this role.</p>
+              <p className="text-sm text-gray-500">Configure granular access levels for each system module.</p>
             </div>
-            {selectedRole?.name === 'Director' && (
-              <div className="flex gap-1">
-                <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]" data-icon="auto_awesome" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                  AI Forecast Enabled
-                </span>
-              </div>
-            )}
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
-            {permissionsLoading ? (
-              <div className="animate-pulse space-y-2">
-                <div className="h-10 bg-gray-100 rounded"></div>
-                <div className="h-10 bg-gray-100 rounded"></div>
-                <div className="h-10 bg-gray-100 rounded"></div>
+          {/* Role Context + Filter */}
+          {context && (
+            <div className="px-4 py-3 bg-slate-50/50 border-b border-gray-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-600" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {context.activeModules} Active Modules
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {context.highRiskPermissions} High-risk Permissions
+                  </span>
+                </div>
+                {context.aiWarning && (
+                  <span className="text-sm font-medium text-teal-700">{context.aiWarning}</span>
+                )}
               </div>
-            ) : permissionsError ? (
+              <div className="relative shrink-0">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  placeholder="Filter modules..."
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64 bg-slate-50 placeholder-slate-400"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Matrix Table */}
+          <div className="flex-1 overflow-auto">
+            {permLoading ? (
+              <div className="p-4">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-10 bg-gray-100 rounded"></div>
+                  <div className="h-10 bg-gray-100 rounded"></div>
+                  <div className="h-10 bg-gray-100 rounded"></div>
+                </div>
+              </div>
+            ) : permError ? (
               <StatePanel
                 title="Không tải được ma trận quyền"
                 description="Vui lòng thử lại để tiếp tục chỉnh sửa quyền cho vai trò này."
@@ -442,53 +554,77 @@ export function RolePermissions() {
                 icon="shield_lock"
               />
             ) : (
-              <table className="w-full border-separate border-spacing-y-4">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead>
-                  <tr className="text-left">
-                    <th className="pb-2 pl-4 font-headline text-xs font-bold uppercase tracking-wider text-gray-400">Sidebar Page</th>
-                    <th className="pb-2 text-center font-headline text-xs font-bold uppercase tracking-wider text-gray-400">Can Access</th>
+                  <tr className="sticky top-0 z-10 bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                    <th className="py-4 px-6 w-1/3">System Module</th>
+                    <th className="py-4 px-4 text-center">View</th>
+                    <th className="py-4 px-4 text-center">Create</th>
+                    <th className="py-4 px-4 text-center">Edit</th>
+                    <th className="py-4 px-4 text-center">Delete / Deactivate</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {SIDEBAR_PAGE_ACCESS_CONFIG.map((page) => {
-                    const canAccess = hasPageAccessFromRoleMatrix(page, localPermissions);
-                    const isControlDisabled = isInteractionDisabled || page.modules.length === 0;
-                    return (
-                      <tr key={page.path} className="group transition-colors hover:bg-slate-50/50">
-                        <td className="rounded-l-xl bg-gray-50/30 py-4 pl-4 transition-colors group-hover:bg-primary/5">
-                          <div className="flex items-center gap-3">
-                            <div className="rounded-lg bg-white p-2 text-primary shadow-sm">
-                              <span
-                                className="material-symbols-outlined text-xl"
-                                data-icon={getIconForModule(page.id)}
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {filteredModules.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-16 text-center text-slate-400 text-sm">
+                        Không tìm thấy module phù hợp.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredModules.map((mod) => {
+                      const iconPath = MODULE_ICON[mod.moduleId] ?? MODULE_ICON['notifications'];
+
+                      return (
+                        <tr key={mod.moduleId} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${mod.iconBg} border-slate-200`}
                               >
-                                {getIconForModule(page.id)}
-                              </span>
+                                <svg className={`w-5 h-5 ${mod.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path d={iconPath} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-900">{mod.moduleName}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">{mod.description}</div>
+                              </div>
                             </div>
-                            <div>
-                              <span className="font-bold text-gray-900">{page.label}</span>
-                              <span className="block text-[11px] text-gray-500">{page.path}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="rounded-r-xl py-4 pr-4 text-center">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={canAccess}
-                            onClick={() => handlePageAccessToggle(page.path)}
-                            disabled={isControlDisabled}
-                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors ${canAccess ? 'bg-primary' : 'bg-slate-300'} ${isControlDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                            title={page.modules.length === 0 ? 'Trang này chưa có mapping permission backend trong Sprint 1.' : undefined}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${canAccess ? 'translate-x-5' : 'translate-x-0'}`}
+                          </td>
+
+                          <td className="py-4 px-4 text-center">
+                            <PermCheckbox
+                              checked={mod.view}
+                              onChange={() => handleToggleCheckbox(mod.moduleId, 'view')}
+                              disabled={!canUpdateRolePermissions}
                             />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <PermCheckbox
+                              checked={mod.create}
+                              onChange={() => handleToggleCheckbox(mod.moduleId, 'create')}
+                              disabled={!canUpdateRolePermissions}
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <PermCheckbox
+                              checked={mod.edit}
+                              onChange={() => handleToggleCheckbox(mod.moduleId, 'edit')}
+                              disabled={!canUpdateRolePermissions}
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <PermCheckbox
+                              checked={mod.delete}
+                              onChange={() => handleToggleCheckbox(mod.moduleId, 'delete')}
+                              disabled={!canUpdateRolePermissions || !mod.canDelete}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             )}
@@ -498,7 +634,7 @@ export function RolePermissions() {
           <div className="p-2 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-500 text-sm">
               <span className="material-symbols-outlined text-sm" data-icon="history">history</span>
-              <span>Last modified by <span className="font-bold">Director</span> • 2 hours ago</span>
+              <span>Last modified by <span className="font-bold">{selectedRole?.name}</span></span>
             </div>
             <div className="flex gap-2">
               <button
@@ -518,10 +654,10 @@ export function RolePermissions() {
               </button>
             </div>
           </div>
-
         </div>
       </div>
 
+      {/* Role Create/Edit Dialog */}
       <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -587,6 +723,7 @@ export function RolePermissions() {
         </DialogContent>
       </Dialog>
 
+      {/* Status Toggle Confirmation Dialog */}
       <Dialog open={!!statusTarget} onOpenChange={(open) => !open && setStatusTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -617,32 +754,4 @@ export function RolePermissions() {
       </Dialog>
     </div>
   );
-}
-
-function getIconForModule(module: string): string {
-  const normalized = module.trim().toLowerCase();
-
-  switch (normalized) {
-    case 'warehouse-hub':
-      return 'warehouse';
-    case 'categories':
-      return 'category';
-    case 'product-settings':
-      return 'straighten';
-    case 'dashboard': return 'dashboard';
-    case 'inventory': return 'inventory';
-    case 'products': return 'inventory_2';
-    case 'import-export': return 'swap_horiz';
-    case 'users': return 'person';
-    case 'advanced-permissions':
-      return 'admin_panel_settings';
-    case 'approval-configuration':
-      return 'approval';
-    case 'roles': return 'security';
-    case 'ai-forecast':
-    case 'ai_forecast':
-    case 'ai forecast':
-      return 'auto_awesome';
-    default: return 'widgets';
-  }
 }

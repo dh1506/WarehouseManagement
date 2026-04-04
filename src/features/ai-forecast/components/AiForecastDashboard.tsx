@@ -134,20 +134,20 @@ export function AiForecastDashboard() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">High Demand</p>
-                <p className="mt-2 text-2xl font-bold text-indigo-900">{query.data.highDemandCount}</p>
+                <p className="mt-2 text-sm font-bold text-indigo-900">{query.data.highDemandCount}</p>
               </div>
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Low Confidence</p>
-                <p className="mt-2 text-2xl font-bold text-rose-900">{query.data.lowConfidenceCount}</p>
+                <p className="mt-2 text-sm font-bold text-rose-900">{query.data.lowConfidenceCount}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evaluated Items</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{query.data.items.length}</p>
+                <p className="mt-2 text-sm font-bold text-slate-900">{query.data.items.length}</p>
               </div>
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-900">Demand forecast list</h3>
+              <h3 className="text-xs font-semibold text-slate-900">Demand forecast list</h3>
               <p className="mt-1 text-sm text-slate-500">Use confidence and recommendation to prioritize operational planning.</p>
 
               <div className="mt-4 max-h-105 overflow-auto rounded-xl border border-slate-200">

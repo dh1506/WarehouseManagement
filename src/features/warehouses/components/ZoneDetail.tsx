@@ -342,7 +342,7 @@ export function ZoneDetail() {
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
             Back to Warehouse
           </button>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Warehouse Zone {zone.code}</h1>
+          <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">Warehouse Zone {zone.code}</h1>
           <p className="mt-1 flex items-center gap-2 text-slate-600">
             <span className="material-symbols-outlined text-sm text-cyan-700">auto_awesome</span>
             AI-Optimized Storage Map • Last updated {selectedBin?.lastUpdated ? 'just now' : 'N/A'}
@@ -351,7 +351,7 @@ export function ZoneDetail() {
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Occupancy</span>
-            <span className={`text-xl font-bold ${zoneTone === 'low' ? 'text-amber-700' : zoneTone === 'partial' ? 'text-cyan-700' : zoneTone === 'overloaded' ? 'text-red-700' : 'text-blue-700'}`}>{zone.occupancy}%</span>
+            <span className={`text-xs font-bold ${zoneTone === 'low' ? 'text-amber-700' : zoneTone === 'partial' ? 'text-cyan-700' : zoneTone === 'overloaded' ? 'text-red-700' : 'text-blue-700'}`}>{zone.occupancy}%</span>
             <div className="h-2 w-16 overflow-hidden rounded-full bg-slate-200">
               <div className={`h-full ${getCapacityBarColor(zone.occupancy)}`} style={{ width: `${Math.min(zone.occupancy, 100)}%` }} />
             </div>
@@ -440,7 +440,7 @@ export function ZoneDetail() {
                 {levelGroups.map((group) => {
                   return (
                     <div key={group.levelCode} className="space-y-3">
-                      <p className="text-lg font-bold text-slate-900">LEVEL {group.levelCode}</p>
+                      <p className="text-sm font-bold text-slate-900">LEVEL {group.levelCode}</p>
                       <div className="overflow-x-auto">
                         <div className="flex min-w-max gap-2 pb-1">
                           {group.items.map(({ bin, coordinate }) => (
@@ -488,12 +488,12 @@ export function ZoneDetail() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-3xl border border-cyan-300 bg-cyan-100 p-6">
               <span className="mb-4 inline-block rounded-full bg-cyan-300 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-900">AI Optimization</span>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">Space Consolidation</h3>
+              <h3 className="mb-2 text-xs font-bold text-slate-900">Space Consolidation</h3>
               <p className="text-sm leading-relaxed text-slate-700">System recommends moving items from Row A to Row B to free up 12% space for upcoming high-velocity shipments.</p>
             </div>
             <div className="relative overflow-hidden rounded-3xl border border-red-300 bg-red-100 p-6">
               <span className="mb-4 inline-block rounded-full bg-red-300 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-red-900">Urgent Attention</span>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">Critical Congestion</h3>
+              <h3 className="mb-2 text-xs font-bold text-slate-900">Critical Congestion</h3>
               <p className="text-sm leading-relaxed text-slate-700">Bin {selectedBin?.code ?? 'N/A'} exceeds capacity threshold and requires reallocation workflow.</p>
             </div>
           </div>
@@ -503,7 +503,7 @@ export function ZoneDetail() {
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-extrabold text-slate-900">Bin Inspector</h2>
+                <h2 className="text-xs font-extrabold text-slate-900">Bin Inspector</h2>
                 <p className="text-xs font-medium text-slate-500">Cấu hình sức chứa theo bin</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
@@ -518,7 +518,7 @@ export function ZoneDetail() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Selection</span>
                     <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">LEVEL {selectedBin.level}</span>
                   </div>
-                  <p className="text-2xl font-black tracking-tight text-slate-900">BIN {selectedBin.code}</p>
+                  <p className="text-sm font-black tracking-tight text-slate-900">BIN {selectedBin.code}</p>
                   {selectedBinTone && getWarningText(selectedBinTone) ? (
                     <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
                       <span className="material-symbols-outlined text-[14px]">warning</span>

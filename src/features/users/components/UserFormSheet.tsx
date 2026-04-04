@@ -9,6 +9,7 @@ import {
   SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
+import { useToast } from '@/hooks/use-toast';
 import {
   createUserSchema,
   updateUserSchema,
@@ -196,6 +197,7 @@ function PasswordFieldInput({
 export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSheetProps) {
   const isEdit = !!editUser;
   const roleOptionsQuery = useUserRoleOptions();
+  const { toast } = useToast();
 
   const { mutateAsync: createMutate, isPending: isCreating } = useCreateUser();
   const { mutateAsync: updateMutate, isPending: isUpdating } = useUpdateUser();
@@ -243,13 +245,17 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
   const onSubmitCreate = async (data: CreateUserFormData) => {
     setGlobalError(null);
     try {
-      await createMutate({
+      const result = await createMutate({
         username: data.username,
         fullName: data.fullName,
-        email: data.email ?? undefined,  // optional — undefined nếu không nhập
+        email: data.email ?? undefined,
         phone: data.phone ?? undefined,
         roleId: data.role,
         password: data.password,
+      });
+      toast({
+        title: 'Tạo người dùng thành công',
+        description: `${result.fullName} đã được thêm vào hệ thống.`,
       });
       onSuccess?.();
       onClose();
@@ -263,7 +269,7 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
     if (!editUser) return;
     setGlobalError(null);
     try {
-      await updateMutate({
+      const result = await updateMutate({
         id: editUser.id,
         payload: {
           fullName: data.fullName,
@@ -271,6 +277,10 @@ export function UserFormSheet({ open, onClose, editUser, onSuccess }: UserFormSh
           phone: data.phone,
           roleId: data.role,
         },
+      });
+      toast({
+        title: 'Cập nhật thành công',
+        description: `Thông tin của ${result.fullName} đã được lưu.`,
       });
       onSuccess?.();
       onClose();

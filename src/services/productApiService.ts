@@ -325,6 +325,14 @@ export async function discontinueProduct(id: string): Promise<ProductItem> {
   return mapProduct(unwrapApiData<ProductApiItem>(response));
 }
 
+export async function updateProductStatus(id: string, status: ProductStatus): Promise<ProductItem> {
+  const response = await apiClient.patch<ApiResponse<ProductApiItem>>(`/api/products/${id}`, {
+    product_status: status.toUpperCase(),
+  });
+
+  return mapProduct(unwrapApiData<ProductApiItem>(response));
+}
+
 export async function getBrandOptions(): Promise<ProductOptionItem[]> {
   const response = await apiClient.get<ApiResponse<BrandListApiData>>('/api/brands', {
     params: {

@@ -17,8 +17,8 @@
   - Lọc role và submit role dùng `role_id` thay vì label hardcode.
   - User table đã được đồng bộ với header hiện tại (User Name, Role, Full Name, Email, Status, Actions).
 - **Roles**: Admin có thể quản lý phân quyền chức năng (`src/features/roles/`)
-  - `components/RolePermissions.tsx`: Hiển thị danh sách role và ma trận quyền, cùng với action update.
-  - `hooks/useRolePermissions.ts`: React Query fetch, cập nhật roles & permission.
+  - `components/RolePermissions.tsx`: Hiển thị danh sách role bên trái, ma trận module permission chi tiết (View/Create/Edit/Delete/Approve + Access Level) bên phải. Dùng advanced permission hooks và service.
+  - `hooks/useRolePermissions.ts`: React Query fetch, cập nhật roles & permission (legacy, vẫn dùng cho role CRUD).
   - `types/roleType.ts`: Interfaces cho Role và Permission, có metadata trạng thái/số lượng từ backend.
   - `services/roleService.ts`: Đã chuyển sang API thật, map action backend `read/create/update/delete(/approve)` sang matrix `view/create/edit/delete/approve`.
   - `RolePermissions.tsx`: Bổ sung đầy đủ state loading/error/empty/disabled/mutation + toast theo pattern chung.
@@ -221,3 +221,48 @@
   - Warehouse and warehouse-location searches now support the same fallback behavior; operations insight screens inherit this through existing service reuse.
 - `src/features/categories/components/CategoryTableV2.tsx`
   - Category tree rendering now lifts matching child rows to temporary roots when their parents are not included in the current search result set, so search hits remain visible in the table.
+
+## Permission Enforcement Pattern (2026-04-03)
+
+All modules now follow the same permission enforcement pattern:
+
+- **Action buttons are hidden** when the user lacks the corresponding permission (not shown as disabled)
+- **Handler functions do not check permissions** — they assume the button would not be visible if unauthorized
+- **Form submit callbacks do not check permissions** — the form itself is only reachable via a visible button
+
+### Files updated:
+
+- `src/features/users/components/UserManagement.tsx`
+  - Add User button hidden when `!canCreateUser`
+  - Edit/Lock/Reset Password action buttons hidden when `!canUpdateUser`
+  - Permission toast checks removed from handlers
+- `src/features/users/components/UserTable.tsx`
+  - Added `canEdit`, `canLock`, `canResetPassword` props to conditionally render action buttons
+- `src/features/products/components/ProductManagement.tsx`
+  - Import and New Product buttons hidden when `!canCreate`
+  - Edit and Delete action buttons hidden when `!canEdit` / `!canDelete`
+  - Permission toast checks removed from handlers and form submit
+- `src/features/productSettings/components/ProductReferenceManagement.tsx`
+  - New button hidden when `!canCreateCurrentTab`
+  - Edit and Status Toggle action buttons hidden when `!canUpdateCurrentTab`
+  - Permission toast checks removed from handlers and form submit
+- `src/features/categories/components/CategoryManagementV2.tsx`
+  - Already had correct button visibility pattern (conditional rendering)
+  - Permission toast checks removed from handlers
+
+### Modules already following correct pattern:
+
+- `src/features/warehouses/components/WarehouseHub.tsx` — uses `{canManage ? <button> : null}`
+- `src/features/warehouses/components/WarehouseManagement.tsx` — same pattern
+- `src/features/warehouses/components/ZoneDetail.tsx` — disables controls when `!canManage`
+
+## Role Permissions Advanced Matrix (2026-04-03)
+
+- `src/features/roles/components/RolePermissions.tsx`
+  - Right pane replaced with full 7-column advanced module permission matrix (System Module, View, Create, Edit, Delete, Approve, Access Level).
+  - Reuses `PermCheckbox` and `ApproveToggle` sub-components from advanced permission pattern.
+  - Uses `useAdvancedRolePermissions` and `useUpdateAdvancedPermissions` hooks from `@/features/advancedPermissions/hooks/`.
+  - Module filter input and detailed/compact view toggle included.
+  - Role context bar shows active modules count and high-risk permissions.
+  - Left role list pane and all role CRUD dialogs (create/edit/status toggle) remain unchanged.
+  - Reuses `computeAccessLevel` and `ACCESS_LEVEL_META` from advanced permission types.

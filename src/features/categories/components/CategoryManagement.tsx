@@ -108,7 +108,7 @@ export function CategoryManagement() {
                 <span className="mx-2"><span className="material-symbols-outlined text-[10px]">chevron_right</span></span>
                 <span className="text-slate-800">Product Categories</span>
               </nav>
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Category Management</h2>
+              <h2 className="text-xs font-bold text-slate-900 tracking-tight">Category Management</h2>
               <p className="text-slate-500 mt-1">Organize and manage global inventory hierarchy</p>
             </div>
             <div className="flex space-x-3 items-center">

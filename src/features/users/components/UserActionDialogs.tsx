@@ -99,7 +99,7 @@ export function LockUserDialog({ user, onClose, onSuccess }: LockUserDialogProps
               </span>
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-gray-900">
+              <DialogTitle className="text-xs font-bold text-gray-900">
                 {isLocking ? 'Khoá tài khoản' : 'Mở khoá tài khoản'}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
@@ -219,7 +219,7 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
               <span className="material-symbols-outlined text-[22px] text-red-600" data-icon="key">key</span>
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-gray-900">Đặt lại mật khẩu</DialogTitle>
+              <DialogTitle className="text-xs font-bold text-gray-900">Đặt lại mật khẩu</DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
                 Cập nhật mật khẩu mới cho <span className="font-semibold text-gray-700">{user?.name}</span>
               </DialogDescription>

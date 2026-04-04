@@ -35,7 +35,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col h-full flex-1">
       <div className="flex-none">
         <div className="mb-6">
-          <h2 className="text-4xl font-extrabold text-on-surface tracking-tight mb-2">Welcome Back</h2>
+          <h2 className="text-lg sm:text-xl font-extrabold text-on-surface tracking-tight mb-2">Welcome Back</h2>
           <p className="text-on-surface-variant font-medium">
             Please enter your credentials to access the Predictive Architect dashboard.
           </p>
@@ -151,7 +151,7 @@ export function LoginForm() {
 
       {/* Login Button */}
       <button
-        className={`w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-base font-bold text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${isSubmitting ? 'bg-outline opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-primary to-primary-container hover:shadow-primary/20 hover:scale-[1.01] active:scale-[0.99]'
+        className={`w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-xs font-bold text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${isSubmitting ? 'bg-outline opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-primary to-primary-container hover:shadow-primary/20 hover:scale-[1.01] active:scale-[0.99]'
           }`}
         type="submit"
         disabled={isSubmitting}
@@ -161,7 +161,7 @@ export function LoginForm() {
         ) : (
           <>
             Sign In to Dashboard
-            <span className="material-symbols-outlined ml-2 text-xl" data-icon="arrow_forward">
+            <span className="material-symbols-outlined ml-2 text-xs" data-icon="arrow_forward">
               arrow_forward
             </span>
           </>

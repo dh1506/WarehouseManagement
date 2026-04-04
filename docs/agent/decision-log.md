@@ -343,3 +343,17 @@
 **Context:** Category search can legitimately return child categories without their parents in the current result set. The tree table previously traversed only from `parentId = null`, so matching child rows such as `Snacks` were hidden even when the API/service returned them correctly.  
 **Decision:** Normalize any category whose parent is absent from the current dataset to a temporary root when building the flattened tree in `CategoryTableV2`.  
 **Rationale:** This preserves the hierarchy UI for full lists while ensuring search results remain visible when only descendant matches are returned.
+
+## DEC-070 - Role Permissions page uses advanced module permission matrix
+
+**Date:** 2026-04-03  
+**Context:** The Role Permissions page previously showed a simple 2-column toggle table (sidebar page visibility only). Users need the same granular View/Create/Edit/Delete/Approve matrix with access level computation as the Advanced Permissions page.  
+**Decision:** Replace the right pane of `RolePermissions.tsx` with the full 7-column advanced module permission matrix (System Module, View, Create, Edit, Delete, Approve, Access Level), including filter input, detailed/compact view toggle, and role context bar. The component now uses `useAdvancedRolePermissions` and `useUpdateAdvancedPermissions` hooks instead of the legacy `useRolePermissions`/`useUpdateRolePermissions` hooks. The left role list pane and all role CRUD dialogs remain unchanged.  
+**Rationale:** Unifies the permission editing experience across both pages, gives role administrators the same granular control as the advanced permission screen, and reuses the existing advanced permission service which already maps to the same backend contract (`PUT /api/roles/:id/permissions`).
+
+## DEC-071 - Permission enforcement changed from toast-blocking to UI-hiding
+
+**Date:** 2026-04-03  
+**Context:** Permission checks across modules (User Management, Product Management, Product Settings, Categories) were using a "show button, block on click with toast error" pattern. This violated the principle that users should not see controls they cannot use.  
+**Decision:** Replace all toast-based permission guards with conditional rendering: action buttons (Create, Edit, Delete, Import, Export, Lock, Reset Password, Status Toggle) are now hidden entirely when the user lacks the corresponding permission. Handler functions no longer check permissions or show "Access denied" toasts — they assume the button would not be visible if the action was unauthorized.  
+**Rationale:** This aligns with standard UX expectations: invisible controls mean "you don't have access" rather than "you can see it but it won't work." It also reduces code duplication by removing redundant permission checks from both handlers and form submit callbacks.
