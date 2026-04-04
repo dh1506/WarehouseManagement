@@ -5,110 +5,336 @@ import type {
   ProductReferenceListResponse,
   ProductReferenceType,
 } from '@/features/productSettings/types/referenceType';
+import type { ApiResponse } from '@/types/api';
+import apiClient from './apiClient';
+import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
-let PRODUCT_REFERENCES: ProductReferenceItem[] = [
-  {
-    id: 'unit-1',
-    code: 'PCS',
-    name: 'Piece',
-    description: 'Đơn vị chiếc cho sản phẩm đóng gói riêng lẻ.',
-    type: 'unit',
-    status: 'active',
-    usageCount: 128,
-    createdAt: '2026-03-01T08:00:00Z',
-    updatedAt: '2026-03-26T08:00:00Z',
-  },
-  {
-    id: 'unit-2',
-    code: 'BOX',
-    name: 'Box',
-    description: 'Đơn vị thùng cho các SKU lưu kho theo kiện.',
-    type: 'unit',
-    status: 'active',
-    usageCount: 64,
-    createdAt: '2026-03-01T08:00:00Z',
-    updatedAt: '2026-03-26T08:00:00Z',
-  },
-  {
-    id: 'unit-3',
-    code: 'PALLET',
-    name: 'Pallet',
-    description: 'Đơn vị pallet cho hàng cồng kềnh và nhập container.',
-    type: 'unit',
-    status: 'inactive',
-    usageCount: 12,
-    createdAt: '2026-03-03T08:00:00Z',
-    updatedAt: '2026-03-22T09:00:00Z',
-  },
-  {
-    id: 'brand-1',
-    code: 'ACME',
-    name: 'ACME Industrial',
-    description: 'Nhà cung cấp thiết bị lưu kho công nghiệp.',
-    type: 'brand',
-    status: 'active',
-    usageCount: 38,
-    createdAt: '2026-03-02T08:00:00Z',
-    updatedAt: '2026-03-25T10:00:00Z',
-  },
-  {
-    id: 'brand-2',
-    code: 'NOVA',
-    name: 'Nova Tech',
-    description: 'Thương hiệu điện tử và cảm biến theo dõi kho.',
-    type: 'brand',
-    status: 'active',
-    usageCount: 52,
-    createdAt: '2026-03-02T08:00:00Z',
-    updatedAt: '2026-03-27T11:00:00Z',
-  },
-  {
-    id: 'brand-3',
-    code: 'RIVER',
-    name: 'River Safety',
-    description: 'Nhà sản xuất đồ bảo hộ và vật tư an toàn kho.',
-    type: 'brand',
-    status: 'inactive',
-    usageCount: 9,
-    createdAt: '2026-03-05T08:00:00Z',
-    updatedAt: '2026-03-19T07:00:00Z',
-  },
-];
+interface PaginationApiModel {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
-let nextReferenceId = 100;
+interface ReferenceApiItem {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  _count?: {
+    products?: number;
+  };
+}
 
-const delay = async (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+interface UnitApiItem extends ReferenceApiItem {
+  uom_type: string;
+}
+
+interface UnitListApiData {
+  units_of_measure: UnitApiItem[];
+  pagination: PaginationApiModel;
+}
+
+interface BrandListApiData {
+  brands: ReferenceApiItem[];
+  pagination: PaginationApiModel;
+}
+
+interface ManufacturerListApiData {
+  manufacturers: ReferenceApiItem[];
+  pagination: PaginationApiModel;
+}
+
+interface SupplierProductApiItem {
+  id: number;
+  code: string;
+  name: string;
+}
+
+interface SupplierProductRelationApiItem {
+  supplier_sku?: string | null;
+  purchase_price?: number | null;
+  is_primary?: boolean | null;
+  product: SupplierProductApiItem;
+}
+
+interface SupplierApiItem extends ReferenceApiItem {
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  productSuppliers?: SupplierProductRelationApiItem[];
+}
+
+interface SupplierListApiData {
+  suppliers: SupplierApiItem[];
+  pagination: PaginationApiModel;
+}
+
+function unwrapApiData<T>(response: unknown): T {
+  if (response && typeof response === 'object' && 'data' in response) {
+    const level1 = (response as { data: unknown }).data;
+    if (level1 && typeof level1 === 'object' && 'data' in level1) {
+      return (level1 as { data: T }).data;
+    }
+
+    return level1 as T;
+  }
+
+  return response as T;
+}
+
+function mapReference(item: ReferenceApiItem, type: ProductReferenceType): ProductReferenceItem {
+  return {
+    id: String(item.id),
+    code: item.code,
+    name: item.name,
+    description: '',
+    type,
+    status: item.is_active ? 'active' : 'inactive',
+    usageCount: item._count?.products ?? 0,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+function mapSupplier(item: SupplierApiItem): ProductReferenceItem {
+  return {
+    id: String(item.id),
+    code: item.code,
+    name: item.name,
+    description: item.address ?? '',
+    type: 'supplier',
+    status: item.is_active ? 'active' : 'inactive',
+    usageCount: item.productSuppliers?.length ?? 0,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    contactPerson: item.contact_person ?? '',
+    phone: item.phone ?? '',
+    email: item.email ?? '',
+    address: item.address ?? '',
+  };
+}
 
 export async function getProductReferences(
   params: ProductReferenceListParams,
 ): Promise<ProductReferenceListResponse> {
-  await delay(250);
-
-  let filtered = PRODUCT_REFERENCES.filter((item) => item.type === params.type);
-
-  if (params.search) {
-    const keyword = params.search.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.name.toLowerCase().includes(keyword) ||
-        item.code.toLowerCase().includes(keyword) ||
-        item.description.toLowerCase().includes(keyword),
-    );
-  }
-
-  if (params.status && params.status !== 'all') {
-    filtered = filtered.filter((item) => item.status === params.status);
-  }
-
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 10;
-  const start = (page - 1) * pageSize;
+  const search = params.search?.trim();
+  const isActive = params.status && params.status !== 'all' ? params.status === 'active' : undefined;
+
+  if (params.type === 'unit') {
+    const response = await apiClient.get<ApiResponse<UnitListApiData>>('/api/units-of-measure', {
+      params: {
+        page,
+        limit: pageSize,
+        search,
+        is_active: isActive,
+      },
+    });
+    const payload = unwrapApiData<UnitListApiData>(response);
+    const mappedUnits = payload.units_of_measure.map((item) => mapReference(item, 'unit'));
+
+    if (search && mappedUnits.length === 0) {
+      const allUnits = await collectPaginatedItems({
+        fetchPage: async (fallbackPage, fallbackLimit) => {
+          const fallbackResponse = await apiClient.get<ApiResponse<UnitListApiData>>('/api/units-of-measure', {
+            params: {
+              page: fallbackPage,
+              limit: fallbackLimit,
+              is_active: isActive,
+            },
+          });
+
+          return unwrapApiData<UnitListApiData>(fallbackResponse);
+        },
+        getItems: (fallbackPayload) => fallbackPayload.units_of_measure.map((item) => mapReference(item, 'unit')),
+        getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+      });
+
+      const fallbackResult = paginateFallbackItems(
+        allUnits.filter((item) => matchesCaseInsensitiveSearch(search, [item.code, item.name])),
+        page,
+        pageSize,
+      );
+
+      return {
+        data: fallbackResult.data,
+        total: fallbackResult.total,
+        page: fallbackResult.page,
+        pageSize: fallbackResult.pageSize,
+      };
+    }
+
+    return {
+      data: mappedUnits,
+      total: payload.pagination.total,
+      page: payload.pagination.page,
+      pageSize: payload.pagination.limit,
+    };
+  }
+
+  if (params.type === 'manufacturer') {
+    const response = await apiClient.get<ApiResponse<ManufacturerListApiData>>('/api/manufacturers', {
+      params: {
+        page,
+        limit: pageSize,
+        search,
+        is_active: isActive,
+      },
+    });
+    const payload = unwrapApiData<ManufacturerListApiData>(response);
+    const mappedManufacturers = payload.manufacturers.map((item) => mapReference(item, 'manufacturer'));
+
+    if (search && mappedManufacturers.length === 0) {
+      const allManufacturers = await collectPaginatedItems({
+        fetchPage: async (fallbackPage, fallbackLimit) => {
+          const fallbackResponse = await apiClient.get<ApiResponse<ManufacturerListApiData>>('/api/manufacturers', {
+            params: {
+              page: fallbackPage,
+              limit: fallbackLimit,
+              is_active: isActive,
+            },
+          });
+
+          return unwrapApiData<ManufacturerListApiData>(fallbackResponse);
+        },
+        getItems: (fallbackPayload) => fallbackPayload.manufacturers.map((item) => mapReference(item, 'manufacturer')),
+        getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+      });
+
+      const fallbackResult = paginateFallbackItems(
+        allManufacturers.filter((item) => matchesCaseInsensitiveSearch(search, [item.code, item.name])),
+        page,
+        pageSize,
+      );
+
+      return {
+        data: fallbackResult.data,
+        total: fallbackResult.total,
+        page: fallbackResult.page,
+        pageSize: fallbackResult.pageSize,
+      };
+    }
+
+    return {
+      data: mappedManufacturers,
+      total: payload.pagination.total,
+      page: payload.pagination.page,
+      pageSize: payload.pagination.limit,
+    };
+  }
+
+  if (params.type === 'supplier') {
+    const response = await apiClient.get<ApiResponse<SupplierListApiData>>('/api/suppliers', {
+      params: {
+        page,
+        limit: pageSize,
+        search,
+        is_active: isActive,
+      },
+    });
+    const payload = unwrapApiData<SupplierListApiData>(response);
+    const mappedSuppliers = payload.suppliers.map(mapSupplier);
+
+    if (search && mappedSuppliers.length === 0) {
+      const allSuppliers = await collectPaginatedItems({
+        fetchPage: async (fallbackPage, fallbackLimit) => {
+          const fallbackResponse = await apiClient.get<ApiResponse<SupplierListApiData>>('/api/suppliers', {
+            params: {
+              page: fallbackPage,
+              limit: fallbackLimit,
+              is_active: isActive,
+            },
+          });
+
+          return unwrapApiData<SupplierListApiData>(fallbackResponse);
+        },
+        getItems: (fallbackPayload) => fallbackPayload.suppliers.map(mapSupplier),
+        getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+      });
+
+      const fallbackResult = paginateFallbackItems(
+        allSuppliers.filter((item) =>
+          matchesCaseInsensitiveSearch(search, [
+            item.code,
+            item.name,
+            item.contactPerson,
+            item.phone,
+            item.email,
+            item.address,
+          ]),
+        ),
+        page,
+        pageSize,
+      );
+
+      return {
+        data: fallbackResult.data,
+        total: fallbackResult.total,
+        page: fallbackResult.page,
+        pageSize: fallbackResult.pageSize,
+      };
+    }
+
+    return {
+      data: mappedSuppliers,
+      total: payload.pagination.total,
+      page: payload.pagination.page,
+      pageSize: payload.pagination.limit,
+    };
+  }
+
+  const response = await apiClient.get<ApiResponse<BrandListApiData>>('/api/brands', {
+    params: {
+      page,
+      limit: pageSize,
+      search,
+      is_active: isActive,
+    },
+  });
+  const payload = unwrapApiData<BrandListApiData>(response);
+  const mappedBrands = payload.brands.map((item) => mapReference(item, 'brand'));
+
+  if (search && mappedBrands.length === 0) {
+    const allBrands = await collectPaginatedItems({
+      fetchPage: async (fallbackPage, fallbackLimit) => {
+        const fallbackResponse = await apiClient.get<ApiResponse<BrandListApiData>>('/api/brands', {
+          params: {
+            page: fallbackPage,
+            limit: fallbackLimit,
+            is_active: isActive,
+          },
+        });
+
+        return unwrapApiData<BrandListApiData>(fallbackResponse);
+      },
+      getItems: (fallbackPayload) => fallbackPayload.brands.map((item) => mapReference(item, 'brand')),
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+    });
+
+    const fallbackResult = paginateFallbackItems(
+      allBrands.filter((item) => matchesCaseInsensitiveSearch(search, [item.code, item.name])),
+      page,
+      pageSize,
+    );
+
+    return {
+      data: fallbackResult.data,
+      total: fallbackResult.total,
+      page: fallbackResult.page,
+      pageSize: fallbackResult.pageSize,
+    };
+  }
 
   return {
-    data: filtered.slice(start, start + pageSize),
-    total: filtered.length,
-    page,
-    pageSize,
+    data: mappedBrands,
+    total: payload.pagination.total,
+    page: payload.pagination.page,
+    pageSize: payload.pagination.limit,
   };
 }
 
@@ -121,48 +347,104 @@ export async function createProductReference(
   type: ProductReferenceType,
   payload: ProductReferenceFormValues,
 ): Promise<ProductReferenceItem> {
-  await delay(300);
+  if (type === 'unit') {
+    const response = await apiClient.post<ApiResponse<UnitApiItem>>('/api/units-of-measure', {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      uom_type: 'QUANTITY',
+      is_active: payload.status === 'active',
+    });
 
-  const newItem: ProductReferenceItem = {
-    id: `${type}-${nextReferenceId++}`,
-    type,
+    return mapReference(unwrapApiData<UnitApiItem>(response), 'unit');
+  }
+
+  if (type === 'manufacturer') {
+    const response = await apiClient.post<ApiResponse<ReferenceApiItem>>('/api/manufacturers', {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      is_active: payload.status === 'active',
+    });
+
+    return mapReference(unwrapApiData<ReferenceApiItem>(response), 'manufacturer');
+  }
+
+  if (type === 'supplier') {
+    const response = await apiClient.post<ApiResponse<SupplierApiItem>>('/api/suppliers', {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      contact_person: payload.contactPerson?.trim() || undefined,
+      phone: payload.phone?.trim() || undefined,
+      email: payload.email?.trim() || undefined,
+      address: payload.address?.trim() || undefined,
+      is_active: payload.status === 'active',
+    });
+
+    return mapSupplier(unwrapApiData<SupplierApiItem>(response));
+  }
+
+  const response = await apiClient.post<ApiResponse<ReferenceApiItem>>('/api/brands', {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    description: payload.description.trim(),
-    status: payload.status,
-    usageCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    is_active: payload.status === 'active',
+  });
 
-  PRODUCT_REFERENCES = [newItem, ...PRODUCT_REFERENCES];
-  return newItem;
+  return mapReference(unwrapApiData<ReferenceApiItem>(response), 'brand');
 }
 
 export async function updateProductReference(
   id: string,
+  type: ProductReferenceType,
   payload: ProductReferenceFormValues,
 ): Promise<ProductReferenceItem> {
-  await delay(300);
-
-  const index = PRODUCT_REFERENCES.findIndex((item) => item.id === id);
-  if (index === -1) {
-    throw new Error('Không tìm thấy danh mục tham chiếu cần cập nhật.');
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    throw new Error('ID tham chiếu không hợp lệ.');
   }
 
-  PRODUCT_REFERENCES[index] = {
-    ...PRODUCT_REFERENCES[index],
+  if (type === 'unit') {
+    const response = await apiClient.patch<ApiResponse<UnitApiItem>>(`/api/units-of-measure/${numericId}`, {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      is_active: payload.status === 'active',
+    });
+
+    return mapReference(unwrapApiData<UnitApiItem>(response), 'unit');
+  }
+
+  if (type === 'manufacturer') {
+    const response = await apiClient.patch<ApiResponse<ReferenceApiItem>>(`/api/manufacturers/${numericId}`, {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      is_active: payload.status === 'active',
+    });
+
+    return mapReference(unwrapApiData<ReferenceApiItem>(response), 'manufacturer');
+  }
+
+  if (type === 'supplier') {
+    const response = await apiClient.patch<ApiResponse<SupplierApiItem>>(`/api/suppliers/${numericId}`, {
+      code: payload.code.trim().toUpperCase(),
+      name: payload.name.trim(),
+      contact_person: payload.contactPerson?.trim() || null,
+      phone: payload.phone?.trim() || null,
+      email: payload.email?.trim() || null,
+      address: payload.address?.trim() || null,
+      is_active: payload.status === 'active',
+    });
+
+    return mapSupplier(unwrapApiData<SupplierApiItem>(response));
+  }
+
+  const response = await apiClient.patch<ApiResponse<ReferenceApiItem>>(`/api/brands/${numericId}`, {
     code: payload.code.trim().toUpperCase(),
     name: payload.name.trim(),
-    description: payload.description.trim(),
-    status: payload.status,
-    updatedAt: new Date().toISOString(),
-  };
+    is_active: payload.status === 'active',
+  });
 
-  return { ...PRODUCT_REFERENCES[index] };
+  return mapReference(unwrapApiData<ReferenceApiItem>(response), 'brand');
 }
 
 export async function deleteProductReference(id: string): Promise<void> {
-  await delay(250);
-  PRODUCT_REFERENCES = PRODUCT_REFERENCES.filter((item) => item.id !== id);
+  void id;
+  throw new Error('Backend hiện chưa hỗ trợ xóa đơn vị tính, thương hiệu, hoặc nhà sản xuất.');
 }

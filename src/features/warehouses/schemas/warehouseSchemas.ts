@@ -21,6 +21,8 @@ export const warehouseLocationFormSchema = z
     code: z.string().trim().min(2, 'Mã vị trí phải có ít nhất 2 ký tự').max(30, 'Mã vị trí tối đa 30 ký tự'),
     zone: z.string().trim().min(1, 'Vui lòng nhập zone').max(20, 'Zone tối đa 20 ký tự'),
     aisle: z.string().trim().min(1, 'Vui lòng nhập aisle').max(20, 'Aisle tối đa 20 ký tự'),
+    rack: z.string().trim().min(1, 'Vui lòng nhập rack').max(20, 'Rack tối đa 20 ký tự'),
+    level: z.string().trim().min(1, 'Vui lòng nhập level').max(20, 'Level tối đa 20 ký tự'),
     bin: z.string().trim().min(1, 'Vui lòng nhập bin').max(20, 'Bin tối đa 20 ký tự'),
     capacity: z.number().min(1, 'Sức chứa phải lớn hơn 0'),
     currentLoad: z.number().min(0, 'Tải hiện tại không hợp lệ'),
@@ -40,20 +42,22 @@ export const warehouseHubFormSchema = z.object({
     .max(20, 'Mã kho tối đa 20 ký tự')
     .regex(/^[A-Z0-9_-]+$/i, 'Mã kho chỉ được chứa chữ, số, gạch dưới hoặc gạch ngang'),
   name: z.string().trim().min(3, 'Tên kho quá ngắn').max(120, 'Tên kho tối đa 120 ký tự'),
-  location: z.string().trim().min(3, 'Vui lòng nhập khu vực kho').max(120, 'Tối đa 120 ký tự'),
-  tier: z.string().trim().min(2, 'Tier tối thiểu 2 ký tự').max(40, 'Tier tối đa 40 ký tự'),
   totalSpace: z.number().min(1000, 'Tổng dung tích phải lớn hơn 1000 m3'),
   usedCapacity: z.number().min(0, 'Dung tích sử dụng không hợp lệ').max(100, 'Dung tích tối đa là 100%'),
+  categoryIds: z.array(z.string().trim().min(1)).min(1, 'Kho phải chọn ít nhất 1 danh mục bảo quản'),
 });
 
 export const warehouseZoneFormSchema = z.object({
   code: z.string().trim().min(2, 'Mã khu vực quá ngắn').max(20, 'Mã khu vực tối đa 20 ký tự'),
   name: z.string().trim().min(3, 'Tên khu vực quá ngắn').max(120, 'Tên khu vực tối đa 120 ký tự'),
   type: z.string().trim().min(2, 'Vui lòng nhập loại khu vực').max(60, 'Loại khu vực tối đa 60 ký tự'),
-  rows: z.number().int().min(1, 'Rows tối thiểu là 1').max(60, 'Rows tối đa là 60'),
-  shelves: z.number().int().min(1, 'Shelves tối thiểu là 1').max(60, 'Shelves tối đa là 60'),
+  racks: z.number().int().min(1, 'Racks tối thiểu là 1').max(30, 'Racks tối đa là 30'),
   levels: z.number().int().min(1, 'Levels tối thiểu là 1').max(20, 'Levels tối đa là 20'),
-  occupancy: z.number().min(0, 'Occupancy không hợp lệ').max(100, 'Occupancy tối đa là 100%'),
+  bins: z.number().int().min(1, 'Bins tối thiểu là 1').max(30, 'Bins tối đa là 30'),
+  categoryIds: z.array(z.string().trim().min(1)).min(1, 'Zone phải chọn ít nhất 1 danh mục trong phạm vi kho'),
+}).refine((data) => data.racks * data.levels * data.bins <= 500, {
+  message: 'Tối đa 500 ô bin cho mỗi zone trong một lần cấu hình.',
+  path: ['bins'],
 });
 
 export const binCapacityFormSchema = z
@@ -62,6 +66,8 @@ export const binCapacityFormSchema = z
     currentLoad: z.number().int().min(0, 'Tải hiện tại không hợp lệ'),
     items: z.number().int().min(0, 'Số lượng kiện không hợp lệ'),
     productCount: z.number().int().min(0, 'Số SKU không hợp lệ'),
+    categoryId: z.string().trim().min(1, 'Vui lòng chọn danh mục cho ô lưu trữ'),
+    productId: z.string().trim().min(1, 'Vui lòng chọn sản phẩm cụ thể cho ô lưu trữ'),
   })
   .refine((data) => data.currentLoad <= data.capacity, {
     path: ['currentLoad'],

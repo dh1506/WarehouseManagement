@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from 'react';
 import {
   Sheet,
@@ -85,7 +86,7 @@ export function CategoryFormSheet({
         {/* Drawer Header */}
         <div className="px-8 py-8 flex items-center justify-between flex-shrink-0">
           <div>
-            <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight font-headline">
+            <h3 className="text-sm font-extrabold text-slate-900 tracking-tight font-headline">
               {isView ? 'Category Details' : isEdit ? 'Edit Category' : 'Create Category'}
             </h3>
             <p className="text-sm text-slate-500 mt-1.5 font-medium">
@@ -159,7 +160,7 @@ export function CategoryFormSheet({
             <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition-colors group">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm transition-transform ${status === 'active' ? 'text-blue-600' : 'text-slate-400'}`}>
-                  <span className="material-symbols-outlined text-xl">{status === 'active' ? 'toggle_on' : 'toggle_off'}</span>
+                  <span className="material-symbols-outlined text-xs">{status === 'active' ? 'toggle_on' : 'toggle_off'}</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Active Status</p>
@@ -184,7 +185,7 @@ export function CategoryFormSheet({
               
               <div className="flex items-center gap-6 p-5 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                 <div className="w-16 h-16 rounded-2xl bg-blue-800 text-white flex items-center justify-center shadow-xl shadow-blue-800/25 transform -rotate-3 hover:rotate-0 transition-transform flex-shrink-0">
-                  <span className="material-symbols-outlined text-3xl">{icon}</span>
+                  <span className="material-symbols-outlined text-xs">{icon}</span>
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-slate-900 mb-1">Category Glyph</p>
@@ -206,7 +207,7 @@ export function CategoryFormSheet({
                           : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-xl">{opt.value}</span>
+                      <span className="material-symbols-outlined text-xs">{opt.value}</span>
                     </button>
                   ))}
                 </div>

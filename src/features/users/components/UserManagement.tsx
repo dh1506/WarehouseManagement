@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useUserRoleOptions, useUsers } from '../hooks/useUsers';
 import { UserTable } from './UserTable';
@@ -7,12 +8,18 @@ import { LockUserDialog, ResetPasswordDialog } from './UserActionDialogs';
 import { exportUsersToExcel } from '../utils/exportUsers';
 import { getUsers } from '@/services/userService';
 import type { UserItem } from '@/services/userService';
+import { useToast } from '@/hooks/use-toast';
+import { usePermission } from '@/hooks/usePermission';
 
 const PAGE_LIMIT = 10;
 
 export function UserManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
+  const canCreateUser = usePermission('users:create');
+  const canUpdateUser = usePermission('users:update');
+
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserItem['status'] | ''>('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -29,6 +36,7 @@ export function UserManagement() {
   const [resetPwdTarget, setResetPwdTarget] = useState<UserItem | null>(null);
 
   // Debounce tìm kiếm
+  const searchInput = searchParams.get('search') ?? '';
   const debouncedSearch = useDebounce(searchInput, 400);
   const roleOptionsQuery = useUserRoleOptions();
 
@@ -54,20 +62,33 @@ export function UserManagement() {
   const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
+    const nextValue = e.target.value;
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextValue.trim()) {
+      nextParams.set('search', nextValue);
+    } else {
+      nextParams.delete('search');
+    }
+
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
     setPage(1);
     setSelectedUserIds([]);
     setIsHeaderChecked(false);
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   const handleReset = useCallback(() => {
-    setSearchInput('');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('search');
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
     setRoleFilter('');
     setStatusFilter('');
     setPage(1);
     setSelectedUserIds([]);
     setIsHeaderChecked(false);
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setSelectedUserIds((prev) => prev.filter((id) => currentUserIdSet.has(id)));
@@ -107,8 +128,24 @@ export function UserManagement() {
   );
 
   // --- Handlers ---
-  const handleAddUser = () => { setEditUser(null); setSheetOpen(true); };
-  const handleEditUser = useCallback((user: UserItem) => { setEditUser(user); setSheetOpen(true); }, []);
+  const handleAddUser = () => {
+    setEditUser(null);
+    setSheetOpen(true);
+  };
+
+  const handleEditUser = useCallback((user: UserItem) => {
+    setEditUser(user);
+    setSheetOpen(true);
+  }, [toast]);
+
+  const handleLockUser = useCallback((user: UserItem) => {
+    setLockTarget(user);
+  }, [toast]);
+
+  const handleResetPassword = useCallback((user: UserItem) => {
+    setResetPwdTarget(user);
+  }, [toast]);
+
   const handleCloseSheet = () => { setSheetOpen(false); setEditUser(null); };
 
   const handleExport = async () => {
@@ -142,12 +179,13 @@ export function UserManagement() {
       {/* Page Title & Actions */}
       <div className="flex-none flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">User Management</h2>
-          <p className="text-gray-500 mt-1">Oversee enterprise access and role definitions.</p>
+          <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">User Management</h2>
+          <p className="text-sm text-gray-500 mt-1">Oversee enterprise access and role definitions.</p>
         </div>
         <button
           onClick={handleAddUser}
-          className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+          disabled={!canCreateUser}
+          className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-sm"
         >
           <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
           Add User
@@ -229,8 +267,11 @@ export function UserManagement() {
             onToggleSelectAll={handleToggleSelectAll}
             onToggleSelectUser={handleToggleSelectUser}
             onEdit={handleEditUser}
-            onLock={setLockTarget}
-            onResetPassword={setResetPwdTarget}
+            onLock={handleLockUser}
+            onResetPassword={handleResetPassword}
+            canEdit={canUpdateUser}
+            canLock={canUpdateUser}
+            canResetPassword={canUpdateUser}
           />
         </div>
 

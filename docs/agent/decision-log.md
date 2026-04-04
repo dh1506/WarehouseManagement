@@ -1,5 +1,12 @@
 # Decision Log
 
+## DEC-056 - Low occupancy is now a first-class warning tier
+
+**Date:** 2026-04-02  
+**Context:** The warehouse UI needed a clearer warning state for low-capacity areas, and the existing partial range was too broad for operational attention.  
+**Decision:** Introduce a dedicated low tier for 1-20% occupancy, keep partial at 21-60%, and surface warning badges/colors across warehouse, zone, rack, and bin UI.  
+**Rationale:** This makes low-capacity areas easier to spot and keeps the same rules consistent across all warehouse views.
+
 ## DEC-001 - Mock services for frontend progress
 
 **Date:** 2026-03-28  
@@ -151,3 +158,202 @@
 **Context:** Yêu cầu nghiệp vụ bỏ trường giới tính trong luồng add/update user; full_name chỉ cần không rỗng (kể cả trim), phone phải theo chuẩn số Việt Nam.  
 **Decision:** Xoá `gender` khỏi FE user form/schema/payload và cập nhật validate `full_name` + `phone` ở cả BE (`user.schema.ts`) và FE (`features/users/schemas/userSchema.ts`). Đồng thời thêm field `phone` vào payload/user model FE và form UI add/update.  
 **Rationale:** Đồng bộ behavior nhập liệu giữa FE và BE theo yêu cầu business, giảm sai lệch validate và đảm bảo dữ liệu sạch trước khi lưu.
+
+## DEC-045 - Categories switched from mock data to real API contract
+
+**Date:** 2026-04-01  
+**Context:** FE categories module was still driven by in-memory mock data even though backend already exposes product-category CRUD routes and hierarchical counters.  
+**Decision:** Add src/services/categoryApiService.ts and repoint category hooks/page flow to real API calls for list/detail/create/update/delete. Legacy mock files remain only as isolated references.  
+**Rationale:** Removes mock drift and makes category management use the actual persisted backend source of truth.
+
+## DEC-046 - Category status remains a backend dependency
+
+**Date:** 2026-04-01  
+**Context:** The AC includes active/inactive display and status mutation, but current backend category schema/routes do not expose status/is_active fields or a dedicated status endpoint.  
+**Decision:** Ship the API-backed categories page without fake status mutation. FE renders status as unknown and documents the contract gap instead of inventing unsupported persistence.  
+**Rationale:** Keeps FE behavior honest to the current API contract and avoids misleading users with non-persisted UI state.
+
+- 2026-04-01: Categories V2 removed status UI/export because backend category contract still has no persisted status field; pagination footer aligned to User Management interaction pattern; delete confirmation dialog refreshed for clearer destructive UX.
+
+- 2026-04-01: Standardized the API-backed Categories V2 module to English for all user-facing copy, validation messages, dialog content, and date formatting (en-US).
+
+- 2026-04-01: Categories V2 layout now uses fixed-height flex sections so only the table content scrolls; table header is sticky and pagination stays pinned at the bottom of the page content area.
+
+- 2026-04-01: Product Management list layout now matches Categories with internal table scrolling, sticky table headers, and a bottom-pinned pagination footer using the same numbered paging pattern.
+
+- 2026-04-01: Products module now uses real APIs for list/detail/create/update plus category/brand/unit/manufacturer option loading through productApiService; delete was removed from UI because backend currently exposes no DELETE /api/products endpoint.
+
+## DEC-047 - Product supporting masters switched from mock to real API endpoints
+
+**Date:** 2026-04-01  
+**Context:** Product supporting masters (`unit`, `brand`) were still using in-memory mock arrays and did not include manufacturer in the same management flow.  
+**Decision:** Replace `productReferenceService.ts` with API-backed calls to `/api/units-of-measure`, `/api/brands`, and `/api/manufacturers`; extend FE type and UI tabs to support `manufacturer`.  
+**Rationale:** Keeps supporting masters aligned with backend persistence and removes data drift before Sprint 2 transaction modules.
+
+## DEC-048 - Warehouse and location master CRUD switched to backend contract
+
+**Date:** 2026-04-01  
+**Context:** `warehouseService.ts` was using local mutable mock datasets for warehouses and locations while backend routes already exist.  
+**Decision:** Map FE warehouse/location queries and mutations to `/api/warehouses` and `/api/warehouses/locations*`, including envelope unwrapping and status mapping.  
+**Rationale:** Ensures master data in Warehouse Management reflects persisted backend state and keeps architecture boundary `services -> hooks -> feature UI` unchanged.
+
+## DEC-049 - Keep unsupported delete actions as explicit backend dependency
+
+**Date:** 2026-04-01  
+**Context:** Current backend contracts for product references and warehouses expose GET/POST/PATCH only (no DELETE routes).  
+**Decision:** Keep delete mutations in FE flow but return explicit contract error messages from service layer instead of fake local deletion.  
+**Rationale:** Prevents misleading users with non-persisted destructive actions while preserving current UI structure and scope.
+
+## DEC-050 - Fix role permission matrix 404 without backend changes
+
+**Date:** 2026-04-01  
+**Context:** FE permission matrix was calling `GET /api/roles/:id/permissions` and `PATCH /api/roles/:id/permissions`, but backend currently exposes `GET /api/roles/:id` and `PUT /api/roles/:id/permissions`.  
+**Decision:** Read assigned permissions from `GET /api/roles/:id` response and save matrix via `PUT /api/roles/:id/permissions`; also align role update to `PATCH /api/roles/:id`.  
+**Rationale:** Removes runtime 404 immediately while keeping FE consistent with current deployed backend contract.
+
+## DEC-051 - Advanced permissions projected from sidebar modules and real role permissions
+
+**Date:** 2026-04-01  
+**Context:** Advanced Permissions UI was entirely mock-backed and disconnected from real role assignments.  
+**Decision:** Replace mock service with API-backed projection: fetch role + permission catalog, map backend module/actions to sidebar modules, and persist through `PUT /api/roles/:id/permissions`.  
+**Rationale:** Keeps advanced permission UX aligned with actual access control state and enforces Sprint 1 requirement that advanced modules reflect sidebar pages.
+
+## DEC-052 - Implement operations placeholders as contract-safe insight modules
+
+**Date:** 2026-04-02  
+**Context:** Routes `/import-export`, `/inventory`, `/ai-forecast` were placeholders while backend currently has no dedicated transaction/forecast endpoints in contract.  
+**Decision:** Implement these modules as production-ready insight screens using only existing APIs (`/api/products`, `/api/warehouses`, `/api/warehouses/locations/search`) and keep unsupported actions (create import/export request, persistent forecast actions) as explicit backend dependencies with clear user feedback.  
+**Rationale:** Unblocks frontend navigation and operational visibility without inventing unsupported API shapes, while preserving architecture boundaries `services -> feature hooks -> feature UI`.
+
+## DEC-053 - Warehouse Hub shows both raw location count and grouped zone count
+
+**Date:** 2026-04-02  
+**Context:** User validated database and found 9 rows in `warehouse_locations`, but Hub card showed only 3 which looked like API data loss.  
+**Decision:** Keep current zone aggregation behavior for Hub visualization, and add explicit `totalLocations` metric alongside `totalZones` in Hub summary UI.  
+**Rationale:** Preserves the intended zone-centric UX while making raw data volume visible and auditable.
+
+## DEC-054 - Keep zone aggregation labeling explicit in UI
+
+**Date:** 2026-04-02  
+**Context:** Zone list can be interpreted as raw row list if not labeled.  
+**Decision:** Add a clear contextual label `Grouped by zone code` at the zone section heading.  
+**Rationale:** Reduces interpretation ambiguity during QA/DB cross-check without changing backend contract or data model.
+
+## DEC-055 - Warehouse zone configuration now provisions real location slots
+
+**Date:** 2026-04-02  
+**Context:** Zone create/edit form accepted `rows/shelves/levels` but service previously created only one placeholder location, causing mismatch between UI intent and persisted backend data.  
+**Decision:** Re-implement zone create/update in `warehouseService.ts` so zone structure is materialized through `/api/warehouses/locations` records (contract-backed aggregation model), with guard limit `<= 500` generated locations per request.  
+**Rationale:** Keeps FE truthful to backend storage design (`warehouse_locations` is source of truth for zones) while preserving existing architecture and avoiding fake zone persistence.
+
+## DEC-056 - Warehouse location form aligned to DB coordinate model
+
+**Date:** 2026-04-02  
+**Context:** FE location form omitted `rack` and `level`, while backend schema and DB design include `rack_code` and `level_code` and hub/zone visualization relies on these coordinates.  
+**Decision:** Extend FE location type/schema/form/service payload with `rack` and `level`, and update location table coordinates display accordingly.  
+**Rationale:** Improves contract fidelity, keeps zone/bin mapping consistent, and prevents partial coordinate data entry in warehouse administration flow.
+
+## DEC-063 - Product export mirrors user-selection behavior with product-shaped columns
+
+**Date:** 2026-04-02  
+**Context:** Product Management needed an export flow similar to User Management without copying the user spreadsheet structure directly.  
+**Decision:** Add row/header checkbox selection to the product list, export selected rows on the current page, and when the header checkbox is active fetch the full filtered product dataset before generating Excel in `features/products/utils/exportProducts.ts`.  
+**Rationale:** Keeps export behavior consistent across admin tables while preserving product-specific fields, labels, and formatting.
+
+## DEC-064 - Product import accepts the same Excel shape as product export
+
+**Date:** 2026-04-02  
+**Context:** User requested product import using the same Excel format currently generated by the product export flow.  
+**Decision:** Add client-side `.xlsx` parsing in `features/products/utils/importProducts.ts`, map exported labels back to current master-data IDs, validate each row with `productFormSchema`, and create products row-by-row from Product Management.  
+**Rationale:** Reuses the approved export shape as the import contract, keeps raw API writes inside existing product mutation flow, and avoids inventing a separate backend import API.
+
+## DEC-057 - Warehouse category scope configured at warehouse level
+
+**Date:** 2026-04-02  
+**Context:** Business rule requires each warehouse to define one-or-many categories eligible for storage before zone/bin configuration. Backend currently has no dedicated warehouse-category mapping endpoint.  
+**Decision:** Add warehouse-level category multi-select in Warehouse Hub form and persist FE scope map by warehouse ID in local storage via `warehouseService.ts`.  
+**Rationale:** Enforces operational rule immediately in FE while keeping backend contract untouched and architecture boundaries intact.
+
+## DEC-058 - Zone category scope is constrained by parent warehouse scope
+
+**Date:** 2026-04-02  
+**Context:** Business rule states zone categories must be a subset of categories configured on the parent warehouse.  
+**Decision:** Extend zone form with category multi-select limited to warehouse scope; service validation rejects out-of-scope category IDs during create/update.  
+**Rationale:** Prevents invalid storage configuration early and keeps zone setup behavior deterministic for downstream bin assignment.
+
+## DEC-059 - Bin assignment enforces single product within allowed category scope
+
+**Date:** 2026-04-02  
+**Context:** Each storage bin must hold one specific product type, and that product must belong to the zone-allowed category set.  
+**Decision:** Add bin inspector fields (`categoryId`, `productId`) with Zod-required validation; on save, service verifies category-in-zone and product-in-category, then stores assignment state per bin in FE local storage.  
+**Rationale:** Implements strict bin-level storage governance now, despite lacking backend persistence fields for product-slot assignment.
+
+## DEC-060 - Warehouse Hub add/edit flow standardized to shadcn Sheet
+
+**Date:** 2026-04-02  
+**Context:** User requested add/edit forms in warehouse area to use side sheet UI instead of modal dialog.  
+**Decision:** Replace warehouse and zone form containers in `WarehouseHub.tsx` from `Dialog` to `Sheet` with the same validation/mutation flow.  
+**Rationale:** Keeps UI interaction consistent with existing admin form patterns in the project and improves data-entry workflow for larger forms.
+
+## DEC-061 - Warehouse card now exposes direct edit/delete actions
+
+**Date:** 2026-04-02  
+**Context:** User requested warehouse edit/delete controls to be visible directly on each warehouse card.  
+**Decision:** Add per-card action buttons (edit/delete) in warehouse hub card grid and keep selection behavior intact.  
+**Rationale:** Reduces extra clicks and aligns action discoverability with card-centric management UX.
+
+## DEC-062 - Category API refreshed on warehouse/zone form open
+
+**Date:** 2026-04-02  
+**Context:** User requested category list must be called when opening create/edit flows for warehouse or zone.  
+**Decision:** Trigger category option refetch whenever warehouse sheet or zone sheet opens in Warehouse Hub.  
+**Rationale:** Ensures form options stay up to date with current category master data.
+
+## DEC-065 - Suppliers are managed inside Product Settings
+
+**Date:** 2026-04-03  
+**Context:** Backend already exposes supplier CRUD routes and FE permission modeling already groups `suppliers` with Product Settings, but the Product Settings UI had no supplier management surface.  
+**Decision:** Extend the existing `ProductReferenceManagement` module with a fourth `Suppliers` tab instead of creating a separate page/module.  
+**Rationale:** This keeps the sprint change scoped, preserves the existing design language, and matches the current page-access and advanced-permission architecture where suppliers belong to Product Settings.
+
+## DEC-066 - User requests are sanitized before hitting `/api/users`
+
+**Date:** 2026-04-03  
+**Context:** User Management was surfacing runtime `400 Bad Request` errors from malformed query/body values such as whitespace-only optional fields or invalid role identifiers, while UI error feedback stayed too generic for debugging.  
+**Decision:** Sanitize user query and mutation payloads in `userService.ts` (trim empty optional strings, normalize empty values to `undefined` or `null`, validate positive `role_id` before submit) and reuse parsed backend error messages in user forms and action dialogs.  
+**Rationale:** This prevents avoidable contract-invalid requests from leaving the frontend and makes any remaining backend validation failures visible with actionable messages.
+
+## DEC-067 - Users header search is now URL-driven and API-backed
+
+**Date:** 2026-04-03  
+**Context:** The shared top-header search input looked interactive but was still a static UI element, so typing there did not affect the Users list or trigger any API search call.  
+**Decision:** Wire the MainLayout header search for `/admin/users` to the shared `search` URL query param, and make `UserManagement` consume that query param as the source of truth for its debounced `/api/users?search=` request.  
+**Rationale:** This keeps the route/page thin, avoids adding duplicate client state, and makes both the header search and page-level search input drive the same real API flow.
+
+## DEC-068 - FE search falls back to case-insensitive local matching when API search returns empty
+
+**Date:** 2026-04-03  
+**Context:** Multiple backend list endpoints accept `search`, but current BE implementations use direct `contains` matching. In practice this can fail for common admin lookups such as typing `snacks` while the stored value is `Snacks`, especially when BE/database collation is case-sensitive.  
+**Decision:** Keep calling the real API search first, but when a search request returns zero rows, fetch the relevant filtered dataset from the same API contract and apply a frontend case-insensitive fallback match before paginating locally.  
+**Rationale:** This preserves the approved API flow, avoids BE changes, and fixes cross-page search reliability for current sprint modules with minimal UI churn.
+
+## DEC-069 - Category search results render orphan matches as temporary roots
+
+**Date:** 2026-04-03  
+**Context:** Category search can legitimately return child categories without their parents in the current result set. The tree table previously traversed only from `parentId = null`, so matching child rows such as `Snacks` were hidden even when the API/service returned them correctly.  
+**Decision:** Normalize any category whose parent is absent from the current dataset to a temporary root when building the flattened tree in `CategoryTableV2`.  
+**Rationale:** This preserves the hierarchy UI for full lists while ensuring search results remain visible when only descendant matches are returned.
+
+## DEC-070 - Role Permissions page uses advanced module permission matrix
+
+**Date:** 2026-04-03  
+**Context:** The Role Permissions page previously showed a simple 2-column toggle table (sidebar page visibility only). Users need the same granular View/Create/Edit/Delete/Approve matrix with access level computation as the Advanced Permissions page.  
+**Decision:** Replace the right pane of `RolePermissions.tsx` with the full 7-column advanced module permission matrix (System Module, View, Create, Edit, Delete, Approve, Access Level), including filter input, detailed/compact view toggle, and role context bar. The component now uses `useAdvancedRolePermissions` and `useUpdateAdvancedPermissions` hooks instead of the legacy `useRolePermissions`/`useUpdateRolePermissions` hooks. The left role list pane and all role CRUD dialogs remain unchanged.  
+**Rationale:** Unifies the permission editing experience across both pages, gives role administrators the same granular control as the advanced permission screen, and reuses the existing advanced permission service which already maps to the same backend contract (`PUT /api/roles/:id/permissions`).
+
+## DEC-071 - Permission enforcement changed from toast-blocking to UI-hiding
+
+**Date:** 2026-04-03  
+**Context:** Permission checks across modules (User Management, Product Management, Product Settings, Categories) were using a "show button, block on click with toast error" pattern. This violated the principle that users should not see controls they cannot use.  
+**Decision:** Replace all toast-based permission guards with conditional rendering: action buttons (Create, Edit, Delete, Import, Export, Lock, Reset Password, Status Toggle) are now hidden entirely when the user lacks the corresponding permission. Handler functions no longer check permissions or show "Access denied" toasts — they assume the button would not be visible if the action was unauthorized.  
+**Rationale:** This aligns with standard UX expectations: invisible controls mean "you don't have access" rather than "you can see it but it won't work." It also reduces code duplication by removing redundant permission checks from both handlers and form submit callbacks.

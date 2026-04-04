@@ -32,7 +32,7 @@ export function NewScenarioDialog({ open, onClose, onSave, isPending }: NewScena
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-headline text-lg">Thêm quy trình mới</DialogTitle>
+          <DialogTitle className="font-headline text-sm">Thêm quy trình mới</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

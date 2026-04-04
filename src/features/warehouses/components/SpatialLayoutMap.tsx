@@ -19,10 +19,10 @@ interface SpatialLayoutMapProps {
 
 const OCCUPANCY_COLORS = {
   empty: { bg: 'bg-slate-200', label: 'Empty' },
-  low: { bg: 'bg-green-500', label: '1-30%' },
-  medium: { bg: 'bg-blue-500', label: '31-60%' },
-  high: { bg: 'bg-orange-500', label: '61-90%' },
-  full: { bg: 'bg-red-600', label: '91-100%' },
+  low: { bg: 'bg-amber-500', label: 'Low (1-20%)' },
+  partial: { bg: 'bg-cyan-500', label: 'Partial (21-60%)' },
+  full: { bg: 'bg-blue-600', label: 'Full (61-100%)' },
+  overloaded: { bg: 'bg-red-600', label: 'Overloaded (>100%)' },
 };
 
 const HOLD_TO_DRAG_DELAY_MS = 70;
@@ -30,10 +30,10 @@ const HOLD_TO_DRAG_TOLERANCE_PX = 20;
 
 function getOccupancyColor(occupancy: number) {
   if (occupancy === 0) return OCCUPANCY_COLORS.empty.bg;
-  if (occupancy <= 30) return OCCUPANCY_COLORS.low.bg;
-  if (occupancy <= 60) return OCCUPANCY_COLORS.medium.bg;
-  if (occupancy <= 90) return OCCUPANCY_COLORS.high.bg;
-  return OCCUPANCY_COLORS.full.bg;
+  if (occupancy <= 20) return OCCUPANCY_COLORS.low.bg;
+  if (occupancy <= 60) return OCCUPANCY_COLORS.partial.bg;
+  if (occupancy <= 100) return OCCUPANCY_COLORS.full.bg;
+  return OCCUPANCY_COLORS.overloaded.bg;
 }
 
 function getTypeColor(type: string) {
@@ -178,7 +178,7 @@ export function SpatialLayoutMap({
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-bold tracking-tight text-slate-900">Spatial Layout Map</h3>
+          <h3 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Spatial Layout Map</h3>
           <p className="mt-1 text-sm text-slate-600">{warehouseName} · {zones.length} zones</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

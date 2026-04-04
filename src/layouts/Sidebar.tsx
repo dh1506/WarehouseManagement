@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
+import { hasPageAccessFromPermissionNames } from '@/lib/pageAccess';
 
 interface NavItem {
   to: string;
@@ -31,6 +32,12 @@ export function Sidebar() {
 
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+
+  const permissionNames = user?.permissions ?? [];
+  const roleName = user?.role ?? '';
+  const visibleNavItems = navItems.filter((item) =>
+    hasPageAccessFromPermissionNames(item.to, permissionNames, roleName),
+  );
 
   const handleLogout = () => {
     logout();
@@ -81,7 +88,7 @@ export function Sidebar() {
 
         {/* ── Navigation ────────────────────────────────────────────────────── */}
         <nav className="p-2 space-y-0.5 mt-2 flex-1 overflow-y-auto overflow-x-hidden">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

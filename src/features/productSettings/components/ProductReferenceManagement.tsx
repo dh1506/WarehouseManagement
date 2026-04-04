@@ -17,7 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermission } from '@/hooks/usePermission';
 import {
   useCreateProductReference,
-  useDeleteProductReference,
   useProductReferences,
   useUpdateProductReference,
 } from '../hooks/useProductReferences';
@@ -26,37 +25,136 @@ import type { ProductReferenceItem, ProductReferenceType } from '../types/refere
 
 const PAGE_SIZE = 8;
 
+interface TabUiState {
+  page: number;
+  search: string;
+  status: 'all' | 'active' | 'inactive';
+}
+
+const DEFAULT_TAB_STATE: TabUiState = {
+  page: 1,
+  search: '',
+  status: 'all',
+};
+
+const TAB_LABEL: Record<ProductReferenceType, string> = {
+  unit: 'Units of Measure',
+  brand: 'Brands',
+  manufacturer: 'Manufacturers',
+  supplier: 'Suppliers',
+};
+
 export function ProductReferenceManagement() {
   const { toast } = useToast();
-  const canManage = usePermission('master_data.references.manage');
+  const canReadUnit = usePermission('uoms:read');
+  const canCreateUnit = usePermission('uoms:create');
+  const canUpdateUnit = usePermission('uoms:update');
+
+  const canReadBrand = usePermission('brands:read');
+  const canCreateBrand = usePermission('brands:create');
+  const canUpdateBrand = usePermission('brands:update');
+
+  const canReadManufacturer = usePermission('manufacturers:read');
+  const canCreateManufacturer = usePermission('manufacturers:create');
+  const canUpdateManufacturer = usePermission('manufacturers:update');
+
+  const canReadSupplier = usePermission('suppliers:read');
+  const canCreateSupplier = usePermission('suppliers:create');
+  const canUpdateSupplier = usePermission('suppliers:update');
 
   const [tab, setTab] = useState<ProductReferenceType>('unit');
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [tabState, setTabState] = useState<Record<ProductReferenceType, TabUiState>>({
+    unit: { ...DEFAULT_TAB_STATE },
+    brand: { ...DEFAULT_TAB_STATE },
+    manufacturer: { ...DEFAULT_TAB_STATE },
+    supplier: { ...DEFAULT_TAB_STATE },
+  });
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedItem, setSelectedItem] = useState<ProductReferenceItem | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ProductReferenceItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ProductReferenceItem | null>(null);
+
+  const tabPermissions: Record<ProductReferenceType, { canRead: boolean; canCreate: boolean; canUpdate: boolean }> = {
+    unit: {
+      canRead: canReadUnit,
+      canCreate: canCreateUnit,
+      canUpdate: canUpdateUnit,
+    },
+    brand: {
+      canRead: canReadBrand,
+      canCreate: canCreateBrand,
+      canUpdate: canUpdateBrand,
+    },
+    manufacturer: {
+      canRead: canReadManufacturer,
+      canCreate: canCreateManufacturer,
+      canUpdate: canUpdateManufacturer,
+    },
+    supplier: {
+      canRead: canReadSupplier,
+      canCreate: canCreateSupplier,
+      canUpdate: canUpdateSupplier,
+    },
+  };
+
+  const visibleTabs = (['unit', 'brand', 'manufacturer', 'supplier'] as ProductReferenceType[]).filter(
+    (item) => tabPermissions[item].canRead,
+  );
+
+  const hasAnyReadableTab = visibleTabs.length > 0;
+  const activeTab = hasAnyReadableTab && !visibleTabs.includes(tab) ? visibleTabs[0] : tab;
+  const currentState = tabState[activeTab];
+  const canCreateCurrentTab = tabPermissions[activeTab].canCreate;
+  const canUpdateCurrentTab = tabPermissions[activeTab].canUpdate;
+  const isSupplierTab = activeTab === 'supplier';
+
+  const setCurrentTabState = (next: Partial<TabUiState>) => {
+    setTabState((prev) => ({
+      ...prev,
+      [activeTab]: {
+        ...prev[activeTab],
+        ...next,
+      },
+    }));
+  };
 
   const { data, isLoading, isError, refetch, isFetching } = useProductReferences({
-    type: tab,
-    search: search || undefined,
-    status,
-    page,
+    type: activeTab,
+    search: currentState.search || undefined,
+    status: currentState.status,
+    page: currentState.page,
     pageSize: PAGE_SIZE,
   });
 
   const createMutation = useCreateProductReference();
   const updateMutation = useUpdateProductReference();
-  const deleteMutation = useDeleteProductReference();
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
-  const title = tab === 'unit' ? 'Units of Measure' : 'Brands & Manufacturers';
+  const title = TAB_LABEL[activeTab];
   const description =
-    tab === 'unit'
+    activeTab === 'unit'
       ? 'Chuẩn hóa đơn vị tính để product master và giao dịch kho dùng lại xuyên suốt các sprint.'
-      : 'Quản lý thương hiệu và nhà sản xuất làm dữ liệu gốc cho danh mục sản phẩm.';
+      : activeTab === 'brand'
+        ? 'Quản lý thương hiệu để đồng bộ dữ liệu nguồn cho danh mục sản phẩm.'
+        : activeTab === 'manufacturer'
+          ? 'Quản lý nhà sản xuất làm dữ liệu gốc cho nguồn gốc sản phẩm.'
+          : 'Quản lý nhà cung cấp để các nghiệp vụ import/export và product sourcing tái sử dụng nhất quán.';
+
+  const getReferenceSummary = (item: ProductReferenceItem) => {
+    if (item.type !== 'supplier') {
+      return item.description || 'Khong co mo ta';
+    }
+
+    const contactLine = [item.contactPerson, item.phone].filter(Boolean).join(' / ');
+    const infoLine = [item.email, item.address].filter(Boolean).join(' / ');
+
+    return (
+      <>
+        <div>{contactLine || 'Chua co thong tin lien he'}</div>
+        {infoLine ? <div className="mt-1 text-xs text-slate-400">{infoLine}</div> : null}
+      </>
+    );
+  };
 
   const openCreate = () => {
     setDialogMode('create');
@@ -76,16 +174,31 @@ export function ProductReferenceManagement() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  const handleChangeStatus = async () => {
+    if (!statusTarget) return;
+
+    const nextStatus = statusTarget.status === 'active' ? 'inactive' : 'active';
 
     try {
-      await deleteMutation.mutateAsync(deleteTarget.id);
-      toast({ title: 'Thành công', description: 'Đã xóa dữ liệu tham chiếu.' });
-      setDeleteTarget(null);
+      await updateMutation.mutateAsync({
+        id: statusTarget.id,
+        type: activeTab,
+        payload: {
+          code: statusTarget.code,
+          name: statusTarget.name,
+          description: statusTarget.description,
+          status: nextStatus,
+        },
+      });
+
+      toast({
+        title: 'Cập nhật trạng thái thành công',
+        description: `Đã chuyển ${statusTarget.name} sang ${nextStatus === 'active' ? 'Active' : 'Inactive'}.`,
+      });
+      setStatusTarget(null);
     } catch (error) {
       toast({
-        title: 'Không thể xóa',
+        title: 'Không thể cập nhật trạng thái',
         description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
         variant: 'destructive',
       });
@@ -93,186 +206,212 @@ export function ProductReferenceManagement() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          eyebrow="Sprint 1 · Product Foundation"
+          // eyebrow="Sprint 1 · Product Foundation"
           title="Product Supporting Masters"
-          description="Thiết lập đơn vị tính và thương hiệu để product master ở Sprint 1–2 có thể tái sử dụng ổn định."
-          actions={
-            canManage ? (
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
-              >
-                <span className="material-symbols-outlined text-[18px]">add</span>
-                New {tab === 'unit' ? 'Unit' : 'Brand'}
-              </button>
-            ) : null
-          }
+          description="Thiết lập đơn vị tính, thương hiệu, nhà sản xuất, và nhà cung cấp để product master cùng luồng vận hành có thể tái sử dụng ổn định."
+          actions={canCreateCurrentTab ? (
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              New {activeTab === 'unit' ? 'Unit' : activeTab === 'brand' ? 'Brand' : activeTab === 'manufacturer' ? 'Manufacturer' : 'Supplier'}
+            </button>
+          ) : undefined}
         />
 
-        <Tabs value={tab} onValueChange={(value) => { setTab(value as ProductReferenceType); setPage(1); }}>
-          <TabsList variant="line" className="rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
-            <TabsTrigger value="unit" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
-              Units of Measure
-            </TabsTrigger>
-            <TabsTrigger value="brand" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
-              Brands
-            </TabsTrigger>
-          </TabsList>
+        {!hasAnyReadableTab ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <StatePanel
+              title="Không có quyền truy cập"
+              description="Bạn không có quyền xem Units of Measure, Brands, Manufacturers, hoặc Suppliers."
+              icon="lock"
+              tone="error"
+            />
+          </div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={(value) => setTab(value as ProductReferenceType)} className="flex min-h-0 flex-1 flex-col">
+            <TabsList variant="line" className="shrink-0 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
+              {tabPermissions.unit.canRead ? (
+                <TabsTrigger value="unit" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Units of Measure
+                </TabsTrigger>
+              ) : null}
+              {tabPermissions.brand.canRead ? (
+                <TabsTrigger value="brand" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Brands
+                </TabsTrigger>
+              ) : null}
+              {tabPermissions.manufacturer.canRead ? (
+                <TabsTrigger value="manufacturer" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Manufacturers
+                </TabsTrigger>
+              ) : null}
+              {tabPermissions.supplier.canRead ? (
+                <TabsTrigger value="supplier" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
+                  Suppliers
+                </TabsTrigger>
+              ) : null}
+            </TabsList>
 
-          <TabsContent value={tab} className="space-y-4">
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-                  <p className="mt-1 text-sm text-slate-500">{description}</p>
-                </div>
+            <TabsContent value={activeTab} className="mt-4 flex min-h-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{description}</p>
+                  </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="relative min-w-60">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
-                      search
-                    </span>
-                    <input
-                      value={search}
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="relative min-w-60">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
+                        search
+                      </span>
+                      <input
+                        value={currentState.search}
+                        onChange={(event) => {
+                          setCurrentTabState({ search: event.target.value, page: 1 });
+                        }}
+                        placeholder={`Search ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : activeTab === 'manufacturer' ? 'manufacturer' : 'supplier'}...`}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+                      />
+                    </div>
+
+                    <select
+                      value={currentState.status}
                       onChange={(event) => {
-                        setSearch(event.target.value);
-                        setPage(1);
+                        setCurrentTabState({
+                          status: event.target.value as 'all' | 'active' | 'inactive',
+                          page: 1,
+                        });
                       }}
-                      placeholder={`Search ${tab === 'unit' ? 'unit' : 'brand'}...`}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-                    />
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+                    >
+                      <option value="all">All status</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
                   </div>
-
-                  <select
-                    value={status}
-                    onChange={(event) => {
-                      setStatus(event.target.value as 'all' | 'active' | 'inactive');
-                      setPage(1);
-                    }}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-                  >
-                    <option value="all">All status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
                 </div>
-              </div>
 
-              <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-                {isLoading ? (
-                  <div className="p-8">
-                    <StatePanel title="Đang tải dữ liệu" description="Hệ thống đang lấy danh sách master data." icon="hourglass_top" />
-                  </div>
-                ) : isError ? (
-                  <div className="p-8">
-                    <StatePanel
-                      title="Không tải được dữ liệu"
-                      description="Vui lòng thử lại để tiếp tục cấu hình dữ liệu gốc."
-                      icon="error"
-                      tone="error"
-                      action={
-                        <button
-                          onClick={() => void refetch()}
-                          className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
-                        >
-                          Thử lại
-                        </button>
-                      }
-                    />
-                  </div>
-                ) : (data?.data.length ?? 0) === 0 ? (
-                  <div className="p-8">
-                    <StatePanel
-                      title="Chưa có dữ liệu phù hợp"
-                      description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
-                      icon={tab === 'unit' ? 'straighten' : 'branding_watermark'}
-                      action={
-                        canManage ? (
+                <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
+                  {isLoading ? (
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                      <StatePanel title="Đang tải dữ liệu" description="Hệ thống đang lấy danh sách master data." icon="hourglass_top" />
+                    </div>
+                  ) : isError ? (
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                      <StatePanel
+                        title="Không tải được dữ liệu"
+                        description="Vui lòng thử lại để tiếp tục cấu hình dữ liệu gốc."
+                        icon="error"
+                        tone="error"
+                        action={
+                          <button
+                            onClick={() => void refetch()}
+                            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                          >
+                            Thử lại
+                          </button>
+                        }
+                      />
+                    </div>
+                  ) : (data?.data.length ?? 0) === 0 ? (
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                      <StatePanel
+                        title="Chưa có dữ liệu phù hợp"
+                        description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
+                        icon={activeTab === 'unit' ? 'straighten' : activeTab === 'brand' ? 'branding_watermark' : activeTab === 'manufacturer' ? 'factory' : 'local_shipping'}
+                        action={canCreateCurrentTab ? (
                           <button
                             onClick={openCreate}
                             className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container"
                           >
                             Tạo mới
                           </button>
-                        ) : null
-                      }
-                    />
-                  </div>
-                ) : (
-                  <div className={isFetching ? 'opacity-70 transition' : 'transition'}>
-                    <table className="min-w-full divide-y divide-slate-200">
-                      <thead className="bg-slate-50">
-                        <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          <th className="px-4 py-3">Code</th>
-                          <th className="px-4 py-3">Name</th>
-                          <th className="px-4 py-3">Description</th>
-                          <th className="px-4 py-3">Usage</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 bg-white">
-                        {data?.data.map((item) => (
-                          <tr key={item.id} className="align-top">
-                            <td className="px-4 py-4">
-                              <div className="font-semibold text-slate-900">{item.code}</div>
-                              <div className="mt-1 text-xs text-slate-400">
-                                Updated {new Date(item.updatedAt).toLocaleDateString('vi-VN')}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 text-sm font-medium text-slate-800">{item.name}</td>
-                            <td className="px-4 py-4 text-sm text-slate-500">{item.description || 'Khong co mo ta'}</td>
-                            <td className="px-4 py-4 text-sm text-slate-600">{item.usageCount} products</td>
-                            <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
-                            <td className="px-4 py-4">
-                              <div className="flex justify-end gap-2">
-                                <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                                {canManage ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
-                                {canManage ? (
-                                  <ActionButton
-                                    icon="delete"
-                                    label="Delete"
-                                    danger
-                                    onClick={() => setDeleteTarget(item)}
-                                  />
-                                ) : null}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        ) : undefined}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`min-h-0 flex-1 overflow-auto ${isFetching ? 'opacity-70 transition' : 'transition'}`}>
+                        <table className="min-w-full divide-y divide-slate-200">
+                          <thead className="bg-slate-50">
+                            <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Code</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Name</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">{isSupplierTab ? 'Contact' : 'Description'}</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Usage</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Status</th>
+                              <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 bg-white">
+                            {data?.data.map((item) => (
+                              <tr key={item.id} className="align-top">
+                                <td className="px-4 py-4">
+                                  <div className="font-semibold text-slate-900">{item.code}</div>
+                                  <div className="mt-1 text-xs text-slate-400">
+                                    Updated {new Date(item.updatedAt).toLocaleDateString('vi-VN')}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 text-sm font-medium text-slate-800">{item.name}</td>
+                                <td className="px-4 py-4 text-sm text-slate-500">{getReferenceSummary(item)}</td>
+                                <td className="px-4 py-4 text-sm text-slate-600">{item.usageCount} products</td>
+                                <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
+                                <td className="px-4 py-4">
+                                  <div className="flex justify-end gap-2">
+                                    <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
+                                    {canUpdateCurrentTab && (
+                                      <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} />
+                                    )}
+                                    {canUpdateCurrentTab && (
+                                      <ActionButton
+                                        icon={item.status === 'active' ? 'block' : 'check_circle'}
+                                        label={item.status === 'active' ? 'Inactivate' : 'Activate'}
+                                        danger={item.status === 'active'}
+                                        onClick={() => setStatusTarget(item)}
+                                      />
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
 
-                    <Pagination
-                      page={page}
-                      totalPages={totalPages}
-                      totalItems={data?.total ?? 0}
-                      onChange={setPage}
-                    />
-                  </div>
-                )}
+                      <Pagination
+                        page={currentState.page}
+                        totalPages={totalPages}
+                        totalItems={data?.total ?? 0}
+                        onChange={(nextPage) => setCurrentTabState({ page: nextPage })}
+                      />
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
 
       <ReferenceFormDialog
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         mode={dialogMode}
-        type={tab}
+        type={activeTab}
         item={selectedItem}
         onSubmit={async (payload) => {
           try {
             if (dialogMode === 'edit' && selectedItem) {
-              await updateMutation.mutateAsync({ id: selectedItem.id, payload });
+              await updateMutation.mutateAsync({ id: selectedItem.id, type: activeTab, payload });
               toast({ title: 'Đã cập nhật', description: 'Thông tin tham chiếu đã được lưu.' });
             } else {
-              await createMutation.mutateAsync({ type: tab, payload });
+              await createMutation.mutateAsync({ type: activeTab, payload });
               toast({ title: 'Đã tạo mới', description: 'Dữ liệu tham chiếu đã sẵn sàng để dùng.' });
             }
             setIsFormOpen(false);
@@ -288,12 +427,14 @@ export function ProductReferenceManagement() {
       />
 
       <DeleteDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title={`Xóa ${tab === 'unit' ? 'unit' : 'brand'}`}
-        description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.name ?? ''}" không?`}
-        onConfirm={() => void handleDelete()}
-        isPending={deleteMutation.isPending}
+        open={!!statusTarget}
+        onClose={() => setStatusTarget(null)}
+        title={`${statusTarget?.status === 'active' ? 'Inactivate' : 'Activate'} ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : activeTab === 'manufacturer' ? 'manufacturer' : 'supplier'}`}
+        description={statusTarget?.status === 'active'
+          ? `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Inactive không?`
+          : `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Active không?`}
+        onConfirm={() => void handleChangeStatus()}
+        isPending={updateMutation.isPending}
       />
     </div>
   );
@@ -326,6 +467,10 @@ function ReferenceFormDialog({
       name: '',
       description: '',
       status: 'active',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      address: '',
     },
   });
 
@@ -339,13 +484,21 @@ function ReferenceFormDialog({
       name: item?.name ?? '',
       description: item?.description ?? '',
       status: item?.status ?? 'active',
+      contactPerson: item?.contactPerson ?? '',
+      phone: item?.phone ?? '',
+      email: item?.email ?? '',
+      address: item?.address ?? '',
     });
   }, [item, open, reset]);
 
+  const isSupplierType = type === 'supplier';
+  const typeLabel = type === 'unit' ? 'unit' : type === 'brand' ? 'brand' : type === 'manufacturer' ? 'manufacturer' : 'supplier';
+  const typeLabelTitle = type === 'unit' ? 'Unit' : type === 'brand' ? 'Brand' : type === 'manufacturer' ? 'Manufacturer' : 'Supplier';
+
   const heading = {
-    create: `Create ${type === 'unit' ? 'unit' : 'brand'}`,
-    edit: `Update ${type === 'unit' ? 'unit' : 'brand'}`,
-    view: `${type === 'unit' ? 'Unit' : 'Brand'} detail`,
+    create: `Create ${typeLabel}`,
+    edit: `Update ${typeLabel}`,
+    view: `${typeLabelTitle} detail`,
   }[mode];
 
   return (
@@ -374,13 +527,47 @@ function ReferenceFormDialog({
             <Field label="Name" error={errors.name?.message}>
               <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
             </Field>
-            <Field label="Description" error={errors.description?.message}>
-              <textarea
-                {...register('description')}
-                disabled={isView || isPending}
-                className={`${inputClass(!!errors.description)} min-h-28 resize-none`}
-              />
-            </Field>
+            {!isSupplierType ? (
+              <Field label="Description" error={errors.description?.message}>
+                <textarea
+                  {...register('description')}
+                  disabled={isView || isPending}
+                  className={`${inputClass(!!errors.description)} min-h-28 resize-none`}
+                />
+              </Field>
+            ) : null}
+            {isSupplierType ? (
+              <>
+                <Field label="Contact Person" error={errors.contactPerson?.message}>
+                  <input
+                    {...register('contactPerson')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.contactPerson)}
+                  />
+                </Field>
+                <Field label="Phone" error={errors.phone?.message}>
+                  <input
+                    {...register('phone')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.phone)}
+                  />
+                </Field>
+                <Field label="Email" error={errors.email?.message}>
+                  <input
+                    {...register('email')}
+                    disabled={isView || isPending}
+                    className={inputClass(!!errors.email)}
+                  />
+                </Field>
+                <Field label="Address" error={errors.address?.message}>
+                  <textarea
+                    {...register('address')}
+                    disabled={isView || isPending}
+                    className={`${inputClass(!!errors.address)} min-h-28 resize-none`}
+                  />
+                </Field>
+              </>
+            ) : null}
           </div>
 
           <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">
@@ -440,7 +627,7 @@ function DeleteDialog({ open, onClose, title, description, onConfirm, isPending 
             disabled={isPending}
             className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
           >
-            {isPending ? 'Đang xóa...' : 'Xóa'}
+            {isPending ? 'Đang cập nhật...' : 'Xác nhận'}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -471,17 +658,20 @@ function ActionButton({
   label,
   onClick,
   danger = false,
+  disabled = false,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg p-2 transition ${danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+      disabled={disabled}
+      className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-45 ${danger ? 'text-red-600 hover:bg-red-50 disabled:hover:bg-transparent' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500'}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>

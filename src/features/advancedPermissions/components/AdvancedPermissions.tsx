@@ -9,6 +9,8 @@ import {
   ACCESS_LEVEL_META,
 } from '../types/advancedPermissionType';
 import type { ModulePermission } from '../types/advancedPermissionType';
+import { usePermission } from '@/hooks/usePermission';
+import { useToast } from '@/hooks/use-toast';
 
 // ---------------------------------------------------------------------------
 // Icon map cho từng module
@@ -32,10 +34,12 @@ function ApproveToggle({
   checked,
   onChange,
   id,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: () => void;
   id: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -44,7 +48,8 @@ function ApproveToggle({
       aria-checked={checked}
       onClick={onChange}
       id={id}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${checked ? 'bg-teal-600' : 'bg-slate-200'
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${checked ? 'bg-teal-600' : 'bg-slate-200'
         }`}
     >
       <span
@@ -59,9 +64,11 @@ function ApproveToggle({
 function PermCheckbox({
   checked,
   onChange,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -69,7 +76,8 @@ function PermCheckbox({
       role="checkbox"
       aria-checked={checked}
       onClick={onChange}
-      className={`mx-auto w-[1.25rem] h-[1.25rem] rounded-[0.25em] border-[1.5px] flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${checked
+      disabled={disabled}
+      className={`mx-auto w-[1.25rem] h-[1.25rem] rounded-[0.25em] border-[1.5px] flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${checked
         ? 'bg-blue-800 border-blue-800'
         : 'bg-white border-slate-300 hover:border-blue-400'
         }`}
@@ -94,6 +102,8 @@ function PermCheckbox({
 // ---------------------------------------------------------------------------
 
 export function AdvancedPermissions() {
+  const { toast } = useToast();
+  const canUpdateAdvancedPermissions = usePermission('roles:update');
   const { data: roles, isLoading: rolesLoading } = useRolesForAdvanced();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
@@ -126,23 +136,79 @@ export function AdvancedPermissions() {
     moduleId: string,
     field: 'view' | 'create' | 'edit' | 'delete',
   ) => {
+    if (!canUpdateAdvancedPermissions) {
+      return;
+    }
+
     setLocalModules((prev) =>
-      prev.map((m) => (m.moduleId === moduleId ? { ...m, [field]: !m[field] } : m)),
+      prev.map((m) => {
+        if (m.moduleId !== moduleId || !m.isConfigurable) {
+          return m;
+        }
+
+        if (field === 'view' && !m.canView) return m;
+        if (field === 'create' && !m.canCreate) return m;
+        if (field === 'edit' && !m.canEdit) return m;
+        if (field === 'delete' && !m.canDelete) return m;
+
+        return { ...m, [field]: !m[field] };
+      }),
     );
   };
 
   const handleToggleApprove = (moduleId: string) => {
+    if (!canUpdateAdvancedPermissions) {
+      return;
+    }
+
     setLocalModules((prev) =>
-      prev.map((m) => (m.moduleId === moduleId ? { ...m, approve: !m.approve } : m)),
+      prev.map((m) => {
+        if (m.moduleId !== moduleId || !m.isConfigurable || !m.canApprove) {
+          return m;
+        }
+
+        return { ...m, approve: !m.approve };
+      }),
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedRoleId) return;
-    updateMutation.mutate({ roleId: selectedRoleId, payload: { modules: localModules } });
+
+    if (!canUpdateAdvancedPermissions) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi phân quyền.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const result = await updateMutation.mutateAsync({
+        roleId: selectedRoleId,
+        payload: { modules: localModules },
+      });
+
+      setLocalModules(result.modules.map((m) => ({ ...m })));
+      toast({
+        title: 'Save schema thành công',
+        description: 'Cấu hình phân quyền đã được cập nhật.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Không thể lưu schema',
+        description: error instanceof Error ? error.message : 'Vui lòng thử lại sau.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDiscard = () => {
+    if (!canUpdateAdvancedPermissions) {
+      return;
+    }
+
     if (permData) setLocalModules(permData.modules.map((m) => ({ ...m })));
   };
 
@@ -165,10 +231,10 @@ export function AdvancedPermissions() {
         {/* ── Page Header ──────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div className="max-w-3xl">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 tracking-tight">
               Advanced Permissions with Expanded Matrix
             </h2>
-            <p className="text-slate-500 text-base leading-relaxed">
+            <p className="text-slate-500 text-sm leading-relaxed">
               Define granular access levels and operational boundaries for organizational roles
               using the Predictive Matrix.
             </p>
@@ -176,14 +242,14 @@ export function AdvancedPermissions() {
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={handleDiscard}
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || !canUpdateAdvancedPermissions}
               className="px-5 py-2.5 text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm disabled:opacity-50"
             >
               Discard Changes
             </button>
             <button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
+              onClick={() => void handleSave()}
+              disabled={updateMutation.isPending || !canUpdateAdvancedPermissions}
               className="px-5 py-2.5 text-white bg-[#0f2868] hover:bg-blue-900 rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2 disabled:opacity-75"
             >
               {updateMutation.isPending && (
@@ -316,7 +382,7 @@ export function AdvancedPermissions() {
 
           {/* Matrix Header */}
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="text-lg font-bold text-slate-800">Module Permissions Matrix</h3>
+            <h3 className="text-sm font-bold text-slate-800">Module Permissions Matrix</h3>
             <div className="flex items-center gap-3">
               {/* Filter input */}
               <div className="relative">
@@ -358,10 +424,10 @@ export function AdvancedPermissions() {
           </div>
 
           {/* Matrix Table */}
-          <div className="overflow-x-auto">
+          <div className="max-h-[520px] overflow-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
-                <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                <tr className="sticky top-0 z-10 bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400 font-semibold">
                   <th className="py-4 px-6 w-1/3">System Module</th>
                   <th className="py-4 px-4 text-center">View</th>
                   <th className="py-4 px-4 text-center">Create</th>
@@ -406,6 +472,9 @@ export function AdvancedPermissions() {
                     const level = computeAccessLevel(mod);
                     const levelMeta = ACCESS_LEVEL_META[level];
                     const iconPath = MODULE_ICON[mod.moduleId] ?? MODULE_ICON['notifications'];
+                    const moduleDescription = mod.isConfigurable
+                      ? mod.description
+                      : `${mod.description} (Module này chưa kết nối backend nên không thể lưu ở Sprint hiện tại).`;
 
                     return (
                       <tr key={mod.moduleId} className="hover:bg-slate-50 transition-colors">
@@ -422,7 +491,7 @@ export function AdvancedPermissions() {
                             <div>
                               <div className="font-medium text-slate-900">{mod.moduleName}</div>
                               {viewMode === 'detailed' && (
-                                <div className="text-xs text-slate-500 mt-0.5">{mod.description}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">{moduleDescription}</div>
                               )}
                             </div>
                           </div>
@@ -433,24 +502,28 @@ export function AdvancedPermissions() {
                           <PermCheckbox
                             checked={mod.view}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'view')}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canView}
                           />
                         </td>
                         <td className="py-4 px-4 text-center">
                           <PermCheckbox
                             checked={mod.create}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'create')}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canCreate}
                           />
                         </td>
                         <td className="py-4 px-4 text-center">
                           <PermCheckbox
                             checked={mod.edit}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'edit')}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canEdit}
                           />
                         </td>
                         <td className="py-4 px-4 text-center">
                           <PermCheckbox
                             checked={mod.delete}
                             onChange={() => handleToggleCheckbox(mod.moduleId, 'delete')}
+                            disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canDelete}
                           />
                         </td>
 
@@ -461,6 +534,7 @@ export function AdvancedPermissions() {
                               id={`approve-${mod.moduleId}`}
                               checked={mod.approve}
                               onChange={() => handleToggleApprove(mod.moduleId)}
+                              disabled={!canUpdateAdvancedPermissions || !mod.isConfigurable || !mod.canApprove}
                             />
                           </div>
                         </td>

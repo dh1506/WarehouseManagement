@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useRef } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -13,37 +13,50 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
+import { getProducts } from '@/services/productApiService';
 import {
   useCreateProduct,
-  useDeleteProduct,
+  useDiscontinueProduct,
+  useUpdateProductStatus,
   useProductBrandOptions,
   useProductCategoryOptions,
+  useProductManufacturerOptions,
   useProducts,
   useProductUnitOptions,
   useUpdateProduct,
 } from '../hooks/useProducts';
-import { productFormSchema, type ProductFormData } from '../schemas/productSchemas';
-import type { ProductItem } from '../types/productType';
+import type { ProductFormData } from '../schemas/productSchemas';
+import type { ProductItem, ProductStatus } from '../types/productType';
+import { exportProductsToExcel } from '../utils/exportProducts';
+import { parseProductsFromExcel } from '../utils/importProducts';
+import { ProductFormSheet } from './ProductFormSheets';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 export function ProductManagement() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const canManage = usePermission('master_data.products.manage');
+  const canCreate = usePermission('products:create');
+  const canEdit = usePermission('products:update');
+  const canDelete = usePermission('products:delete');
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'active' | 'inactive' | 'draft'>('all');
+  const [status, setStatus] = useState<ProductStatus | 'all'>('all');
   const [categoryId, setCategoryId] = useState('');
   const [brandId, setBrandId] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isHeaderChecked, setIsHeaderChecked] = useState(false);
   const [sheetMode, setSheetMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ProductItem | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<ProductItem | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ProductItem | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const listQuery = useProducts({
     search: search || undefined,
@@ -53,15 +66,230 @@ export function ProductManagement() {
     page,
     pageSize: PAGE_SIZE,
   });
+  const optionSourceQuery = useProducts({
+    page: 1,
+    pageSize: 1000,
+    status: 'all',
+  });
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
+  const manufacturersQuery = useProductManufacturerOptions();
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
-  const deleteMutation = useDeleteProduct();
+  const discontinueMutation = useDiscontinueProduct();
+  const statusToggleMutation = useUpdateProductStatus();
 
+  const totalItems = listQuery.data?.total ?? 0;
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
+  const pageStart = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * PAGE_SIZE, totalItems);
+  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
+  const optionSourceProducts = useMemo(
+    () => optionSourceQuery.data?.data ?? listQuery.data?.data ?? [],
+    [listQuery.data?.data, optionSourceQuery.data?.data],
+  );
+
+  const fallbackCategoryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const item of optionSourceProducts) {
+      if (item.categoryIds.length === 0) {
+        continue;
+      }
+
+      item.categoryIds.forEach((id, index) => {
+        const name = item.categoryNames[index] ?? item.categoryName;
+        if (id && name && !map.has(id)) {
+          map.set(id, name);
+        }
+      });
+    }
+
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [optionSourceProducts]);
+
+  const fallbackBrandOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const item of optionSourceProducts) {
+      if (!item.brandId || !item.brandName || item.brandName === 'Unassigned') {
+        continue;
+      }
+
+      if (!map.has(item.brandId)) {
+        map.set(item.brandId, item.brandName);
+      }
+    }
+
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [optionSourceProducts]);
+
+  const categoryOptions = categoriesQuery.data ?? fallbackCategoryOptions;
+  const brandOptions = brandsQuery.data ?? fallbackBrandOptions;
+  const currentProducts = useMemo(() => listQuery.data?.data ?? [], [listQuery.data?.data]);
+  const currentProductIdSet = useMemo(() => new Set(currentProducts.map((item) => item.id)), [currentProducts]);
+  const selectedCountInCurrentPage = useMemo(
+    () => selectedProductIds.filter((id) => currentProductIdSet.has(id)).length,
+    [currentProductIdSet, selectedProductIds],
+  );
+  const isAllRowsSelected = currentProducts.length > 0 && selectedCountInCurrentPage === currentProducts.length;
+  const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
+  const selectedProductsForExport = useMemo(
+    () => currentProducts.filter((item) => selectedProductIds.includes(item.id)),
+    [currentProducts, selectedProductIds],
+  );
+
+  const resetSelection = () => {
+    setSelectedProductIds([]);
+    setIsHeaderChecked(false);
+  };
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    setIsHeaderChecked(checked);
+    if (checked) {
+      setSelectedProductIds(currentProducts.map((item) => item.id));
+      return;
+    }
+
+    setSelectedProductIds([]);
+  };
+
+  const handleToggleSelectProduct = (productId: string, checked: boolean) => {
+    setIsHeaderChecked(false);
+    setSelectedProductIds((prev) => {
+      if (checked) {
+        if (prev.includes(productId)) {
+          return prev;
+        }
+
+        return [...prev, productId];
+      }
+
+      return prev.filter((id) => id !== productId);
+    });
+  };
+
+  const handleExport = async () => {
+    if (totalItems === 0) {
+      return;
+    }
+
+    try {
+      if (isHeaderChecked) {
+        const allProducts = await getProducts({
+          search: search || undefined,
+          status,
+          categoryId: categoryId || undefined,
+          brandId: brandId || undefined,
+          page: 1,
+          pageSize: totalItems,
+        });
+
+        if (allProducts.data.length > 0) {
+          await exportProductsToExcel(allProducts.data);
+        }
+        return;
+      }
+
+      if (selectedProductsForExport.length > 0) {
+        await exportProductsToExcel(selectedProductsForExport);
+      }
+    } catch (error) {
+      toast({
+        title: 'Unable to export products',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (isOptionsLoading) {
+      toast({
+        title: 'Import is not ready',
+        description: 'Please wait until category, unit, brand, and manufacturer options finish loading.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      const parsed = await parseProductsFromExcel(file, {
+        categories: categoryOptions,
+        units: unitsQuery.data ?? [],
+        brands: brandsQuery.data ?? [],
+        manufacturers: manufacturersQuery.data ?? [],
+      });
+
+      let successCount = 0;
+      const importErrors = [...parsed.errors];
+
+      for (const item of parsed.products) {
+        try {
+          await createMutation.mutateAsync(item.payload);
+          successCount += 1;
+        } catch (error) {
+          importErrors.push({
+            rowNumber: item.rowNumber,
+            message: error instanceof Error ? error.message : 'Unable to create product from imported row.',
+          });
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: 'Product import completed',
+          description: importErrors.length > 0
+            ? `${successCount} products imported, ${importErrors.length} rows failed.`
+            : `${successCount} products imported successfully.`,
+        });
+      }
+
+      if (importErrors.length > 0) {
+        const preview = importErrors
+          .slice(0, 3)
+          .map((item) => `Row ${item.rowNumber}: ${item.message}`)
+          .join(' | ');
+
+        toast({
+          title: successCount > 0 ? 'Some rows could not be imported' : 'Import failed',
+          description: preview,
+          variant: 'destructive',
+        });
+      }
+
+      if (successCount === 0 && importErrors.length === 0) {
+        toast({
+          title: 'No products found',
+          description: 'The selected file does not contain any importable product rows.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Unable to import products',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const openCreate = () => {
     setSheetMode('create');
@@ -79,157 +307,310 @@ export function ProductManagement() {
     navigate(`/admin/products/${item.id}`);
   };
 
+  const openDelete = (item: ProductItem) => {
+    setDeletingProduct(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    if (discontinueMutation.isPending) {
+      return;
+    }
+
+    setIsDeleteDialogOpen(false);
+    setDeletingProduct(null);
+  };
+
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deletingProduct) {
+      return;
+    }
 
     try {
-      await deleteMutation.mutateAsync(deleteTarget.id);
-      toast({ title: 'Đã xóa sản phẩm', description: 'Product master đã được cập nhật.' });
-      setDeleteTarget(null);
+      await discontinueMutation.mutateAsync(deletingProduct.id);
+      toast({
+        title: 'Product discontinued',
+        description: `${deletingProduct.name} has been marked as discontinued.`,
+      });
+      closeDeleteDialog();
     } catch (error) {
       toast({
-        title: 'Không thể xóa',
-        description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+        title: 'Unable to discontinue product',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         variant: 'destructive',
       });
     }
   };
 
-  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
+  const openStatusToggle = (item: ProductItem) => {
+    setStatusTarget(item);
+  };
+
+  const closeStatusToggleDialog = () => {
+    if (statusToggleMutation.isPending) {
+      return;
+    }
+
+    setStatusTarget(null);
+  };
+
+  const handleStatusToggle = async () => {
+    if (!statusTarget) {
+      return;
+    }
+
+    const nextStatus: ProductStatus = statusTarget.status === 'active' ? 'inactive' : 'active';
+
+    try {
+      await statusToggleMutation.mutateAsync({ id: statusTarget.id, status: nextStatus });
+      toast({
+        title: 'Product status updated',
+        description: `${statusTarget.name} has been changed to ${nextStatus === 'active' ? 'Active' : 'Inactive'}.`,
+      });
+      closeStatusToggleDialog();
+    } catch (error) {
+      toast({
+        title: 'Unable to update product status',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          eyebrow="Sprint 1 · Product Master"
+          // eyebrow="Sprint 1 � Product Master"
           title="Product Management"
-          description="Xây dựng dữ liệu sản phẩm gốc làm nền cho nhập, xuất, tồn và các workflow kho ở Sprint 2 trở đi."
-          actions={
-            canManage ? (
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
-              >
-                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                New Product
-              </button>
-            ) : null
-          }
+          description="Manage product master data for inbound, outbound, inventory, and planning workflows."
+          actions={(
+            <div className="flex flex-wrap items-center gap-3">
+              {canCreate && (
+                <>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    onChange={(event) => void handleImportFileChange(event)}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleImportClick}
+                    disabled={isImporting}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                    {isImporting ? 'Importing...' : 'Import'}
+                  </button>
+                </>
+              )}
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+                >
+                  <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                  New Product
+                </button>
+              )}
+            </div>
+          )}
         />
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">Master catalog</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Master catalog</h3>
               <p className="mt-1 text-sm text-slate-500">
-                Reuse category, unit, brand và trạng thái để bảo đảm product data nhất quán xuyên module.
+                Use real category, unit, brand, and manufacturer master data to keep product records consistent across modules.
               </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search SKU, name, manufacturer..." />
-              <FilterSelect value={status} onChange={(value) => { setStatus(value as 'all' | 'active' | 'inactive' | 'draft'); setPage(1); }}>
-                <option value="all">All status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="draft">Draft</option>
-              </FilterSelect>
-              <FilterSelect value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1); }}>
-                <option value="">All categories</option>
-                {categoriesQuery.data?.data.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect value={brandId} onChange={(value) => { setBrandId(value); setPage(1); }}>
-                <option value="">All brands</option>
-                {brandsQuery.data?.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </FilterSelect>
+            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-12">
+              <div className="xl:col-span-5">
+                <SearchInput
+                  value={search}
+                  onChange={(value) => {
+                    setSearch(value);
+                    setPage(1);
+                    resetSelection();
+                  }}
+                  placeholder="Search code, name, or manufacturer..."
+                />
+              </div>
+              <div className="xl:col-span-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <FilterSelect
+                  value={status}
+                  onChange={(value) => {
+                    setStatus(value as ProductStatus | 'all');
+                    setPage(1);
+                    resetSelection();
+                  }}
+                >
+                  <option value="all">All status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="discontinued">Discontinued</option>
+                </FilterSelect>
+                <FilterSelect
+                  value={categoryId}
+                  onChange={(value) => {
+                    setCategoryId(value);
+                    setPage(1);
+                    resetSelection();
+                  }}
+                >
+                  <option value="">All categories</option>
+                  {categoryOptions.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </FilterSelect>
+                <div className="flex items-center gap-3">
+                  <FilterSelect
+                    value={brandId}
+                    onChange={(value) => {
+                      setBrandId(value);
+                      setPage(1);
+                      resetSelection();
+                    }}
+                  >
+                    <option value="">All brands</option>
+                    {brandOptions.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </FilterSelect>
+                  <button
+                    type="button"
+                    onClick={() => void handleExport()}
+                    disabled={!isHeaderChecked && selectedProductsForExport.length === 0}
+                    className="inline-flex h-[42px] shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Export products"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">download</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
             {listQuery.isLoading ? (
-              <div className="p-8">
-                <StatePanel title="Đang tải product master" description="Hệ thống đang đồng bộ dữ liệu sản phẩm." icon="hourglass_top" />
+              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                <StatePanel title="Loading products" description="The system is synchronizing product master data from the API." icon="hourglass_top" />
               </div>
             ) : listQuery.isError ? (
-              <div className="p-8">
+              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel
-                  title="Không tải được danh sách"
-                  description="Hãy thử lại để tiếp tục quản trị product master."
+                  title="Unable to load products"
+                  description="Please try again to continue managing product master data."
                   icon="error"
                   tone="error"
-                  action={
+                  action={(
                     <button
+                      type="button"
                       onClick={() => void listQuery.refetch()}
                       className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
                     >
-                      Thử lại
+                      Retry
                     </button>
-                  }
+                  )}
                 />
               </div>
             ) : (listQuery.data?.data.length ?? 0) === 0 ? (
-              <div className="p-8">
+              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
                 <StatePanel
-                  title="Chưa có sản phẩm phù hợp"
-                  description="Tạo product master đầu tiên để các nghiệp vụ nhập, xuất và kiểm kê có thể kế thừa."
+                  title="No matching products"
+                  description="Create your first product or adjust the current filters."
                   icon="inventory_2"
-                  action={
-                    canManage ? (
-                      <button
-                        onClick={openCreate}
-                        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Tạo sản phẩm
-                      </button>
-                    ) : null
-                  }
+                  action={canCreate ? (
+                    <button
+                      type="button"
+                      onClick={openCreate}
+                      className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      New Product
+                    </button>
+                  ) : null}
                 />
               </div>
             ) : (
               <>
-                <div className={listQuery.isFetching ? 'opacity-70 transition' : 'transition'}>
+                <div className={`relative min-h-0 flex-1 overflow-y-auto ${listQuery.isFetching ? 'opacity-70 transition' : 'transition'}`}>
                   <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+                    <thead className="sticky top-0 z-10 bg-slate-50">
                       <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        <th className="px-4 py-3">
+                          <Checkbox
+                            checked={isAllRowsSelected ? true : isPartiallySelected ? 'indeterminate' : false}
+                            onCheckedChange={(checked) => handleToggleSelectAll(checked === true)}
+                            aria-label="Select all products"
+                            disabled={currentProducts.length === 0}
+                          />
+                        </th>
                         <th className="px-4 py-3">Product</th>
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3">Unit / Brand</th>
-                        <th className="px-4 py-3">Stock policy</th>
+                        <th className="px-4 py-3">Stock Policy</th>
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
-                      {listQuery.data?.data.map((item) => (
+                      {currentProducts.map((item) => (
                         <tr key={item.id} className="align-top">
+                          <td className="px-4 py-4">
+                            <Checkbox
+                              checked={selectedProductIds.includes(item.id)}
+                              onCheckedChange={(checked) => handleToggleSelectProduct(item.id, checked === true)}
+                              aria-label={`Select ${item.name}`}
+                            />
+                          </td>
                           <td className="px-4 py-4">
                             <div className="font-semibold text-slate-900">{item.name}</div>
                             <div className="mt-1 text-sm text-slate-500">{item.sku}</div>
-                            <div className="mt-2 text-xs text-slate-400">{item.manufacturer}</div>
+                            <div className="mt-2 text-xs text-slate-400">{item.manufacturerName || item.supplierName || 'No secondary source'}</div>
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">{item.categoryName}</td>
+                          <td className="px-4 py-4 text-sm text-slate-600">
+                            <div>{item.categoryName}</div>
+                            {item.categoryNames.length > 1 ? <div className="mt-1 text-xs text-slate-400">+{item.categoryNames.length - 1} more</div> : null}
+                          </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
                             <div>{item.unitName}</div>
                             <div className="mt-1 text-xs text-slate-400">{item.brandName}</div>
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
-                            <div>Min {item.minStock} · Max {item.maxStock}</div>
+                            <div>Min {item.minStock} � Max {item.maxStock}</div>
                             <div className="mt-1 text-xs text-slate-400">
-                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} � {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
                             </div>
                           </td>
                           <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
                           <td className="px-4 py-4">
                             <div className="flex justify-end gap-2">
                               <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                              {canManage ? <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} /> : null}
-                              {canManage ? (
-                                <ActionButton icon="delete" label="Delete" onClick={() => setDeleteTarget(item)} danger />
-                              ) : null}
+                              {canEdit && (
+                                <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} />
+                              )}
+                              {canEdit && item.status !== 'discontinued' && (
+                                <ActionButton
+                                  icon={item.status === 'active' ? 'block' : 'check_circle'}
+                                  label={item.status === 'active' ? 'Deactivate' : 'Activate'}
+                                  tone={item.status === 'active' ? 'danger' : 'default'}
+                                  onClick={() => openStatusToggle(item)}
+                                />
+                              )}
+                              {canDelete && (
+                                <ActionButton
+                                  icon="delete"
+                                  label="Delete"
+                                  onClick={() => openDelete(item)}
+                                  tone="danger"
+                                  disabled={item.status === 'discontinued'}
+                                />
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -238,7 +619,19 @@ export function ProductManagement() {
                   </table>
                 </div>
 
-                <Pagination page={page} totalPages={totalPages} totalItems={listQuery.data?.total ?? 0} onChange={setPage} />
+                {totalItems > 0 ? (
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    pageStart={pageStart}
+                    pageEnd={pageEnd}
+                    onChange={(nextPage) => {
+                      setPage(nextPage);
+                      resetSelection();
+                    }}
+                  />
+                ) : null}
               </>
             )}
           </div>
@@ -250,23 +643,24 @@ export function ProductManagement() {
         onClose={() => setIsSheetOpen(false)}
         mode={sheetMode}
         product={selectedProduct}
-        categories={categoriesQuery.data?.data ?? []}
+        categories={(categoriesQuery.data ?? []).map((item) => ({ id: item.id, name: item.name }))}
         units={unitsQuery.data ?? []}
         brands={brandsQuery.data ?? []}
-        onSubmit={async (payload) => {
+        manufacturers={manufacturersQuery.data ?? []}
+        onSubmit={async (payload: ProductFormData) => {
           try {
             if (sheetMode === 'edit' && selectedProduct) {
               await updateMutation.mutateAsync({ id: selectedProduct.id, payload });
-              toast({ title: 'Đã cập nhật sản phẩm', description: 'Product master đã được lưu.' });
+              toast({ title: 'Product updated', description: 'The product record has been saved.' });
             } else {
               await createMutation.mutateAsync(payload);
-              toast({ title: 'Đã tạo sản phẩm', description: 'Sản phẩm mới đã sẵn sàng để dùng.' });
+              toast({ title: 'Product created', description: 'The product is now available in the system.' });
             }
             setIsSheetOpen(false);
           } catch (error) {
             toast({
-              title: 'Không thể lưu sản phẩm',
-              description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra.',
+              title: 'Unable to save product',
+              description: error instanceof Error ? error.message : 'An unexpected error occurred.',
               variant: 'destructive',
             });
           }
@@ -275,226 +669,88 @@ export function ProductManagement() {
         isOptionsLoading={isOptionsLoading}
       />
 
-      <DeleteDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Xóa sản phẩm"
-        description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.name ?? ''}" khỏi product master không?`}
-        onConfirm={() => void handleDelete()}
-        isPending={deleteMutation.isPending}
-      />
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md overflow-hidden rounded-[28px] border border-slate-200 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+          <DialogHeader className="space-y-4 px-6 py-6 pb-5 text-left">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+              <span className="material-symbols-outlined text-[22px]">delete</span>
+            </div>
+            <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
+              Delete Product
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-7 text-slate-600">
+              Delete is implemented as a soft delete in Sprint 1. <span className="font-semibold text-slate-900">{deletingProduct?.name}</span> will be moved to discontinued status.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 sm:justify-end">
+            <button
+              type="button"
+              onClick={closeDeleteDialog}
+              disabled={discontinueMutation.isPending}
+              className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={discontinueMutation.isPending}
+              className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {discontinueMutation.isPending ? 'Deleting...' : 'Delete Product'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!statusTarget}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeStatusToggleDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md overflow-hidden rounded-[28px] border border-slate-200 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+          <DialogHeader className="space-y-4 px-6 py-6 pb-5 text-left">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${statusTarget?.status === 'active' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              <span className="material-symbols-outlined text-[22px]">{statusTarget?.status === 'active' ? 'block' : 'check_circle'}</span>
+            </div>
+            <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
+              {statusTarget?.status === 'active' ? 'Deactivate Product' : 'Activate Product'}
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-7 text-slate-600">
+              Are you sure you want to change <span className="font-semibold text-slate-900">{statusTarget?.name}</span> to <span className="font-semibold text-slate-900">{statusTarget?.status === 'active' ? 'Inactive' : 'Active'}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 sm:justify-end">
+            <button
+              type="button"
+              onClick={closeStatusToggleDialog}
+              disabled={statusToggleMutation.isPending}
+              className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleStatusToggle()}
+              disabled={statusToggleMutation.isPending}
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${statusTarget?.status === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+            >
+              {statusToggleMutation.isPending ? 'Updating...' : statusTarget?.status === 'active' ? 'Deactivate' : 'Activate'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-interface ProductFormSheetProps {
-  open: boolean;
-  onClose: () => void;
-  mode: 'create' | 'edit' | 'view';
-  product: ProductItem | null;
-  categories: Array<{ id: string; name: string }>;
-  units: Array<{ id: string; name: string }>;
-  brands: Array<{ id: string; name: string }>;
-  onSubmit: (payload: ProductFormData) => Promise<void>;
-  isPending: boolean;
-  isOptionsLoading: boolean;
-}
-
-function ProductFormSheet({
-  open,
-  onClose,
-  mode,
-  product,
-  categories,
-  units,
-  brands,
-  onSubmit,
-  isPending,
-  isOptionsLoading,
-}: ProductFormSheetProps) {
-  const isView = mode === 'view';
-  const form = useForm<ProductFormData>({
-    resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      sku: '',
-      name: '',
-      categoryId: '',
-      unitId: '',
-      brandId: '',
-      manufacturer: '',
-      minStock: 0,
-      maxStock: 0,
-      trackedByLot: false,
-      trackedByExpiry: false,
-      status: 'active',
-      description: '',
-    },
-  });
-
-  const { register, reset, handleSubmit, formState: { errors } } = form;
-
-  useEffect(() => {
-    if (!open) return;
-    reset({
-      sku: product?.sku ?? '',
-      name: product?.name ?? '',
-      categoryId: product?.categoryId ?? '',
-      unitId: product?.unitId ?? '',
-      brandId: product?.brandId ?? '',
-      manufacturer: product?.manufacturer ?? '',
-      minStock: product?.minStock ?? 0,
-      maxStock: product?.maxStock ?? 0,
-      trackedByLot: product?.trackedByLot ?? false,
-      trackedByExpiry: product?.trackedByExpiry ?? false,
-      status: product?.status ?? 'active',
-      description: product?.description ?? '',
-    });
-  }, [open, product, reset]);
-
-  const title = {
-    create: 'Create product',
-    edit: 'Update product',
-    view: 'Product detail',
-  }[mode];
-
-  return (
-    <Sheet open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isPending) onClose(); }}>
-      <SheetContent className="w-full gap-0 p-0 sm:max-w-2xl" showCloseButton={false}>
-        <form onSubmit={handleSubmit(async (payload) => { if (!isView) await onSubmit(payload); })} className="flex h-full flex-col">
-          <SheetHeader className="border-b border-slate-200 px-6 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <SheetTitle>{title}</SheetTitle>
-                <SheetDescription>
-                  {isView
-                    ? 'Xem chi tiết dữ liệu gốc của sản phẩm.'
-                    : 'Thiết lập thông tin cốt lõi và chính sách tồn kho để các transaction modules tái sử dụng.'}
-                </SheetDescription>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isPending}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-          </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto px-6 py-5">
-            {isOptionsLoading ? (
-              <StatePanel title="Đang chuẩn bị form" description="Danh mục, đơn vị và thương hiệu đang được tải." icon="hourglass_top" />
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="SKU" error={errors.sku?.message}>
-                  <input {...register('sku')} disabled={isView || isPending} className={inputClass(!!errors.sku)} />
-                </Field>
-                <Field label="Status" error={errors.status?.message}>
-                  <select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </Field>
-                <Field label="Product name" error={errors.name?.message}>
-                  <input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} />
-                </Field>
-                <Field label="Manufacturer" error={errors.manufacturer?.message}>
-                  <input {...register('manufacturer')} disabled={isView || isPending} className={inputClass(!!errors.manufacturer)} />
-                </Field>
-                <Field label="Category" error={errors.categoryId?.message}>
-                  <select {...register('categoryId')} disabled={isView || isPending} className={inputClass(!!errors.categoryId)}>
-                    <option value="">Select category</option>
-                    {categories.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Unit of measure" error={errors.unitId?.message}>
-                  <select {...register('unitId')} disabled={isView || isPending} className={inputClass(!!errors.unitId)}>
-                    <option value="">Select unit</option>
-                    {units.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Brand" error={errors.brandId?.message}>
-                  <select {...register('brandId')} disabled={isView || isPending} className={inputClass(!!errors.brandId)}>
-                    <option value="">Select brand</option>
-                    {brands.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Min stock" error={errors.minStock?.message}>
-                    <input type="number" {...register('minStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.minStock)} />
-                  </Field>
-                  <Field label="Max stock" error={errors.maxStock?.message}>
-                    <input type="number" {...register('maxStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.maxStock)} />
-                  </Field>
-                </div>
-                <Field label="Description" error={errors.description?.message}>
-                  <textarea {...register('description')} disabled={isView || isPending} className={`${inputClass(!!errors.description)} min-h-32 resize-none`} />
-                </Field>
-                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-700">Tracking rules</p>
-                  <label className="flex items-center gap-3 text-sm text-slate-600">
-                    <input type="checkbox" {...register('trackedByLot')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300" />
-                    Track by lot / batch
-                  </label>
-                  <label className="flex items-center gap-3 text-sm text-slate-600">
-                    <input type="checkbox" {...register('trackedByExpiry')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300" />
-                    Track expiry date
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <SheetFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">
-            <div className="flex w-full items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isPending}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-              >
-                {isView ? 'Đóng' : 'Hủy'}
-              </button>
-              {!isView ? (
-                <button
-                  type="submit"
-                  disabled={isPending || isOptionsLoading}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isPending ? 'Đang lưu...' : 'Lưu sản phẩm'}
-                </button>
-              ) : null}
-            </div>
-          </SheetFooter>
-        </form>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="space-y-2 text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      {children}
-      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
-    </label>
   );
 }
 
@@ -508,8 +764,8 @@ function SearchInput({
   placeholder: string;
 }) {
   return (
-    <div className="relative min-w-60">
-      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+    <div className="relative">
+      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -540,57 +796,29 @@ function FilterSelect({
   );
 }
 
-function DeleteDialog({
-  open,
-  onClose,
-  title,
-  description,
-  onConfirm,
-  isPending,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  description: string;
-  onConfirm: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isPending) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="bg-transparent p-0 pt-4">
-          <button type="button" onClick={onClose} disabled={isPending} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-            Hủy
-          </button>
-          <button type="button" onClick={onConfirm} disabled={isPending} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white">
-            {isPending ? 'Đang xóa...' : 'Xóa'}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function ActionButton({
   icon,
   label,
   onClick,
-  danger = false,
+  tone = 'default',
+  disabled = false,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
-  danger?: boolean;
+  tone?: 'default' | 'danger';
+  disabled?: boolean;
 }) {
+  const toneClass = tone === 'danger'
+    ? 'text-red-500 hover:bg-red-50 hover:text-red-700 disabled:hover:bg-transparent disabled:hover:text-red-400'
+    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500';
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg p-2 transition ${danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+      disabled={disabled}
+      className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>
@@ -602,29 +830,65 @@ function Pagination({
   page,
   totalPages,
   totalItems,
+  pageStart,
+  pageEnd,
   onChange,
 }: {
   page: number;
   totalPages: number;
   totalItems: number;
+  pageStart: number;
+  pageEnd: number;
   onChange: (page: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-slate-500">Total {totalItems} products</p>
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">
+    <div className="flex shrink-0 flex-col gap-3 border-t border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-medium text-slate-500">Showing {pageStart} - {pageEnd} of {totalItems} products</p>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <span className="material-symbols-outlined text-[16px]">chevron_left</span>
           Prev
         </button>
-        <span className="text-sm font-medium text-slate-700">{page} / {totalPages}</span>
-        <button type="button" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">
+        {[...Array(Math.min(totalPages, 5))].map((_, index) => {
+          const targetPage = index + 1;
+          return (
+            <button
+              key={targetPage}
+              type="button"
+              onClick={() => onChange(targetPage)}
+              className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+            >
+              {targetPage}
+            </button>
+          );
+        })}
+        {totalPages > 5 ? <span className="px-1 text-slate-400">...</span> : null}
+        {totalPages > 5 ? (
+          <button
+            type="button"
+            onClick={() => onChange(totalPages)}
+            className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+          >
+            {totalPages}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages}
+          className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
           Next
+          <span className="material-symbols-outlined text-[16px]">chevron_right</span>
         </button>
       </div>
     </div>
   );
-}
-
-function inputClass(hasError: boolean) {
-  return `w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:bg-white focus:ring-2 ${hasError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-primary focus:ring-primary/15'}`;
 }

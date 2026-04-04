@@ -1,4 +1,4 @@
-export type ProductReferenceType = 'unit' | 'brand';
+export type ProductReferenceType = 'unit' | 'brand' | 'manufacturer' | 'supplier';
 export type ProductReferenceStatus = 'active' | 'inactive';
 
 export interface ProductReferenceItem {
@@ -11,6 +11,10 @@ export interface ProductReferenceItem {
   usageCount: number;
   createdAt: string;
   updatedAt: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
 }
 
 export interface ProductReferenceListParams {
@@ -33,4 +37,8 @@ export interface ProductReferenceFormValues {
   name: string;
   description: string;
   status: ProductReferenceStatus;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
 }
