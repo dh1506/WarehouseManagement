@@ -1,5 +1,6 @@
 import { prisma } from '../config/db.config';
 import { AppError } from '../utils/app-error';
+import { generateLocationCode } from '../utils/generate-code.util';
 import type {
   GetWarehousesQuery,
   CreateWarehouseInput,
@@ -119,14 +120,13 @@ export const updateWarehouse = async (id: number, data: UpdateWarehouseInput) =>
 // ==========================================
 
 export const getLocations = async (query: GetLocationsQuery) => {
-  const { page, limit, warehouse_id, zone_code, aisle_code, rack_code, location_status, storage_condition, search } = query;
+  const { page, limit, warehouse_id, zone_code, rack_code, location_status, storage_condition, search } = query;
   const skip = (page - 1) * limit;
 
   const where: any = {};
 
   if (warehouse_id) where.warehouse_id = warehouse_id;
   if (zone_code) where.zone_code = zone_code;
-  if (aisle_code) where.aisle_code = aisle_code;
   if (rack_code) where.rack_code = rack_code;
   if (location_status) where.location_status = location_status;
   if (storage_condition) where.storage_condition = storage_condition;
@@ -188,29 +188,26 @@ export const createLocation = async (data: CreateLocationInput) => {
     throw new AppError('Không tìm thấy mã kho (warehouse_id) tương ứng', 404);
   }
 
+  const generatedLocationCode = generateLocationCode(
+    warehouse.code,
+    data.zone_code ?? undefined,
+    data.rack_code ?? undefined,
+    data.level_code ?? undefined,
+    data.bin_code ?? undefined
+  );
+
   // Check duplicate location code
   const existing = await prisma.warehouseLocation.findUnique({
-    where: { location_code: data.location_code },
+    where: { location_code: generatedLocationCode },
   });
   if (existing) {
     throw new AppError('Mã vị trí kho (location_code) đã tồn tại', 400);
   }
 
-  // Generate full path (Kho-Khu-Dãy-Kệ-Tầng-Ô)
-  const paths = [
-    warehouse.code,
-    data.zone_code,
-    data.aisle_code,
-    data.rack_code,
-    data.level_code,
-    data.bin_code
-  ].filter(Boolean); // Lọc bỏ giá trị rỗng hoặc undefined
-  
-  const full_path = paths.join('-');
+  const full_path = generatedLocationCode;
 
   const insertData = { ...data };
   if (insertData.zone_code === undefined) insertData.zone_code = null;
-  if (insertData.aisle_code === undefined) insertData.aisle_code = null;
   if (insertData.rack_code === undefined) insertData.rack_code = null;
   if (insertData.level_code === undefined) insertData.level_code = null;
   if (insertData.bin_code === undefined) insertData.bin_code = null;
@@ -221,6 +218,7 @@ export const createLocation = async (data: CreateLocationInput) => {
     data: {
       ...(insertData as any),
       full_path,
+      location_code: generatedLocationCode,
     },
   });
 };

@@ -89,19 +89,6 @@ CREATE TABLE `brands` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `manufacturers` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `code` VARCHAR(191) NOT NULL,
-    `name` VARCHAR(191) NOT NULL,
-    `is_active` BOOLEAN NOT NULL DEFAULT true,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `manufacturers_code_key`(`code`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `units_of_measure` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `code` VARCHAR(191) NOT NULL,
@@ -123,8 +110,6 @@ CREATE TABLE `products` (
     `description` TEXT NULL,
     `product_type` ENUM('GOODS', 'MATERIAL', 'CONSUMABLE') NOT NULL DEFAULT 'GOODS',
     `product_status` ENUM('ACTIVE', 'INACTIVE', 'DISCONTINUED') NOT NULL DEFAULT 'ACTIVE',
-    `brand_id` INTEGER NULL,
-    `manufacturer_id` INTEGER NULL,
     `base_uom_id` INTEGER NOT NULL,
     `has_batch` BOOLEAN NOT NULL DEFAULT false,
     `min_stock` DECIMAL(15, 3) NULL,
@@ -135,12 +120,8 @@ CREATE TABLE `products` (
     `updated_at` DATETIME(3) NOT NULL,
     `expiry_date` DATETIME(3) NULL,
     `production_date` DATETIME(3) NULL,
-    `warehouse_id` INTEGER NULL,
 
     UNIQUE INDEX `products_code_key`(`code`),
-    INDEX `products_brand_id_fkey`(`brand_id`),
-    INDEX `products_manufacturer_id_fkey`(`manufacturer_id`),
-    INDEX `products_warehouse_id_fkey`(`warehouse_id`),
     INDEX `products_base_uom_id_fkey`(`base_uom_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -235,7 +216,6 @@ CREATE TABLE `warehouse_locations` (
     `warehouse_id` INTEGER NOT NULL,
     `location_code` VARCHAR(100) NOT NULL,
     `zone_code` VARCHAR(50) NULL,
-    `aisle_code` VARCHAR(50) NULL,
     `rack_code` VARCHAR(50) NULL,
     `level_code` VARCHAR(50) NULL,
     `bin_code` VARCHAR(50) NULL,
@@ -271,7 +251,75 @@ CREATE TABLE `location_allowed_categories` (
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
+    INDEX `location_allowed_categories_category_id_fkey`(`category_id`),
     UNIQUE INDEX `location_allowed_categories_location_id_category_id_key`(`location_id`, `category_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `brands_products` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `brand_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `brands_products_brand_id_idx`(`brand_id`),
+    INDEX `brands_products_product_id_idx`(`product_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `product_warehouses` (
+    `product_id` INTEGER NOT NULL,
+    `warehouse_id` INTEGER NOT NULL,
+    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `product_warehouses_warehouse_id_idx`(`warehouse_id`),
+    PRIMARY KEY (`product_id`, `warehouse_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `product_lots` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `lot_no` VARCHAR(191) NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `inventories_id` INTEGER NOT NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
+    `production_date` DATETIME(3) NULL,
+    `expired_date` DATETIME(3) NULL,
+    `received_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `product_lots_lot_no_key`(`lot_no`),
+    INDEX `product_lots_product_id_idx`(`product_id`),
+    INDEX `product_lots_inventories_id_idx`(`inventories_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `inventory_transactions` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `lot_id` INTEGER NULL,
+    `product_uom_id` INTEGER NOT NULL,
+    `transaction_type` ENUM('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT') NOT NULL,
+    `quantity` DECIMAL(15, 3) NOT NULL,
+    `base_quantity` DECIMAL(15, 3) NOT NULL,
+    `balance_after` DECIMAL(15, 3) NOT NULL,
+    `reference_type` VARCHAR(191) NULL,
+    `reference_id` VARCHAR(191) NULL,
+    `reference_line_id` VARCHAR(191) NULL,
+    `note` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `created_by` INTEGER NULL,
+    `transaction_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `inventory_transactions_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `inventory_transactions_product_id_idx`(`product_id`),
+    INDEX `inventory_transactions_lot_id_idx`(`lot_id`),
+    INDEX `inventory_transactions_created_by_idx`(`created_by`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -292,15 +340,6 @@ ALTER TABLE `product_categories` ADD CONSTRAINT `product_categories_parent_id_fk
 
 -- AddForeignKey
 ALTER TABLE `products` ADD CONSTRAINT `products_base_uom_id_fkey` FOREIGN KEY (`base_uom_id`) REFERENCES `units_of_measure`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `products` ADD CONSTRAINT `products_brand_id_fkey` FOREIGN KEY (`brand_id`) REFERENCES `brands`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `products` ADD CONSTRAINT `products_manufacturer_id_fkey` FOREIGN KEY (`manufacturer_id`) REFERENCES `manufacturers`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `products` ADD CONSTRAINT `products_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `product_category_map` ADD CONSTRAINT `product_category_map_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -330,7 +369,40 @@ ALTER TABLE `inventories` ADD CONSTRAINT `inventories_warehouse_location_id_fkey
 ALTER TABLE `warehouse_locations` ADD CONSTRAINT `warehouse_locations_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_location_id_fkey` FOREIGN KEY (`location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_brand_id_fkey` FOREIGN KEY (`brand_id`) REFERENCES `brands`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_lots` ADD CONSTRAINT `product_lots_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_lots` ADD CONSTRAINT `product_lots_inventories_id_fkey` FOREIGN KEY (`inventories_id`) REFERENCES `inventories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_product_uom_id_fkey` FOREIGN KEY (`product_uom_id`) REFERENCES `product_uoms`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

@@ -78,32 +78,18 @@ const productUomSchema = z.object({
 // Schema tạo mới sản phẩm
 export const createProductSchema = z.object({
   body: z.object({
-    code: z
-      .string()
-      .min(1, "Mã sản phẩm không được để trống")
-      .max(50, "Mã sản phẩm tối đa 50 ký tự")
-      .transform((val) => val.toUpperCase()),
     name: z
       .string()
       .min(1, "Tên sản phẩm không được để trống")
       .max(200, "Tên sản phẩm tối đa 200 ký tự"),
     description: z.string().optional(),
     product_type: productTypeEnum.optional(),
-    brand_id: z
-      .number()
-      .int()
-      .positive("ID thương hiệu phải là số nguyên dương")
-      .optional(),
-    manufacturer_id: z
-      .number()
-      .int()
-      .positive("ID nhà sản xuất phải là số nguyên dương")
+    brand_ids: z
+      .array(z.number().int().positive("ID thương hiệu phải là số nguyên dương"))
       .optional(),
     base_uom_id: z.number().int().positive("ID đơn vị tính cơ sở là bắt buộc"),
-    warehouse_id: z
-      .number()
-      .int()
-      .positive("ID kho phải là số nguyên dương")
+    warehouse_ids: z
+      .array(z.number().int().positive("ID kho phải là số nguyên dương"))
       .optional(),
     has_batch: z.boolean().optional(),
     production_date: z.string().datetime().optional(),
@@ -139,12 +125,6 @@ export const updateProductSchema = z.object({
       .pipe(z.number().int().positive("ID phải là số nguyên dương")),
   }),
   body: z.object({
-    code: z
-      .string()
-      .min(1, "Mã sản phẩm không được để trống")
-      .max(50, "Mã sản phẩm tối đa 50 ký tự")
-      .transform((val) => val.toUpperCase())
-      .optional(),
     name: z
       .string()
       .min(1, "Tên sản phẩm không được để trống")
@@ -153,29 +133,17 @@ export const updateProductSchema = z.object({
     description: z.string().optional().nullable(),
     product_type: productTypeEnum.optional(),
     product_status: productStatusEnum.optional(),
-    brand_id: z
-      .number()
-      .int()
-      .positive("ID thương hiệu phải là số nguyên dương")
-      .optional()
-      .nullable(),
-    manufacturer_id: z
-      .number()
-      .int()
-      .positive("ID nhà sản xuất phải là số nguyên dương")
-      .optional()
-      .nullable(),
+    brand_ids: z
+      .array(z.number().int().positive("ID thương hiệu phải là số nguyên dương"))
+      .optional(),
     base_uom_id: z
       .number()
       .int()
       .positive("ID đơn vị tính cơ sở phải là số nguyên dương")
       .optional(),
-    warehouse_id: z
-      .number()
-      .int()
-      .positive("ID kho phải là số nguyên dương")
-      .optional()
-      .nullable(),
+    warehouse_ids: z
+      .array(z.number().int().positive("ID kho phải là số nguyên dương"))
+      .optional(),
     has_batch: z.boolean().optional(),
     production_date: z.string().datetime().optional().nullable(),
     expiry_date: z.string().datetime().optional().nullable(),

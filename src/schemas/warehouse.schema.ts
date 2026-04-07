@@ -82,7 +82,6 @@ export const getLocationsQuerySchema = z.object({
       .optional()
       .transform((val) => (val ? parseInt(val, 10) : undefined)),
     zone_code: z.string().optional(),
-    aisle_code: z.string().optional(),
     rack_code: z.string().optional(),
     location_status: locationStatusEnum.optional(),
     storage_condition: storageTypeEnum.optional(),
@@ -102,9 +101,7 @@ export const locationParamSchema = z.object({
 export const createLocationSchema = z.object({
   body: z.object({
     warehouse_id: z.number().int().positive("ID kho bắt buộc"),
-    location_code: z.string().min(1, "Mã vị trí bắt buộc").max(100),
     zone_code: z.string().max(50).optional().nullable(),
-    aisle_code: z.string().max(50).optional().nullable(),
     rack_code: z.string().max(50).optional().nullable(),
     level_code: z.string().max(50).optional().nullable(),
     bin_code: z.string().max(50).optional().nullable(),

@@ -1,5 +1,6 @@
 import { prisma } from '../config/db.config';
 import { AppError } from '../utils/app-error';
+import { normalizeNameToCode } from '../utils/generate-code.util';
 import type {
   GetProductCategoriesQuery,
   CreateProductCategoryInput,
@@ -119,12 +120,19 @@ export const getProductCategoryById = async (id: number) => {
  * Tạo mới danh mục sản phẩm
  */
 export const createProductCategory = async (data: CreateProductCategoryInput) => {
-  // Kiểm tra mã danh mục đã tồn tại
-  const existingCategory = await prisma.productCategory.findUnique({
-    where: { code: data.code },
+  let generatedCode = normalizeNameToCode(data.name);
+  let codeToCheck = generatedCode;
+  let counter = 1;
+  let existingCategory = await prisma.productCategory.findUnique({
+    where: { code: codeToCheck },
   });
-  if (existingCategory) {
-    throw new AppError('Mã danh mục đã tồn tại', 400);
+
+  while (existingCategory) {
+    codeToCheck = `${generatedCode}_${counter}`;
+    existingCategory = await prisma.productCategory.findUnique({
+      where: { code: codeToCheck },
+    });
+    counter++;
   }
 
   // Kiểm tra danh mục cha tồn tại (nếu có)
@@ -139,7 +147,7 @@ export const createProductCategory = async (data: CreateProductCategoryInput) =>
 
   const newCategory = await prisma.productCategory.create({
     data: {
-      code: data.code,
+      code: codeToCheck,
       name: data.name,
       description: data.description ?? null,
       parent_id: data.parent_id ?? null,
@@ -170,34 +178,8 @@ export const updateProductCategory = async (id: number, data: UpdateProductCateg
     throw new AppError('Không tìm thấy danh mục sản phẩm', 404);
   }
 
-  // Kiểm tra mã trùng (nếu thay đổi)
-  if (data.code && data.code !== existingCategory.code) {
-    const duplicateCode = await prisma.productCategory.findUnique({
-      where: { code: data.code },
-    });
-    if (duplicateCode) {
-      throw new AppError('Mã danh mục đã tồn tại', 400);
-    }
-  }
-
-  // Kiểm tra danh mục cha tồn tại (nếu thay đổi)
-  if (data.parent_id !== undefined && data.parent_id !== null) {
-    // Không cho phép tự gán chính mình làm cha
-    if (data.parent_id === id) {
-      throw new AppError('Không thể gán danh mục làm cha của chính nó', 400);
-    }
-
-    const parentCategory = await prisma.productCategory.findUnique({
-      where: { id: data.parent_id },
-    });
-    if (!parentCategory) {
-      throw new AppError('Danh mục cha không tồn tại', 400);
-    }
-  }
-
   // Chuẩn bị dữ liệu cập nhật
   const updateData: Record<string, unknown> = {};
-  if (data.code !== undefined) updateData.code = data.code;
   if (data.name !== undefined) updateData.name = data.name;
   if (data.description !== undefined) updateData.description = data.description;
   if (data.parent_id !== undefined) updateData.parent_id = data.parent_id;
