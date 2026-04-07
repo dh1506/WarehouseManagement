@@ -1,5 +1,6 @@
 import { prisma } from "../config/db.config";
 import { AppError } from "../utils/app-error";
+import { generateProductSku } from "../utils/generate-code.util";
 import type {
   GetProductsQuery,
   CreateProductInput,
@@ -42,11 +43,15 @@ export const getProducts = async (query: GetProductsQuery) => {
   }
 
   if (brand_id) {
-    where.brand_id = brand_id;
+    where.brands = {
+      some: { brand_id: brand_id }
+    };
   }
 
   if (warehouse_id) {
-    where.warehouse_id = warehouse_id;
+    where.warehouses = {
+      some: { warehouse_id: warehouse_id }
+    };
   }
 
   if (production_date_from || production_date_to) {
@@ -98,25 +103,26 @@ export const getProducts = async (query: GetProductsQuery) => {
         image_url: true,
         created_at: true,
         updated_at: true,
-        brand: {
+        brands: {
           select: {
-            id: true,
-            code: true,
-            name: true,
+            brand: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
           },
         },
-        manufacturer: {
+        warehouses: {
           select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-        warehouse: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
+            warehouse: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
           },
         },
         base_uom: {
@@ -186,8 +192,9 @@ export const getProducts = async (query: GetProductsQuery) => {
 
   // Format lại categories cho gọn
   const formattedProducts = products.map((product) => ({
-    ...product,
     categories: product.categories.map((pc) => pc.category),
+    brands: product.brands.map((pb) => pb.brand),
+    warehouses: product.warehouses.map((pw) => pw.warehouse),
     productSuppliers: product.productSuppliers.map((ps) => ({
       supplier: ps.supplier,
       supplier_sku: ps.supplier_sku,
@@ -229,25 +236,26 @@ export const getProductById = async (id: number) => {
       image_url: true,
       created_at: true,
       updated_at: true,
-      brand: {
+      brands: {
         select: {
-          id: true,
-          code: true,
-          name: true,
+          brand: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
         },
       },
-      manufacturer: {
+      warehouses: {
         select: {
-          id: true,
-          code: true,
-          name: true,
-        },
-      },
-      warehouse: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
+          warehouse: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
         },
       },
       base_uom: {
@@ -314,9 +322,10 @@ export const getProductById = async (id: number) => {
   return {
     ...product,
     categories: product.categories.map((pc) => ({
-      ...pc.category,
       assigned_at: pc.assigned_at,
     })),
+    brands: product.brands.map((pb) => pb.brand),
+    warehouses: product.warehouses.map((pw) => pw.warehouse),
     productSuppliers: product.productSuppliers.map((ps) => ({
       supplier: ps.supplier,
       supplier_sku: ps.supplier_sku,
@@ -331,14 +340,6 @@ export const getProductById = async (id: number) => {
  * Bao gồm: gán danh mục và đơn vị tính quy đổi trong transaction
  */
 export const createProduct = async (data: CreateProductInput) => {
-  // Kiểm tra mã sản phẩm đã tồn tại
-  const existingProduct = await prisma.product.findUnique({
-    where: { code: data.code },
-  });
-  if (existingProduct) {
-    throw new AppError("Mã sản phẩm đã tồn tại", 400);
-  }
-
   // Kiểm tra đơn vị tính cơ sở tồn tại
   const baseUom = await prisma.unitOfMeasure.findUnique({
     where: { id: data.base_uom_id },
@@ -347,94 +348,22 @@ export const createProduct = async (data: CreateProductInput) => {
     throw new AppError("Đơn vị tính cơ sở không tồn tại", 400);
   }
 
-  // Kiểm tra thương hiệu tồn tại (nếu có)
-  if (data.brand_id) {
-    const brand = await prisma.brand.findUnique({
-      where: { id: data.brand_id },
-    });
-    if (!brand) {
-      throw new AppError("Thương hiệu không tồn tại", 400);
-    }
-  }
+  // Define logic sinh mả Code
+  const totalProducts = await prisma.product.count({
+    where: { product_type: data.product_type ?? "GOODS" }
+  });
+  const firstBrandId = data.brand_ids && data.brand_ids.length > 0 ? (data.brand_ids[0] ?? 0) : 0;
+  const productType = data.product_type ?? "GOODS";
+  const productCode = generateProductSku(productType, firstBrandId, totalProducts + 1);
 
-  // Kiểm tra nhà sản xuất tồn tại (nếu có)
-  if (data.manufacturer_id) {
-    const manufacturer = await prisma.manufacturer.findUnique({
-      where: { id: data.manufacturer_id },
-    });
-    if (!manufacturer) {
-      throw new AppError("Nhà sản xuất không tồn tại", 400);
-    }
-  }
-
-  // Kiểm tra warehouse tồn tại (nếu có)
-  if (data.warehouse_id) {
-    const warehouse = await prisma.warehouse.findUnique({
-      where: { id: data.warehouse_id },
-    });
-    if (!warehouse) {
-      throw new AppError("Kho không tồn tại", 400);
-    }
-  }
-
-  // Kiểm tra tất cả category IDs tồn tại (nếu có)
-  if (data.category_ids && data.category_ids.length > 0) {
-    const categories = await prisma.productCategory.findMany({
-      where: { id: { in: data.category_ids } },
-    });
-    if (categories.length !== data.category_ids.length) {
-      const foundIds = categories.map((c) => c.id);
-      const notFoundIds = data.category_ids.filter(
-        (id) => !foundIds.includes(id),
-      );
-      throw new AppError(
-        `Không tìm thấy danh mục với ID: ${notFoundIds.join(", ")}`,
-        400,
-      );
-    }
-  }
-
-  // Kiểm tra tất cả UOM IDs tồn tại (nếu có)
-  if (data.uoms && data.uoms.length > 0) {
-    const uomIds = data.uoms.map((u) => u.uom_id);
-    const uoms = await prisma.unitOfMeasure.findMany({
-      where: { id: { in: uomIds } },
-    });
-    if (uoms.length !== uomIds.length) {
-      const foundIds = uoms.map((u) => u.id);
-      const notFoundIds = uomIds.filter((id) => !foundIds.includes(id));
-      throw new AppError(
-        `Không tìm thấy đơn vị tính với ID: ${notFoundIds.join(", ")}`,
-        400,
-      );
-    }
-  }
-
-  // Kiểm tra production/expiry hợp lệ
-  if (data.production_date && data.expiry_date) {
-    const productionDate = new Date(data.production_date);
-    const expiryDate = new Date(data.expiry_date);
-    if (expiryDate < productionDate) {
-      throw new AppError(
-        "Ngày hết hạn phải lớn hơn hoặc bằng ngày sản xuất",
-        400,
-      );
-    }
-  }
-
-  // Tạo sản phẩm trong transaction
   const newProduct = await prisma.$transaction(async (tx) => {
-    // Tạo sản phẩm
     const product = await tx.product.create({
       data: {
-        code: data.code,
+        code: productCode,
         name: data.name,
         description: data.description ?? null,
         product_type: data.product_type ?? "GOODS",
-        brand_id: data.brand_id ?? null,
-        manufacturer_id: data.manufacturer_id ?? null,
         base_uom_id: data.base_uom_id,
-        warehouse_id: data.warehouse_id ?? null,
         has_batch: data.has_batch ?? false,
         production_date: data.production_date
           ? new Date(data.production_date)
@@ -447,7 +376,24 @@ export const createProduct = async (data: CreateProductInput) => {
       },
     });
 
-    // Gán danh mục (nếu có)
+    if (data.brand_ids && data.brand_ids.length > 0) {
+      await tx.brandProduct.createMany({
+        data: data.brand_ids.map((id) => ({
+          product_id: product.id,
+          brand_id: id,
+        })),
+      });
+    }
+
+    if (data.warehouse_ids && data.warehouse_ids.length > 0) {
+      await tx.productWarehouse.createMany({
+        data: data.warehouse_ids.map((id) => ({
+          product_id: product.id,
+          warehouse_id: id,
+        })),
+      });
+    }
+
     if (data.category_ids && data.category_ids.length > 0) {
       await tx.productCategoryMap.createMany({
         data: data.category_ids.map((categoryId) => ({
@@ -457,7 +403,6 @@ export const createProduct = async (data: CreateProductInput) => {
       });
     }
 
-    // Tạo đơn vị tính quy đổi (nếu có)
     if (data.uoms && data.uoms.length > 0) {
       await tx.productUom.createMany({
         data: data.uoms.map((uom) => ({
@@ -472,7 +417,6 @@ export const createProduct = async (data: CreateProductInput) => {
     return product;
   });
 
-  // Trả về sản phẩm đầy đủ thông tin
   return getProductById(newProduct.id);
 };
 
@@ -481,7 +425,6 @@ export const createProduct = async (data: CreateProductInput) => {
  * Bao gồm: sync lại danh mục và đơn vị tính quy đổi trong transaction
  */
 export const updateProduct = async (id: number, data: UpdateProductInput) => {
-  // Kiểm tra sản phẩm tồn tại
   const existingProduct = await prisma.product.findUnique({
     where: { id },
   });
@@ -489,17 +432,6 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
     throw new AppError("Không tìm thấy sản phẩm", 404);
   }
 
-  // Kiểm tra mã trùng (nếu thay đổi)
-  if (data.code && data.code !== existingProduct.code) {
-    const duplicateCode = await prisma.product.findUnique({
-      where: { code: data.code },
-    });
-    if (duplicateCode) {
-      throw new AppError("Mã sản phẩm đã tồn tại", 400);
-    }
-  }
-
-  // Kiểm tra đơn vị tính cơ sở (nếu thay đổi)
   if (data.base_uom_id) {
     const baseUom = await prisma.unitOfMeasure.findUnique({
       where: { id: data.base_uom_id },
@@ -509,116 +441,21 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
     }
   }
 
-  // Kiểm tra thương hiệu (nếu thay đổi)
-  if (data.brand_id) {
-    const brand = await prisma.brand.findUnique({
-      where: { id: data.brand_id },
-    });
-    if (!brand) {
-      throw new AppError("Thương hiệu không tồn tại", 400);
-    }
-  }
-
-  // Kiểm tra nhà sản xuất (nếu thay đổi)
-  if (data.manufacturer_id) {
-    const manufacturer = await prisma.manufacturer.findUnique({
-      where: { id: data.manufacturer_id },
-    });
-    if (!manufacturer) {
-      throw new AppError("Nhà sản xuất không tồn tại", 400);
-    }
-  }
-
-  // Kiểm tra warehouse (nếu thay đổi)
-  if (data.warehouse_id) {
-    const warehouse = await prisma.warehouse.findUnique({
-      where: { id: data.warehouse_id },
-    });
-    if (!warehouse) {
-      throw new AppError("Kho không tồn tại", 400);
-    }
-  }
-
-  // Kiểm tra category IDs (nếu có)
-  if (data.category_ids && data.category_ids.length > 0) {
-    const categories = await prisma.productCategory.findMany({
-      where: { id: { in: data.category_ids } },
-    });
-    if (categories.length !== data.category_ids.length) {
-      const foundIds = categories.map((c) => c.id);
-      const notFoundIds = data.category_ids.filter(
-        (cId) => !foundIds.includes(cId),
-      );
-      throw new AppError(
-        `Không tìm thấy danh mục với ID: ${notFoundIds.join(", ")}`,
-        400,
-      );
-    }
-  }
-
-  // Kiểm tra UOM IDs (nếu có)
-  if (data.uoms && data.uoms.length > 0) {
-    const uomIds = data.uoms.map((u) => u.uom_id);
-    const uoms = await prisma.unitOfMeasure.findMany({
-      where: { id: { in: uomIds } },
-    });
-    if (uoms.length !== uomIds.length) {
-      const foundIds = uoms.map((u) => u.id);
-      const notFoundIds = uomIds.filter((uId) => !foundIds.includes(uId));
-      throw new AppError(
-        `Không tìm thấy đơn vị tính với ID: ${notFoundIds.join(", ")}`,
-        400,
-      );
-    }
-  }
-
-  // Kiểm tra production/expiry hợp lệ khi cập nhật
-  if (data.production_date && data.expiry_date) {
-    const productionDate = new Date(data.production_date);
-    const expiryDate = new Date(data.expiry_date);
-    if (expiryDate < productionDate) {
-      throw new AppError(
-        "Ngày hết hạn phải lớn hơn hoặc bằng ngày sản xuất",
-        400,
-      );
-    }
-  }
-
-  // Cập nhật trong transaction
   await prisma.$transaction(async (tx) => {
-    // Chuẩn bị dữ liệu cập nhật cho product
     const updateData: Record<string, unknown> = {};
-    if (data.code !== undefined) updateData.code = data.code;
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.description !== undefined)
-      updateData.description = data.description;
-    if (data.product_type !== undefined)
-      updateData.product_type = data.product_type;
-    if (data.product_status !== undefined)
-      updateData.product_status = data.product_status;
-    if (data.brand_id !== undefined) updateData.brand_id = data.brand_id;
-    if (data.manufacturer_id !== undefined)
-      updateData.manufacturer_id = data.manufacturer_id;
-    if (data.base_uom_id !== undefined)
-      updateData.base_uom_id = data.base_uom_id;
-    if (data.warehouse_id !== undefined)
-      updateData.warehouse_id = data.warehouse_id;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.product_type !== undefined) updateData.product_type = data.product_type;
+    if (data.product_status !== undefined) updateData.product_status = data.product_status;
+    if (data.base_uom_id !== undefined) updateData.base_uom_id = data.base_uom_id;
     if (data.has_batch !== undefined) updateData.has_batch = data.has_batch;
-    if (data.production_date !== undefined)
-      updateData.production_date = data.production_date
-        ? new Date(data.production_date)
-        : null;
-    if (data.expiry_date !== undefined)
-      updateData.expiry_date = data.expiry_date
-        ? new Date(data.expiry_date)
-        : null;
+    if (data.production_date !== undefined) updateData.production_date = data.production_date ? new Date(data.production_date) : null;
+    if (data.expiry_date !== undefined) updateData.expiry_date = data.expiry_date ? new Date(data.expiry_date) : null;
     if (data.min_stock !== undefined) updateData.min_stock = data.min_stock;
     if (data.max_stock !== undefined) updateData.max_stock = data.max_stock;
-    if (data.storage_conditions !== undefined)
-      updateData.storage_conditions = data.storage_conditions;
+    if (data.storage_conditions !== undefined) updateData.storage_conditions = data.storage_conditions;
     if (data.image_url !== undefined) updateData.image_url = data.image_url;
 
-    // Cập nhật thông tin sản phẩm
     if (Object.keys(updateData).length > 0) {
       await tx.product.update({
         where: { id },
@@ -626,7 +463,24 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
       });
     }
 
-    // Sync lại danh mục (xóa cũ, gán mới) — chỉ khi client gửi category_ids
+    if (data.brand_ids !== undefined) {
+      await tx.brandProduct.deleteMany({ where: { product_id: id } });
+      if (data.brand_ids.length > 0) {
+        await tx.brandProduct.createMany({
+          data: data.brand_ids.map((bid) => ({ product_id: id, brand_id: bid })),
+        });
+      }
+    }
+
+    if (data.warehouse_ids !== undefined) {
+      await tx.productWarehouse.deleteMany({ where: { product_id: id } });
+      if (data.warehouse_ids.length > 0) {
+        await tx.productWarehouse.createMany({
+          data: data.warehouse_ids.map((wid) => ({ product_id: id, warehouse_id: wid })),
+        });
+      }
+    }
+
     if (data.category_ids !== undefined) {
       await tx.productCategoryMap.deleteMany({
         where: { product_id: id },
@@ -642,7 +496,6 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
       }
     }
 
-    // Sync lại đơn vị tính quy đổi — chỉ khi client gửi uoms
     if (data.uoms !== undefined) {
       await tx.productUom.deleteMany({
         where: { product_id: id },
@@ -661,6 +514,5 @@ export const updateProduct = async (id: number, data: UpdateProductInput) => {
     }
   });
 
-  // Trả về sản phẩm đầy đủ thông tin sau cập nhật
   return getProductById(id);
 };

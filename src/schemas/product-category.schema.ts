@@ -35,11 +35,6 @@ export const getProductCategoryByIdParamSchema = z.object({
 // Schema tạo mới danh mục sản phẩm
 export const createProductCategorySchema = z.object({
   body: z.object({
-    code: z
-      .string()
-      .min(1, 'Mã danh mục không được để trống')
-      .max(50, 'Mã danh mục tối đa 50 ký tự')
-      .transform((val) => val.toUpperCase()),
     name: z
       .string()
       .min(1, 'Tên danh mục không được để trống')
@@ -58,12 +53,6 @@ export const updateProductCategorySchema = z.object({
       .pipe(z.number().int().positive('ID phải là số nguyên dương')),
   }),
   body: z.object({
-    code: z
-      .string()
-      .min(1, 'Mã danh mục không được để trống')
-      .max(50, 'Mã danh mục tối đa 50 ký tự')
-      .transform((val) => val.toUpperCase())
-      .optional(),
     name: z
       .string()
       .min(1, 'Tên danh mục không được để trống')

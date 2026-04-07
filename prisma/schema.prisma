@@ -8,20 +8,21 @@ datasource db {
 }
 
 model User {
-  id            Int        @id @default(autoincrement())
-  username      String     @unique
-  password_hash String
-  full_name     String
-  email         String?    @unique
-  phone         String?    @unique
-  avatar_url    String?
-  role_id       Int
-  user_status   UserStatus @default(ACTIVE)
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
-  warehouse_id  Int?
-  role          Role       @relation(fields: [role_id], references: [id])
-  warehouse     Warehouse? @relation(fields: [warehouse_id], references: [id])
+  id                     Int                    @id @default(autoincrement())
+  username               String                 @unique
+  password_hash          String
+  full_name              String
+  email                  String?                @unique
+  phone                  String?                @unique
+  avatar_url             String?
+  role_id                Int
+  user_status            UserStatus             @default(ACTIVE)
+  created_at             DateTime               @default(now())
+  updated_at             DateTime               @updatedAt
+  warehouse_id           Int?
+  role                   Role                   @relation(fields: [role_id], references: [id])
+  warehouse              Warehouse?             @relation(fields: [warehouse_id], references: [id])
+  inventory_transactions InventoryTransaction[]
 
   @@index([role_id], map: "users_role_id_fkey")
   @@index([warehouse_id], map: "users_warehouse_id_fkey")
@@ -69,44 +70,32 @@ model RolePermission {
 }
 
 model ProductCategory {
-  id          Int                  @id @default(autoincrement())
-  code        String               @unique
-  name        String
-  description String?
-  parent_id   Int?
-  created_at  DateTime             @default(now())
-  updated_at  DateTime             @updatedAt
-  parent      ProductCategory?     @relation("CategoryHierarchy", fields: [parent_id], references: [id])
-  children    ProductCategory[]    @relation("CategoryHierarchy")
-  products    ProductCategoryMap[]
+  id             Int                       @id @default(autoincrement())
+  code           String                    @unique
+  name           String
+  description    String?
+  parent_id      Int?
+  created_at     DateTime                  @default(now())
+  updated_at     DateTime                  @updatedAt
   location_rules LocationAllowedCategory[]
+  parent         ProductCategory?          @relation("CategoryHierarchy", fields: [parent_id], references: [id])
+  children       ProductCategory[]         @relation("CategoryHierarchy")
+  products       ProductCategoryMap[]
 
   @@index([parent_id], map: "product_categories_parent_id_fkey")
   @@map("product_categories")
 }
 
 model Brand {
-  id         Int       @id @default(autoincrement())
-  code       String    @unique
+  id         Int            @id @default(autoincrement())
+  code       String         @unique
   name       String
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  products   Product[]
+  is_active  Boolean        @default(true)
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+  products   BrandProduct[]
 
   @@map("brands")
-}
-
-model Manufacturer {
-  id         Int       @id @default(autoincrement())
-  code       String    @unique
-  name       String
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  products   Product[]
-
-  @@map("manufacturers")
 }
 
 model UnitOfMeasure {
@@ -124,37 +113,34 @@ model UnitOfMeasure {
 }
 
 model Product {
-  id                 Int                  @id @default(autoincrement())
-  code               String               @unique
+  id                 Int           @id @default(autoincrement())
+  code               String        @unique
   name               String
-  description        String?              @db.Text
-  product_type       ProductType          @default(GOODS)
-  product_status     ProductStatus        @default(ACTIVE)
-  brand_id           Int?
-  manufacturer_id    Int?
+  description        String?       @db.Text
+  product_type       ProductType   @default(GOODS)
+  product_status     ProductStatus @default(ACTIVE)
   base_uom_id        Int
-  has_batch          Boolean              @default(false)
-  min_stock          Decimal?             @db.Decimal(15, 3)
-  max_stock          Decimal?             @db.Decimal(15, 3)
+  has_batch          Boolean       @default(false)
+  min_stock          Decimal?      @db.Decimal(15, 3)
+  max_stock          Decimal?      @db.Decimal(15, 3)
   storage_conditions String?
   image_url          String?
-  created_at         DateTime             @default(now())
-  updated_at         DateTime             @updatedAt
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
   expiry_date        DateTime?
   production_date    DateTime?
-  warehouse_id       Int?
-  inventories        Inventory[]
-  categories         ProductCategoryMap[]
-  productSuppliers   ProductSupplier[]
-  uoms               ProductUom[]
-  base_uom           UnitOfMeasure        @relation(fields: [base_uom_id], references: [id])
-  brand              Brand?               @relation(fields: [brand_id], references: [id])
-  manufacturer       Manufacturer?        @relation(fields: [manufacturer_id], references: [id])
-  warehouse          Warehouse?           @relation(fields: [warehouse_id], references: [id])
 
-  @@index([brand_id], map: "products_brand_id_fkey")
-  @@index([manufacturer_id], map: "products_manufacturer_id_fkey")
-  @@index([warehouse_id], map: "products_warehouse_id_fkey")
+  brands                 BrandProduct[]
+  warehouses             ProductWarehouse[]
+  lots                   ProductLot[]
+  inventory_transactions InventoryTransaction[]
+
+  inventories      Inventory[]
+  categories       ProductCategoryMap[]
+  productSuppliers ProductSupplier[]
+  uoms             ProductUom[]
+  base_uom         UnitOfMeasure        @relation(fields: [base_uom_id], references: [id])
+
   @@index([base_uom_id], map: "products_base_uom_id_fkey")
   @@map("products")
 }
@@ -172,15 +158,16 @@ model ProductCategoryMap {
 }
 
 model ProductUom {
-  id                Int           @id @default(autoincrement())
-  product_id        Int
-  uom_id            Int
-  conversion_factor Decimal       @db.Decimal(15, 6)
-  is_default        Boolean       @default(false)
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
-  product           Product       @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  uom               UnitOfMeasure @relation(fields: [uom_id], references: [id])
+  id                    Int                    @id @default(autoincrement())
+  product_id            Int
+  uom_id                Int
+  conversion_factor     Decimal                @db.Decimal(15, 6)
+  is_default            Boolean                @default(false)
+  created_at            DateTime               @default(now())
+  updated_at            DateTime               @updatedAt
+  product               Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  uom                   UnitOfMeasure          @relation(fields: [uom_id], references: [id])
+  inventoryTransactions InventoryTransaction[]
 
   @@unique([product_id, uom_id])
   @@index([uom_id], map: "product_uoms_uom_id_fkey")
@@ -224,7 +211,7 @@ model Warehouse {
   is_active  Boolean             @default(true)
   created_at DateTime            @default(now())
   updated_at DateTime            @updatedAt
-  products   Product[]
+  products   ProductWarehouse[]
   users      User[]
   locations  WarehouseLocation[]
 
@@ -242,6 +229,7 @@ model Inventory {
   updated_at            DateTime          @updatedAt
   product               Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
   location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
+  lots                  ProductLot[]
 
   @@unique([product_id, warehouse_location_id])
   @@index([product_id])
@@ -250,31 +238,129 @@ model Inventory {
 }
 
 model WarehouseLocation {
-  id                Int            @id @default(autoincrement())
-  warehouse_id      Int
-  location_code     String         @unique @db.VarChar(100)
-  zone_code         String?        @db.VarChar(50)
-  aisle_code        String?        @db.VarChar(50)
-  rack_code         String?        @db.VarChar(50)
-  level_code        String?        @db.VarChar(50)
-  bin_code          String?        @db.VarChar(50)
-  full_path         String         @db.VarChar(255)
-  location_status   LocationStatus @default(AVAILABLE)
-  is_active         Boolean        @default(true)
-  max_weight        Decimal?       @db.Decimal(15, 3)
-  max_volume        Decimal?       @db.Decimal(15, 3)
-  current_weight    Decimal        @default(0.000) @db.Decimal(15, 3)
-  current_volume    Decimal        @default(0.000) @db.Decimal(15, 3)
-  occupancy_percent Decimal        @default(0.00) @db.Decimal(5, 2)
-  storage_condition StorageType    @default(AMBIENT)
-  created_at        DateTime       @default(now())
-  updated_at        DateTime            @updatedAt
-  inventories       Inventory[]
-  warehouse         Warehouse           @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
-  allowed_categories LocationAllowedCategory[]
+  id                     Int                       @id @default(autoincrement())
+  warehouse_id           Int
+  location_code          String                    @unique @db.VarChar(100)
+  zone_code              String?                   @db.VarChar(50)
+  rack_code              String?                   @db.VarChar(50)
+  level_code             String?                   @db.VarChar(50)
+  bin_code               String?                   @db.VarChar(50)
+  full_path              String                    @db.VarChar(255)
+  location_status        LocationStatus            @default(AVAILABLE)
+  is_active              Boolean                   @default(true)
+  max_weight             Decimal?                  @db.Decimal(15, 3)
+  max_volume             Decimal?                  @db.Decimal(15, 3)
+  current_weight         Decimal                   @default(0.000) @db.Decimal(15, 3)
+  current_volume         Decimal                   @default(0.000) @db.Decimal(15, 3)
+  occupancy_percent      Decimal                   @default(0.00) @db.Decimal(5, 2)
+  storage_condition      StorageType               @default(AMBIENT)
+  created_at             DateTime                  @default(now())
+  updated_at             DateTime                  @updatedAt
+  inventories            Inventory[]
+  allowed_categories     LocationAllowedCategory[]
+  inventory_transactions InventoryTransaction[]
+  warehouse              Warehouse                 @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")
   @@map("warehouse_locations")
+}
+
+model LocationAllowedCategory {
+  id                  Int               @id @default(autoincrement())
+  location_id         Int
+  category_id         Int
+  is_allowed          Boolean           @default(true)
+  rule_source         RuleSource        @default(DIRECT)
+  inherit_from_parent Boolean           @default(true)
+  priority            Int               @default(0)
+  effective_from      DateTime          @default(now())
+  effective_to        DateTime?
+  note                String?           @db.Text
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
+  category            ProductCategory   @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  location            WarehouseLocation @relation(fields: [location_id], references: [id], onDelete: Cascade)
+
+  @@unique([location_id, category_id])
+  @@index([category_id], map: "location_allowed_categories_category_id_fkey")
+  @@map("location_allowed_categories")
+}
+
+model BrandProduct {
+  id         Int      @id @default(autoincrement())
+  brand_id   Int
+  product_id Int
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  brand      Brand    @relation(fields: [brand_id], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([brand_id])
+  @@index([product_id])
+  @@map("brands_products")
+}
+
+model ProductWarehouse {
+  product_id   Int
+  warehouse_id Int
+  assigned_at  DateTime  @default(now())
+  product      Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  warehouse    Warehouse @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, warehouse_id])
+  @@index([warehouse_id])
+  @@map("product_warehouses")
+}
+
+model ProductLot {
+  id              Int       @id @default(autoincrement())
+  lot_no          String    @unique
+  product_id      Int
+  inventories_id  Int
+  status          LotStatus @default(ACTIVE)
+  production_date DateTime?
+  expired_date    DateTime?
+  received_at     DateTime  @default(now())
+
+  product      Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  inventory    Inventory              @relation(fields: [inventories_id], references: [id], onDelete: Cascade)
+  transactions InventoryTransaction[]
+
+  @@index([product_id])
+  @@index([inventories_id])
+  @@map("product_lots")
+}
+
+model InventoryTransaction {
+  id                    Int             @id @default(autoincrement())
+  warehouse_location_id Int
+  product_id            Int
+  lot_id                Int?
+  product_uom_id        Int
+  transaction_type      TransactionType
+  quantity              Decimal         @db.Decimal(15, 3)
+  base_quantity         Decimal         @db.Decimal(15, 3)
+  balance_after         Decimal         @db.Decimal(15, 3)
+  reference_type        String?
+  reference_id          String?
+  reference_line_id     String?
+  note                  String?         @db.Text
+  created_at            DateTime        @default(now())
+  created_by            Int?
+  transaction_date      DateTime        @default(now())
+
+  location WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
+  product  Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  lot      ProductLot?       @relation(fields: [lot_id], references: [id], onDelete: SetNull)
+  uom      ProductUom        @relation(fields: [product_uom_id], references: [id])
+  creator  User?             @relation(fields: [created_by], references: [id])
+
+  @@index([warehouse_location_id])
+  @@index([product_id])
+  @@index([lot_id])
+  @@index([created_by])
+  @@map("inventory_transactions")
 }
 
 enum UserStatus {
@@ -323,23 +409,15 @@ enum RuleSource {
   OVERRIDE
 }
 
-model LocationAllowedCategory {
-  id                   Int               @id @default(autoincrement())
-  location_id          Int
-  category_id          Int
-  is_allowed           Boolean           @default(true)
-  rule_source          RuleSource        @default(DIRECT)
-  inherit_from_parent  Boolean           @default(true)
-  priority             Int               @default(0)
-  effective_from       DateTime          @default(now())
-  effective_to         DateTime?
-  note                 String?           @db.Text
-  created_at           DateTime          @default(now())
-  updated_at           DateTime          @updatedAt
-  
-  location             WarehouseLocation @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  category             ProductCategory   @relation(fields: [category_id], references: [id], onDelete: Cascade)
+enum LotStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
 
-  @@unique([location_id, category_id])
-  @@map("location_allowed_categories")
+enum TransactionType {
+  IN
+  OUT
+  TRANSFER
+  ADJUSTMENT
 }
