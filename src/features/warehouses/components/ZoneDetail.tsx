@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'motion/react';
 import { StatePanel } from '@/components/StatePanel';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
@@ -57,7 +58,7 @@ function getLegendLabel(level: BinOccupancyLevel) {
 }
 
 function parseBinCoordinate(code: string, fallbackRack: number, fallbackLevel: number, fallbackBin: number) {
-  const match = code.trim().toUpperCase().match(/-R(\d+)-L(\d+)-B(\d+)$/);
+  const match = code.trim().toUpperCase().match(/-R(\d+)-L(\d+)-B(\d+)(?:-[A-Z0-9]+)?$/);
   if (match) {
     return {
       rackCode: `R${match[1].padStart(2, '0')}`,
@@ -113,7 +114,7 @@ export function ZoneDetail() {
   const binCoordinates = useMemo(
     () => bins.map((bin) => ({
       bin,
-      coordinate: parseBinCoordinate(bin.code, bin.shelf, bin.level, bin.row),
+      coordinate: parseBinCoordinate(bin.code, bin.row, bin.level, bin.shelf),
     })),
     [bins],
   );
@@ -256,8 +257,12 @@ export function ZoneDetail() {
     const allowedIdSet = new Set(zone?.allowedCategoryIds ?? []);
     return (categoryOptionsQuery.data ?? []).filter((item) => allowedIdSet.has(item.id));
   }, [categoryOptionsQuery.data, zone?.allowedCategoryIds]);
+  const isCategoryLoading = categoryOptionsQuery.isLoading || categoryOptionsQuery.isFetching;
+  const isCategoryError = categoryOptionsQuery.isError;
 
   const productOptionsQuery = useWarehouseProductOptions(undefined, Boolean(zone));
+  const isProductLoading = productOptionsQuery.isLoading || productOptionsQuery.isFetching;
+  const isProductError = productOptionsQuery.isError;
   const filteredProducts = useMemo(
     () => {
       if (!categoryId) {
@@ -436,7 +441,7 @@ export function ZoneDetail() {
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="space-y-6 pb-3">
+              <motion.div className="space-y-6 pb-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                 {levelGroups.map((group) => {
                   return (
                     <div key={group.levelCode} className="space-y-3">
@@ -462,7 +467,7 @@ export function ZoneDetail() {
                 {levelGroups.length === 0 ? (
                   <StatePanel title="Không có ô phù hợp" description="Thử thay đổi bộ lọc rack/bin để xem dữ liệu phù hợp." icon="search" />
                 ) : null}
-              </div>
+              </motion.div>
             ) : (
               <div className="max-h-105 space-y-2 overflow-y-auto pr-1">
                 {binsOfRack.map(({ bin }) => (
@@ -512,7 +517,13 @@ export function ZoneDetail() {
             </div>
 
             {selectedBin ? (
-              <form className="space-y-5" onSubmit={handleSubmit(async (payload) => { await onSubmit(payload); })}>
+              <motion.form
+                className="space-y-5"
+                onSubmit={handleSubmit(async (payload) => { await onSubmit(payload); })}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
                 <div className="rounded-2xl bg-slate-100 p-4">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Selection</span>
@@ -538,7 +549,7 @@ export function ZoneDetail() {
                   <Field label="Category Scope" error={errors.categoryId?.message}>
                     <select
                       {...categoryField}
-                      disabled={!canManage || updateBinMutation.isPending || allowedCategories.length === 0}
+                      disabled={!canManage || updateBinMutation.isPending || isCategoryLoading || isCategoryError || allowedCategories.length === 0}
                       className={inputClass(!!errors.categoryId)}
                       onChange={(event) => {
                         categoryField.onChange(event);
@@ -551,12 +562,15 @@ export function ZoneDetail() {
                         <option key={item.id} value={item.id}>{item.name}</option>
                       ))}
                     </select>
+                    {isCategoryLoading ? <p className="text-[11px] font-medium normal-case tracking-normal text-slate-500">Đang tải danh mục...</p> : null}
+                    {isCategoryError ? <p className="text-[11px] font-medium normal-case tracking-normal text-red-600">Không tải được danh mục. Vui lòng thử lại.</p> : null}
+                    {!isCategoryLoading && !isCategoryError && allowedCategories.length === 0 ? <p className="text-[11px] font-medium normal-case tracking-normal text-amber-700">Zone này chưa có danh mục hợp lệ để gán bin.</p> : null}
                   </Field>
 
                   <Field label="Assigned Product" error={errors.productId?.message}>
                     <select
                       {...productField}
-                      disabled={!canManage || updateBinMutation.isPending || !categoryId}
+                      disabled={!canManage || updateBinMutation.isPending || !categoryId || isProductLoading || isProductError || filteredProducts.length === 0}
                       className={inputClass(!!errors.productId)}
                       onChange={(event) => {
                         productField.onChange(event);
@@ -569,6 +583,9 @@ export function ZoneDetail() {
                         <option key={item.id} value={item.id}>{item.sku} - {item.name}</option>
                       ))}
                     </select>
+                    {isProductLoading ? <p className="text-[11px] font-medium normal-case tracking-normal text-slate-500">Đang tải sản phẩm...</p> : null}
+                    {isProductError ? <p className="text-[11px] font-medium normal-case tracking-normal text-red-600">Không tải được sản phẩm. Vui lòng thử lại.</p> : null}
+                    {!isProductLoading && !isProductError && categoryId && filteredProducts.length === 0 ? <p className="text-[11px] font-medium normal-case tracking-normal text-amber-700">Không có sản phẩm trong danh mục đã chọn.</p> : null}
                   </Field>
                 </div>
 
@@ -600,7 +617,7 @@ export function ZoneDetail() {
                 >
                   {updateBinMutation.isPending ? 'Đang lưu cấu hình...' : canManage ? 'Lưu cấu hình sức chứa' : 'Bạn không có quyền chỉnh sửa'}
                 </button>
-              </form>
+              </motion.form>
             ) : (
               <StatePanel title="Chưa có bin" description="Không có dữ liệu bin cho zone hiện tại." icon="grid_view" />
             )}

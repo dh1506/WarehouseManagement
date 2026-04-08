@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'motion/react';
 import { StatePanel } from '@/components/StatePanel';
 import {
   Dialog,
@@ -326,92 +327,98 @@ export function WarehouseHub() {
               <span className="text-xs font-semibold text-slate-500">{filteredHubs.length}</span>
             </div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-              {filteredHubs.map((warehouse) => {
+              {filteredHubs.map((warehouse, index) => {
                 const warehouseWarning = getWarningText(warehouse.usedCapacity);
 
                 return (
-                  <button
+                  <motion.div
                     key={warehouse.id}
-                    type="button"
-                    onClick={() => setSelectedHubId(warehouse.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${selectedHub?.id === warehouse.id
-                      ? 'border-blue-400 bg-blue-50 shadow-sm'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.2) }}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{warehouse.name}</p>
-                        <p className="text-xs text-slate-600">{warehouse.code}</p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedHubId(warehouse.id)}
+                      className={`w-full rounded-xl border p-4 text-left transition ${selectedHub?.id === warehouse.id
+                        ? 'border-blue-400 bg-blue-50 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{warehouse.name}</p>
+                          <p className="text-xs text-slate-600">{warehouse.code}</p>
+                        </div>
+                        {selectedHub?.id === warehouse.id ? (
+                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Active</span>
+                        ) : null}
                       </div>
-                      {selectedHub?.id === warehouse.id ? (
-                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Active</span>
+
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-lg bg-slate-100 px-2 py-1.5">
+                          <p className="text-[10px] uppercase text-slate-500">Zones</p>
+                          <p className="text-xs font-bold text-slate-900">{warehouse.totalZones}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-100 px-2 py-1.5">
+                          <p className="text-[10px] uppercase text-slate-500">Locations</p>
+                          <p className="text-xs font-bold text-slate-900">{warehouse.totalLocations}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-100 px-2 py-1.5">
+                          <p className="text-[10px] uppercase text-slate-500">Usage</p>
+                          <p className={`text-xs font-bold ${getCapacityTextClass(warehouse.usedCapacity)}`}>{warehouse.usedCapacity}%</p>
+                        </div>
+                      </div>
+
+                      {warehouseWarning ? (
+                        <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                          <span className="material-symbols-outlined text-[12px]">warning</span>
+                          {warehouseWarning}
+                        </p>
                       ) : null}
-                    </div>
 
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-lg bg-slate-100 px-2 py-1.5">
-                        <p className="text-[10px] uppercase text-slate-500">Zones</p>
-                        <p className="text-xs font-bold text-slate-900">{warehouse.totalZones}</p>
-                      </div>
-                      <div className="rounded-lg bg-slate-100 px-2 py-1.5">
-                        <p className="text-[10px] uppercase text-slate-500">Locations</p>
-                        <p className="text-xs font-bold text-slate-900">{warehouse.totalLocations}</p>
-                      </div>
-                      <div className="rounded-lg bg-slate-100 px-2 py-1.5">
-                        <p className="text-[10px] uppercase text-slate-500">Usage</p>
-                        <p className={`text-xs font-bold ${getCapacityTextClass(warehouse.usedCapacity)}`}>{warehouse.usedCapacity}%</p>
-                      </div>
-                    </div>
-
-                    {warehouseWarning ? (
-                      <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900">
-                        <span className="material-symbols-outlined text-[12px]">warning</span>
-                        {warehouseWarning}
-                      </p>
-                    ) : null}
-
-                    {canManage ? (
-                      <div className="mt-3 flex items-center justify-end gap-1 border-t border-slate-200 pt-2">
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openWarehouseDialog('edit', warehouse);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
+                      {canManage ? (
+                        <div className="mt-3 flex items-center justify-end gap-1 border-t border-slate-200 pt-2">
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(event) => {
                               event.stopPropagation();
                               openWarehouseDialog('edit', warehouse);
-                            }
-                          }}
-                          className="material-symbols-outlined rounded-md p-1 text-[16px] text-slate-600 hover:bg-slate-200"
-                        >
-                          edit
-                        </span>
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setDeleteTarget({ kind: 'warehouse', id: warehouse.id, name: warehouse.name });
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                openWarehouseDialog('edit', warehouse);
+                              }
+                            }}
+                            className="material-symbols-outlined rounded-md p-1 text-[16px] text-slate-600 hover:bg-slate-200"
+                          >
+                            edit
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(event) => {
                               event.stopPropagation();
                               setDeleteTarget({ kind: 'warehouse', id: warehouse.id, name: warehouse.name });
-                            }
-                          }}
-                          className="material-symbols-outlined rounded-md p-1 text-[16px] text-red-600 hover:bg-red-50"
-                        >
-                          delete
-                        </span>
-                      </div>
-                    ) : null}
-                  </button>
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setDeleteTarget({ kind: 'warehouse', id: warehouse.id, name: warehouse.name });
+                              }
+                            }}
+                            className="material-symbols-outlined rounded-md p-1 text-[16px] text-red-600 hover:bg-red-50"
+                          >
+                            delete
+                          </span>
+                        </div>
+                      ) : null}
+                    </button>
+                  </motion.div>
                 );
               })}
             </div>
@@ -488,10 +495,16 @@ export function WarehouseHub() {
 
                           return [zone.code, zone.name, zone.type].some((value) => value.toLowerCase().includes(normalizedStructureSearch));
                         })
-                        .map((zone) => {
+                        .map((zone, index) => {
                           const zoneWarning = getWarningText(zone.occupancy);
                           return (
-                            <div key={zone.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white">
+                            <motion.div
+                              key={zone.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.18) }}
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white"
+                            >
                               <div className="mb-3 flex items-start justify-between gap-2">
                                 <div>
                                   <h4 className="text-sm font-bold text-blue-700">{zone.code}</h4>
@@ -545,7 +558,7 @@ export function WarehouseHub() {
                                   </p>
                                 ) : null}
                               </div>
-                            </div>
+                            </motion.div>
                           );
                         })}
                     </div>
@@ -570,6 +583,7 @@ export function WarehouseHub() {
       />
 
       <WarehouseZoneFormDialog
+        key={`${zoneMode}-${editingZone?.id ?? 'new'}-${zoneWarehouseId || 'none'}`}
         open={zoneDialogOpen}
         mode={zoneMode}
         zone={editingZone}
@@ -724,16 +738,17 @@ function WarehouseZoneFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    const isCreateMode = mode === 'create';
     reset({
-      code: zone?.code ?? '',
-      name: zone?.name ?? '',
-      type: zone?.type ?? '',
-      racks: zone?.rackCodes.length || 1,
-      levels: zone?.levelCodes.length || 1,
-      bins: zone?.binCodes.length || 1,
-      categoryIds: zone?.allowedCategoryIds ?? [],
+      code: isCreateMode ? '' : (zone?.code ?? ''),
+      name: isCreateMode ? '' : (zone?.name ?? ''),
+      type: isCreateMode ? '' : (zone?.type ?? ''),
+      racks: isCreateMode ? 1 : (zone?.rackCodes.length || 1),
+      levels: isCreateMode ? 1 : (zone?.levelCodes.length || 1),
+      bins: isCreateMode ? 1 : (zone?.binCodes.length || 1),
+      categoryIds: isCreateMode ? [] : (zone?.allowedCategoryIds ?? []),
     });
-  }, [open, reset, zone]);
+  }, [mode, open, reset, zone]);
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isPending) onClose(); }}>
@@ -749,7 +764,7 @@ function WarehouseZoneFormDialog({
             </div>
           ) : null}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Zone Code" error={errors.code?.message}><input {...register('code')} disabled={isPending} className={inputClass(!!errors.code)} /></Field>
+            <Field label="Zone Code" error={errors.code?.message}><input {...register('code')} disabled={isPending || mode === 'edit'} className={inputClass(!!errors.code)} /></Field>
             <Field label="Zone Type" error={errors.type?.message}><input {...register('type')} disabled={isPending} className={inputClass(!!errors.type)} /></Field>
           </div>
           <Field label="Zone Name" error={errors.name?.message}><input {...register('name')} disabled={isPending} className={inputClass(!!errors.name)} /></Field>

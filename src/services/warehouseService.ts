@@ -262,6 +262,12 @@ interface ZoneCoordinate {
 }
 
 const WAREHOUSE_CATEGORY_SCOPE_KEY = 'wm:warehouse-category-scope';
+const ZONE_METADATA_SCOPE_KEY = 'wm:zone-metadata-scope';
+
+interface ZoneMetadataFallback {
+  name: string;
+  type: string;
+}
 
 function normalizeIdList(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)));
@@ -306,6 +312,50 @@ function setWarehouseCategoryScopeFallback(warehouseId: string, categoryIds: str
 function getWarehouseCategoryScopeFallback(warehouseId: string): string[] {
   const map = readStorageMap<string[]>(WAREHOUSE_CATEGORY_SCOPE_KEY);
   return normalizeIdList(map[warehouseId] ?? []);
+}
+
+function buildZoneMetadataKey(warehouseId: string, zoneCode: string): string {
+  return `${warehouseId}:${zoneCodeKey(zoneCode)}`;
+}
+
+function getZoneMetadataFallback(warehouseId: string, zoneCode: string): ZoneMetadataFallback | null {
+  const map = readStorageMap<ZoneMetadataFallback>(ZONE_METADATA_SCOPE_KEY);
+  const metadata = map[buildZoneMetadataKey(warehouseId, zoneCode)];
+  if (!metadata) {
+    return null;
+  }
+
+  const name = metadata.name?.trim() ?? '';
+  const type = metadata.type?.trim() ?? '';
+  if (!name && !type) {
+    return null;
+  }
+
+  return {
+    name,
+    type,
+  };
+}
+
+function setZoneMetadataFallback(warehouseId: string, zoneCode: string, value: ZoneMetadataFallback): void {
+  const map = readStorageMap<ZoneMetadataFallback>(ZONE_METADATA_SCOPE_KEY);
+  const key = buildZoneMetadataKey(warehouseId, zoneCode);
+  map[key] = {
+    name: value.name.trim(),
+    type: value.type.trim(),
+  };
+  writeStorageMap(ZONE_METADATA_SCOPE_KEY, map);
+}
+
+function removeZoneMetadataFallback(warehouseId: string, zoneCode: string): void {
+  const map = readStorageMap<ZoneMetadataFallback>(ZONE_METADATA_SCOPE_KEY);
+  const key = buildZoneMetadataKey(warehouseId, zoneCode);
+  if (!(key in map)) {
+    return;
+  }
+
+  delete map[key];
+  writeStorageMap(ZONE_METADATA_SCOPE_KEY, map);
 }
 
 function buildZoneCoordinatesByStructure(racks: number, levels: number, bins: number): ZoneCoordinate[] {
@@ -595,6 +645,8 @@ function toZone(
   locationCategoryMap: Record<string, string[]>,
   inventoryAssignmentMap: Record<string, BinAssignmentValue>,
 ): Zone {
+  const normalizedZoneCode = zoneCodeKey(zoneCode);
+  const zoneMetadata = getZoneMetadataFallback(warehouseId, normalizedZoneCode);
   const rackCodes = collectUniqueCodes(locations.map((location) => location.rack));
   const levelCodes = collectUniqueCodes(locations.map((location) => location.level));
   const binCodes = collectUniqueCodes(locations.map((location) => location.bin || location.code));
@@ -603,7 +655,7 @@ function toZone(
   const binMap = createCodeIndexMap(binCodes);
   const levelMap = createCodeIndexMap(levelCodes);
 
-  const zoneId = `${warehouseId}-${zoneCodeKey(zoneCode)}`;
+  const zoneId = `${warehouseId}-${normalizedZoneCode}`;
   const zoneAllowedCategoryIds = normalizeIdList(
     locations.flatMap((location) => locationCategoryMap[location.id] ?? []),
   );
@@ -624,9 +676,9 @@ function toZone(
   return {
     id: zoneId,
     warehouseId,
-    code: zoneCodeKey(zoneCode),
-    name: zoneCodeKey(zoneCode) === 'UNASSIGNED' ? 'Unassigned Zone' : `Zone ${zoneCodeKey(zoneCode)}`,
-    type: resolveZoneTypeFromStorageCondition(locations),
+    code: normalizedZoneCode,
+    name: zoneMetadata?.name || (normalizedZoneCode === 'UNASSIGNED' ? 'Unassigned Zone' : `Zone ${normalizedZoneCode}`),
+    type: zoneMetadata?.type || resolveZoneTypeFromStorageCondition(locations),
     allowedCategoryIds,
     rackCodes,
     levelCodes,
@@ -903,12 +955,20 @@ export async function deleteWarehouseLocation(id: string): Promise<void> {
 }
 
 export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
-  const [warehouses, locations] = await Promise.all([
-    getWarehouses({ page: 1, pageSize: 100, status: 'all' }),
-    getWarehouseLocations({ page: 1, pageSize: 1000, status: 'all' }),
+  const [warehouses, allLocations] = await Promise.all([
+    collectPaginatedItems({
+      fetchPage: async (page, limit) => getWarehouses({ page, pageSize: limit, status: 'all' }),
+      getItems: (payload) => payload.data,
+      getTotalPages: (payload) => Math.max(1, Math.ceil(payload.total / payload.pageSize)),
+    }),
+    collectPaginatedItems({
+      fetchPage: async (page, limit) => getWarehouseLocations({ page, pageSize: limit, status: 'all' }),
+      getItems: (payload) => payload.data,
+      getTotalPages: (payload) => Math.max(1, Math.ceil(payload.total / payload.pageSize)),
+    }),
   ]);
 
-  const activeLocations = locations.data.filter((location) => location.status === 'active');
+  const activeLocations = allLocations.filter((location) => location.status === 'active');
   const activeLocationIdSet = new Set(activeLocations.map((location) => location.id));
   const [allowedCategoryRules, inventories] = await Promise.all([
     fetchAllLocationAllowedCategories(),
@@ -917,7 +977,7 @@ export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
   const locationCategoryMap = buildLocationAllowedCategoryMap(allowedCategoryRules, activeLocationIdSet);
   const inventoryAssignmentMap = buildInventoryAssignmentMap(inventories, locationCategoryMap);
 
-  return warehouses.data
+  return warehouses
     .filter((warehouse) => warehouse.status !== 'inactive')
     .map((warehouse) => {
       const locationList = activeLocations.filter(
@@ -1018,6 +1078,10 @@ export async function createWarehouseZone(warehouseId: string, payload: Warehous
   }
 
   const normalizedType = normalizeStorageCondition(payload.type);
+  const zoneMetadata = {
+    name: payload.name.trim(),
+    type: payload.type.trim(),
+  };
 
   await Promise.all(
     coordinates.map((coordinate) =>
@@ -1038,6 +1102,7 @@ export async function createWarehouseZone(warehouseId: string, payload: Warehous
 
   const zoneLocations = await fetchLocationsByZoneCode(warehouseId, zoneCode, false);
   await syncLocationCategoryScope(zoneLocations.map((location) => location.id), requestedCategoryScope);
+  setZoneMetadataFallback(warehouseId, zoneCode, zoneMetadata);
 
   const locationCategoryRules = await fetchAllLocationAllowedCategories();
   const locationCategoryMap = buildLocationAllowedCategoryMap(locationCategoryRules);
@@ -1093,6 +1158,10 @@ export async function updateWarehouseZone(
     throw new Error('Không tìm thấy warehouse location thuộc zone này để cập nhật.');
   }
   const normalizedType = normalizeStorageCondition(payload.type);
+  const zoneMetadata = {
+    name: payload.name.trim(),
+    type: payload.type.trim(),
+  };
 
   const existingMap = new Map(
     zoneLocations
@@ -1160,6 +1229,7 @@ export async function updateWarehouseZone(
 
   const updatedLocations = await fetchLocationsByZoneCode(warehouseId, currentZoneCode, false);
   await syncLocationCategoryScope(updatedLocations.map((location) => location.id), requestedCategoryScope);
+  setZoneMetadataFallback(warehouseId, currentZoneCode, zoneMetadata);
 
   const locationCategoryRules = await fetchAllLocationAllowedCategories();
   const locationCategoryMap = buildLocationAllowedCategoryMap(locationCategoryRules);
@@ -1200,6 +1270,8 @@ export async function deleteWarehouseZone(warehouseId: string, zoneId: string): 
     }),
   );
 
+  removeZoneMetadataFallback(warehouseId, zoneCode);
+
   void zoneId;
 }
 
@@ -1217,13 +1289,17 @@ export async function updateWarehouseLayoutConfig(
 }
 
 export async function getZoneBins(warehouseId: string, zoneId: string): Promise<Bin[]> {
-  const [hubs, locationResult] = await Promise.all([
+  const [hubs, warehouseLocations] = await Promise.all([
     getWarehouseHubs(),
-    getWarehouseLocations({
-      page: 1,
-      pageSize: 1000,
-      warehouseId,
-      status: 'all',
+    collectPaginatedItems({
+      fetchPage: async (page, limit) => getWarehouseLocations({
+        page,
+        pageSize: limit,
+        warehouseId,
+        status: 'all',
+      }),
+      getItems: (payload) => payload.data,
+      getTotalPages: (payload) => Math.max(1, Math.ceil(payload.total / payload.pageSize)),
     }),
   ]);
 
@@ -1237,7 +1313,7 @@ export async function getZoneBins(warehouseId: string, zoneId: string): Promise<
     throw new Error('Không tìm thấy khu vực kho cần xem.');
   }
 
-  const zoneLocations = locationResult.data.filter(
+  const zoneLocations = warehouseLocations.filter(
     (location) => zoneCodeKey(location.zone) === zoneCodeKey(zone.code),
   );
 
