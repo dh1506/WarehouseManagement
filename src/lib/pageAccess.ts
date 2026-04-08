@@ -19,6 +19,7 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
   },
   { id: 'products', label: 'Products', path: '/admin/products', modules: ['products'] },
   { id: 'import-export', label: 'Import / Export', path: '/import-export', modules: [] },
+  { id: 'outbound', label: 'Outbound', path: '/outbound', modules: ['outbound_orders'] },
   { id: 'inventory', label: 'Inventory', path: '/inventory', modules: [] },
   { id: 'ai-forecast', label: 'AI Forecast', path: '/ai-forecast', modules: [] },
   { id: 'inbound', label: 'Inbound Flow', path: '/inbound', modules: [] },

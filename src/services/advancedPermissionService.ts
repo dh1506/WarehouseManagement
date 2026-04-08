@@ -89,6 +89,14 @@ const SIDEBAR_MODULE_TEMPLATES: SidebarModuleTemplate[] = [
     backendModules: [],
   },
   {
+    moduleId: 'outbound',
+    moduleName: 'Outbound',
+    description: 'Manage outbound dispatch and picking tasks.',
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-600',
+    backendModules: ['outbound_orders'],
+  },
+  {
     moduleId: 'inventory',
     moduleName: 'Inventory',
     description: 'Inventory balances and movements (future sprint modules).',
@@ -220,15 +228,6 @@ function mapToSidebarModules(
   });
 }
 
-function hasModuleAccess(moduleItem: ModulePermission): boolean {
-  return Boolean(
-    moduleItem.view ||
-    moduleItem.create ||
-    moduleItem.edit ||
-    moduleItem.delete ||
-    moduleItem.approve,
-  );
-}
 
 function buildContext(roleId: string, roleDescription: string | null, modules: ModulePermission[]): RoleContext {
   const activeModules = modules.filter((moduleItem) => moduleItem.view).length;

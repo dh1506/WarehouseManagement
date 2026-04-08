@@ -22,8 +22,15 @@ import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
+<<<<<<< HEAD
 
 
+=======
+import { OutboundListPage } from './pages/operations/OutboundListPage';
+import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
+import { OutboundCreatePage } from './pages/operations/OutboundCreatePage';
+import { OutboundPickingPage } from './pages/operations/OutboundPickingPage';
+>>>>>>> 82bb5bfb7739afb369d630eff61d4423a7ea2ad1
 import { Toaster } from './components/ui/toaster';
 
 const queryClient = new QueryClient({
@@ -115,6 +122,10 @@ function App() {
             <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
+            <Route path="/outbound" element={<PageAccessRoute path="/outbound"><OutboundListPage /></PageAccessRoute>} />
+            <Route path="/outbound/create" element={<PageAccessRoute path="/outbound"><OutboundCreatePage /></PageAccessRoute>} />
+            <Route path="/outbound/:id" element={<PageAccessRoute path="/outbound"><OutboundDetailPage /></PageAccessRoute>} />
+            <Route path="/outbound/:id/picking" element={<PageAccessRoute path="/outbound"><OutboundPickingPage /></PageAccessRoute>} />
           </Route>
 
           {/* 404 — mọi route không khớp */}
