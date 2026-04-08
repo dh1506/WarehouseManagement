@@ -130,7 +130,7 @@ export function AiForecastDashboard() {
         )}
 
         {query.data && !query.isLoading && !query.isError && (
-          <>
+          <div className={`transition-all duration-300 ease-out ${query.isFetching ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100'}`}>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">High Demand</p>
@@ -193,7 +193,7 @@ export function AiForecastDashboard() {
                 </Table>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

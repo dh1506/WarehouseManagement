@@ -149,3 +149,9 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 
 - Backend still needs an official approval workflow contract (list/detail/update endpoints) if Approval Configuration should be persisted beyond role projection.
 - If manufacturer master data is required again in future sprints, backend must publish `/api/manufacturers` routes and schema before FE can safely re-enable that module.
+
+## 2026-04-08 - Warehouse UX polish notes
+
+- Zone metadata fallback (name/type) still depends on FE localStorage key `wm:zone-metadata-scope` because current location contract has no zone-level metadata fields.
+- Bin assignment selectors in Zone Detail now display query loading/error/empty states, but retry UX still relies on normal React Query refetch behavior (no dedicated inline retry button yet).
+- Production build still reports a large chunk-size warning from Vite reporter; this is pre-existing and not introduced by the warehouse UI polish scope.

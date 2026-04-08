@@ -118,7 +118,7 @@ export function InventoryOverview() {
         )}
 
         {query.data && !query.isLoading && !query.isError && (
-          <>
+          <div className={`transition-all duration-300 ease-out ${query.isFetching ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100'}`}>
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Locations</p>
@@ -205,7 +205,7 @@ export function InventoryOverview() {
                 )}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

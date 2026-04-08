@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AnimatePresence, motion } from 'motion/react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -24,6 +25,11 @@ import { productReferenceFormSchema, type ProductReferenceFormData } from '../sc
 import type { ProductReferenceItem, ProductReferenceType } from '../types/referenceType';
 
 const PAGE_SIZE = 8;
+
+interface FilterSelectOption {
+  value: string;
+  label: string;
+}
 
 interface TabUiState {
   page: number;
@@ -67,6 +73,9 @@ export function ProductReferenceManagement() {
   const [selectedItem, setSelectedItem] = useState<ProductReferenceItem | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<ProductReferenceItem | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showTopFade, setShowTopFade] = useState(false);
+  const [showBottomFade, setShowBottomFade] = useState(false);
 
   const tabPermissions: Record<ProductReferenceType, { canRead: boolean; canCreate: boolean; canUpdate: boolean }> = {
     unit: {
@@ -96,6 +105,16 @@ export function ProductReferenceManagement() {
   const canCreateCurrentTab = tabPermissions[activeTab].canCreate;
   const canUpdateCurrentTab = tabPermissions[activeTab].canUpdate;
   const isSupplierTab = activeTab === 'supplier';
+  const deferredSearch = useDeferredValue(currentState.search);
+  const deferredStatus = useDeferredValue(currentState.status);
+  const statusOptions = useMemo<FilterSelectOption[]>(
+    () => [
+      { value: 'all', label: 'All status' },
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+    ],
+    [],
+  );
 
   const setCurrentTabState = (next: Partial<TabUiState>) => {
     setTabState((prev) => ({
@@ -109,14 +128,29 @@ export function ProductReferenceManagement() {
 
   const { data, isLoading, isError, refetch, isFetching } = useProductReferences({
     type: activeTab,
-    search: currentState.search || undefined,
-    status: currentState.status,
+    search: deferredSearch || undefined,
+    status: deferredStatus,
     page: currentState.page,
     pageSize: PAGE_SIZE,
   });
 
   const createMutation = useCreateProductReference();
   const updateMutation = useUpdateProductReference();
+
+  const updateTableScrollFade = useCallback(() => {
+    const element = tableScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    setShowTopFade(scrollTop > 2);
+    setShowBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    updateTableScrollFade();
+  }, [activeTab, data?.data, isFetching, isLoading, updateTableScrollFade]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
   const title = TAB_LABEL[activeTab];
@@ -262,30 +296,27 @@ export function ProductReferenceManagement() {
                       />
                     </div>
 
-                    <select
+                    <FilterSelect
                       value={currentState.status}
-                      onChange={(event) => {
+                      onChange={(value) => {
                         setCurrentTabState({
-                          status: event.target.value as 'all' | 'active' | 'inactive',
+                          status: value as 'all' | 'active' | 'inactive',
                           page: 1,
                         });
                       }}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-                    >
-                      <option value="all">All status</option>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
+                      placeholder="All status"
+                      options={statusOptions}
+                    />
                   </div>
                 </div>
 
                 <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
                   {isLoading ? (
-                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                    <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                       <StatePanel title="Đang tải dữ liệu" description="Hệ thống đang lấy danh sách master data." icon="hourglass_top" />
                     </div>
                   ) : isError ? (
-                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                    <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                       <StatePanel
                         title="Không tải được dữ liệu"
                         description="Vui lòng thử lại để tiếp tục cấu hình dữ liệu gốc."
@@ -302,7 +333,7 @@ export function ProductReferenceManagement() {
                       />
                     </div>
                   ) : (data?.data.length ?? 0) === 0 ? (
-                    <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+                    <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                       <StatePanel
                         title="Chưa có dữ liệu phù hợp"
                         description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
@@ -319,7 +350,14 @@ export function ProductReferenceManagement() {
                     </div>
                   ) : (
                     <>
-                      <div className={`min-h-0 flex-1 overflow-auto ${isFetching ? 'opacity-70 transition' : 'transition'}`}>
+                      <div
+                        ref={tableScrollRef}
+                        onScroll={updateTableScrollFade}
+                        className={`relative min-h-0 flex-1 overflow-auto transition-all duration-300 ease-out ${isFetching ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100'}`}
+                      >
+                        <div
+                          className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showTopFade ? 'opacity-100' : 'opacity-0'}`}
+                        />
                         <table className="min-w-full divide-y divide-slate-200">
                           <thead className="bg-slate-50">
                             <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -333,7 +371,7 @@ export function ProductReferenceManagement() {
                           </thead>
                           <tbody className="divide-y divide-slate-200 bg-white">
                             {data?.data.map((item) => (
-                              <tr key={item.id} className="align-top">
+                              <tr key={item.id} className="align-top transition-colors duration-200 ease-out hover:bg-slate-50/60">
                                 <td className="px-4 py-4">
                                   <div className="font-semibold text-slate-900">{item.code}</div>
                                   <div className="mt-1 text-xs text-slate-400">
@@ -364,6 +402,9 @@ export function ProductReferenceManagement() {
                             ))}
                           </tbody>
                         </table>
+                        <div
+                          className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showBottomFade ? 'opacity-100' : 'opacity-0'}`}
+                        />
                       </div>
 
                       <Pagination
@@ -635,6 +676,179 @@ function Field({
   );
 }
 
+function FilterSelect({
+  value,
+  onChange,
+  placeholder,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  options: FilterSelectOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (!wrapperRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    const currentIndex = options.findIndex((item) => item.value === value);
+    setHighlightedIndex(currentIndex >= 0 ? currentIndex : (options.length > 0 ? 0 : -1));
+  }, [open, options, value]);
+
+  const selectedLabel = options.find((item) => item.value === value)?.label;
+
+  return (
+    <div ref={wrapperRef} className="relative w-full min-w-40">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-700 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out hover:border-blue-300 hover:bg-slate-50 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 md:hidden"
+      >
+        <option value="all">All status</option>
+        {options.filter((item) => item.value !== 'all').map((item) => (
+          <option key={item.value} value={item.value}>{item.label}</option>
+        ))}
+      </select>
+
+      <div className="relative hidden md:block">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((prev) => !prev)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              if (open && highlightedIndex >= 0 && highlightedIndex < options.length) {
+                onChange(options[highlightedIndex].value);
+                setOpen(false);
+                return;
+              }
+              setOpen((prev) => !prev);
+              return;
+            }
+
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              setOpen(false);
+              return;
+            }
+
+            if (event.key === 'Tab') {
+              setOpen(false);
+              return;
+            }
+
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+
+              setHighlightedIndex((prev) => {
+                if (options.length === 0) return -1;
+                if (prev < 0) return 0;
+                return Math.min(options.length - 1, prev + 1);
+              });
+              return;
+            }
+
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+
+              setHighlightedIndex((prev) => {
+                if (options.length === 0) return -1;
+                if (prev < 0) return options.length - 1;
+                return Math.max(0, prev - 1);
+              });
+            }
+          }}
+          className="flex min-h-11 w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-base text-slate-700 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out hover:border-blue-300 hover:bg-slate-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        >
+          <span className={selectedLabel ? 'text-slate-700' : 'text-slate-500'}>{selectedLabel ?? placeholder}</span>
+          <span className={`material-symbols-outlined text-[20px] text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>expand_more</span>
+        </button>
+
+        <AnimatePresence>
+          {open ? (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+            >
+              <ul role="listbox" className="max-h-72 overflow-y-auto py-1">
+                {options.map((item, index) => {
+                  const isSelected = item.value === value;
+                  const isHighlighted = highlightedIndex === index;
+
+                  return (
+                    <li key={item.value} role="option" aria-selected={isSelected}>
+                      <button
+                        type="button"
+                        onMouseEnter={() => setHighlightedIndex(index)}
+                        onClick={() => {
+                          onChange(item.value);
+                          setOpen(false);
+                        }}
+                        className={`flex min-h-11 w-full items-center px-4 py-2 text-left text-base transition-colors ${isSelected
+                          ? 'bg-blue-50 text-blue-700'
+                          : isHighlighted
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                      >
+                        {item.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 function ActionButton({
   icon,
   label,
@@ -653,7 +867,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-45 ${danger ? 'text-red-600 hover:bg-red-50 disabled:hover:bg-transparent' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500'}`}
+      className={`rounded-lg p-2 transition-all duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-45 ${danger ? 'text-red-600 hover:bg-red-50 hover:text-red-700 disabled:hover:bg-transparent' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500'}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>

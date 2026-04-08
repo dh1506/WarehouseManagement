@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react';
 import { StatePanel } from '@/components/StatePanel';
 import {
   Dialog,
@@ -66,7 +66,7 @@ function PermCheckbox({
       aria-checked={checked}
       onClick={onChange}
       disabled={disabled}
-      className={`mx-auto w-[1.25rem] h-[1.25rem] rounded-[0.25em] border-[1.5px] flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${checked
+      className={`mx-auto flex h-5 w-5 items-center justify-center rounded-[0.25em] border-[1.5px] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${checked
         ? 'bg-blue-800 border-blue-800'
         : 'bg-white border-slate-300 hover:border-blue-400'
         }`}
@@ -106,6 +106,13 @@ export function RolePermissions() {
   });
   const [statusTarget, setStatusTarget] = useState<Role | null>(null);
   const [filterText, setFilterText] = useState('');
+  const deferredFilterText = useDeferredValue(filterText);
+  const roleListScrollRef = useRef<HTMLDivElement | null>(null);
+  const matrixScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showRoleTopFade, setShowRoleTopFade] = useState(false);
+  const [showRoleBottomFade, setShowRoleBottomFade] = useState(false);
+  const [showMatrixTopFade, setShowMatrixTopFade] = useState(false);
+  const [showMatrixBottomFade, setShowMatrixBottomFade] = useState(false);
 
   useEffect(() => {
     if (roles && roles.length > 0 && !selectedRoleId) {
@@ -204,10 +211,40 @@ export function RolePermissions() {
   const filteredModules = useMemo(
     () =>
       localModules.filter((m) =>
-        m.moduleName.toLowerCase().includes(filterText.toLowerCase()),
+        m.moduleName.toLowerCase().includes(deferredFilterText.toLowerCase()),
       ),
-    [localModules, filterText],
+    [deferredFilterText, localModules],
   );
+
+  const updateRoleListFade = useCallback(() => {
+    const element = roleListScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    setShowRoleTopFade(scrollTop > 2);
+    setShowRoleBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  const updateMatrixFade = useCallback(() => {
+    const element = matrixScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    setShowMatrixTopFade(scrollTop > 2);
+    setShowMatrixBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    updateRoleListFade();
+  }, [roles, rolesLoading, rolesError, updateRoleListFade]);
+
+  useEffect(() => {
+    updateMatrixFade();
+  }, [filteredModules, permLoading, permError, updateMatrixFade]);
 
   const openCreateRoleDialog = () => {
     if (!canCreateRole) {
@@ -377,13 +414,20 @@ export function RolePermissions() {
       <div className="flex-1 flex gap-6 min-h-0">
 
         {/* Left Pane: List of Roles */}
-        <div className="w-80 flex flex-col gap-4 bg-gray-50 rounded-xl p-4 overflow-y-auto">
+        <div
+          ref={roleListScrollRef}
+          onScroll={updateRoleListFade}
+          className="relative w-80 flex flex-col gap-4 overflow-y-auto rounded-xl bg-gray-50 p-4"
+        >
+          <div
+            className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-gray-50 to-transparent transition-opacity duration-200 ${showRoleTopFade ? 'opacity-100' : 'opacity-0'}`}
+          />
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2">Role Hierarchy</span>
             <button
               onClick={openCreateRoleDialog}
               disabled={!canCreateRole || isRoleMutationPending}
-              className="text-primary hover:bg-primary/10 p-1 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+              className="rounded p-1 text-primary transition-all duration-200 ease-out hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
               title={!canCreateRole ? 'Bạn không có quyền tạo role mới.' : 'Thêm role mới'}
             >
               <span className="material-symbols-outlined text-[20px]" data-icon="add">add</span>
@@ -423,9 +467,9 @@ export function RolePermissions() {
                 return (
                   <div
                     key={role.id}
-                    className={`w-full text-left p-4 rounded-xl transition-all group ${isActive
+                    className={`group w-full rounded-xl p-4 text-left transition-all duration-200 ease-out ${isActive
                       ? 'bg-white shadow-sm ring-2 ring-primary'
-                      : 'bg-white/50 hover:bg-white'
+                      : 'bg-white/50 hover:-translate-y-0.5 hover:bg-white'
                       }`}
                   >
                     <button onClick={() => setSelectedRoleId(role.id)} className="w-full text-left">
@@ -448,7 +492,7 @@ export function RolePermissions() {
                       <button
                         onClick={() => openEditRoleDialog(role)}
                         disabled={!canUpdateRolePermissions || isRoleMutationPending}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition-all duration-200 ease-out hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
                         title="Chỉnh sửa role"
                       >
                         <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -457,7 +501,7 @@ export function RolePermissions() {
                       <button
                         onClick={() => setStatusTarget(role)}
                         disabled={!canUpdateRolePermissions || isRoleMutationPending}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition-all duration-200 ease-out hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
                         title={role.isActive ? 'Inactivate role' : 'Activate role'}
                       >
                         <span className="material-symbols-outlined text-[16px]">
@@ -471,6 +515,9 @@ export function RolePermissions() {
               })
             )}
           </div>
+          <div
+            className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-gray-50 to-transparent transition-opacity duration-200 ${showRoleBottomFade ? 'opacity-100' : 'opacity-0'}`}
+          />
         </div>
 
         {/* Right Pane: Advanced Module Permission Matrix */}
@@ -523,7 +570,14 @@ export function RolePermissions() {
           )}
 
           {/* Matrix Table */}
-          <div className="flex-1 overflow-auto">
+          <div
+            ref={matrixScrollRef}
+            onScroll={updateMatrixFade}
+            className="relative flex-1 overflow-auto"
+          >
+            <div
+              className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showMatrixTopFade ? 'opacity-100' : 'opacity-0'}`}
+            />
             {permLoading ? (
               <div className="p-4">
                 <div className="animate-pulse space-y-2">
@@ -554,7 +608,7 @@ export function RolePermissions() {
                 icon="shield_lock"
               />
             ) : (
-              <table className="w-full text-left border-collapse min-w-[600px]">
+              <table className="min-w-150 w-full border-collapse text-left">
                 <thead>
                   <tr className="sticky top-0 z-10 bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400 font-semibold">
                     <th className="py-4 px-6 w-1/3">System Module</th>
@@ -628,6 +682,9 @@ export function RolePermissions() {
                 </tbody>
               </table>
             )}
+            <div
+              className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showMatrixBottomFade ? 'opacity-100' : 'opacity-0'}`}
+            />
           </div>
 
           {/* Footer Actions */}
@@ -640,14 +697,14 @@ export function RolePermissions() {
               <button
                 onClick={handleDiscard}
                 disabled={!hasChanges || isInteractionDisabled}
-                className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-200/50 transition-all disabled:opacity-50"
+                className="rounded-xl px-6 py-3 font-bold text-gray-500 transition-all duration-200 ease-out hover:bg-gray-200/50 disabled:opacity-50"
               >
                 Discard Changes
               </button>
               <button
                 onClick={() => void handleSave()}
                 disabled={!hasChanges || isInteractionDisabled || showEmptyPermissions}
-                className="px-8 py-3 rounded-xl font-bold text-white bg-primary shadow-lg shadow-primary/20 hover:bg-blue-800 active:scale-[0.99] transition-all disabled:opacity-75 flex items-center gap-2"
+                className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all duration-200 ease-out hover:bg-blue-800 active:scale-[0.99] disabled:opacity-75"
               >
                 {updateMutation.isPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
                 Save Access

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { StatePanel } from '@/components/StatePanel';
 import type { ProductCategory } from '../types/categoryType';
 
@@ -78,15 +79,15 @@ export function CategoryTableV2({
   }, [categories, collapsedIds]);
 
   if (isLoading) {
-    return <div className="flex h-full min-h-[320px] items-center justify-center p-8"><StatePanel title="Loading categories" description="The system is syncing category data from the API." icon="hourglass_top" /></div>;
+    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Loading categories" description="The system is syncing category data from the API." icon="hourglass_top" /></div>;
   }
 
   if (isError) {
-    return <div className="flex h-full min-h-[320px] items-center justify-center p-8"><StatePanel title="Unable to load categories" description="Please try again to continue managing categories." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
+    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Unable to load categories" description="Please try again to continue managing categories." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
   }
 
   if (treeData.length === 0) {
-    return <div className="flex h-full min-h-[320px] items-center justify-center p-8"><StatePanel title="No matching categories" description="Create the first category or adjust your search filter." icon="category" /></div>;
+    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="No matching categories" description="Create the first category or adjust your search filter." icon="category" /></div>;
   }
 
   return (
@@ -102,53 +103,68 @@ export function CategoryTableV2({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
-          {treeData.map((category) => (
-            <tr key={category.id} className="align-top">
-              <td className="px-4 py-4">
-                <div className="flex items-start gap-2" style={{ paddingLeft: `${category.depth * 20}px` }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!category.hasChildren) {
-                        return;
-                      }
-
-                      setCollapsedIds((current) => {
-                        const next = new Set(current);
-                        if (next.has(category.id)) {
-                          next.delete(category.id);
-                        } else {
-                          next.add(category.id);
+          <AnimatePresence initial={false}>
+            {treeData.map((category) => (
+              <motion.tr
+                key={category.id}
+                layout
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="align-top transition-colors duration-200 ease-out hover:bg-slate-50/60"
+              >
+                <td className="px-4 py-4">
+                  <div className="flex items-start gap-2" style={{ paddingLeft: `${category.depth * 20}px` }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!category.hasChildren) {
+                          return;
                         }
-                        return next;
-                      });
-                    }}
-                    className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    disabled={!category.hasChildren}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {category.hasChildren ? (category.isExpanded ? 'expand_more' : 'chevron_right') : 'fiber_manual_record'}
-                    </span>
-                  </button>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-slate-900">{category.name}</div>
-                    <div className="mt-1 text-sm text-slate-500">{category.code}</div>
-                    {category.parentName ? <div className="mt-1 text-xs text-slate-400">Parent: {category.parentName}</div> : null}
+
+                        setCollapsedIds((current) => {
+                          const next = new Set(current);
+                          if (next.has(category.id)) {
+                            next.delete(category.id);
+                          } else {
+                            next.add(category.id);
+                          }
+                          return next;
+                        });
+                      }}
+                      className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition-colors duration-200 ease-out hover:bg-slate-100 hover:text-slate-700"
+                      disabled={!category.hasChildren}
+                    >
+                      <motion.span
+                        className={`material-symbols-outlined text-[18px] ${category.hasChildren ? '' : 'scale-75'}`}
+                        initial={false}
+                        animate={{ rotate: category.hasChildren && category.isExpanded ? 90 : 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                      >
+                        {category.hasChildren ? 'chevron_right' : 'fiber_manual_record'}
+                      </motion.span>
+                    </button>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900">{category.name}</div>
+                      <div className="mt-1 text-sm text-slate-500">{category.code}</div>
+                      {category.parentName ? <div className="mt-1 text-xs text-slate-400">Parent: {category.parentName}</div> : null}
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td className="px-4 py-4 text-sm text-slate-600">{category.description || 'No description'}</td>
-              <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.childrenCount}</td>
-              <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.totalProducts}</td>
-              <td className="px-4 py-4">
-                <div className="flex justify-center gap-2">
-                  <ActionButton icon="visibility" label="View" onClick={() => onView(category)} />
-                  {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(category)} /> : null}
-                  {canDelete ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(category)} /> : null}
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-4 py-4 text-sm text-slate-600">{category.description || 'No description'}</td>
+                <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.childrenCount}</td>
+                <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.totalProducts}</td>
+                <td className="px-4 py-4">
+                  <div className="flex justify-center gap-2">
+                    <ActionButton icon="visibility" label="View" onClick={() => onView(category)} />
+                    {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(category)} /> : null}
+                    {canDelete ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(category)} /> : null}
+                  </div>
+                </td>
+              </motion.tr>
+            ))}
+          </AnimatePresence>
         </tbody>
       </table>
     </div>
@@ -174,7 +190,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg p-2 transition ${danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+      className={`rounded-lg p-2 transition-colors duration-200 ease-out ${danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>

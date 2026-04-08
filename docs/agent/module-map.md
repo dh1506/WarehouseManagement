@@ -352,3 +352,13 @@ All modules now follow the same permission enforcement pattern:
   - Location sheet now captures `zone/rack/level/bin` only.
 - `src/features/warehouses/components/WarehouseManagement.tsx`
   - Location coordinate display updated to `Zone · Rack · Level · Bin`.
+
+## Warehouse UX Polish (2026-04-08)
+
+- `src/features/warehouses/components/WarehouseHub.tsx`
+  - Added scoped `motion` stagger reveals for warehouse cards and zone cards while preserving existing layout and action flows.
+  - Kept all CRUD/query logic untouched; page remains feature-layer UI only.
+- `src/features/warehouses/components/ZoneDetail.tsx`
+  - Added subtle `motion` transitions for rack-level grid and bin inspector panel.
+  - Added explicit loading/error/empty guidance for category and product assignment selects.
+  - Tightened disabled states so selectors stay read-only when dependency queries are loading/errored.

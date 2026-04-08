@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -35,6 +35,11 @@ import { ProductFormSheet } from './ProductFormSheets';
 const PAGE_SIZE = 10;
 const MAX_REQUEST_LIMIT = 100;
 
+interface FilterSelectOption {
+  value: string;
+  label: string;
+}
+
 export function ProductManagement() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -57,12 +62,19 @@ export function ProductManagement() {
   const [statusTarget, setStatusTarget] = useState<ProductItem | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showTopFade, setShowTopFade] = useState(false);
+  const [showBottomFade, setShowBottomFade] = useState(false);
+  const deferredSearch = useDeferredValue(search);
+  const deferredStatus = useDeferredValue(status);
+  const deferredCategoryId = useDeferredValue(categoryId);
+  const deferredBrandId = useDeferredValue(brandId);
 
   const listQuery = useProducts({
-    search: search || undefined,
-    status,
-    categoryId: categoryId || undefined,
-    brandId: brandId || undefined,
+    search: deferredSearch || undefined,
+    status: deferredStatus,
+    categoryId: deferredCategoryId || undefined,
+    brandId: deferredBrandId || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -139,6 +151,38 @@ export function ProductManagement() {
     () => currentProducts.filter((item) => selectedProductIds.includes(item.id)),
     [currentProducts, selectedProductIds],
   );
+  const statusFilterOptions = useMemo<FilterSelectOption[]>(
+    () => [
+      { value: 'all', label: 'All status' },
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+      { value: 'discontinued', label: 'Discontinued' },
+    ],
+    [],
+  );
+  const categoryFilterOptions = useMemo<FilterSelectOption[]>(
+    () => categoryOptions.map((item) => ({ value: item.id, label: item.name })),
+    [categoryOptions],
+  );
+  const brandFilterOptions = useMemo<FilterSelectOption[]>(
+    () => brandOptions.map((item) => ({ value: item.id, label: item.name })),
+    [brandOptions],
+  );
+
+  const updateTableScrollFade = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setShowTopFade(scrollTop > 2);
+    setShowBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    updateTableScrollFade();
+  }, [currentProducts, listQuery.isFetching, listQuery.isLoading, updateTableScrollFade]);
 
   const resetSelection = () => {
     setSelectedProductIds([]);
@@ -404,7 +448,7 @@ export function ProductManagement() {
                     type="button"
                     onClick={handleImportClick}
                     disabled={isImporting}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <span className="material-symbols-outlined text-[18px]">upload_file</span>
                     {isImporting ? 'Importing...' : 'Import'}
@@ -415,7 +459,7 @@ export function ProductManagement() {
                 <button
                   type="button"
                   onClick={openCreate}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 ease-out hover:bg-primary-container hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <span className="material-symbols-outlined text-[18px]">inventory_2</span>
                   New Product
@@ -454,12 +498,9 @@ export function ProductManagement() {
                     setPage(1);
                     resetSelection();
                   }}
-                >
-                  <option value="all">All status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="discontinued">Discontinued</option>
-                </FilterSelect>
+                  placeholder="All status"
+                  options={statusFilterOptions}
+                />
                 <FilterSelect
                   value={categoryId}
                   onChange={(value) => {
@@ -467,12 +508,9 @@ export function ProductManagement() {
                     setPage(1);
                     resetSelection();
                   }}
-                >
-                  <option value="">All categories</option>
-                  {categoryOptions.map((item) => (
-                    <option key={item.id} value={item.id}>{item.name}</option>
-                  ))}
-                </FilterSelect>
+                  placeholder="All categories"
+                  options={categoryFilterOptions}
+                />
                 <div className="flex items-center gap-3">
                   <FilterSelect
                     value={brandId}
@@ -481,17 +519,14 @@ export function ProductManagement() {
                       setPage(1);
                       resetSelection();
                     }}
-                  >
-                    <option value="">All brands</option>
-                    {brandOptions.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </FilterSelect>
+                    placeholder="All brands"
+                    options={brandFilterOptions}
+                  />
                   <button
                     type="button"
                     onClick={() => void handleExport()}
                     disabled={!isHeaderChecked && selectedProductsForExport.length === 0}
-                    className="inline-flex h-[42px] shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-500 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-10.5 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-500 transition-all duration-200 ease-out hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
                     title="Export products"
                   >
                     <span className="material-symbols-outlined text-[18px]">download</span>
@@ -503,11 +538,11 @@ export function ProductManagement() {
 
           <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
             {listQuery.isLoading ? (
-              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+              <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                 <StatePanel title="Loading products" description="The system is synchronizing product master data from the API." icon="hourglass_top" />
               </div>
             ) : listQuery.isError ? (
-              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+              <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                 <StatePanel
                   title="Unable to load products"
                   description="Please try again to continue managing product master data."
@@ -525,7 +560,7 @@ export function ProductManagement() {
                 />
               </div>
             ) : (listQuery.data?.data.length ?? 0) === 0 ? (
-              <div className="flex min-h-[320px] flex-1 items-center justify-center p-8">
+              <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                 <StatePanel
                   title="No matching products"
                   description="Create your first product or adjust the current filters."
@@ -543,7 +578,14 @@ export function ProductManagement() {
               </div>
             ) : (
               <>
-                <div className={`relative min-h-0 flex-1 overflow-y-auto ${listQuery.isFetching ? 'opacity-70 transition' : 'transition'}`}>
+                <div
+                  ref={tableScrollRef}
+                  onScroll={updateTableScrollFade}
+                  className={`relative min-h-0 flex-1 overflow-y-auto transition-all duration-300 ease-out ${listQuery.isFetching ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100'}`}
+                >
+                  <div
+                    className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showTopFade ? 'opacity-100' : 'opacity-0'}`}
+                  />
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="sticky top-0 z-10 bg-slate-50">
                       <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -565,7 +607,7 @@ export function ProductManagement() {
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
                       {currentProducts.map((item) => (
-                        <tr key={item.id} className="align-top">
+                        <tr key={item.id} className="align-top transition-colors duration-200 ease-out hover:bg-slate-50/60">
                           <td className="px-4 py-4">
                             <Checkbox
                               checked={selectedProductIds.includes(item.id)}
@@ -622,6 +664,9 @@ export function ProductManagement() {
                       ))}
                     </tbody>
                   </table>
+                  <div
+                    className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showBottomFade ? 'opacity-100' : 'opacity-0'}`}
+                  />
                 </div>
 
                 {totalItems > 0 ? (
@@ -774,7 +819,7 @@ function SearchInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition-all duration-200 ease-out focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
       />
     </div>
   );
@@ -783,20 +828,186 @@ function SearchInput({
 function FilterSelect({
   value,
   onChange,
-  children,
+  placeholder,
+  options,
 }: {
   value: string;
   onChange: (value: string) => void;
-  children: React.ReactNode;
+  placeholder: string;
+  options: FilterSelectOption[];
 }) {
+  const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (!wrapperRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    const currentIndex = options.findIndex((item) => item.value === value);
+    setHighlightedIndex(currentIndex >= 0 ? currentIndex : (options.length > 0 ? 0 : -1));
+  }, [open, options, value]);
+
+  const selectedLabel = options.find((item) => item.value === value)?.label;
+
   return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-    >
-      {children}
-    </select>
+    <div ref={wrapperRef} className="relative w-full">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-700 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out hover:border-blue-300 hover:bg-slate-50 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 md:hidden"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((item) => (
+          <option key={item.value} value={item.value}>{item.label}</option>
+        ))}
+      </select>
+
+      <div className="relative hidden md:block">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((prev) => !prev)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              if (open && highlightedIndex >= 0 && highlightedIndex < options.length) {
+                onChange(options[highlightedIndex].value);
+                setOpen(false);
+                return;
+              }
+              setOpen((prev) => !prev);
+              return;
+            }
+
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              setOpen(false);
+              return;
+            }
+
+            if (event.key === 'Tab') {
+              setOpen(false);
+              return;
+            }
+
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+
+              setHighlightedIndex((prev) => {
+                if (options.length === 0) return -1;
+                if (prev < 0) return 0;
+                return Math.min(options.length - 1, prev + 1);
+              });
+              return;
+            }
+
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+
+              setHighlightedIndex((prev) => {
+                if (options.length === 0) return -1;
+                if (prev < 0) return options.length - 1;
+                return Math.max(0, prev - 1);
+              });
+            }
+          }}
+          className="flex min-h-11 w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-base text-slate-700 outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-out hover:border-blue-300 hover:bg-slate-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        >
+          <span className={selectedLabel ? 'text-slate-700' : 'text-slate-500'}>{selectedLabel ?? placeholder}</span>
+          <span className="material-symbols-outlined text-[20px] text-slate-400">expand_more</span>
+        </button>
+
+        <AnimatePresence>
+          {open ? (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+            >
+              <ul role="listbox" className="max-h-72 overflow-y-auto py-1">
+                <li role="option" aria-selected={value === ''}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setHighlightedIndex(-1)}
+                    onClick={() => {
+                      onChange('');
+                      setOpen(false);
+                    }}
+                    className={`flex min-h-11 w-full items-center px-4 py-2 text-left text-base transition-colors ${value === '' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
+                  >
+                    {placeholder}
+                  </button>
+                </li>
+                {options.map((item, index) => {
+                  const isSelected = item.value === value;
+                  const isHighlighted = highlightedIndex === index;
+
+                  return (
+                    <li key={item.value} role="option" aria-selected={isSelected}>
+                      <button
+                        type="button"
+                        onMouseEnter={() => setHighlightedIndex(index)}
+                        onClick={() => {
+                          onChange(item.value);
+                          setOpen(false);
+                        }}
+                        className={`flex min-h-11 w-full items-center px-4 py-2 text-left text-base transition-colors ${isSelected
+                          ? 'bg-blue-50 text-blue-700'
+                          : isHighlighted
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                      >
+                        {item.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 }
 
@@ -822,7 +1033,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
+      className={`rounded-lg p-2 transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
       title={label}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>

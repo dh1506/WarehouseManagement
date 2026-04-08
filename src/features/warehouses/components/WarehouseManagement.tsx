@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useDeferredValue, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -44,17 +44,20 @@ export function WarehouseManagement() {
   const [warehouseOpen, setWarehouseOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'warehouse' | 'location'; id: string; name: string } | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const deferredStatus = useDeferredValue(status);
+  const deferredWarehouseFilter = useDeferredValue(warehouseFilter);
 
   const warehouseQuery = useWarehouses({
-    search: tab === 'warehouses' ? search || undefined : undefined,
-    status: tab === 'warehouses' ? (status as 'all' | 'operational' | 'maintenance' | 'inactive') : 'all',
+    search: tab === 'warehouses' ? deferredSearch || undefined : undefined,
+    status: tab === 'warehouses' ? (deferredStatus as 'all' | 'operational' | 'maintenance' | 'inactive') : 'all',
     page,
     pageSize: PAGE_SIZE,
   });
   const locationQuery = useWarehouseLocations({
-    search: tab === 'locations' ? search || undefined : undefined,
-    status: tab === 'locations' ? (status as 'all' | 'active' | 'blocked' | 'inactive') : 'all',
-    warehouseId: tab === 'locations' ? warehouseFilter || undefined : undefined,
+    search: tab === 'locations' ? deferredSearch || undefined : undefined,
+    status: tab === 'locations' ? (deferredStatus as 'all' | 'active' | 'blocked' | 'inactive') : 'all',
+    warehouseId: tab === 'locations' ? deferredWarehouseFilter || undefined : undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -156,27 +159,29 @@ export function WarehouseManagement() {
               </div>
 
               <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-                {tab === 'warehouses' ? (
-                  <WarehouseRows
-                    items={warehouseQuery.data?.data ?? []}
-                    isLoading={warehouseQuery.isLoading}
-                    isError={warehouseQuery.isError}
-                    canManage={canManage}
-                    onView={(item) => openWarehouse('view', item)}
-                    onEdit={(item) => openWarehouse('edit', item)}
-                    onDelete={(item) => setDeleteTarget({ kind: 'warehouse', id: item.id, name: item.name })}
-                  />
-                ) : (
-                  <LocationRows
-                    items={locationQuery.data?.data ?? []}
-                    isLoading={locationQuery.isLoading}
-                    isError={locationQuery.isError}
-                    canManage={canManage}
-                    onView={(item) => openLocation('view', item)}
-                    onEdit={(item) => openLocation('edit', item)}
-                    onDelete={(item) => setDeleteTarget({ kind: 'location', id: item.id, name: item.code })}
-                  />
-                )}
+                <div className={`transition-all duration-300 ease-out ${((tab === 'warehouses' ? warehouseQuery.isFetching : locationQuery.isFetching) ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100')}`}>
+                  {tab === 'warehouses' ? (
+                    <WarehouseRows
+                      items={warehouseQuery.data?.data ?? []}
+                      isLoading={warehouseQuery.isLoading}
+                      isError={warehouseQuery.isError}
+                      canManage={canManage}
+                      onView={(item) => openWarehouse('view', item)}
+                      onEdit={(item) => openWarehouse('edit', item)}
+                      onDelete={(item) => setDeleteTarget({ kind: 'warehouse', id: item.id, name: item.name })}
+                    />
+                  ) : (
+                    <LocationRows
+                      items={locationQuery.data?.data ?? []}
+                      isLoading={locationQuery.isLoading}
+                      isError={locationQuery.isError}
+                      canManage={canManage}
+                      onView={(item) => openLocation('view', item)}
+                      onEdit={(item) => openLocation('edit', item)}
+                      onDelete={(item) => setDeleteTarget({ kind: 'location', id: item.id, name: item.code })}
+                    />
+                  )}
+                </div>
                 {total > 0 ? <Pagination page={page} totalPages={totalPages} totalItems={total} onChange={setPage} /> : null}
               </div>
             </div>

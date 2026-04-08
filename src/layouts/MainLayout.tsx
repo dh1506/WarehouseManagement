@@ -1,4 +1,5 @@
 import { Outlet, useLocation, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import { Sidebar } from './Sidebar';
 
 export function MainLayout() {
@@ -28,7 +29,7 @@ export function MainLayout() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 flex items-center justify-between px-8 border-b border-gray-100 bg-white/70 backdrop-blur-sm flex-shrink-0">
+        <header className="h-16 shrink-0 flex items-center justify-between border-b border-gray-100 bg-white/70 px-8 backdrop-blur-sm">
           {/* Breadcrumb / Title area — để trống, từng page component tự render title */}
           <div />
 
@@ -65,9 +66,18 @@ export function MainLayout() {
 
         {/* Content Area — overflow-hidden để page con tự quản lý scroll nội bộ */}
         <main className="flex-1 overflow-hidden">
-          <div className="h-full">
-            <Outlet />
-          </div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="h-full"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -47,11 +47,15 @@ export function CategoryManagementV2() {
   const [viewingCategory, setViewingCategory] = useState<ProductCategory | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<ProductCategory | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showTopFade, setShowTopFade] = useState(false);
+  const [showBottomFade, setShowBottomFade] = useState(false);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const listQuery = useProductCategories({
     page,
     pageSize: PAGE_SIZE,
-    search: searchTerm || undefined,
+    search: deferredSearchTerm || undefined,
   });
 
   const createMutation = useCreateCategory();
@@ -66,6 +70,21 @@ export function CategoryManagementV2() {
   const pageEnd = Math.min(page * PAGE_SIZE, total);
 
   const filteredCategories = useMemo(() => categories, [categories]);
+
+  const updateScrollFade = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setShowTopFade(scrollTop > 2);
+    setShowBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    updateScrollFade();
+  }, [filteredCategories, listQuery.isLoading, listQuery.isFetching, updateScrollFade]);
 
   const openCreate = () => {
     setEditingCategory(null);
@@ -142,12 +161,12 @@ export function CategoryManagementV2() {
           actions={(
             <>
               {canExport ? (
-                <button type="button" onClick={() => void handleExport()} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
+                <button type="button" onClick={() => void handleExport()} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/15">
                   Export
                 </button>
               ) : null}
               {canCreate ? (
-                <button type="button" onClick={openCreate} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white">
+                <button type="button" onClick={openCreate} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 ease-out hover:bg-primary-container hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
                   New Category
                 </button>
               ) : null}
@@ -165,12 +184,19 @@ export function CategoryManagementV2() {
                 setPage(1);
               }}
               placeholder="Search by category code, name, or description..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition-all duration-200 ease-out focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
             />
           </div>
 
           <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div
+              ref={tableScrollRef}
+              onScroll={updateScrollFade}
+              className={`relative min-h-0 flex-1 overflow-auto transition-all duration-300 ease-out ${listQuery.isFetching ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100'}`}
+            >
+              <div
+                className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showTopFade ? 'opacity-100' : 'opacity-0'}`}
+              />
               <CategoryTableV2
                 categories={filteredCategories}
                 isLoading={listQuery.isLoading}
@@ -181,6 +207,9 @@ export function CategoryManagementV2() {
                 onView={openView}
                 onEdit={openEdit}
                 onDelete={openDelete}
+              />
+              <div
+                className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showBottomFade ? 'opacity-100' : 'opacity-0'}`}
               />
             </div>
 
@@ -194,7 +223,7 @@ export function CategoryManagementV2() {
                     type="button"
                     onClick={() => setPage((current) => Math.max(1, current - 1))}
                     disabled={page === 1}
-                    className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors duration-200 ease-out hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="material-symbols-outlined text-[16px]">chevron_left</span>
                     Prev
@@ -206,7 +235,7 @@ export function CategoryManagementV2() {
                         key={targetPage}
                         type="button"
                         onClick={() => setPage(targetPage)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                        className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors duration-200 ease-out ${page === targetPage ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
                           }`}
                       >
                         {targetPage}
@@ -218,7 +247,7 @@ export function CategoryManagementV2() {
                     <button
                       type="button"
                       onClick={() => setPage(totalPages)}
-                      className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                      className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors duration-200 ease-out ${page === totalPages ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
                         }`}
                     >
                       {totalPages}
@@ -228,7 +257,7 @@ export function CategoryManagementV2() {
                     type="button"
                     onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                     disabled={page === totalPages}
-                    className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors duration-200 ease-out hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Next
                     <span className="material-symbols-outlined text-[16px]">chevron_right</span>

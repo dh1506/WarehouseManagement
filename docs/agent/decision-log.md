@@ -399,3 +399,10 @@
 **Context:** Backend warehouse location schema and updated DB design expose location coordinates via `zone_code`, `rack_code`, `level_code`, `bin_code` without `aisle_code`, but FE warehouse forms and service mapping still carried aisle fields.
 **Decision:** Remove aisle from warehouse location FE types/schemas/forms/table copy and stop sending/deriving `aisle_code` in warehouse service payloads and zone/bin mapping logic.
 **Rationale:** Keeps FE strictly aligned to the approved API contract and schema-backed data model, while minimizing scope to warehouse modules only.
+
+## DEC-078 - Warehouse hub and zone detail UX polish kept scope-safe
+
+**Date:** 2026-04-08
+**Context:** Sprint follow-up required preserving approved warehouse UI language while improving interaction quality and explicit form states.
+**Decision:** Add lightweight `motion` entry transitions in warehouse list/zone cards and zone-grid panels, and surface explicit loading/error/empty states for category/product assignment selectors in Zone Detail without changing service, schema, or hook contracts.
+**Rationale:** Improves responsiveness and user clarity while strictly preserving architecture boundaries (`services` -> `hooks` -> `features`) and avoiding unrelated refactors.

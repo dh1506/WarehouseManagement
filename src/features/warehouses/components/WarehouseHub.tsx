@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -97,6 +97,13 @@ export function WarehouseHub() {
   const [zoneDialogOpen, setZoneDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'warehouse' | 'zone'; id: string; name: string; warehouseId?: string } | null>(null);
   const [structureSearch, setStructureSearch] = useState('');
+  const warehouseListScrollRef = useRef<HTMLDivElement | null>(null);
+  const zoneListScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showWarehouseTopFade, setShowWarehouseTopFade] = useState(false);
+  const [showWarehouseBottomFade, setShowWarehouseBottomFade] = useState(false);
+  const [showZoneTopFade, setShowZoneTopFade] = useState(false);
+  const [showZoneBottomFade, setShowZoneBottomFade] = useState(false);
+  const deferredStructureSearch = useDeferredValue(structureSearch);
 
   const hubsQuery = useWarehouseHubs();
   const categoryOptionsQuery = useWarehouseCategoryOptions();
@@ -109,7 +116,7 @@ export function WarehouseHub() {
 
   const hubs = hubsQuery.data ?? [];
   const categoryOptions = categoryOptionsQuery.data ?? [];
-  const normalizedStructureSearch = structureSearch.trim().toLowerCase();
+  const normalizedStructureSearch = deferredStructureSearch.trim().toLowerCase();
 
   const filteredHubs = useMemo(() => {
     if (!normalizedStructureSearch) {
@@ -146,6 +153,36 @@ export function WarehouseHub() {
     () => hubs.find((item) => item.id === zoneWarehouseId) ?? null,
     [hubs, zoneWarehouseId],
   );
+
+  const updateWarehouseListFade = useCallback(() => {
+    const element = warehouseListScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    setShowWarehouseTopFade(scrollTop > 2);
+    setShowWarehouseBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  const updateZoneListFade = useCallback(() => {
+    const element = zoneListScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    setShowZoneTopFade(scrollTop > 2);
+    setShowZoneBottomFade(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    updateWarehouseListFade();
+  }, [filteredHubs, updateWarehouseListFade]);
+
+  useEffect(() => {
+    updateZoneListFade();
+  }, [selectedHub, normalizedStructureSearch, updateZoneListFade]);
 
   const openWarehouseDialog = (mode: WarehouseMode, hub?: WarehouseHub) => {
     void categoryOptionsQuery.refetch();
@@ -283,7 +320,7 @@ export function WarehouseHub() {
             <button
               type="button"
               onClick={() => openWarehouseDialog('create')}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-600/25"
             >
               <span className="material-symbols-outlined text-sm">add</span>
               Add Warehouse
@@ -294,7 +331,7 @@ export function WarehouseHub() {
               type="button"
               onClick={() => openZoneDialog('create')}
               disabled={!selectedHub}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="material-symbols-outlined text-sm">add_circle</span>
               Add Zone
@@ -309,7 +346,7 @@ export function WarehouseHub() {
           value={structureSearch}
           onChange={(event) => setStructureSearch(event.target.value)}
           placeholder="Search warehouses or zones by code/name/type..."
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition-all duration-200 ease-out hover:border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
         />
       </div>
 
@@ -326,7 +363,14 @@ export function WarehouseHub() {
               <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Warehouses</h3>
               <span className="text-xs font-semibold text-slate-500">{filteredHubs.length}</span>
             </div>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+            <div
+              ref={warehouseListScrollRef}
+              onScroll={updateWarehouseListFade}
+              className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-3"
+            >
+              <div
+                className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showWarehouseTopFade ? 'opacity-100' : 'opacity-0'}`}
+              />
               {filteredHubs.map((warehouse, index) => {
                 const warehouseWarning = getWarningText(warehouse.usedCapacity);
 
@@ -340,7 +384,7 @@ export function WarehouseHub() {
                     <button
                       type="button"
                       onClick={() => setSelectedHubId(warehouse.id)}
-                      className={`w-full rounded-xl border p-4 text-left transition ${selectedHub?.id === warehouse.id
+                      className={`w-full rounded-xl border p-4 text-left transition-all duration-200 ease-out ${selectedHub?.id === warehouse.id
                         ? 'border-blue-400 bg-blue-50 shadow-sm'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
@@ -393,7 +437,7 @@ export function WarehouseHub() {
                                 openWarehouseDialog('edit', warehouse);
                               }
                             }}
-                            className="material-symbols-outlined rounded-md p-1 text-[16px] text-slate-600 hover:bg-slate-200"
+                            className="material-symbols-outlined rounded-md p-1 text-[16px] text-slate-600 transition-colors duration-200 hover:bg-slate-200"
                           >
                             edit
                           </span>
@@ -411,7 +455,7 @@ export function WarehouseHub() {
                                 setDeleteTarget({ kind: 'warehouse', id: warehouse.id, name: warehouse.name });
                               }
                             }}
-                            className="material-symbols-outlined rounded-md p-1 text-[16px] text-red-600 hover:bg-red-50"
+                            className="material-symbols-outlined rounded-md p-1 text-[16px] text-red-600 transition-colors duration-200 hover:bg-red-50"
                           >
                             delete
                           </span>
@@ -421,6 +465,9 @@ export function WarehouseHub() {
                   </motion.div>
                 );
               })}
+              <div
+                className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showWarehouseBottomFade ? 'opacity-100' : 'opacity-0'}`}
+              />
             </div>
           </section>
 
@@ -445,7 +492,7 @@ export function WarehouseHub() {
                       <button
                         type="button"
                         onClick={() => openCreateZoneForWarehouse(selectedHub)}
-                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:opacity-90"
                       >
                         Add Zone
                       </button>
@@ -454,7 +501,7 @@ export function WarehouseHub() {
                       <button
                         type="button"
                         onClick={() => openWarehouseDialog('edit', selectedHub)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-100"
                       >
                         Edit Warehouse
                       </button>
@@ -462,7 +509,14 @@ export function WarehouseHub() {
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                <div
+                  ref={zoneListScrollRef}
+                  onScroll={updateZoneListFade}
+                  className="relative min-h-0 flex-1 overflow-y-auto p-5"
+                >
+                  <div
+                    className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showZoneTopFade ? 'opacity-100' : 'opacity-0'}`}
+                  />
                   {selectedHub.zones.filter((zone) => {
                     if (!normalizedStructureSearch) {
                       return true;
@@ -503,7 +557,7 @@ export function WarehouseHub() {
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.18) }}
-                              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white"
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                             >
                               <div className="mb-3 flex items-start justify-between gap-2">
                                 <div>
@@ -564,6 +618,9 @@ export function WarehouseHub() {
                     </div>
                   )}
                 </div>
+                <div
+                  className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showZoneBottomFade ? 'opacity-100' : 'opacity-0'}`}
+                />
               </>
             )}
           </section>
