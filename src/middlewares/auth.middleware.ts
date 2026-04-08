@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt.util';
 import { prisma } from '../config/db.config';
 import { AppError } from '../utils/app-error';
+import { getAlsStore } from '../utils/als.util';
 
 /**
  * Interface mô tả thông tin user được gắn vào request sau khi xác thực
@@ -112,6 +113,12 @@ export const authenticate = async (
       roleName: user.role.name,
       permissions,
     };
+
+    // Gắn userId vào AsyncLocalStorage để Prisma Audit Extension sử dụng
+    const store = getAlsStore();
+    if (store) {
+      store.userId = user.id;
+    }
 
     next();
   } catch (error) {

@@ -320,6 +320,70 @@ CREATE TABLE `inventory_transactions` (
     INDEX `inventory_transactions_product_id_idx`(`product_id`),
     INDEX `inventory_transactions_lot_id_idx`(`lot_id`),
     INDEX `inventory_transactions_created_by_idx`(`created_by`),
+    INDEX `inventory_transactions_product_uom_id_fkey`(`product_uom_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_ins` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `stock_in_code` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `status` ENUM('DRAFT', 'PENDING', 'IN_PROGRESS', 'DISCREPANCY', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    `created_by` INTEGER NOT NULL,
+    `approved_by` INTEGER NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `stock_ins_stock_in_code_key`(`stock_in_code`),
+    INDEX `stock_ins_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `stock_ins_created_by_idx`(`created_by`),
+    INDEX `stock_ins_approved_by_idx`(`approved_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_in_details` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_in_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `expected_quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `received_quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `unit_price` DECIMAL(15, 2) NULL,
+
+    INDEX `stock_in_details_stock_in_id_idx`(`stock_in_id`),
+    INDEX `stock_in_details_product_id_idx`(`product_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_in_detail_lots` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_in_detail_id` INTEGER NOT NULL,
+    `product_lot_id` INTEGER NOT NULL,
+    `quantity` DECIMAL(15, 3) NOT NULL,
+
+    INDEX `stock_in_detail_lots_stock_in_detail_id_idx`(`stock_in_detail_id`),
+    INDEX `stock_in_detail_lots_product_lot_id_idx`(`product_lot_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_in_discrepancies` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_in_id` INTEGER NOT NULL,
+    `reported_by` INTEGER NOT NULL,
+    `resolved_by` INTEGER NULL,
+    `expected_qty` DECIMAL(15, 3) NOT NULL,
+    `actual_qty` DECIMAL(15, 3) NOT NULL,
+    `reason` TEXT NOT NULL,
+    `action_taken` TEXT NULL,
+    `status` ENUM('PENDING', 'RESOLVED') NOT NULL DEFAULT 'PENDING',
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `stock_in_discrepancies_stock_in_id_idx`(`stock_in_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -387,22 +451,52 @@ ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_product_id_f
 ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `product_lots` ADD CONSTRAINT `product_lots_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `product_lots` ADD CONSTRAINT `product_lots_inventories_id_fkey` FOREIGN KEY (`inventories_id`) REFERENCES `inventories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `product_lots` ADD CONSTRAINT `product_lots_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_product_uom_id_fkey` FOREIGN KEY (`product_uom_id`) REFERENCES `product_uoms`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_details` ADD CONSTRAINT `stock_in_details_stock_in_id_fkey` FOREIGN KEY (`stock_in_id`) REFERENCES `stock_ins`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_details` ADD CONSTRAINT `stock_in_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_detail_lots` ADD CONSTRAINT `stock_in_detail_lots_stock_in_detail_id_fkey` FOREIGN KEY (`stock_in_detail_id`) REFERENCES `stock_in_details`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_detail_lots` ADD CONSTRAINT `stock_in_detail_lots_product_lot_id_fkey` FOREIGN KEY (`product_lot_id`) REFERENCES `product_lots`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_discrepancies` ADD CONSTRAINT `stock_in_discrepancies_stock_in_id_fkey` FOREIGN KEY (`stock_in_id`) REFERENCES `stock_ins`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_discrepancies` ADD CONSTRAINT `stock_in_discrepancies_reported_by_fkey` FOREIGN KEY (`reported_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_in_discrepancies` ADD CONSTRAINT `stock_in_discrepancies_resolved_by_fkey` FOREIGN KEY (`resolved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

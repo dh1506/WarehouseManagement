@@ -51,3 +51,21 @@ export const generateLocationCode = (
   const parts = [warehouseCode, zone, rack, level, bin].filter((part) => part.trim() !== '');
   return parts.join('-');
 };
+
+/**
+ * Sinh mã code cho phiếu nhập (Ví dụ: IN-20231015-0001)
+ */
+export const generateStockInCode = (sequenceId: number): string => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = sequenceId.toString().padStart(4, '0');
+  return `IN-${dateStr}-${seqPart}`;
+};
+
+/**
+ * Sinh mã code cho phiếu điều chỉnh tồn kho (Ví dụ: ADJ-20260408-0001)
+ */
+export const generateAdjustmentCode = (sequenceId: number): string => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = sequenceId.toString().padStart(4, '0');
+  return `ADJ-${dateStr}-${seqPart}`;
+};
