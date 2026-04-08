@@ -266,3 +266,31 @@ All modules now follow the same permission enforcement pattern:
   - Role context bar shows active modules count and high-risk permissions.
   - Left role list pane and all role CRUD dialogs (create/edit/status toggle) remain unchanged.
   - Reuses `computeAccessLevel` and `ACCESS_LEVEL_META` from advanced permission types.
+<<<<<<< HEAD
+=======
+- **Inbound Documents**: Quản lý phiếu nhập kho inbound (Inbounds module)
+  - `src/features/inbound/components/InboundDashboard.tsx` – Dashboard container for inbound flow
+  - `src/features/inbound/components/InboundFilters.tsx` – Search, filters and action bar for inbound list
+  - `src/features/inbound/components/InboundTable.tsx` – Data table for inbound documents
+  - `src/features/inbound/components/KpiCards.tsx` – KPI card section (updated to reflect sprint changes)
+  - `src/features/inbound/components/AiForecastWidget.tsx` – AI Forecasting Insights widget (new)
+  - `src/features/inbound/components/SupplierPerformanceWidget.tsx` – Supplier performance widget (new)
+  - `src/features/inbound/data/mockInboundData.ts` – Mock inbound data (used for mock API)
+  - `src/features/inbound/services/inboundService.ts` – Inbound API service skeleton (mock boundary)
+  - `src/features/inbound/hooks/useInbound.ts` – React Query hooks for inbound data
+  - `src/features/inbound/types/inboundType.ts` – Type definitions
+  - `src/features/inbound/schemas/inboundSchemas.ts` – Zod schemas for inbound filters (added in sprint)
+  - `src/features/inbound/components/WorkflowStepper.tsx` – 4-step workflow progress indicator (Created → Approving → Receiving → Stored)
+  - `src/features/inbound/components/InventoryItemsTable.tsx` – Line items table with editable received qty and over-qty warning
+  - `src/features/inbound/components/AttachmentsPanel.tsx` – Drag & drop upload with progress bar, file list, and delete
+  - `src/features/inbound/components/OriginDestinationCard.tsx` – Supplier source and destination warehouse info card
+  - `src/features/inbound/components/OrderSummary.tsx` – Subtotal + Est. Duties = Total Value read-only summary
+  - `src/features/inbound/components/AiInsightWidget.tsx` – AI insight with match percentage bar
+  - `src/features/inbound/components/InboundDetail.tsx` – Detail page container wiring all sub-components
+  - `src/features/inbound/data/mockInboundDetailData.ts` – Mock data for inbound detail (8 items, 2 attachments, workflow)
+  - `src/features/inbound/services/inboundDetailService.ts` – Detail API service skeleton (mock boundary)
+  - `src/features/inbound/hooks/useInboundDetail.ts` – React Query hooks for detail, upload, delete, receive
+  - `src/features/inbound/types/inboundDetailType.ts` – Type definitions for detail, items, attachments, workflow
+  - `src/features/inbound/schemas/inboundDetailSchemas.ts` – Zod schemas for received qty and attachment validation
+  - `src/pages/operations/InboundDetailPage.tsx` – Thin route wrapper for `/inbound/:id`
+>>>>>>> master

@@ -357,3 +357,76 @@
 **Context:** Permission checks across modules (User Management, Product Management, Product Settings, Categories) were using a "show button, block on click with toast error" pattern. This violated the principle that users should not see controls they cannot use.  
 **Decision:** Replace all toast-based permission guards with conditional rendering: action buttons (Create, Edit, Delete, Import, Export, Lock, Reset Password, Status Toggle) are now hidden entirely when the user lacks the corresponding permission. Handler functions no longer check permissions or show "Access denied" toasts — they assume the button would not be visible if the action was unauthorized.  
 **Rationale:** This aligns with standard UX expectations: invisible controls mean "you don't have access" rather than "you can see it but it won't work." It also reduces code duplication by removing redundant permission checks from both handlers and form submit callbacks.
+<<<<<<< HEAD
+=======
+
+## DEC-072 - Inbound Document List uses mock-first service with real API boundary
+
+**Date:** 2026-04-07  
+**Context:** Backend inbound endpoints are not yet available, but the Inbound Document List page needs to be fully functional for sprint review.  
+**Decision:** Implement the inbound module with a `USE_MOCK = true` flag in `inboundService.ts` that routes all queries/mutations to mock data. The service layer keeps real API endpoint placeholders (`/api/inbound-plans`, `/api/inbounds/kpis`, `/api/inbounds/supplier-performance`, `/api/inbound-plans/export`) so switching to real backend is a one-line change.  
+**Rationale:** Keeps frontend progress unblocked while preserving the exact API boundary contract for future integration.
+
+## DEC-073 - Inbound table uses sticky header, sticky pagination, and horizontal scroll
+
+**Date:** 2026-04-07  
+**Context:** Acceptance criteria require the table header to be pinned at top, pagination pinned at bottom, and horizontal scroll on small screens with the Document ID column sticky-left.  
+**Decision:** Implement the table with a native HTML `<table>` inside a scrollable container (`max-height: calc(100vh - 420px)`). The `<thead>` uses `sticky top-0 z-10`, pagination uses `sticky bottom-0 z-10`, and the Document ID `<th>`/`<td>` cells use `sticky left-0 z-20`.  
+**Rationale:** Native sticky CSS is simpler and more performant than virtualized table solutions for the current data volume, and it works across all target screen sizes.
+
+## DEC-074 - Inbound status badges use distinct colors per acceptance criteria
+
+**Date:** 2026-04-07  
+**Context:** Each status needs a distinct badge color: COMPLETED (emerald), RECEIVING (blue), PENDING (violet), DRAFT (slate), CANCELLED (rose).  
+**Decision:** Define `STATUS_BADGE_CONFIG` in `InboundTable.tsx` mapping each status to bg/text/ring/icon classes. CANCELLED status also crosses out the Expected Arrival date. RECEIVING status shows "In Progress" with a green truck icon and pulsing dot.  
+**Rationale:** Inline config keeps styling co-located with the table and avoids polluting the shared `StatusBadge` component with inbound-specific logic.
+
+## DEC-075 - Inbound permission keys are `inbound:create` and `inbound:export`
+
+**Date:** 2026-04-07  
+**Context:** Create PO and Export buttons must be hidden for View Only users.  
+**Decision:** Use `usePermission('inbound:create')` and `usePermission('inbound:export')` to conditionally render the buttons. When the user lacks permission, the buttons are not rendered at all (not just disabled).  
+**Rationale:** Follows the established permission enforcement pattern from DEC-071.
+
+## DEC-076 - Supplier Performance moved from KPI cards to bottom widget
+
+**Date:** 2026-04-07  
+**Context:** Acceptance criteria place Supplier Performance as a bottom widget alongside AI Forecasting Insight, not as a KPI card.  
+**Decision:** Extract supplier performance from `KpiCards.tsx` into a dedicated `SupplierPerformanceWidget.tsx` component placed below the table. KpiCards now renders only 3 metric cards (Pending Inbound, Active Receiving, Avg Processing) in a 3-column grid.  
+**Rationale:** Aligns with the approved design layout and gives the supplier metrics more horizontal space for progress bars.
+
+## DEC-077 - Inbound Detail page uses mock-first service with real API boundary
+
+**Date:** 2026-04-07  
+**Context:** Backend inbound detail endpoints are not yet available, but the Inbound Detail page needs to be fully functional for sprint review.  
+**Decision:** Implement the inbound detail module with a `USE_MOCK = true` flag in `inboundDetailService.ts` that routes all queries/mutations to mock data. The service layer keeps real API endpoint placeholders (`GET /api/inbounds/:id`, `POST /api/upload`, `DELETE /api/attachments/:id`, `PUT /api/inbounds/:id/receive`) so switching to real backend is a one-line change.  
+**Rationale:** Keeps frontend progress unblocked while preserving the exact API boundary contract for future integration.
+
+## DEC-078 - Inbound Detail uses split layout with workflow stepper
+
+**Date:** 2026-04-07  
+**Context:** The design shows a workflow stepper at the top, a line items table on the left (8 cols), and a sidebar on the right (4 cols) with origin/destination, attachments, and AI insight.  
+**Decision:** Implement `WorkflowStepper`, `InventoryItemsTable`, `AttachmentsPanel`, `OriginDestinationCard`, `OrderSummary`, and `AiInsightWidget` as separate components wired together by `InboundDetail` container. The layout uses `grid grid-cols-12` with `xl:col-span-8` for the table and `xl:col-span-4` for the sidebar.  
+**Rationale:** Matches the approved design while keeping each piece isolated and reusable.
+
+## DEC-079 - Received quantity validation warns on exceed but allows override
+
+**Date:** 2026-04-07  
+**Context:** Warehouse staff may need to override received quantities beyond ordered amounts (scanning errors, network outages).  
+**Decision:** The received qty input allows any non-negative integer. When `receivedQty > orderedQty`, the input turns red with a warning text "Exceeds ordered qty" below it. The value is still accepted and submitted.  
+**Rationale:** Follows AC4 — warn but don't block, allowing manager override when needed.
+
+## DEC-080 - Attachment upload validates file type and size before upload
+
+**Date:** 2026-04-07  
+**Context:** AC5 requires PDF/JPG/PNG only, max 10MB per file.  
+**Decision:** Use Zod schema `attachmentFileSchema` to validate file type and size before calling the upload mutation. Invalid files show a destructive toast with the specific error. The upload progress bar is simulated with a 10% increment interval until the mutation completes.  
+**Rationale:** Client-side validation prevents unnecessary API calls for invalid files, and the progress bar provides UX feedback during upload.
+
+## DEC-081 - Inbound Detail permissions: `inbound:receive` and `inbound:view_value`
+
+**Date:** 2026-04-07  
+**Context:** Only Admin/Warehouse Manager can see "Receive Items" button and "Total Value" section.  
+**Decision:** Use `usePermission('inbound:receive')` to gate the Receive Items button and editable quantity inputs. Use `usePermission('inbound:view_value')` to gate the OrderSummary component.  
+**Rationale:** Follows the established permission enforcement pattern from DEC-071, keeping value visibility and receive actions separate.
+>>>>>>> master
