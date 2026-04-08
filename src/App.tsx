@@ -22,8 +22,8 @@ import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
-import { InboundManagementPage } from './pages/operations/InboundManagementPage';
-import { InboundDetailPage } from './pages/operations/InboundDetailPage';
+
+
 import { Toaster } from './components/ui/toaster';
 
 const queryClient = new QueryClient({
@@ -115,8 +115,6 @@ function App() {
             <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
-            <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundManagementPage /></PageAccessRoute>} />
-            <Route path="/inbound/:id" element={<PageAccessRoute path="/inbound"><InboundDetailPage /></PageAccessRoute>} />
           </Route>
 
           {/* 404 — mọi route không khớp */}

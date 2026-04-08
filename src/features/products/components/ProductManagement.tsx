@@ -583,9 +583,10 @@ export function ProductManagement() {
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
 
-                            <div>Min {item.minStock} � Max {item.maxStock}</div>
+                            <div>Min {item.minStock} Max {item.maxStock}</div>
                             <div className="mt-1 text-xs text-slate-400">
                               {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} � {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+
                             </div>
                           </td>
                           <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
