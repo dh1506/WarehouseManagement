@@ -190,8 +190,8 @@ export const getProducts = async (query: GetProductsQuery) => {
     prisma.product.count({ where }),
   ]);
 
-  // Format lại categories cho gọn
   const formattedProducts = products.map((product) => ({
+    ...product,
     categories: product.categories.map((pc) => pc.category),
     brands: product.brands.map((pb) => pb.brand),
     warehouses: product.warehouses.map((pw) => pw.warehouse),
