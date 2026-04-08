@@ -17,10 +17,7 @@ const navItems: NavItem[] = [
   { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
   { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
   { to: '/import-export', icon: 'swap_horiz', label: 'Import / Export' },
-<<<<<<< HEAD
-=======
   { to: '/inbound', icon: 'move_to_inbox', label: 'Inbound Flow' },
->>>>>>> master
   { to: '/inventory', icon: 'widgets', label: 'Inventory' },
   { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
   { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
