@@ -22,7 +22,6 @@ import {
   useUpdateProductStatus,
   useProductBrandOptions,
   useProductCategoryOptions,
-  useProductManufacturerOptions,
   useProducts,
   useProductUnitOptions,
   useUpdateProduct,
@@ -34,6 +33,7 @@ import { parseProductsFromExcel } from '../utils/importProducts';
 import { ProductFormSheet } from './ProductFormSheets';
 
 const PAGE_SIZE = 10;
+const MAX_REQUEST_LIMIT = 100;
 
 export function ProductManagement() {
   const { toast } = useToast();
@@ -68,13 +68,12 @@ export function ProductManagement() {
   });
   const optionSourceQuery = useProducts({
     page: 1,
-    pageSize: 1000,
+    pageSize: MAX_REQUEST_LIMIT,
     status: 'all',
   });
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
-  const manufacturersQuery = useProductManufacturerOptions();
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -85,7 +84,7 @@ export function ProductManagement() {
   const totalPages = listQuery.data ? Math.max(1, Math.ceil(listQuery.data.total / PAGE_SIZE)) : 1;
   const pageStart = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, totalItems);
-  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
+  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
   const optionSourceProducts = useMemo(
     () => optionSourceQuery.data?.data ?? listQuery.data?.data ?? [],
     [listQuery.data?.data, optionSourceQuery.data?.data],
@@ -178,17 +177,24 @@ export function ProductManagement() {
 
     try {
       if (isHeaderChecked) {
-        const allProducts = await getProducts({
-          search: search || undefined,
-          status,
-          categoryId: categoryId || undefined,
-          brandId: brandId || undefined,
-          page: 1,
-          pageSize: totalItems,
-        });
+        const pageCount = Math.max(1, Math.ceil(totalItems / MAX_REQUEST_LIMIT));
+        const collectedProducts: ProductItem[] = [];
 
-        if (allProducts.data.length > 0) {
-          await exportProductsToExcel(allProducts.data);
+        for (let currentPage = 1; currentPage <= pageCount; currentPage += 1) {
+          const result = await getProducts({
+            search: search || undefined,
+            status,
+            categoryId: categoryId || undefined,
+            brandId: brandId || undefined,
+            page: currentPage,
+            pageSize: MAX_REQUEST_LIMIT,
+          });
+
+          collectedProducts.push(...result.data);
+        }
+
+        if (collectedProducts.length > 0) {
+          await exportProductsToExcel(collectedProducts);
         }
         return;
       }
@@ -220,7 +226,7 @@ export function ProductManagement() {
     if (isOptionsLoading) {
       toast({
         title: 'Import is not ready',
-        description: 'Please wait until category, unit, brand, and manufacturer options finish loading.',
+        description: 'Please wait until category, unit, and brand options finish loading.',
         variant: 'destructive',
       });
       return;
@@ -233,7 +239,6 @@ export function ProductManagement() {
         categories: categoryOptions,
         units: unitsQuery.data ?? [],
         brands: brandsQuery.data ?? [],
-        manufacturers: manufacturersQuery.data ?? [],
       });
 
       let successCount = 0;
@@ -381,7 +386,7 @@ export function ProductManagement() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          // eyebrow="Sprint 1 · Product Master"
+          // eyebrow="Sprint 1 ï¿½ Product Master"
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
           actions={(
@@ -425,7 +430,7 @@ export function ProductManagement() {
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Master catalog</h3>
               <p className="mt-1 text-sm text-slate-500">
-                Use real category, unit, brand, and manufacturer master data to keep product records consistent across modules.
+                Use real category, unit, and brand master data to keep product records consistent across modules.
               </p>
             </div>
 
@@ -438,7 +443,7 @@ export function ProductManagement() {
                     setPage(1);
                     resetSelection();
                   }}
-                  placeholder="Search code, name, or manufacturer..."
+                  placeholder="Search code, name, or supplier..."
                 />
               </div>
               <div className="xl:col-span-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -571,7 +576,7 @@ export function ProductManagement() {
                           <td className="px-4 py-4">
                             <div className="font-semibold text-slate-900">{item.name}</div>
                             <div className="mt-1 text-sm text-slate-500">{item.sku}</div>
-                            <div className="mt-2 text-xs text-slate-400">{item.manufacturerName || item.supplierName || 'No secondary source'}</div>
+                            <div className="mt-2 text-xs text-slate-400">{item.supplierName || 'No supplier'}</div>
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
                             <div>{item.categoryName}</div>
@@ -582,9 +587,9 @@ export function ProductManagement() {
                             <div className="mt-1 text-xs text-slate-400">{item.brandName}</div>
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
-                            <div>Min {item.minStock} · Max {item.maxStock}</div>
+                            <div>Min {item.minStock} ï¿½ Max {item.maxStock}</div>
                             <div className="mt-1 text-xs text-slate-400">
-                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} ï¿½ {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
                             </div>
                           </td>
                           <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
@@ -646,7 +651,6 @@ export function ProductManagement() {
         categories={(categoriesQuery.data ?? []).map((item) => ({ id: item.id, name: item.name }))}
         units={unitsQuery.data ?? []}
         brands={brandsQuery.data ?? []}
-        manufacturers={manufacturersQuery.data ?? []}
         onSubmit={async (payload: ProductFormData) => {
           try {
             if (sheetMode === 'edit' && selectedProduct) {

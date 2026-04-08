@@ -20,7 +20,6 @@ export const warehouseLocationFormSchema = z
     warehouseId: z.string().trim().min(1, 'Vui lòng chọn kho'),
     code: z.string().trim().min(2, 'Mã vị trí phải có ít nhất 2 ký tự').max(30, 'Mã vị trí tối đa 30 ký tự'),
     zone: z.string().trim().min(1, 'Vui lòng nhập zone').max(20, 'Zone tối đa 20 ký tự'),
-    aisle: z.string().trim().min(1, 'Vui lòng nhập aisle').max(20, 'Aisle tối đa 20 ký tự'),
     rack: z.string().trim().min(1, 'Vui lòng nhập rack').max(20, 'Rack tối đa 20 ký tự'),
     level: z.string().trim().min(1, 'Vui lòng nhập level').max(20, 'Level tối đa 20 ký tự'),
     bin: z.string().trim().min(1, 'Vui lòng nhập bin').max(20, 'Bin tối đa 20 ký tự'),

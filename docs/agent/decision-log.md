@@ -357,3 +357,45 @@
 **Context:** Permission checks across modules (User Management, Product Management, Product Settings, Categories) were using a "show button, block on click with toast error" pattern. This violated the principle that users should not see controls they cannot use.  
 **Decision:** Replace all toast-based permission guards with conditional rendering: action buttons (Create, Edit, Delete, Import, Export, Lock, Reset Password, Status Toggle) are now hidden entirely when the user lacks the corresponding permission. Handler functions no longer check permissions or show "Access denied" toasts — they assume the button would not be visible if the action was unauthorized.  
 **Rationale:** This aligns with standard UX expectations: invisible controls mean "you don't have access" rather than "you can see it but it won't work." It also reduces code duplication by removing redundant permission checks from both handlers and form submit callbacks.
+
+## DEC-072 - FE must align to updated Prisma product/location model
+
+**Date:** 2026-04-07
+**Context:** The latest Prisma schema in BE shifts product relations to mapping tables (`BrandProduct`, `ProductWarehouse`, `ProductSupplier`, `ProductUom`) and confirms `WarehouseLocation` uses `zone/rack/level/bin` coordinates without `aisle_code`.
+**Decision:** Frontend product and warehouse service/form contracts should be updated to remove unsupported singleton assumptions (manufacturer endpoint, single `brand_id`) and align location payload shape to the schema-backed API fields.
+**Rationale:** This prevents FE/BE contract drift and runtime failures when BE services are regenerated or aligned to the latest schema.
+
+## DEC-073 - FE product flow no longer hard-depends on manufacturer API
+
+**Date:** 2026-04-07
+**Context:** Current backend routes do not expose `/api/manufacturers`, but product/product-settings FE was calling that endpoint in options and reference flows.
+**Decision:** Keep manufacturer as optional display field on FE product models, stop outbound manufacturer API dependency in product service options, and make manufacturer create/update in Product Settings fail fast with explicit backend-dependency error instead of 404 runtime calls.
+**Rationale:** Prevents request failures in current sprint while keeping changes isolated to affected FE modules only.
+
+## DEC-074 - Product FE mapper aligned to BE list/detail shape
+
+**Date:** 2026-04-07
+**Context:** Product list endpoint from BE returns relation arrays (`brands`, `warehouses`) and may omit some singleton fields expected by FE mapper.
+**Decision:** Update FE product mapper/payload to support BE relation-array shape (`brands`) and make mapping resilient when optional fields are missing.
+**Rationale:** Prevent FE runtime crashes on product list fetch and keep payload contract aligned (`brand_ids` instead of `brand_id`).
+
+## DEC-075 - Remove manufacturer-driven FE flows until backend contract exists
+
+**Date:** 2026-04-07
+**Context:** Current backend route surface has no `/api/manufacturers`, but FE product and product-settings modules still rendered manufacturer tabs/fields/import columns.
+**Decision:** Remove manufacturer input/query/export-import dependencies from active FE modules (Products, Product Settings, page-access and advanced-permission metadata) and keep modules aligned to `brands`, `uoms`, `suppliers`.
+**Rationale:** Eliminates broken UX paths and prevents runtime errors from non-existent endpoints while keeping changes scoped to sprint modules.
+
+## DEC-076 - Approval configuration save flow is dependency-gated
+
+**Date:** 2026-04-07
+**Context:** FE save flow called `PATCH /api/roles/:id/approval-config`, but current backend routes do not expose this endpoint.
+**Decision:** Stop issuing the unsupported API call and fail fast with an explicit backend-dependency error surfaced through the existing toast flow.
+**Rationale:** Prevents repeated failing network calls and makes the missing backend contract explicit to users and QA.
+
+## DEC-077 - Warehouse location FE coordinates aligned to zone/rack/level/bin
+
+**Date:** 2026-04-08
+**Context:** Backend warehouse location schema and updated DB design expose location coordinates via `zone_code`, `rack_code`, `level_code`, `bin_code` without `aisle_code`, but FE warehouse forms and service mapping still carried aisle fields.
+**Decision:** Remove aisle from warehouse location FE types/schemas/forms/table copy and stop sending/deriving `aisle_code` in warehouse service payloads and zone/bin mapping logic.
+**Rationale:** Keeps FE strictly aligned to the approved API contract and schema-backed data model, while minimizing scope to warehouse modules only.

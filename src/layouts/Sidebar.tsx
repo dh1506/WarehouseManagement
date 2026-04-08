@@ -21,7 +21,6 @@ const navItems: NavItem[] = [
   { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
   { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
   { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
-  { to: '/admin/advanced-permission', icon: 'admin_panel_settings', label: 'Advanced Permissions' },
   { to: '/admin/approval-configuration', icon: 'approval', label: 'Approval Configuration' },
 ];
 

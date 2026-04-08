@@ -9,7 +9,6 @@ const REQUIRED_HEADERS = [
   'Categories',
   'Unit',
   'Brand',
-  'Manufacturer',
   'Stock Policy',
   'Tracking',
   'Status',
@@ -127,7 +126,6 @@ export async function parseProductsFromExcel(
     categories: ProductReferenceOption[];
     units: ProductOptionItem[];
     brands: ProductOptionItem[];
-    manufacturers: ProductOptionItem[];
   },
 ): Promise<ProductImportParseResult> {
   const buffer = await file.arrayBuffer();
@@ -165,7 +163,6 @@ export async function parseProductsFromExcel(
       const categoryLabel = getStringCell(row, 'Categories').split(',')[0]?.trim() ?? '';
       const unitLabel = getStringCell(row, 'Unit');
       const brandLabel = getStringCell(row, 'Brand');
-      const manufacturerLabel = getStringCell(row, 'Manufacturer');
       const stockPolicy = parseStockPolicy(getStringCell(row, 'Stock Policy'), rowNumber);
       const tracking = parseTracking(getStringCell(row, 'Tracking'), rowNumber);
       const status = parseStatus(getStringCell(row, 'Status'), rowNumber);
@@ -177,7 +174,6 @@ export async function parseProductsFromExcel(
         categoryId: findOptionByName(refs.categories, categoryLabel, 'Category', rowNumber),
         unitId: findOptionByName(refs.units, unitLabel, 'Unit', rowNumber),
         brandId: findOptionByName(refs.brands, brandLabel, 'Brand', rowNumber),
-        manufacturerId: findOptionByName(refs.manufacturers, manufacturerLabel, 'Manufacturer', rowNumber),
         minStock: stockPolicy.minStock,
         maxStock: stockPolicy.maxStock,
         trackedByLot: tracking.trackedByLot,

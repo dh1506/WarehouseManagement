@@ -68,7 +68,6 @@ interface WarehouseLocationApiItem {
   warehouse_id: number;
   location_code: string;
   zone_code: string | null;
-  aisle_code: string | null;
   rack_code: string | null;
   level_code: string | null;
   bin_code: string | null;
@@ -76,9 +75,9 @@ interface WarehouseLocationApiItem {
   storage_condition: 'AMBIENT' | 'CHILLED' | 'FROZEN' | 'DRY' | null;
   location_status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
   is_active: boolean;
-  max_weight: number | null;
-  current_weight: number | null;
-  occupancy_percent: number | null;
+  max_weight: number | string | null;
+  current_weight: number | string | null;
+  occupancy_percent: number | string | null;
   created_at: string;
   updated_at: string;
   warehouse?: {
@@ -175,14 +174,13 @@ function mapLocation(item: WarehouseLocationApiItem): WarehouseLocationItem {
     warehouseName: item.warehouse?.name ?? 'N/A',
     code: item.location_code,
     zone: item.zone_code ?? '',
-    aisle: item.aisle_code ?? '',
     rack: item.rack_code ?? '',
     level: item.level_code ?? '',
     bin: item.bin_code ?? '',
     fullPath: item.full_path,
     storageCondition: item.storage_condition ?? 'AMBIENT',
-    capacity: item.max_weight ?? 0,
-    currentLoad: item.current_weight ?? 0,
+    capacity: Number(item.max_weight) || 0,
+    currentLoad: Number(item.current_weight) || 0,
     productCount: 0,
     status: mapLocationStatus(item.location_status, item.is_active),
     createdAt: item.created_at,
@@ -553,18 +551,18 @@ function extractZoneCodeFromId(warehouseId: string, zoneId: string): string {
 
 function toZoneBin(
   location: WarehouseLocationItem,
-  aisleMap: Record<string, number>,
   rackMap: Record<string, number>,
+  binMap: Record<string, number>,
   levelMap: Record<string, number>,
   assignment: BinAssignmentValue | undefined,
   fallbackIndex: number,
 ): Bin {
-  const normalizedAisle = location.aisle.trim().toUpperCase();
   const normalizedRack = location.rack.trim().toUpperCase();
+  const normalizedBin = location.bin.trim().toUpperCase();
   const normalizedLevel = location.level.trim().toUpperCase();
 
-  const row = aisleMap[normalizedAisle] ?? Math.floor(fallbackIndex / 10) + 1;
-  const shelf = rackMap[normalizedRack] ?? (fallbackIndex % 10) + 1;
+  const row = rackMap[normalizedRack] ?? Math.floor(fallbackIndex / 10) + 1;
+  const shelf = binMap[normalizedBin] ?? (fallbackIndex % 10) + 1;
   const level = levelMap[normalizedLevel] ?? 1;
   const capacity = location.capacity > 0 ? location.capacity : 1;
   const currentLoad = Math.max(0, location.currentLoad);
@@ -597,13 +595,12 @@ function toZone(
   locationCategoryMap: Record<string, string[]>,
   inventoryAssignmentMap: Record<string, BinAssignmentValue>,
 ): Zone {
-  const aisleCodes = collectUniqueCodes(locations.map((location) => location.aisle));
   const rackCodes = collectUniqueCodes(locations.map((location) => location.rack));
   const levelCodes = collectUniqueCodes(locations.map((location) => location.level));
   const binCodes = collectUniqueCodes(locations.map((location) => location.bin || location.code));
 
-  const aisleMap = createCodeIndexMap(aisleCodes);
   const rackMap = createCodeIndexMap(rackCodes);
+  const binMap = createCodeIndexMap(binCodes);
   const levelMap = createCodeIndexMap(levelCodes);
 
   const zoneId = `${warehouseId}-${zoneCodeKey(zoneCode)}`;
@@ -614,11 +611,11 @@ function toZone(
   const allowedCategoryIds = zoneAllowedCategoryIds.length > 0 ? zoneAllowedCategoryIds : fallbackZoneCategoryIds;
 
   const bins = locations.map((location, index) => {
-    return toZoneBin(location, aisleMap, rackMap, levelMap, inventoryAssignmentMap[location.id], index);
+    return toZoneBin(location, rackMap, binMap, levelMap, inventoryAssignmentMap[location.id], index);
   });
   const binCount = bins.length;
-  const rows = Math.max(1, aisleCodes.length || Math.ceil(Math.sqrt(Math.max(1, binCount))));
-  const shelves = Math.max(1, rackCodes.length || Math.ceil(binCount / rows));
+  const rows = Math.max(1, rackCodes.length || Math.ceil(Math.sqrt(Math.max(1, binCount))));
+  const shelves = Math.max(1, binCodes.length || Math.ceil(binCount / rows));
   const levels = Math.max(1, levelCodes.length);
   const occupancy = binCount > 0
     ? Math.round(bins.reduce((sum, bin) => sum + bin.occupancy, 0) / binCount)
@@ -631,7 +628,6 @@ function toZone(
     name: zoneCodeKey(zoneCode) === 'UNASSIGNED' ? 'Unassigned Zone' : `Zone ${zoneCodeKey(zoneCode)}`,
     type: resolveZoneTypeFromStorageCondition(locations),
     allowedCategoryIds,
-    aisleCodes,
     rackCodes,
     levelCodes,
     binCodes,
@@ -841,7 +837,6 @@ export async function getWarehouseLocations(
         matchesCaseInsensitiveSearch(search, [
           item.code,
           item.zone,
-          item.aisle,
           item.rack,
           item.level,
           item.bin,
@@ -876,7 +871,6 @@ export async function createWarehouseLocation(
     warehouse_id: Number(payload.warehouseId),
     location_code: payload.code.trim().toUpperCase(),
     zone_code: payload.zone.trim().toUpperCase() || null,
-    aisle_code: payload.aisle.trim().toUpperCase() || null,
     rack_code: payload.rack.trim().toUpperCase() || null,
     level_code: payload.level.trim().toUpperCase() || null,
     bin_code: payload.bin.trim().toUpperCase() || null,
@@ -1031,7 +1025,6 @@ export async function createWarehouseZone(warehouseId: string, payload: Warehous
         warehouse_id: Number(warehouseId),
         location_code: buildLocationCodeFromCoordinate(warehouseId, zoneCode, coordinate),
         zone_code: zoneCode,
-        aisle_code: null,
         rack_code: coordinate.rackCode,
         level_code: coordinate.levelCode,
         bin_code: coordinate.binCode,
@@ -1128,7 +1121,6 @@ export async function updateWarehouseZone(
       warehouse_id: Number(warehouseId),
       location_code: `${buildLocationCodeFromCoordinate(warehouseId, currentZoneCode, coordinate)}-${Date.now().toString().slice(-5)}`,
       zone_code: currentZoneCode,
-      aisle_code: null,
       rack_code: coordinate.rackCode,
       level_code: coordinate.levelCode,
       bin_code: coordinate.binCode,
@@ -1249,11 +1241,11 @@ export async function getZoneBins(warehouseId: string, zoneId: string): Promise<
     (location) => zoneCodeKey(location.zone) === zoneCodeKey(zone.code),
   );
 
-  const aisleCodes = collectUniqueCodes(zoneLocations.map((location) => location.aisle));
   const rackCodes = collectUniqueCodes(zoneLocations.map((location) => location.rack));
+  const binCodes = collectUniqueCodes(zoneLocations.map((location) => location.bin || location.code));
   const levelCodes = collectUniqueCodes(zoneLocations.map((location) => location.level));
-  const aisleMap = createCodeIndexMap(aisleCodes);
   const rackMap = createCodeIndexMap(rackCodes);
+  const binMap = createCodeIndexMap(binCodes);
   const levelMap = createCodeIndexMap(levelCodes);
   const locationIds = zoneLocations.map((location) => location.id);
   const [allRules, allInventories] = await Promise.all([
@@ -1268,7 +1260,7 @@ export async function getZoneBins(warehouseId: string, zoneId: string): Promise<
   );
 
   return zoneLocations.map((location, index) => {
-    return toZoneBin(location, aisleMap, rackMap, levelMap, inventoryAssignmentMap[location.id], index);
+    return toZoneBin(location, rackMap, binMap, levelMap, inventoryAssignmentMap[location.id], index);
   });
 }
 

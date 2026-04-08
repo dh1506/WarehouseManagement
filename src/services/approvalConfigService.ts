@@ -57,22 +57,9 @@ export const updateApprovalConfig = (
   scenarioId: string,
   payload: ApprovalConfigPayload,
 ): Promise<WorkflowScenario> => {
-  const normalizedSteps = payload.steps.map((step, index) => ({
-    ...step,
-    stepNumber: index + 1,
-  }));
-
-  return apiClient
-    .patch<ApiResponse<WorkflowScenario>>(`/api/roles/${scenarioId}/approval-config`, {
-      steps: normalizedSteps,
-    })
-    .then((response) => {
-      const data = unwrapApiData<WorkflowScenario>(response);
-      return {
-        ...data,
-        steps: data.steps.map((step, index) => ({ ...step, stepNumber: index + 1 })),
-      };
-    });
+  void scenarioId;
+  void payload;
+  throw new Error('Backend hiện chưa hỗ trợ endpoint lưu approval workflow. Vui lòng chờ contract chính thức.');
 };
 
 /**

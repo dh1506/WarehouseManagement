@@ -142,8 +142,12 @@ export function ApprovalConfiguration() {
           setIsDirty(false);
           toast({ title: 'Đã lưu quy trình', description: 'Workflow configuration đã được cập nhật.' });
         },
-        onError: () => {
-          toast({ title: 'Không thể lưu quy trình', description: 'Đã có lỗi xảy ra khi lưu cấu hình.', variant: 'destructive' });
+        onError: (error) => {
+          toast({
+            title: 'Không thể lưu quy trình',
+            description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra khi lưu cấu hình.',
+            variant: 'destructive',
+          });
         },
       },
     );
@@ -229,11 +233,10 @@ export function ApprovalConfiguration() {
                   <button
                     key={scenario.id}
                     onClick={() => setSelectedId(scenario.id)}
-                    className={`group relative w-full text-left p-4 rounded-xl transition-all border-l-4 ${
-                      isActive
+                    className={`group relative w-full text-left p-4 rounded-xl transition-all border-l-4 ${isActive
                         ? 'bg-white shadow-sm border-blue-700'
                         : 'bg-slate-100/80 hover:bg-white border-transparent'
-                    }`}
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${meta.className}`}>

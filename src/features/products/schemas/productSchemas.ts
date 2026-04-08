@@ -13,7 +13,6 @@ export const productFormSchema = z
     categoryId: z.string().trim().min(1, 'Please select a category'),
     unitId: z.string().trim().min(1, 'Please select a base unit'),
     brandId: z.string().trim().min(1, 'Please select a brand'),
-    manufacturerId: z.string().trim().min(1, 'Please select a manufacturer'),
     minStock: z.number().min(0, 'Minimum stock cannot be negative'),
     maxStock: z.number().min(0, 'Maximum stock cannot be negative'),
     trackedByLot: z.boolean(),

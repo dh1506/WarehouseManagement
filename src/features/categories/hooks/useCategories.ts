@@ -24,6 +24,7 @@ export function useProductCategories(params: {
   return useQuery({
     queryKey: CATEGORY_KEYS.list(params),
     queryFn: () => getProductCategories(params),
+    placeholderData: (prev) => prev,
   });
 }
 

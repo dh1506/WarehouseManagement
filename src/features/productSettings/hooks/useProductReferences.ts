@@ -23,6 +23,7 @@ export function useProductReferences(params: ProductReferenceListParams) {
   return useQuery({
     queryKey: PRODUCT_REFERENCE_KEYS.list(params),
     queryFn: () => getProductReferences(params),
+    placeholderData: (prev) => prev,
   });
 }
 

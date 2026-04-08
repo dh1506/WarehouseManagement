@@ -106,7 +106,6 @@ export function LocationFormDialog({
       warehouseId: '',
       code: '',
       zone: '',
-      aisle: '',
       rack: '',
       level: '',
       bin: '',
@@ -124,7 +123,6 @@ export function LocationFormDialog({
       warehouseId: location?.warehouseId ?? '',
       code: location?.code ?? '',
       zone: location?.zone ?? '',
-      aisle: location?.aisle ?? '',
       rack: location?.rack ?? '',
       level: location?.level ?? '',
       bin: location?.bin ?? '',
@@ -141,13 +139,12 @@ export function LocationFormDialog({
         <form onSubmit={handleSubmit(async (payload) => { if (!isView) await onSubmit(payload); })} className="flex h-full flex-col">
           <SheetHeader className="border-b border-slate-200 px-6 py-5">
             <SheetTitle>{mode === 'create' ? 'Create location' : mode === 'edit' ? 'Update location' : 'Location detail'}</SheetTitle>
-            <SheetDescription>Thiết lập zone, aisle, bin và sức chứa cho vị trí lưu trữ.</SheetDescription>
+            <SheetDescription>Thiết lập zone, rack, level, bin và sức chứa cho vị trí lưu trữ.</SheetDescription>
           </SheetHeader>
           <div className="grid flex-1 gap-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
             <Field label="Warehouse" error={errors.warehouseId?.message}><select {...register('warehouseId')} disabled={isView || isPending} className={inputClass(!!errors.warehouseId)}><option value="">Select warehouse</option>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
             <Field label="Code" error={errors.code?.message}><input {...register('code')} disabled={isView || isPending} className={inputClass(!!errors.code)} /></Field>
             <Field label="Zone" error={errors.zone?.message}><input {...register('zone')} disabled={isView || isPending} className={inputClass(!!errors.zone)} /></Field>
-            <Field label="Aisle" error={errors.aisle?.message}><input {...register('aisle')} disabled={isView || isPending} className={inputClass(!!errors.aisle)} /></Field>
             <Field label="Rack" error={errors.rack?.message}><input {...register('rack')} disabled={isView || isPending} className={inputClass(!!errors.rack)} /></Field>
             <Field label="Level" error={errors.level?.message}><input {...register('level')} disabled={isView || isPending} className={inputClass(!!errors.level)} /></Field>
             <Field label="Bin" error={errors.bin?.message}><input {...register('bin')} disabled={isView || isPending} className={inputClass(!!errors.bin)} /></Field>

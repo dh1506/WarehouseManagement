@@ -64,6 +64,7 @@ export function useWarehouseHubs() {
   return useQuery({
     queryKey: WAREHOUSE_KEYS.hubs,
     queryFn: () => getWarehouseHubs(),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -71,6 +72,7 @@ export function useWarehouses(params: WarehouseListParams) {
   return useQuery({
     queryKey: WAREHOUSE_KEYS.list(params),
     queryFn: () => getWarehouses(params),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -85,6 +87,7 @@ export function useWarehouseLocations(params: WarehouseLocationListParams) {
   return useQuery({
     queryKey: WAREHOUSE_KEYS.locations(params),
     queryFn: () => getWarehouseLocations(params),
+    placeholderData: (prev) => prev,
   });
 }
 

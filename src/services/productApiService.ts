@@ -52,28 +52,29 @@ interface ProductSupplierApiItem {
 }
 
 interface ProductApiItem {
-  id: number;
-  code: string;
-  name: string;
+  id?: number;
+  code?: string;
+  name?: string;
   description: string | null;
   product_type: 'GOODS' | 'MATERIAL' | 'CONSUMABLE' | null;
   product_status: 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED' | null;
   has_batch: boolean | null;
   production_date: string | null;
   expiry_date: string | null;
-  min_stock: number | null;
-  max_stock: number | null;
+  min_stock: number | string | null;
+  max_stock: number | string | null;
   storage_conditions: string | null;
   image_url: string | null;
-  created_at: string;
-  updated_at: string;
-  brand: ProductRelationApiItem | null;
-  manufacturer: ProductRelationApiItem | null;
-  warehouse: ProductRelationApiItem | null;
-  base_uom: ProductRelationApiItem & { uom_type?: string | null };
-  categories: ProductRelationApiItem[];
-  uoms: ProductUomApiItem[];
-  productSuppliers: ProductSupplierApiItem[];
+  created_at?: string;
+  updated_at?: string;
+  brand?: ProductRelationApiItem | null;
+  brands?: ProductRelationApiItem[];
+  warehouse?: ProductRelationApiItem | null;
+  warehouses?: ProductRelationApiItem[];
+  base_uom?: (ProductRelationApiItem & { uom_type?: string | null }) | null;
+  categories?: ProductRelationApiItem[];
+  uoms?: ProductUomApiItem[];
+  productSuppliers?: ProductSupplierApiItem[];
 }
 
 interface ProductListApiData {
@@ -106,17 +107,7 @@ interface UnitListApiData {
   pagination: PaginationApiModel;
 }
 
-interface ManufacturerListApiItem {
-  id: number;
-  code: string;
-  name: string;
-  is_active: boolean;
-}
-
-interface ManufacturerListApiData {
-  manufacturers: ManufacturerListApiItem[];
-  pagination: PaginationApiModel;
-}
+const MAX_PRODUCT_REQUEST_LIMIT = 100;
 
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
@@ -157,27 +148,32 @@ function mapType(type: ProductApiItem['product_type']): ProductType {
 }
 
 function mapProduct(item: ProductApiItem): ProductItem {
-  const primaryCategory = item.categories[0] ?? null;
-  const primarySupplier = item.productSuppliers.find((supplier) => supplier.is_primary) ?? item.productSuppliers[0] ?? null;
+  const primaryCategory = item.categories?.[0] ?? null;
+  const primarySupplier = item.productSuppliers?.find((supplier) => supplier.is_primary) ?? item.productSuppliers?.[0] ?? null;
+  const primaryBrand = item.brand ?? item.brands?.[0] ?? null;
+  const baseUom = item.base_uom ?? null;
+  const productId = item.id ? String(item.id) : '';
+  const productCode = item.code ?? (productId ? `PRD-${productId}` : 'UNKNOWN');
+  const productName = item.name ?? 'Unnamed product';
+  const createdAt = item.created_at ?? new Date(0).toISOString();
+  const updatedAt = item.updated_at ?? createdAt;
 
   return {
-    id: String(item.id),
-    sku: item.code,
-    name: item.name,
+    id: productId,
+    sku: productCode,
+    name: productName,
     productType: mapType(item.product_type),
     status: mapStatus(item.product_status),
-    categoryIds: item.categories.map((category) => String(category.id)),
+    categoryIds: (item.categories ?? []).filter((c) => c.id != null).map((category) => String(category.id)),
     categoryName: primaryCategory?.name ?? 'Unassigned',
-    categoryNames: item.categories.map((category) => category.name),
-    unitId: String(item.base_uom.id),
-    unitName: item.base_uom.name,
-    brandId: item.brand ? String(item.brand.id) : '',
-    brandName: item.brand?.name ?? 'Unassigned',
-    manufacturerId: item.manufacturer ? String(item.manufacturer.id) : '',
-    manufacturerName: item.manufacturer?.name ?? '',
+    categoryNames: (item.categories ?? []).filter((c) => c.name != null).map((category) => category.name),
+    unitId: baseUom ? String(baseUom.id) : '',
+    unitName: baseUom?.name ?? 'Unassigned',
+    brandId: primaryBrand ? String(primaryBrand.id) : '',
+    brandName: primaryBrand?.name ?? 'Unassigned',
     supplierName: primarySupplier?.supplier.name ?? '',
-    minStock: item.min_stock ?? 0,
-    maxStock: item.max_stock ?? 0,
+    minStock: Number(item.min_stock) || 0,
+    maxStock: Number(item.max_stock) || 0,
     trackedByLot: Boolean(item.has_batch),
     trackedByExpiry: Boolean(item.expiry_date),
     expiryDate: item.expiry_date,
@@ -186,10 +182,10 @@ function mapProduct(item: ProductApiItem): ProductItem {
     storageConditions: item.storage_conditions ?? '',
     imageUrl: item.image_url,
     images: item.image_url
-      ? [{ id: `img-${item.id}`, url: item.image_url, alt: item.name }]
+      ? [{ id: `img-${productId || '0'}`, url: item.image_url, alt: productName }]
       : [],
-    createdAt: item.created_at,
-    updatedAt: item.updated_at,
+    createdAt,
+    updatedAt,
   };
 }
 
@@ -213,13 +209,11 @@ function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update'
   const expiryDate = payload.trackedByExpiry ? toIsoDate(payload.expiryDate) : undefined;
 
   return {
-    code: payload.sku.trim().toUpperCase(),
     name: payload.name.trim(),
     description: payload.description.trim() || undefined,
     product_type: payload.productType.toUpperCase(),
     product_status: payload.status.toUpperCase(),
-    brand_id: payload.brandId ? Number(payload.brandId) : null,
-    manufacturer_id: payload.manufacturerId ? Number(payload.manufacturerId) : null,
+    brand_ids: payload.brandId ? [Number(payload.brandId)] : [],
     base_uom_id: Number(payload.unitId),
     has_batch: payload.trackedByLot,
     production_date: toIsoDate(payload.productionDate),
@@ -233,7 +227,7 @@ function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update'
 
 export async function getProducts(params: ProductListParams = {}): Promise<ProductListResponse> {
   const page = params.page ?? 1;
-  const pageSize = params.pageSize ?? 10;
+  const pageSize = Math.min(params.pageSize ?? 10, MAX_PRODUCT_REQUEST_LIMIT);
   const search = params.search?.trim();
 
   const response = await apiClient.get<ApiResponse<ProductListApiData>>('/api/products', {
@@ -256,7 +250,7 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
         const fallbackResponse = await apiClient.get<ApiResponse<ProductListApiData>>('/api/products', {
           params: {
             page: fallbackPage,
-            limit: fallbackLimit,
+            limit: Math.min(fallbackLimit, MAX_PRODUCT_REQUEST_LIMIT),
             category_id: params.categoryId ? Number(params.categoryId) : undefined,
             brand_id: params.brandId ? Number(params.brandId) : undefined,
             product_status: params.status && params.status !== 'all' ? params.status.toUpperCase() : undefined,
@@ -276,7 +270,6 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
           item.name,
           item.categoryName,
           item.brandName,
-          item.manufacturerName,
           item.supplierName,
           item.description,
           item.storageConditions,
@@ -357,17 +350,4 @@ export async function getUnitOptions(): Promise<ProductOptionItem[]> {
 
   const payload = unwrapApiData<UnitListApiData>(response);
   return payload.units_of_measure.map(mapOption);
-}
-
-export async function getManufacturerOptions(): Promise<ProductOptionItem[]> {
-  const response = await apiClient.get<ApiResponse<ManufacturerListApiData>>('/api/manufacturers', {
-    params: {
-      page: 1,
-      limit: 100,
-      is_active: true,
-    },
-  });
-
-  const payload = unwrapApiData<ManufacturerListApiData>(response);
-  return payload.manufacturers.map(mapOption);
 }

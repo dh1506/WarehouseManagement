@@ -67,7 +67,6 @@ export async function exportProductsToExcel(products: ProductItem[], filename = 
     { header: 'Categories', key: 'categories', width: 28 },
     { header: 'Unit', key: 'unitName', width: 16 },
     { header: 'Brand', key: 'brandName', width: 18 },
-    { header: 'Manufacturer', key: 'manufacturerName', width: 24 },
     { header: 'Stock Policy', key: 'stockPolicy', width: 18 },
     { header: 'Tracking', key: 'tracking', width: 18 },
     { header: 'Status', key: 'status', width: 16 },
@@ -102,7 +101,6 @@ export async function exportProductsToExcel(products: ProductItem[], filename = 
       categories: item.categoryNames.length > 0 ? item.categoryNames.join(', ') : item.categoryName,
       unitName: item.unitName,
       brandName: item.brandName,
-      manufacturerName: item.manufacturerName || item.supplierName || '',
       stockPolicy: `Min ${item.minStock} / Max ${item.maxStock}`,
       tracking: formatTrackingLabel(item),
       status: STATUS_LABEL[item.status],
@@ -125,7 +123,7 @@ export async function exportProductsToExcel(products: ProductItem[], filename = 
         cell.font = { name: 'Calibri', size: 10, color: { argb: '64748B' } };
       }
 
-      if (columnNumber === 11) {
+      if (columnNumber === 10) {
         const style = STATUS_STYLE[item.status];
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: style.bgColor } };
         cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: style.fontColor } };

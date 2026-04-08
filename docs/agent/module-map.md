@@ -266,3 +266,89 @@ All modules now follow the same permission enforcement pattern:
   - Role context bar shows active modules count and high-risk permissions.
   - Left role list pane and all role CRUD dialogs (create/edit/status toggle) remain unchanged.
   - Reuses `computeAccessLevel` and `ACCESS_LEVEL_META` from advanced permission types.
+
+## Prisma Schema Impact Note (2026-04-07)
+
+- Product domain now maps relations through join tables in DB design (`BrandProduct`, `ProductWarehouse`, `ProductSupplier`, `ProductUom`) rather than relying on singleton relation fields.
+- Warehouse location DB design uses coordinate fields `zone_code`, `rack_code`, `level_code`, `bin_code`; FE should not depend on `aisle_code` as a contract field.
+- New transaction-level inventory entities exist in schema (`ProductLot`, `InventoryTransaction`) and should map to operations modules once backend endpoints are published.
+
+### FE files to revisit first
+
+- `src/services/productApiService.ts`
+- `src/features/products/types/productType.ts`
+- `src/features/products/schemas/productSchemas.ts`
+- `src/services/productReferenceService.ts`
+- `src/features/productSettings/types/referenceType.ts`
+- `src/services/warehouseService.ts`
+- `src/features/warehouses/types/warehouseType.ts`
+
+## FE Contract Patch (2026-04-07)
+
+- Product service mapping now omits `manufacturer_id` from create/update payload.
+- Product hooks/forms now treat manufacturer as optional input.
+- Product import no longer requires Manufacturer column to pass header validation.
+- Product reference service now returns empty manufacturer list and explicit dependency errors for manufacturer mutations.
+- Warehouse location validation no longer enforces non-empty `aisle`.
+
+### Primary files updated
+
+- `src/services/productApiService.ts`
+- `src/features/products/types/productType.ts`
+- `src/features/products/schemas/productSchemas.ts`
+- `src/features/products/components/ProductFormSheets.tsx`
+- `src/features/products/hooks/useProducts.ts`
+- `src/features/products/components/ProductManagement.tsx`
+- `src/features/products/utils/importProducts.ts`
+- `src/services/productReferenceService.ts`
+- `src/features/warehouses/schemas/warehouseSchemas.ts`
+
+- 2026-04-07: `productApiService` now maps BE product response using array-first relation fields (`brands`) with backward compatibility for legacy singleton field (`brand`).
+- 2026-04-07: Product create/update payload now sends `brand_ids` to align with current BE schema/service.
+
+## Contract Alignment Update (2026-04-07)
+
+- `src/features/products/types/productType.ts`
+  - Removed manufacturer-specific fields from active product form/item contracts.
+- `src/features/products/schemas/productSchemas.ts`
+  - Removed manufacturer field validation from product form schema.
+- `src/features/products/hooks/useProducts.ts`
+  - Removed manufacturer options query key/hook; product options now rely on categories, units, brands.
+- `src/features/products/components/ProductFormSheets.tsx`
+  - Removed manufacturer select and related loading copy.
+- `src/features/products/components/ProductManagement.tsx`
+  - Removed manufacturer option query and import reference dependency; updated search/help text to supplier-oriented copy.
+- `src/features/products/components/ProductDetail.tsx`
+  - Removed manufacturer option dependency and manufacturer info block.
+- `src/features/products/utils/importProducts.ts`
+  - Removed optional Manufacturer column parsing/mapping; importer now aligns with supported masters only.
+- `src/features/products/utils/exportProducts.ts`
+  - Removed Manufacturer export column to match current contract-backed model.
+- `src/features/productSettings/types/referenceType.ts`
+  - Product reference type reduced to `unit | brand | supplier`.
+- `src/features/productSettings/components/ProductReferenceManagement.tsx`
+  - Removed manufacturer tab/permission wiring and related UI copy.
+- `src/services/productReferenceService.ts`
+  - Removed manufacturer branch paths; service now supports unit/brand/supplier only.
+- `src/lib/pageAccess.ts`
+  - Product Settings page access modules now map to `brands`, `uoms`, `suppliers`.
+- `src/services/advancedPermissionService.ts`
+  - Product Settings permission projection now maps to backend modules `brands`, `uoms`, `suppliers`.
+- `src/services/approvalConfigService.ts`
+  - Save flow now explicitly throws backend-dependency error instead of calling unsupported approval-config endpoint.
+- `src/features/approvalConfig/components/ApprovalConfiguration.tsx`
+  - Save error toast now displays explicit backend dependency message from service layer.
+
+## Warehouse Coordinate Contract Alignment (2026-04-08)
+
+- `src/services/warehouseService.ts`
+  - Removed `aisle_code` mapping from location create and zone provisioning payloads.
+  - Zone/bin derivation now groups by contract-backed coordinates (`rack`, `level`, `bin`) only.
+- `src/features/warehouses/types/warehouseType.ts`
+  - Removed aisle fields from warehouse location and zone models.
+- `src/features/warehouses/schemas/warehouseSchemas.ts`
+  - Removed aisle validation from warehouse location form schema.
+- `src/features/warehouses/components/WarehouseSheets.tsx`
+  - Location sheet now captures `zone/rack/level/bin` only.
+- `src/features/warehouses/components/WarehouseManagement.tsx`
+  - Location coordinate display updated to `Zone · Rack · Level · Bin`.

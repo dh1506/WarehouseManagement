@@ -29,7 +29,6 @@ export interface Zone {
   name: string;
   type: string;
   allowedCategoryIds: string[];
-  aisleCodes: string[];
   rackCodes: string[];
   levelCodes: string[];
   binCodes: string[];
@@ -127,7 +126,6 @@ export interface WarehouseLocationItem {
   warehouseName: string;
   code: string;
   zone: string;
-  aisle: string;
   rack: string;
   level: string;
   bin: string;
@@ -184,7 +182,6 @@ export interface WarehouseLocationFormValues {
   warehouseId: string;
   code: string;
   zone: string;
-  aisle: string;
   rack: string;
   level: string;
   bin: string;

@@ -15,7 +15,7 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
     id: 'product-settings',
     label: 'Product Settings',
     path: '/admin/product-settings',
-    modules: ['brands', 'manufacturers', 'uoms', 'suppliers'],
+    modules: ['brands', 'uoms', 'suppliers'],
   },
   { id: 'products', label: 'Products', path: '/admin/products', modules: ['products'] },
   { id: 'import-export', label: 'Import / Export', path: '/import-export', modules: [] },
@@ -23,12 +23,6 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
   { id: 'ai-forecast', label: 'AI Forecast', path: '/ai-forecast', modules: [] },
   { id: 'users', label: 'User Management', path: '/admin/users', modules: ['users'] },
   { id: 'roles', label: 'Roles', path: '/admin/role-permissions', modules: ['roles', 'permissions'] },
-  {
-    id: 'advanced-permissions',
-    label: 'Advanced Permissions',
-    path: '/admin/advanced-permission',
-    modules: ['roles', 'permissions'],
-  },
   {
     id: 'approval-configuration',
     label: 'Approval Configuration',

@@ -40,7 +40,6 @@ const DEFAULT_TAB_STATE: TabUiState = {
 const TAB_LABEL: Record<ProductReferenceType, string> = {
   unit: 'Units of Measure',
   brand: 'Brands',
-  manufacturer: 'Manufacturers',
   supplier: 'Suppliers',
 };
 
@@ -54,10 +53,6 @@ export function ProductReferenceManagement() {
   const canCreateBrand = usePermission('brands:create');
   const canUpdateBrand = usePermission('brands:update');
 
-  const canReadManufacturer = usePermission('manufacturers:read');
-  const canCreateManufacturer = usePermission('manufacturers:create');
-  const canUpdateManufacturer = usePermission('manufacturers:update');
-
   const canReadSupplier = usePermission('suppliers:read');
   const canCreateSupplier = usePermission('suppliers:create');
   const canUpdateSupplier = usePermission('suppliers:update');
@@ -66,7 +61,6 @@ export function ProductReferenceManagement() {
   const [tabState, setTabState] = useState<Record<ProductReferenceType, TabUiState>>({
     unit: { ...DEFAULT_TAB_STATE },
     brand: { ...DEFAULT_TAB_STATE },
-    manufacturer: { ...DEFAULT_TAB_STATE },
     supplier: { ...DEFAULT_TAB_STATE },
   });
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
@@ -85,11 +79,6 @@ export function ProductReferenceManagement() {
       canCreate: canCreateBrand,
       canUpdate: canUpdateBrand,
     },
-    manufacturer: {
-      canRead: canReadManufacturer,
-      canCreate: canCreateManufacturer,
-      canUpdate: canUpdateManufacturer,
-    },
     supplier: {
       canRead: canReadSupplier,
       canCreate: canCreateSupplier,
@@ -97,7 +86,7 @@ export function ProductReferenceManagement() {
     },
   };
 
-  const visibleTabs = (['unit', 'brand', 'manufacturer', 'supplier'] as ProductReferenceType[]).filter(
+  const visibleTabs = (['unit', 'brand', 'supplier'] as ProductReferenceType[]).filter(
     (item) => tabPermissions[item].canRead,
   );
 
@@ -136,9 +125,7 @@ export function ProductReferenceManagement() {
       ? 'Chuẩn hóa đơn vị tính để product master và giao dịch kho dùng lại xuyên suốt các sprint.'
       : activeTab === 'brand'
         ? 'Quản lý thương hiệu để đồng bộ dữ liệu nguồn cho danh mục sản phẩm.'
-        : activeTab === 'manufacturer'
-          ? 'Quản lý nhà sản xuất làm dữ liệu gốc cho nguồn gốc sản phẩm.'
-          : 'Quản lý nhà cung cấp để các nghiệp vụ import/export và product sourcing tái sử dụng nhất quán.';
+        : 'Quản lý nhà cung cấp để các nghiệp vụ import/export và product sourcing tái sử dụng nhất quán.';
 
   const getReferenceSummary = (item: ProductReferenceItem) => {
     if (item.type !== 'supplier') {
@@ -211,14 +198,14 @@ export function ProductReferenceManagement() {
         <PageHeader
           // eyebrow="Sprint 1 · Product Foundation"
           title="Product Supporting Masters"
-          description="Thiết lập đơn vị tính, thương hiệu, nhà sản xuất, và nhà cung cấp để product master cùng luồng vận hành có thể tái sử dụng ổn định."
+          description="Thiết lập đơn vị tính, thương hiệu, và nhà cung cấp để product master cùng luồng vận hành có thể tái sử dụng ổn định."
           actions={canCreateCurrentTab ? (
             <button
               onClick={openCreate}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              New {activeTab === 'unit' ? 'Unit' : activeTab === 'brand' ? 'Brand' : activeTab === 'manufacturer' ? 'Manufacturer' : 'Supplier'}
+              New {activeTab === 'unit' ? 'Unit' : activeTab === 'brand' ? 'Brand' : 'Supplier'}
             </button>
           ) : undefined}
         />
@@ -227,7 +214,7 @@ export function ProductReferenceManagement() {
           <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
             <StatePanel
               title="Không có quyền truy cập"
-              description="Bạn không có quyền xem Units of Measure, Brands, Manufacturers, hoặc Suppliers."
+              description="Bạn không có quyền xem Units of Measure, Brands, hoặc Suppliers."
               icon="lock"
               tone="error"
             />
@@ -243,11 +230,6 @@ export function ProductReferenceManagement() {
               {tabPermissions.brand.canRead ? (
                 <TabsTrigger value="brand" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
                   Brands
-                </TabsTrigger>
-              ) : null}
-              {tabPermissions.manufacturer.canRead ? (
-                <TabsTrigger value="manufacturer" className="rounded-xl px-4 py-2 data-active:bg-slate-100">
-                  Manufacturers
                 </TabsTrigger>
               ) : null}
               {tabPermissions.supplier.canRead ? (
@@ -275,7 +257,7 @@ export function ProductReferenceManagement() {
                         onChange={(event) => {
                           setCurrentTabState({ search: event.target.value, page: 1 });
                         }}
-                        placeholder={`Search ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : activeTab === 'manufacturer' ? 'manufacturer' : 'supplier'}...`}
+                        placeholder={`Search ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : 'supplier'}...`}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
                       />
                     </div>
@@ -324,7 +306,7 @@ export function ProductReferenceManagement() {
                       <StatePanel
                         title="Chưa có dữ liệu phù hợp"
                         description="Tạo master data đầu tiên để product form và transaction modules có thể dùng lại."
-                        icon={activeTab === 'unit' ? 'straighten' : activeTab === 'brand' ? 'branding_watermark' : activeTab === 'manufacturer' ? 'factory' : 'local_shipping'}
+                        icon={activeTab === 'unit' ? 'straighten' : activeTab === 'brand' ? 'branding_watermark' : 'local_shipping'}
                         action={canCreateCurrentTab ? (
                           <button
                             onClick={openCreate}
@@ -429,7 +411,7 @@ export function ProductReferenceManagement() {
       <DeleteDialog
         open={!!statusTarget}
         onClose={() => setStatusTarget(null)}
-        title={`${statusTarget?.status === 'active' ? 'Inactivate' : 'Activate'} ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : activeTab === 'manufacturer' ? 'manufacturer' : 'supplier'}`}
+        title={`${statusTarget?.status === 'active' ? 'Inactivate' : 'Activate'} ${activeTab === 'unit' ? 'unit' : activeTab === 'brand' ? 'brand' : 'supplier'}`}
         description={statusTarget?.status === 'active'
           ? `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Inactive không?`
           : `Bạn có chắc chắn muốn chuyển "${statusTarget?.name ?? ''}" sang Active không?`}
@@ -492,8 +474,8 @@ function ReferenceFormDialog({
   }, [item, open, reset]);
 
   const isSupplierType = type === 'supplier';
-  const typeLabel = type === 'unit' ? 'unit' : type === 'brand' ? 'brand' : type === 'manufacturer' ? 'manufacturer' : 'supplier';
-  const typeLabelTitle = type === 'unit' ? 'Unit' : type === 'brand' ? 'Brand' : type === 'manufacturer' ? 'Manufacturer' : 'Supplier';
+  const typeLabel = type === 'unit' ? 'unit' : type === 'brand' ? 'brand' : 'supplier';
+  const typeLabelTitle = type === 'unit' ? 'Unit' : type === 'brand' ? 'Brand' : 'Supplier';
 
   const heading = {
     create: `Create ${typeLabel}`,

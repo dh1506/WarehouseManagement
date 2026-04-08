@@ -67,10 +67,10 @@ const SIDEBAR_MODULE_TEMPLATES: SidebarModuleTemplate[] = [
   {
     moduleId: 'product-settings',
     moduleName: 'Product Settings',
-    description: 'Manage brands, manufacturers, units, and suppliers.',
+    description: 'Manage brands, units, and suppliers.',
     iconBg: 'bg-indigo-50',
     iconColor: 'text-indigo-600',
-    backendModules: ['brands', 'manufacturers', 'uoms', 'suppliers'],
+    backendModules: ['brands', 'uoms', 'suppliers'],
   },
   {
     moduleId: 'products',
@@ -118,14 +118,6 @@ const SIDEBAR_MODULE_TEMPLATES: SidebarModuleTemplate[] = [
     description: 'Manage roles and base permission matrix.',
     iconBg: 'bg-blue-50',
     iconColor: 'text-blue-600',
-    backendModules: ['roles', 'permissions'],
-  },
-  {
-    moduleId: 'advanced-permissions',
-    moduleName: 'Advanced Permissions',
-    description: 'Permission presets for sidebar module visibility and actions.',
-    iconBg: 'bg-emerald-50',
-    iconColor: 'text-emerald-600',
     backendModules: ['roles', 'permissions'],
   },
   {
@@ -218,16 +210,6 @@ function mapToSidebarModules(
       approve: canApprove ? hasAnyAction(permissionSet, template.backendModules, ['approve']) : false,
     };
   });
-}
-
-function hasModuleAccess(moduleItem: ModulePermission): boolean {
-  return Boolean(
-    moduleItem.view ||
-    moduleItem.create ||
-    moduleItem.edit ||
-    moduleItem.delete ||
-    moduleItem.approve,
-  );
 }
 
 function buildContext(roleId: string, roleDescription: string | null, modules: ModulePermission[]): RoleContext {

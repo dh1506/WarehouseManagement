@@ -122,3 +122,30 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 - 2026-04-03: Product create/update flows still do not expose supplier assignment editing in FE, even though product detail payloads can include supplier relations from backend.
 - 2026-04-03: Role Permissions page now uses the advanced module permission matrix. The legacy `useRolePermissions` hook is still exported from `features/roles/hooks/useRolePermissions.ts` but is no longer used by the `RolePermissions` component (only `useRoles`, `useCreateRole`, `useUpdateRole` remain in use). The legacy `Permission` type and `RolePermissionResponse`/`UpdateRolePermissionPayload` types in `roleType.ts` are also no longer consumed by the RolePermissions component.
 - 2026-04-03: Permission enforcement across User Management, Product Management, Product Settings, and Categories now uses conditional rendering (hide buttons) instead of toast-blocking. Warehouse modules already followed this pattern. The `hasPermission` helper in `CategoryManagementV2.tsx` is still used for that component's permission checks and could be migrated to `usePermission` hook in a future refactor.
+
+## 2026-04-07 - Prisma schema impact gaps for FE
+
+- Current FE still references `/api/manufacturers` in product and product-settings flows, but BE routes currently expose no manufacturer endpoints.
+- Current FE product payload still sends singleton fields (for example `brand_id` and `manufacturer_id`) while updated DB design emphasizes mapping tables (`BrandProduct`, `ProductSupplier`, `ProductUom`, `ProductWarehouse`).
+- Inventory/operations FE remains read-only; DB now includes lot and transaction entities (`product_lots`, `inventory_transactions`) that will require new FE modules once backend API contract is available.
+
+## 2026-04-07 - Remaining backend dependencies after FE patch
+
+- Manufacturer master endpoints are still missing in backend route surface. FE currently degrades gracefully by disabling API dependency rather than persisting manufacturer masters.
+- To fully support manufacturer CRUD again, backend needs official `/api/manufacturers` routes and contract docs.
+- FE warehouse location coordinate contract is now aligned to `zone/rack/level/bin`; `aisle` was removed from active warehouse forms/services.
+
+- 2026-04-08: Warehouse module no longer sends `aisle_code` in location create/provision flows and no longer depends on aisle in zone/bin visualization derivation.
+
+- 2026-04-07: Product list/detail rendering still depends on BE including core fields (`id`, `code`, `name`, `base_uom`). FE mapper is now defensive, but if BE omits those fields entirely the UI will show fallback placeholders.
+
+## 2026-04-07 - Post contract-alignment status
+
+- Manufacturer tab/queries were removed from active Product Settings and Product form flows to match current backend route surface (no `/api/manufacturers`).
+- Product import/export no longer includes Manufacturer column in the active file contract.
+- Approval Configuration save now returns explicit dependency error because backend still has no approval workflow persistence endpoint.
+
+## 2026-04-07 - Remaining backend dependencies
+
+- Backend still needs an official approval workflow contract (list/detail/update endpoints) if Approval Configuration should be persisted beyond role projection.
+- If manufacturer master data is required again in future sprints, backend must publish `/api/manufacturers` routes and schema before FE can safely re-enable that module.

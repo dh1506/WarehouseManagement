@@ -5,26 +5,26 @@ import {
   discontinueProduct,
   updateProductStatus,
   getBrandOptions,
-  getManufacturerOptions,
   getProducts,
   getUnitOptions,
   updateProduct,
 } from '@/services/productApiService';
-import type { ProductFormValues, ProductListParams } from '../types/productType';
+import type { ProductFormValues, ProductListParams, ProductStatus } from '../types/productType';
 
 export const PRODUCT_KEYS = {
   all: ['products'] as const,
   list: (params: ProductListParams) => [...PRODUCT_KEYS.all, 'list', params] as const,
+  detail: (id: string) => ['product', id] as const,
   categories: ['products', 'categories'] as const,
   units: ['products', 'units'] as const,
   brands: ['products', 'brands'] as const,
-  manufacturers: ['products', 'manufacturers'] as const,
 };
 
 export function useProducts(params: ProductListParams) {
   return useQuery({
     queryKey: PRODUCT_KEYS.list(params),
     queryFn: () => getProducts(params),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -54,13 +54,6 @@ export function useProductBrandOptions(enabled = true) {
   });
 }
 
-export function useProductManufacturerOptions() {
-  return useQuery({
-    queryKey: PRODUCT_KEYS.manufacturers,
-    queryFn: () => getManufacturerOptions(),
-  });
-}
-
 export function useCreateProduct() {
   const queryClient = useQueryClient();
 
@@ -68,6 +61,7 @@ export function useCreateProduct() {
     mutationFn: (payload: ProductFormValues) => createProduct(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ['productCategories'] });
     },
   });
 }
@@ -77,8 +71,10 @@ export function useUpdateProduct() {
 
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ProductFormValues }) => updateProduct(id, payload),
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ['productCategories'] });
     },
   });
 }

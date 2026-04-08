@@ -21,7 +21,6 @@ export interface ProductFormSheetProps {
   categories: Array<{ id: string; name: string }>;
   units: ProductOptionItem[];
   brands: ProductOptionItem[];
-  manufacturers: ProductOptionItem[];
   onSubmit: (payload: ProductFormData) => Promise<void>;
   isPending: boolean;
   isOptionsLoading: boolean;
@@ -35,7 +34,6 @@ export function ProductFormSheet({
   categories,
   units,
   brands,
-  manufacturers,
   onSubmit,
   isPending,
   isOptionsLoading,
@@ -50,7 +48,6 @@ export function ProductFormSheet({
       categoryId: '',
       unitId: '',
       brandId: '',
-      manufacturerId: '',
       minStock: 0,
       maxStock: 0,
       trackedByLot: false,
@@ -82,7 +79,6 @@ export function ProductFormSheet({
       categoryId: product?.categoryIds[0] ?? '',
       unitId: product?.unitId ?? '',
       brandId: product?.brandId ?? '',
-      manufacturerId: product?.manufacturerId ?? '',
       minStock: product?.minStock ?? 0,
       maxStock: product?.maxStock ?? 0,
       trackedByLot: product?.trackedByLot ?? false,
@@ -154,7 +150,7 @@ export function ProductFormSheet({
               <div className="flex min-h-[400px] items-center justify-center p-8">
                 <StatePanel
                   title="Preparing form"
-                  description="Categories, units, brands, and manufacturers are loading."
+                  description="Categories, units, and brands are loading."
                   icon="hourglass_top"
                 />
               </div>
@@ -202,14 +198,6 @@ export function ProductFormSheet({
                       <select {...register('brandId')} disabled={isView || isPending} className={inputClass(!!errors.brandId)}>
                         <option value="">Select brand</option>
                         {brands.map((item) => (
-                          <option key={item.id} value={item.id}>{item.name}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Manufacturer" error={errors.manufacturerId?.message}>
-                      <select {...register('manufacturerId')} disabled={isView || isPending} className={inputClass(!!errors.manufacturerId)}>
-                        <option value="">Select manufacturer</option>
-                        {manufacturers.map((item) => (
                           <option key={item.id} value={item.id}>{item.name}</option>
                         ))}
                       </select>

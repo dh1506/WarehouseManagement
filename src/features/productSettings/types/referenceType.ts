@@ -1,4 +1,4 @@
-export type ProductReferenceType = 'unit' | 'brand' | 'manufacturer' | 'supplier';
+export type ProductReferenceType = 'unit' | 'brand' | 'supplier';
 export type ProductReferenceStatus = 'active' | 'inactive';
 
 export interface ProductReferenceItem {

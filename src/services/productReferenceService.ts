@@ -42,11 +42,6 @@ interface BrandListApiData {
   pagination: PaginationApiModel;
 }
 
-interface ManufacturerListApiData {
-  manufacturers: ReferenceApiItem[];
-  pagination: PaginationApiModel;
-}
-
 interface SupplierProductApiItem {
   id: number;
   code: string;
@@ -171,57 +166,6 @@ export async function getProductReferences(
 
     return {
       data: mappedUnits,
-      total: payload.pagination.total,
-      page: payload.pagination.page,
-      pageSize: payload.pagination.limit,
-    };
-  }
-
-  if (params.type === 'manufacturer') {
-    const response = await apiClient.get<ApiResponse<ManufacturerListApiData>>('/api/manufacturers', {
-      params: {
-        page,
-        limit: pageSize,
-        search,
-        is_active: isActive,
-      },
-    });
-    const payload = unwrapApiData<ManufacturerListApiData>(response);
-    const mappedManufacturers = payload.manufacturers.map((item) => mapReference(item, 'manufacturer'));
-
-    if (search && mappedManufacturers.length === 0) {
-      const allManufacturers = await collectPaginatedItems({
-        fetchPage: async (fallbackPage, fallbackLimit) => {
-          const fallbackResponse = await apiClient.get<ApiResponse<ManufacturerListApiData>>('/api/manufacturers', {
-            params: {
-              page: fallbackPage,
-              limit: fallbackLimit,
-              is_active: isActive,
-            },
-          });
-
-          return unwrapApiData<ManufacturerListApiData>(fallbackResponse);
-        },
-        getItems: (fallbackPayload) => fallbackPayload.manufacturers.map((item) => mapReference(item, 'manufacturer')),
-        getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
-      });
-
-      const fallbackResult = paginateFallbackItems(
-        allManufacturers.filter((item) => matchesCaseInsensitiveSearch(search, [item.code, item.name])),
-        page,
-        pageSize,
-      );
-
-      return {
-        data: fallbackResult.data,
-        total: fallbackResult.total,
-        page: fallbackResult.page,
-        pageSize: fallbackResult.pageSize,
-      };
-    }
-
-    return {
-      data: mappedManufacturers,
       total: payload.pagination.total,
       page: payload.pagination.page,
       pageSize: payload.pagination.limit,
@@ -358,16 +302,6 @@ export async function createProductReference(
     return mapReference(unwrapApiData<UnitApiItem>(response), 'unit');
   }
 
-  if (type === 'manufacturer') {
-    const response = await apiClient.post<ApiResponse<ReferenceApiItem>>('/api/manufacturers', {
-      code: payload.code.trim().toUpperCase(),
-      name: payload.name.trim(),
-      is_active: payload.status === 'active',
-    });
-
-    return mapReference(unwrapApiData<ReferenceApiItem>(response), 'manufacturer');
-  }
-
   if (type === 'supplier') {
     const response = await apiClient.post<ApiResponse<SupplierApiItem>>('/api/suppliers', {
       code: payload.code.trim().toUpperCase(),
@@ -411,16 +345,6 @@ export async function updateProductReference(
     return mapReference(unwrapApiData<UnitApiItem>(response), 'unit');
   }
 
-  if (type === 'manufacturer') {
-    const response = await apiClient.patch<ApiResponse<ReferenceApiItem>>(`/api/manufacturers/${numericId}`, {
-      code: payload.code.trim().toUpperCase(),
-      name: payload.name.trim(),
-      is_active: payload.status === 'active',
-    });
-
-    return mapReference(unwrapApiData<ReferenceApiItem>(response), 'manufacturer');
-  }
-
   if (type === 'supplier') {
     const response = await apiClient.patch<ApiResponse<SupplierApiItem>>(`/api/suppliers/${numericId}`, {
       code: payload.code.trim().toUpperCase(),
@@ -446,5 +370,5 @@ export async function updateProductReference(
 
 export async function deleteProductReference(id: string): Promise<void> {
   void id;
-  throw new Error('Backend hiện chưa hỗ trợ xóa đơn vị tính, thương hiệu, hoặc nhà sản xuất.');
+  throw new Error('Backend hiện chưa hỗ trợ xóa đơn vị tính, thương hiệu, hoặc nhà cung cấp.');
 }

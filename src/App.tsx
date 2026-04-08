@@ -11,7 +11,6 @@ import { useAuthStore } from './store/authStore';
 import { hasPageAccessFromPermissionNames } from './lib/pageAccess';
 import { CategoryManagementPage } from './pages/admin/CategoryManagementPage';
 import { RolePermissionsPage } from './pages/admin/RolePermissionsPage';
-import { AdvancedPermissionsPage } from './pages/admin/AdvancedPermissionsPage';
 import { ApprovalConfigurationPage } from './pages/admin/ApprovalConfigurationPage';
 import { ProductReferenceManagementPage } from './pages/admin/ProductReferenceManagementPage';
 import { ProductManagementPage } from './pages/admin/ProductManagementPage';
@@ -29,6 +28,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes — prevents refetch on every navigation
     },
   },
 });
@@ -58,7 +58,6 @@ function DefaultLandingRoute() {
     '/admin/warehouses',
     '/admin/users',
     '/admin/role-permissions',
-    '/admin/advanced-permission',
     '/admin/approval-configuration',
   ];
 
@@ -95,7 +94,6 @@ function App() {
             <Route path="/profile" element={<UserProfilePage />} />
             <Route path="/admin/users" element={<PageAccessRoute path="/admin/users"><UserManagementPage /></PageAccessRoute>} />
             <Route path="/admin/role-permissions" element={<PageAccessRoute path="/admin/role-permissions"><RolePermissionsPage /></PageAccessRoute>} />
-            <Route path="/admin/advanced-permission" element={<PageAccessRoute path="/admin/advanced-permission"><AdvancedPermissionsPage /></PageAccessRoute>} />
             <Route path="/admin/approval-configuration" element={<PageAccessRoute path="/admin/approval-configuration"><ApprovalConfigurationPage /></PageAccessRoute>} />
             <Route path="/admin/categories" element={<PageAccessRoute path="/admin/categories"><CategoryManagementPage /></PageAccessRoute>} />
             <Route path="/admin/product-settings" element={<PageAccessRoute path="/admin/product-settings"><ProductReferenceManagementPage /></PageAccessRoute>} />

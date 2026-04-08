@@ -7,7 +7,6 @@ import { useProductDetail } from '@/features/products/hooks/useProductDetail';
 import {
   useProductBrandOptions,
   useProductCategoryOptions,
-  useProductManufacturerOptions,
   useProductUnitOptions,
   useUpdateProduct,
 } from '../hooks/useProducts';
@@ -28,10 +27,9 @@ export function ProductDetail() {
   const categoriesQuery = useProductCategoryOptions();
   const unitsQuery = useProductUnitOptions();
   const brandsQuery = useProductBrandOptions();
-  const manufacturersQuery = useProductManufacturerOptions();
   const updateMutation = useUpdateProduct();
 
-  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading || manufacturersQuery.isLoading;
+  const isOptionsLoading = categoriesQuery.isLoading || unitsQuery.isLoading || brandsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -112,7 +110,6 @@ export function ProductDetail() {
                   <InfoBlock label="Product Type" value={capitalize(product.productType)} />
                   <InfoBlock label="Category" value={product.categoryNames.join(', ') || 'Unassigned'} />
                   <InfoBlock label="Brand" value={product.brandName || 'Unassigned'} />
-                  <InfoBlock label="Manufacturer" value={product.manufacturerName || 'Unassigned'} />
                   <InfoBlock label="Base Unit" value={product.unitName} />
                   <InfoBlock label="Storage Conditions" value={product.storageConditions || 'Not specified'} />
                   <div className="col-span-2">
@@ -201,7 +198,6 @@ export function ProductDetail() {
         categories={categoriesQuery.data ?? []}
         units={unitsQuery.data ?? []}
         brands={brandsQuery.data ?? []}
-        manufacturers={manufacturersQuery.data ?? []}
         onSubmit={async (payload: ProductFormData) => {
           try {
             await updateMutation.mutateAsync({ id: product.id, payload });
