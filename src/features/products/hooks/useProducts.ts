@@ -1,4 +1,4 @@
-﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getProductCategories } from '@/services/categoryApiService';
 import {
   createProduct,
@@ -10,7 +10,7 @@ import {
   getUnitOptions,
   updateProduct,
 } from '@/services/productApiService';
-import type { ProductFormValues, ProductListParams } from '../types/productType';
+import type { ProductFormValues, ProductListParams, ProductStatus } from '../types/productType';
 
 export const PRODUCT_KEYS = {
   all: ['products'] as const,

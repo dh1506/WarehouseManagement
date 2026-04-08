@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+ï»¿import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import { PageHeader } from '@/components/PageHeader';
@@ -381,7 +381,7 @@ export function ProductManagement() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          // eyebrow="Sprint 1 · Product Master"
+          // eyebrow="Sprint 1 Â· Product Master"
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
           actions={(
@@ -582,9 +582,9 @@ export function ProductManagement() {
                             <div className="mt-1 text-xs text-slate-400">{item.brandName}</div>
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-600">
-                            <div>Min {item.minStock} · Max {item.maxStock}</div>
+                            <div>Min {item.minStock} Â· Max {item.maxStock}</div>
                             <div className="mt-1 text-xs text-slate-400">
-                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} Â· {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
                             </div>
                           </td>
                           <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
