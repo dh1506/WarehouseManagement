@@ -20,9 +20,16 @@ model User {
   created_at             DateTime               @default(now())
   updated_at             DateTime               @updatedAt
   warehouse_id           Int?
+  inventory_transactions InventoryTransaction[]
+  stock_ins_created      StockIn[]              @relation("StockInCreator")
+  stock_ins_approved     StockIn[]              @relation("StockInApprover")
+  stock_outs_created     StockOut[]             @relation("StockOutCreator")
+  stock_outs_approved    StockOut[]             @relation("StockOutApprover")
+  discrepancies_reported StockInDiscrepancy[]   @relation("DiscrepancyReporter")
+  discrepancies_resolved StockInDiscrepancy[]   @relation("DiscrepancyResolver")
+  audit_logs             AuditLog[]
   role                   Role                   @relation(fields: [role_id], references: [id])
   warehouse              Warehouse?             @relation(fields: [warehouse_id], references: [id])
-  inventory_transactions InventoryTransaction[]
 
   @@index([role_id], map: "users_role_id_fkey")
   @@index([warehouse_id], map: "users_warehouse_id_fkey")
@@ -113,33 +120,33 @@ model UnitOfMeasure {
 }
 
 model Product {
-  id                 Int           @id @default(autoincrement())
-  code               String        @unique
-  name               String
-  description        String?       @db.Text
-  product_type       ProductType   @default(GOODS)
-  product_status     ProductStatus @default(ACTIVE)
-  base_uom_id        Int
-  has_batch          Boolean       @default(false)
-  min_stock          Decimal?      @db.Decimal(15, 3)
-  max_stock          Decimal?      @db.Decimal(15, 3)
-  storage_conditions String?
-  image_url          String?
-  created_at         DateTime      @default(now())
-  updated_at         DateTime      @updatedAt
-  expiry_date        DateTime?
-  production_date    DateTime?
-
+  id                     Int                    @id @default(autoincrement())
+  code                   String                 @unique
+  name                   String
+  description            String?                @db.Text
+  product_type           ProductType            @default(GOODS)
+  product_status         ProductStatus          @default(ACTIVE)
+  base_uom_id            Int
+  has_batch              Boolean                @default(false)
+  min_stock              Decimal?               @db.Decimal(15, 3)
+  max_stock              Decimal?               @db.Decimal(15, 3)
+  storage_conditions     String?
+  image_url              String?
+  created_at             DateTime               @default(now())
+  updated_at             DateTime               @updatedAt
+  expiry_date            DateTime?
+  production_date        DateTime?
   brands                 BrandProduct[]
-  warehouses             ProductWarehouse[]
-  lots                   ProductLot[]
+  inventories            Inventory[]
   inventory_transactions InventoryTransaction[]
-
-  inventories      Inventory[]
-  categories       ProductCategoryMap[]
-  productSuppliers ProductSupplier[]
-  uoms             ProductUom[]
-  base_uom         UnitOfMeasure        @relation(fields: [base_uom_id], references: [id])
+  categories             ProductCategoryMap[]
+  lots                   ProductLot[]
+  productSuppliers       ProductSupplier[]
+  uoms                   ProductUom[]
+  warehouses             ProductWarehouse[]
+  stock_in_details       StockInDetail[]
+  stock_out_details      StockOutDetail[]
+  base_uom               UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
 
   @@index([base_uom_id], map: "products_base_uom_id_fkey")
   @@map("products")
@@ -165,9 +172,9 @@ model ProductUom {
   is_default            Boolean                @default(false)
   created_at            DateTime               @default(now())
   updated_at            DateTime               @updatedAt
+  inventoryTransactions InventoryTransaction[]
   product               Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
   uom                   UnitOfMeasure          @relation(fields: [uom_id], references: [id])
-  inventoryTransactions InventoryTransaction[]
 
   @@unique([product_id, uom_id])
   @@index([uom_id], map: "product_uoms_uom_id_fkey")
@@ -257,8 +264,10 @@ model WarehouseLocation {
   created_at             DateTime                  @default(now())
   updated_at             DateTime                  @updatedAt
   inventories            Inventory[]
-  allowed_categories     LocationAllowedCategory[]
   inventory_transactions InventoryTransaction[]
+  allowed_categories     LocationAllowedCategory[]
+  stock_ins              StockIn[]
+  stock_outs             StockOut[]
   warehouse              Warehouse                 @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")
@@ -314,18 +323,19 @@ model ProductWarehouse {
 }
 
 model ProductLot {
-  id              Int       @id @default(autoincrement())
-  lot_no          String    @unique
-  product_id      Int
-  inventories_id  Int
-  status          LotStatus @default(ACTIVE)
-  production_date DateTime?
-  expired_date    DateTime?
-  received_at     DateTime  @default(now())
-
-  product      Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  inventory    Inventory              @relation(fields: [inventories_id], references: [id], onDelete: Cascade)
-  transactions InventoryTransaction[]
+  id                    Int                    @id @default(autoincrement())
+  lot_no                String                 @unique
+  product_id            Int
+  inventories_id        Int
+  status                LotStatus              @default(ACTIVE)
+  production_date       DateTime?
+  expired_date          DateTime?
+  received_at           DateTime               @default(now())
+  transactions          InventoryTransaction[]
+  stock_in_detail_lots  StockInDetailLot[]
+  stock_out_detail_lots StockOutDetailLot[]
+  inventory             Inventory              @relation(fields: [inventories_id], references: [id], onDelete: Cascade)
+  product               Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
 
   @@index([product_id])
   @@index([inventories_id])
@@ -333,33 +343,33 @@ model ProductLot {
 }
 
 model InventoryTransaction {
-  id                    Int             @id @default(autoincrement())
+  id                    Int               @id @default(autoincrement())
   warehouse_location_id Int
   product_id            Int
   lot_id                Int?
   product_uom_id        Int
   transaction_type      TransactionType
-  quantity              Decimal         @db.Decimal(15, 3)
-  base_quantity         Decimal         @db.Decimal(15, 3)
-  balance_after         Decimal         @db.Decimal(15, 3)
+  quantity              Decimal           @db.Decimal(15, 3)
+  base_quantity         Decimal           @db.Decimal(15, 3)
+  balance_after         Decimal           @db.Decimal(15, 3)
   reference_type        String?
   reference_id          String?
   reference_line_id     String?
-  note                  String?         @db.Text
-  created_at            DateTime        @default(now())
+  note                  String?           @db.Text
+  created_at            DateTime          @default(now())
   created_by            Int?
-  transaction_date      DateTime        @default(now())
-
-  location WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
-  product  Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  lot      ProductLot?       @relation(fields: [lot_id], references: [id], onDelete: SetNull)
-  uom      ProductUom        @relation(fields: [product_uom_id], references: [id])
-  creator  User?             @relation(fields: [created_by], references: [id])
+  transaction_date      DateTime          @default(now())
+  creator               User?             @relation(fields: [created_by], references: [id])
+  lot                   ProductLot?       @relation(fields: [lot_id], references: [id])
+  product               Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  uom                   ProductUom        @relation(fields: [product_uom_id], references: [id])
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
 
   @@index([warehouse_location_id])
   @@index([product_id])
   @@index([lot_id])
   @@index([created_by])
+  @@index([product_uom_id], map: "inventory_transactions_product_uom_id_fkey")
   @@map("inventory_transactions")
 }
 
@@ -420,4 +430,184 @@ enum TransactionType {
   OUT
   TRANSFER
   ADJUSTMENT
+}
+
+enum StockOutStatus {
+  PENDING
+  PICKING
+  SHIPPED
+  CANCELLED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum StockInStatus {
+  DRAFT
+  PENDING
+  IN_PROGRESS
+  DISCREPANCY
+  COMPLETED
+  CANCELLED
+}
+
+enum DiscrepancyStatus {
+  PENDING
+  RESOLVED
+}
+
+model StockIn {
+  id                    Int           @id @default(autoincrement())
+  warehouse_location_id Int
+  code                  String        @unique @map("stock_in_code")
+  description           String?       @db.Text
+  status                StockInStatus @default(DRAFT)
+  created_by            Int
+  approved_by           Int?
+  created_at            DateTime      @default(now())
+  updated_at            DateTime      @updatedAt
+
+  location WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
+  creator  User              @relation("StockInCreator", fields: [created_by], references: [id])
+  approver User?             @relation("StockInApprover", fields: [approved_by], references: [id])
+
+  details       StockInDetail[]
+  discrepancies StockInDiscrepancy[]
+
+  @@index([warehouse_location_id])
+  @@index([created_by])
+  @@index([approved_by])
+  @@map("stock_ins")
+}
+
+model StockInDetail {
+  id                Int      @id @default(autoincrement())
+  stock_in_id       Int
+  product_id        Int
+  expected_quantity Decimal  @default(0.000) @db.Decimal(15, 3)
+  received_quantity Decimal  @default(0.000) @db.Decimal(15, 3)
+  unit_price        Decimal? @db.Decimal(15, 2)
+
+  stock_in StockIn @relation(fields: [stock_in_id], references: [id], onDelete: Cascade)
+  product  Product @relation(fields: [product_id], references: [id])
+
+  lots StockInDetailLot[]
+
+  @@index([stock_in_id])
+  @@index([product_id])
+  @@map("stock_in_details")
+}
+
+model StockInDetailLot {
+  id                 Int     @id @default(autoincrement())
+  stock_in_detail_id Int
+  product_lot_id     Int
+  quantity           Decimal @db.Decimal(15, 3)
+
+  stock_in_detail StockInDetail @relation(fields: [stock_in_detail_id], references: [id], onDelete: Cascade)
+  product_lot     ProductLot    @relation(fields: [product_lot_id], references: [id])
+
+  @@index([stock_in_detail_id])
+  @@index([product_lot_id])
+  @@map("stock_in_detail_lots")
+}
+
+model StockInDiscrepancy {
+  id           Int               @id @default(autoincrement())
+  stock_in_id  Int
+  reported_by  Int
+  resolved_by  Int?
+  expected_qty Decimal           @db.Decimal(15, 3)
+  actual_qty   Decimal           @db.Decimal(15, 3)
+  reason       String            @db.Text
+  action_taken String?           @db.Text
+  status       DiscrepancyStatus @default(PENDING)
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+
+  stock_in StockIn @relation(fields: [stock_in_id], references: [id], onDelete: Cascade)
+  reporter User    @relation("DiscrepancyReporter", fields: [reported_by], references: [id])
+  resolver User?   @relation("DiscrepancyResolver", fields: [resolved_by], references: [id])
+
+  @@index([stock_in_id])
+  @@map("stock_in_discrepancies")
+}
+
+model StockOut {
+  id                    Int               @id @default(autoincrement())
+  warehouse_location_id Int
+  code                  String            @unique @map("stock_out_code")
+  description           String?           @db.Text
+  status                StockOutStatus    @default(PENDING)
+  created_by            Int
+  approved_by           Int?
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+
+  location WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
+  creator  User              @relation("StockOutCreator", fields: [created_by], references: [id])
+  approver User?             @relation("StockOutApprover", fields: [approved_by], references: [id])
+
+  details StockOutDetail[]
+
+  @@index([warehouse_location_id])
+  @@index([created_by])
+  @@index([approved_by])
+  @@map("stock_outs")
+}
+
+model StockOutDetail {
+  id           Int   @id @default(autoincrement())
+  stock_out_id Int
+  product_id   Int
+  quantity     Decimal @db.Decimal(15, 3)
+  unit_price   Decimal? @db.Decimal(15, 2)
+
+  stock_out StockOut @relation(fields: [stock_out_id], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [product_id], references: [id])
+
+  lots StockOutDetailLot[]
+
+  @@index([stock_out_id])
+  @@index([product_id])
+  @@map("stock_out_details")
+}
+
+model StockOutDetailLot {
+  id                  Int     @id @default(autoincrement())
+  stock_out_detail_id Int
+  product_lot_id      Int
+  quantity            Decimal @db.Decimal(15, 3)
+
+  stock_out_detail StockOutDetail @relation(fields: [stock_out_detail_id], references: [id], onDelete: Cascade)
+  product_lot      ProductLot     @relation(fields: [product_lot_id], references: [id])
+
+  @@index([stock_out_detail_id])
+  @@index([product_lot_id])
+  @@map("stock_out_detail_lots")
+}
+
+model AuditLog {
+  id             Int         @id @default(autoincrement())
+  module         String      @db.VarChar(100)
+  entity_type    String      @db.VarChar(100)
+  entity_id      Int
+  action         AuditAction
+  old_data       Json?
+  new_data       Json?
+  reference_code String?     @db.VarChar(255)
+  note           String?     @db.Text
+  created_by     Int
+  created_at     DateTime    @default(now())
+
+  creator User @relation(fields: [created_by], references: [id])
+
+  @@index([module])
+  @@index([entity_type, entity_id])
+  @@index([created_by])
+  @@index([created_at])
+  @@map("audit_logs")
 }

@@ -12,7 +12,7 @@
     "rootDir": "src",
     "module": "ESNext",
     "target": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "node10",
     "ignoreDeprecations": "5.0",
     "esModuleInterop": true,
     "resolveJsonModule": true,
