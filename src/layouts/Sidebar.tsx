@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { to: '/inbound', icon: 'move_to_inbox', label: 'Inbound Flow' },
   { to: '/outbound', icon: 'local_shipping', label: 'Outbound' },
   { to: '/inventory', icon: 'widgets', label: 'Inventory' },
+  { to: '/inventory/transactions', icon: 'history', label: 'Audit Log' },
   { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
   { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
   { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },

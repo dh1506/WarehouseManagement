@@ -23,6 +23,7 @@ import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
 import { InboundManagementPage } from './pages/operations/InboundManagementPage';
 import { InboundDetailPage } from './pages/operations/InboundDetailPage';
+import { TransactionHistoryPage } from './pages/operations/TransactionHistoryPage';
 
 import { OutboundListPage } from './pages/operations/OutboundListPage';
 import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
@@ -117,6 +118,7 @@ function App() {
 
             <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
+            <Route path="/inventory/transactions" element={<PageAccessRoute path="/inventory/transactions"><TransactionHistoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
             <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundManagementPage /></PageAccessRoute>} />
             <Route path="/inbound/:id" element={<PageAccessRoute path="/inbound"><InboundDetailPage /></PageAccessRoute>} />
