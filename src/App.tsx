@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './pages/auth/LoginPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
+import { AuditLogPage } from './pages/admin/AuditLogPage';
 
 import { NotFoundPage } from './pages/errors/NotFoundPage';
 import { ForbiddenPage } from './pages/errors/ForbiddenPage';
@@ -22,6 +23,9 @@ import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
+import { InboundListPage } from './pages/operations/InboundListPage';
+import { InboundDetailPage } from './pages/operations/InboundDetailPage';
+import { InboundCreatePage } from './pages/operations/InboundCreatePage';
 import { OutboundListPage } from './pages/operations/OutboundListPage';
 import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
 import { OutboundCreatePage } from './pages/operations/OutboundCreatePage';
@@ -98,6 +102,7 @@ function App() {
             <Route path="/" element={<DefaultLandingRoute />} />
             <Route path="/profile" element={<UserProfilePage />} />
             <Route path="/admin/users" element={<PageAccessRoute path="/admin/users"><UserManagementPage /></PageAccessRoute>} />
+            <Route path="/admin/audit-logs" element={<PageAccessRoute path="/admin/audit-logs"><AuditLogPage /></PageAccessRoute>} />
             <Route path="/admin/role-permissions" element={<PageAccessRoute path="/admin/role-permissions"><RolePermissionsPage /></PageAccessRoute>} />
             <Route path="/admin/advanced-permission" element={<PageAccessRoute path="/admin/advanced-permission"><AdvancedPermissionsPage /></PageAccessRoute>} />
             <Route path="/admin/approval-configuration" element={<PageAccessRoute path="/admin/approval-configuration"><ApprovalConfigurationPage /></PageAccessRoute>} />
@@ -115,6 +120,9 @@ function App() {
             <Route path="/warehouse/master" element={<PageAccessRoute path="/admin/warehouses"><WarehouseManagementPage /></PageAccessRoute>} />
 
             <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
+            <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundListPage /></PageAccessRoute>} />
+            <Route path="/inbound/create" element={<PageAccessRoute path="/inbound"><InboundCreatePage /></PageAccessRoute>} />
+            <Route path="/inbound/:id" element={<PageAccessRoute path="/inbound"><InboundDetailPage /></PageAccessRoute>} />
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
             <Route path="/outbound" element={<PageAccessRoute path="/outbound"><OutboundListPage /></PageAccessRoute>} />
