@@ -69,3 +69,39 @@
 **Context:** AGENTS.md forbids `any` type.
 **Decision:** Replaced `err: any` with `err: unknown` using `instanceof Error` type narrowing.
 **Rationale:** Maintains TypeScript strict mode compliance and runtime type safety.
+
+## DEC-011 - Stock-In types barrel export file (types.ts)
+
+**Date:** 2026-04-09
+**Context:** User requested a `types.ts` file containing Interfaces and Enums. Project already has `inboundType.ts` and `inboundDetailType.ts`.
+**Decision:** Create `types.ts` as a barrel re-export from existing type files + add explicit `DiscrepancyStatus` type.
+**Rationale:** Avoids duplicating type definitions. Single clean import path for consumers. `DiscrepancyStatus` was implicitly defined inline in `StockInDiscrepancy` but needed an explicit type alias.
+
+## DEC-012 - Separate stockInSchemas.ts vs existing inboundSchemas.ts
+
+**Date:** 2026-04-09
+**Context:** User explicitly requested `stockInSchemas.ts` for Create Voucher + Resolve Discrepancy forms. `inboundSchemas.ts` already has `resolveDiscrepancySchema`.
+**Decision:** Create `stockInSchemas.ts` with the Create Voucher schema (including `supplier_id` validation) and a dedicated Resolve form schema.
+**Rationale:** The existing `createPurchaseRequestSchema.ts` lacks `supplier_id` field. The explicit request warrants a separate file to keep concerns distinct per workflow step.
+
+## DEC-013 - Toast-integrated hooks (useAllocateStockIn, useCompleteStockIn)
+
+**Date:** 2026-04-09
+**Context:** Existing `useCompleteStockIn` in `useInbound.ts` and `useAllocateLots` in `useInboundDetail.ts` don't include toast handling. User explicitly requested hooks with built-in toast success/error.
+**Decision:** Create separate hook files following the outbound hooks pattern (`useOutbound.ts`) which embeds `useToast` inside the hook.
+**Rationale:** Consistent with outbound module pattern. Reduces boilerplate at call-sites. Original hooks remain untouched for backward compatibility.
+
+## DEC-014 - StockInDetailActions component design
+
+**Date:** 2026-04-09
+**Context:** User requested a component that conditionally renders action buttons based on StockIn status.
+**Decision:** Use simple conditional rendering (`&&` guards) rather than switch/case. Hard-block Complete button with disabled state + Tooltip warning when status is DISCREPANCY or pending discrepancies exist.
+**Rationale:** Conditional `&&` is more readable for JSX rendering and matches the existing InboundDetail.tsx pattern. Tooltip on disabled button requires wrapping in `<span>` for Radix compatibility.
+
+## DEC-015 - StockInWorkerView rework: remove zone map from counting flow
+
+**Date:** 2026-04-09
+**Context:** Per user instruction, the inventory counting step does NOT require viewing the warehouse layout diagram. Zone map was removed from counting flow.
+**Decision:** Rework StockInWorkerView to use direct product-level quantity entry (ProductCard components) during counting. Zone map / bin-level entry was fully removed. All workflow actions (discrepancy, resolve, allocate, complete) wired to real API hooks. Lot allocation uses a Dialog with WarehouseLocationSelect instead of zone map.
+**Rationale:** The zone map is relevant for spatial allocation, not physical counting. Staff count goods at the product level, not bin level. This simplifies UX and aligns with the BE flow (Step 5.3: record received quantities per detail, not per bin).
+

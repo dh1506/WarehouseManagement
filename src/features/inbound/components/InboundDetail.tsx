@@ -19,20 +19,20 @@ export function InboundDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const canApprove   = usePermission('stock_ins:approve');
-  const canRecord    = usePermission('stock_ins:update');
-  const canSeeValue  = usePermission('stock_ins:approve');
+  const canApprove = usePermission('stock_ins:approve');
+  const canRecord = usePermission('stock_ins:update');
+  const canSeeValue = usePermission('stock_ins:approve');
 
   const { data, isLoading, isError } = useStockInDetail(numId);
-  const approveMutation   = useApproveStockIn();
-  const completeMutation  = useCompleteStockIn();
-  const recordMutation    = useRecordReceipt(numId);
+  const approveMutation = useApproveStockIn();
+  const completeMutation = useCompleteStockIn();
+  const recordMutation = useRecordReceipt(numId);
   const discrepancyMutation = useCreateDiscrepancy(numId);
-  const resolveMutation   = useResolveDiscrepancy(numId);
+  const resolveMutation = useResolveDiscrepancy(numId);
 
   // Local edit state for received quantities
   const [receivedQtys, setReceivedQtys] = useState<Record<number, number>>({});
-  const [discReason, setDiscReason]     = useState('');
+  const [discReason, setDiscReason] = useState('');
   const [showDiscForm, setShowDiscForm] = useState(false);
 
   const handleQtyChange = useCallback((detailId: number, val: number) => {
@@ -55,7 +55,10 @@ export function InboundDetail() {
     }));
     recordMutation.mutate({ details }, {
       onSuccess: () => {
-        toast({ title: 'Receipt recorded', description: 'Received quantities saved.' });
+        toast({
+          title: 'Receipt recorded',
+          description: 'Received quantities saved. Warehouse Hub occupancy updates after the Complete step.',
+        });
         setReceivedQtys({});
       },
       onError: (e) => toast({ title: 'Record failed', description: (e as Error).message, variant: 'destructive' }),
@@ -83,10 +86,10 @@ export function InboundDetail() {
   }, [data, completeMutation, toast]);
 
   if (!id || isNaN(numId)) {
-    return <StatePanel state="error" title="Invalid ID" description="No valid order ID in URL." />;
+    return <StatePanel tone="error" title="Invalid ID" description="No valid order ID in URL." />;
   }
-  if (isLoading) return <StatePanel state="loading" title="Loading order…" />;
-  if (isError || !data) return <StatePanel state="error" title="Load failed" description="Could not fetch order details." />;
+  if (isLoading) return <StatePanel title="Loading order..." description="Please wait while order data is loading." />;
+  if (isError || !data) return <StatePanel tone="error" title="Load failed" description="Could not fetch order details." />;
 
   const totalValue = computeStockInTotalValue(data.details);
 
@@ -270,9 +273,9 @@ function ActionButton({
   loading: boolean; onClick: () => void;
 }) {
   const colorMap = {
-    blue:    'bg-blue-600 hover:bg-blue-700 text-white',
-    slate:   'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700',
-    amber:   'bg-amber-500 hover:bg-amber-600 text-white',
+    blue: 'bg-blue-600 hover:bg-blue-700 text-white',
+    slate: 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700',
+    amber: 'bg-amber-500 hover:bg-amber-600 text-white',
     emerald: 'bg-emerald-600 hover:bg-emerald-700 text-white',
   };
   return (
@@ -439,13 +442,13 @@ function DiscrepancyList({
 // ── Info card (right sidebar) ─────────────────────────────────────────────────
 function InfoCard({ data, canSeeValue, totalValue }: { data: StockIn; canSeeValue: boolean; totalValue: number }) {
   const rows: Array<{ label: string; value: string }> = [
-    { label: 'Order Code',  value: data.code },
-    { label: 'Status',      value: STOCK_IN_STATUS_LABELS[data.status] },
-    { label: 'Location',    value: data.location.full_path },
-    { label: 'Supplier',    value: data.supplier ? `${data.supplier.name} (${data.supplier.code})` : '—' },
-    { label: 'Created By',  value: data.creator.full_name },
+    { label: 'Order Code', value: data.code },
+    { label: 'Status', value: STOCK_IN_STATUS_LABELS[data.status] },
+    { label: 'Location', value: data.location.full_path },
+    { label: 'Supplier', value: data.supplier ? `${data.supplier.name} (${data.supplier.code})` : '—' },
+    { label: 'Created By', value: data.creator.full_name },
     { label: 'Approved By', value: data.approver?.full_name ?? '—' },
-    { label: 'Created',     value: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+    { label: 'Created', value: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
     { label: 'Last Updated', value: new Date(data.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
   ];
 

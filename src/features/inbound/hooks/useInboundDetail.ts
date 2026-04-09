@@ -14,6 +14,7 @@ import type {
   AllocateLotPayload,
 } from '../types/inboundDetailType';
 import { STOCK_IN_KEYS } from './useInbound';
+import { WAREHOUSE_KEYS } from '@/features/warehouses/hooks/useWarehouses';
 
 // ── Hook: fetch single StockIn detail ─────────────────────────────────────────
 export function useStockInDetail(id: number) {
@@ -76,6 +77,9 @@ export function useAllocateLots(id: number) {
     mutationFn: (payload) => allocateLots(id, payload),
     onSuccess: (data) => {
       queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      // Invalidate warehouse layout data so zone map reflects new inventory
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -23,12 +23,12 @@ interface InboundTableProps {
 }
 
 const STATUS_BADGE: Record<StockInStatus, { bg: string; text: string; ring: string; icon: string }> = {
-  DRAFT:        { bg: 'bg-slate-100',   text: 'text-slate-600',   ring: 'ring-slate-200',   icon: 'edit_note' },
-  PENDING:      { bg: 'bg-violet-50',   text: 'text-violet-700',  ring: 'ring-violet-200',  icon: 'pending' },
-  IN_PROGRESS:  { bg: 'bg-blue-50',     text: 'text-blue-700',    ring: 'ring-blue-200',    icon: 'local_shipping' },
-  DISCREPANCY:  { bg: 'bg-amber-50',    text: 'text-amber-700',   ring: 'ring-amber-200',   icon: 'warning' },
-  COMPLETED:    { bg: 'bg-emerald-50',  text: 'text-emerald-700', ring: 'ring-emerald-200', icon: 'check_circle' },
-  CANCELLED:    { bg: 'bg-rose-50',     text: 'text-rose-700',    ring: 'ring-rose-200',    icon: 'cancel' },
+  DRAFT: { bg: 'bg-slate-100', text: 'text-slate-600', ring: 'ring-slate-200', icon: 'edit_note' },
+  PENDING: { bg: 'bg-violet-50', text: 'text-violet-700', ring: 'ring-violet-200', icon: 'pending' },
+  IN_PROGRESS: { bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-200', icon: 'local_shipping' },
+  DISCREPANCY: { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', icon: 'warning' },
+  COMPLETED: { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', icon: 'check_circle' },
+  CANCELLED: { bg: 'bg-rose-50', text: 'text-rose-700', ring: 'ring-rose-200', icon: 'cancel' },
 };
 
 const VALUE_VISIBLE_PERMISSIONS = ['stock_ins:view_value', 'stock_ins:approve'] as const;
@@ -45,17 +45,17 @@ export function InboundTable({
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const canSeeValueA  = usePermission(VALUE_VISIBLE_PERMISSIONS[0]);
-  const canSeeValueB  = usePermission(VALUE_VISIBLE_PERMISSIONS[1]);
-  const canSeeValue   = canSeeValueA || canSeeValueB;
-  const canSubmit     = usePermission('stock_ins:approve');
+  const canSeeValueA = usePermission(VALUE_VISIBLE_PERMISSIONS[0]);
+  const canSeeValueB = usePermission(VALUE_VISIBLE_PERMISSIONS[1]);
+  const canSeeValue = canSeeValueA || canSeeValueB;
+  const canSubmit = usePermission('stock_ins:approve');
 
   const submitMutation = useSubmitStockIn();
 
   const totalItems = data?.pagination.total ?? 0;
   const totalPages = data?.pagination.totalPages ?? 0;
-  const startItem  = totalItems > 0 ? (page - 1) * pageSize + 1 : 0;
-  const endItem    = Math.min(page * pageSize, totalItems);
+  const startItem = totalItems > 0 ? (page - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(page * pageSize, totalItems);
 
   const colSpan = (canSeeValue ? 7 : 6) + (canSubmit ? 1 : 0);
 
@@ -400,7 +400,7 @@ function generatePages(current: number, total: number): Array<number | '...'> {
   const pages: Array<number | '...'> = [1];
   if (current > 3) pages.push('...');
   const start = Math.max(2, current - 1);
-  const end   = Math.min(total - 1, current + 1);
+  const end = Math.min(total - 1, current + 1);
   for (let i = start; i <= end; i++) pages.push(i);
   if (current < total - 2) pages.push('...');
   if (total > 1) pages.push(total);

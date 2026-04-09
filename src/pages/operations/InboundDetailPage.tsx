@@ -16,9 +16,22 @@ import { StockInWorkerView } from '@/features/inbound/components/StockInWorkerVi
  */
 const WORKER_ROLES = new Set(['STAFF']);
 
+function normalizeRoleValue(role: unknown): string {
+  if (typeof role === 'string') {
+    return role;
+  }
+
+  if (role && typeof role === 'object' && 'name' in role) {
+    const name = (role as { name?: unknown }).name;
+    return typeof name === 'string' ? name : '';
+  }
+
+  return '';
+}
+
 export function InboundDetailPage() {
   const user = useAuthStore((state) => state.user);
-  const role = (user?.role ?? '').trim().toUpperCase();
+  const role = normalizeRoleValue(user?.role).trim().toUpperCase();
 
   if (WORKER_ROLES.has(role)) {
     return <StockInWorkerView />;

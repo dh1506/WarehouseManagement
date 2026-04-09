@@ -13,6 +13,7 @@ import type {
   StockInKpiStats,
 } from '../types/inboundType';
 import type { CreateStockInPayload } from '../services/inboundService';
+import { WAREHOUSE_KEYS } from '@/features/warehouses/hooks/useWarehouses';
 
 // ── Stable query keys ─────────────────────────────────────────────────────────
 export const STOCK_IN_KEYS = {
@@ -102,6 +103,9 @@ export function useCompleteStockIn() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
       queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
+      // Invalidate warehouse layout data so zone map reflects finalized inventory
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });
     },
   });
 }
