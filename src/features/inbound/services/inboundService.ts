@@ -13,17 +13,85 @@ import type {
 export async function getInboundDocuments(
   params: InboundQueryParams,
 ): Promise<InboundPaginatedResult> {
-  return apiClient.get('/api/stock-ins', { params });
+  const backendStatusMap: Record<string, string> = {
+    'all': '',
+    'completed': 'COMPLETED',
+    'receiving': 'IN_PROGRESS',
+    'pending': 'PENDING',
+    'draft': 'DRAFT',
+    'cancelled': 'CANCELLED'
+  };
+
+  const queryParams: any = {
+    page: params.page,
+    limit: params.pageSize,
+    search: params.search || undefined,
+  };
+  
+  if (params.status && params.status !== 'all') {
+    queryParams.status = backendStatusMap[params.status];
+  }
+
+  const response: any = await apiClient.get('/api/stock-ins', { params: queryParams });
+  const data = response.data || response;
+  
+  const frontendStatusMap: Record<string, import('../types/inboundType').InboundDocumentStatus> = {
+    'DRAFT': 'draft',
+    'PENDING': 'pending',
+    'IN_PROGRESS': 'receiving',
+    'DISCREPANCY': 'receiving',
+    'COMPLETED': 'completed',
+    'CANCELLED': 'cancelled'
+  };
+
+  const items = (data.stockIns || []).map((si: any) => ({
+    id: String(si.id),
+    documentId: si.code,
+    documentType: 'standard_purchase',
+    supplier: {
+      id: 'default_supplier',
+      name: 'System Supplier'
+    },
+    expectedArrival: si.created_at,
+    actualArrival: si.status === 'COMPLETED' ? si.updated_at : null,
+    status: frontendStatusMap[si.status] || 'pending',
+    totalItems: si.details ? si.details.reduce((acc: number, d: any) => acc + (Number(d.expected_quantity) || 0), 0) : 0,
+    totalValue: si.details ? si.details.reduce((acc: number, d: any) => acc + ((Number(d.expected_quantity) || 0) * (Number(d.unit_price) || 0)), 0) : 0,
+    relatedDocumentCode: si.description || '',
+    createdAt: si.created_at
+  }));
+
+  return {
+    items,
+    total: data.pagination?.total || 0,
+    page: data.pagination?.page || 1,
+    pageSize: data.pagination?.limit || 10,
+    totalPages: data.pagination?.totalPages || 1
+  };
 }
 
 // ── Service: KPI tổng quan ──────────────────────────────────────────────────
 export async function getInboundKpis(): Promise<InboundKpiMetrics> {
-  return apiClient.get('/api/stock-ins/kpis');
+  // Mock data since backend does not support this endpoint yet
+  // Prevents validation bad request catching into /:id
+  return {
+    pendingInbound: 12,
+    pendingInboundChangePercent: 5.2,
+    activeReceiving: 4,
+    totalDocks: 8,
+    avgProcessingTimeMinutes: 45,
+    avgProcessingTimeChangePercent: -2.1
+  };
 }
 
 // ── Service: Hiệu suất nhà cung cấp ────────────────────────────────────────
 export async function getSupplierPerformance(): Promise<SupplierPerformanceItem[]> {
-  return apiClient.get('/api/stock-ins/supplier-performance');
+  // Mock data since backend does not support this endpoint yet
+  return [
+    { supplierId: 's1', supplierName: 'Acme Corp', onTimeRate: 95, totalDeliveries: 120, lateDeliveries: 6 },
+    { supplierId: 's2', supplierName: 'Global Tech', onTimeRate: 88, totalDeliveries: 95, lateDeliveries: 11 },
+    { supplierId: 's3', supplierName: 'Fast Logistics', onTimeRate: 98, totalDeliveries: 200, lateDeliveries: 4 }
+  ];
 }
 
 // ── Service: Tạo phiếu nhập (Create PO) ─────────────────────────────────────
@@ -74,14 +142,25 @@ export async function createInboundPO(
   const backendPayload = {
     warehouse_location_id: locationId, // Dynamically use an existing location
     description: `[${DOCUMENT_TYPE_LABELS[payload.documentType as keyof typeof DOCUMENT_TYPE_LABELS] || payload.documentType}] Ref: ${payload.referenceCode || 'N/A'}${payload.notes ? ` - ${payload.notes}` : ''}`,
-    details: payload.items.map(item => ({
-      product_id: parseInt(item.productId, 10) || 1,
-      expected_quantity: item.quantity,
-      unit_price: item.unitPrice || 0
-    }))
+    details: payload.items.map(item => {
+      const detail: any = {
+        product_id: parseInt(item.productId, 10) || 1,
+        expected_quantity: item.quantity,
+      };
+      if (item.unitPrice && item.unitPrice > 0) {
+        detail.unit_price = item.unitPrice;
+      }
+      return detail;
+    })
   };
 
-  return apiClient.post('/api/stock-ins', backendPayload);
+  const response: any = await apiClient.post('/api/stock-ins', backendPayload);
+  const data = response.data || response;
+  return {
+    success: true,
+    data: { id: data.id, code: data.code },
+    message: 'Tạo PO thành công'
+  };
 }
 
 // ── Service: Cập nhật phiếu nhập (Update PO) ────────────────────────────────

@@ -15,6 +15,7 @@ export function useInboundDetail(id: string) {
   return useQuery({
     queryKey: INBOUND_DETAIL_KEYS.detail(id),
     queryFn: () => getInboundDetail(id),
+    enabled: !!id && id !== 'undefined',
     staleTime: 2 * 60 * 1000,
   });
 }
