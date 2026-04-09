@@ -23,8 +23,16 @@ export const getTransactionsQuerySchema = z.object({
       .optional()
       .transform((val) => (val ? parseInt(val, 10) : 10))
       .pipe(z.number().int().min(1).max(100, "Giới hạn tối đa 100 bản ghi")),
-    from_date: z.string().datetime({ message: "from_date phải là datetime ISO hợp lệ" }).optional(),
-    to_date: z.string().datetime({ message: "to_date phải là datetime ISO hợp lệ" }).optional(),
+    from_date: z
+      .string()
+      .optional()
+      .transform((val) => (val ? new Date(val) : undefined))
+      .pipe(z.date().optional()),
+    to_date: z
+      .string()
+      .optional()
+      .transform((val) => (val ? new Date(val) : undefined))
+      .pipe(z.date().optional()),
     product_id: z
       .string()
       .optional()

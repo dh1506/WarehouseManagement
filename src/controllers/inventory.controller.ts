@@ -2,6 +2,10 @@ import type { Request, Response } from "express";
 import * as inventoryService from "../services/inventory.service";
 import { catchAsync } from "../utils/catch-async";
 
+/**
+ * Lấy danh sách tồn kho
+ * GET /api/inventories
+ */
 export const getInventories = catchAsync(
   async (req: Request, res: Response) => {
     const query = {
@@ -25,6 +29,10 @@ export const getInventories = catchAsync(
   },
 );
 
+/**
+ * Lấy chi tiết thông tin tồn kho theo ID
+ * GET /api/inventories/:id
+ */
 export const getInventoryById = catchAsync(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
@@ -38,6 +46,10 @@ export const getInventoryById = catchAsync(
   },
 );
 
+/**
+ * Tạo mới bản ghi tồn kho
+ * POST /api/inventories
+ */
 export const createInventory = catchAsync(
   async (req: Request, res: Response) => {
     const inventory = await inventoryService.createInventory(req.body);
@@ -50,6 +62,10 @@ export const createInventory = catchAsync(
   },
 );
 
+/**
+ * Cập nhật thông tin tồn kho
+ * PATCH /api/inventories/:id
+ */
 export const updateInventory = catchAsync(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
@@ -63,6 +79,10 @@ export const updateInventory = catchAsync(
   },
 );
 
+/**
+ * Xóa bản ghi tồn kho
+ * DELETE /api/inventories/:id
+ */
 export const deleteInventory = catchAsync(
   async (req: Request, res: Response) => {
     const id = Number(req.params.id);
@@ -75,3 +95,4 @@ export const deleteInventory = catchAsync(
     });
   },
 );
+
