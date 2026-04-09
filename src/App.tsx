@@ -22,15 +22,11 @@ import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
-<<<<<<< HEAD
 
-
-=======
 import { OutboundListPage } from './pages/operations/OutboundListPage';
 import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
 import { OutboundCreatePage } from './pages/operations/OutboundCreatePage';
 import { OutboundPickingPage } from './pages/operations/OutboundPickingPage';
->>>>>>> 82bb5bfb7739afb369d630eff61d4423a7ea2ad1
 import { Toaster } from './components/ui/toaster';
 
 const queryClient = new QueryClient({
