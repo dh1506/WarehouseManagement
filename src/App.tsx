@@ -22,6 +22,9 @@ import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
 import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
+import { InboundManagementPage } from './pages/operations/InboundManagementPage';
+import { InboundDetailPage } from './pages/operations/InboundDetailPage';
+
 import { OutboundListPage } from './pages/operations/OutboundListPage';
 import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
 import { OutboundCreatePage } from './pages/operations/OutboundCreatePage';
@@ -117,6 +120,8 @@ function App() {
             <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
+            <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundManagementPage /></PageAccessRoute>} />
+            <Route path="/inbound/:id" element={<PageAccessRoute path="/inbound"><InboundDetailPage /></PageAccessRoute>} />
             <Route path="/outbound" element={<PageAccessRoute path="/outbound"><OutboundListPage /></PageAccessRoute>} />
             <Route path="/outbound/create" element={<PageAccessRoute path="/outbound"><OutboundCreatePage /></PageAccessRoute>} />
             <Route path="/outbound/:id" element={<PageAccessRoute path="/outbound"><OutboundDetailPage /></PageAccessRoute>} />
