@@ -25,6 +25,7 @@ import { AiForecastPage } from './pages/operations/AiForecastPage';
 
 import { InboundManagementPage } from './pages/operations/InboundManagementPage';
 import { InboundDetailPage } from './pages/operations/InboundDetailPage';
+import { ReceivingDockPage } from './pages/operations/ReceivingDockPage';
 
 import { Toaster } from './components/ui/toaster';
 import { OutboundListPage } from './pages/operations/OutboundListPage';
@@ -123,6 +124,7 @@ function App() {
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
 
             <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundManagementPage /></PageAccessRoute>} />
+            <Route path="/inbound/receiving" element={<PageAccessRoute path="/inbound"><ReceivingDockPage /></PageAccessRoute>} />
             <Route path="/inbound/:id" element={<PageAccessRoute path="/inbound"><InboundDetailPage /></PageAccessRoute>} />
             <Route path="/outbound" element={<PageAccessRoute path="/outbound"><OutboundListPage /></PageAccessRoute>} />
             <Route path="/outbound/create" element={<PageAccessRoute path="/outbound"><OutboundCreatePage /></PageAccessRoute>} />

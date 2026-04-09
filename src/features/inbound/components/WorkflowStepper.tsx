@@ -21,7 +21,7 @@ export function WorkflowStepper({ steps }: WorkflowStepperProps) {
       {/* Connector Line */}
       <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2 z-0" />
 
-      {steps.map((step, index) => {
+      {steps.map((step) => {
         const config = STEP_CONFIG[step.step];
         const isCompleted = step.status === 'completed';
         const isCurrent = step.status === 'current';

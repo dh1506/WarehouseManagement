@@ -12,8 +12,6 @@ import { AiInsightWidget } from './AiInsightWidget';
 import { StatePanel } from '@/components/StatePanel';
 import type { InboundLineItem } from '../types/inboundDetailType';
 
-const VALUE_VISIBLE_ROLES = new Set(['Director Profile', 'Warehouse Manager', 'CEO']);
-
 export function InboundDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -100,15 +98,15 @@ export function InboundDetail() {
   }, [items, receiveMutation, toast]);
 
   if (!id) {
-    return <StatePanel state="error" title="Missing ID" description="No inbound ID provided" />;
+    return <StatePanel tone="error" title="Missing ID" description="No inbound ID provided" />;
   }
 
   if (isLoading) {
-    return <StatePanel state="loading" title="Loading shipment details..." />;
+    return <StatePanel title="Loading shipment details..." description="Please wait" />;
   }
 
   if (isError || !data) {
-    return <StatePanel state="error" title="Failed to load" description="Could not fetch shipment details" />;
+    return <StatePanel tone="error" title="Failed to load" description="Could not fetch shipment details" />;
   }
 
   const displayItems = items.length > 0 ? items : data.items;

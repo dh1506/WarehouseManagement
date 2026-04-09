@@ -14,9 +14,7 @@ export type OrderItemSchema = z.infer<typeof orderItemSchema>;
 export const createPurchaseOrderSchema = z.object({
   supplierId: z.string().min(1, 'Supplier is required'),
   supplierName: z.string().min(1, 'Supplier name is required'),
-  documentType: z.enum(['inbound_receipt', 'priority_transfer', 'standard_purchase', 'return_receipt'], {
-    required_error: 'Document type is required',
-  }),
+  documentType: z.enum(['inbound_receipt', 'priority_transfer', 'standard_purchase', 'return_receipt']),
   expectedArrival: z.string().date('Expected arrival date is required'),
   referenceCode: z.string().max(50, 'Reference code must be 50 characters or less').optional().or(z.literal('')),
   notes: z.string().trim().optional().or(z.literal('')),

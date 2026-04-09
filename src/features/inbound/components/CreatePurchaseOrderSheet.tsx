@@ -4,10 +4,10 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { X, Loader2 } from 'lucide-react';
 import { useCreateInbound, useUpdateInbound } from '../hooks/useInbound';
-import { createPurchaseOrderSchema } from '../schemas/createPurchaseRequestSchema';
 import { SupplierSearchSelect } from './SupplierSearchSelect';
 import { OrderItemsTable } from './OrderItemsTable';
-import type { OrderItemSchema, CreatePurchaseOrderSchema } from '../schemas/createPurchaseRequestSchema';
+import type { OrderItemSchema } from '../schemas/createPurchaseRequestSchema';
+import type { CreatePurchaseOrderSchema } from '../schemas/createPurchaseRequestSchema';
 import type { InboundDocumentType } from '../types/inboundType';
 
 interface CreatePurchaseOrderSheetProps {
@@ -102,7 +102,7 @@ export function CreatePurchaseOrderSheet({
       newErrors.items = 'At least one product is required';
     }
 
-    validItems.forEach((item, idx) => {
+    validItems.forEach((item) => {
       const realIdx = items.indexOf(item);
       if (item.quantity < 1) {
         newItemErrors[realIdx] = 'Quantity must be greater than 0';
@@ -157,10 +157,11 @@ export function CreatePurchaseOrderSheet({
         onSuccess: (data) => {
           toast({ title: 'Created successfully', description: 'Purchase order has been created' });
           onClose();
-          navigate(`/inbound/${data.id}`);
+          navigate(`/inbound/${data.data.id}`);
         },
-        onError: () => {
-          toast({ title: 'Creation failed', description: 'Please try again', variant: 'destructive' });
+        onError: (error: any) => {
+          const errMsg = error?.message || error?.toString?.() || 'Please try again';
+          toast({ title: 'Creation failed', description: errMsg, variant: 'destructive' });
         },
       });
     }

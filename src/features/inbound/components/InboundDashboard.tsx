@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePermission } from '@/hooks/usePermission';
 import { useInboundDocuments, useInboundKpis, useSupplierPerformance } from '../hooks/useInbound';
 import { KpiCards } from './KpiCards';
@@ -28,6 +29,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export function InboundDashboard() {
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
 
+  const navigate = useNavigate();
   const canCreatePO = usePermission('inbound:create');
   const canExport = usePermission('inbound:export');
 
@@ -131,6 +133,15 @@ export function InboundDashboard() {
       <PageHeader
         title="Inbound Documents"
         description="Monitor incoming shipments and manage receiving documents."
+        actions={
+          <button
+            onClick={() => navigate('/inbound/receiving')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 shadow-md shadow-teal-300/30 transition-all hover:scale-[0.99]"
+          >
+            <span className="material-symbols-outlined text-[18px]">barcode_scanner</span>
+            Receiving Dock
+          </button>
+        }
       />
 
       <KpiCards

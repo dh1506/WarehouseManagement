@@ -1,4 +1,7 @@
 import apiClient from '@/services/apiClient';
+import { DOCUMENT_TYPE_LABELS } from '../types/inboundType';
+
+// Separated to comply with verbatimModuleSyntax and prevent IDE auto-merge
 import type {
   InboundKpiMetrics,
   InboundPaginatedResult,
@@ -6,133 +9,24 @@ import type {
   SupplierPerformanceItem,
 } from '../types/inboundType';
 
-// ── Flag chuyển đổi mock/real ────────────────────────────────────────────────
-// Đặt USE_MOCK = false khi backend đã sẵn sàng
-const USE_MOCK = true;
-
-// ── Import mock khi cần ─────────────────────────────────────────────────────
-async function getMockModule() {
-  return import('../data/mockInboundData');
-}
-
 // ── Service: Danh sách phiếu nhập ───────────────────────────────────────────
-// GET /api/inbound-plans hoặc GET /api/inbounds
 export async function getInboundDocuments(
   params: InboundQueryParams,
 ): Promise<InboundPaginatedResult> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.fetchInboundDocuments(params);
-  }
-
-  return apiClient.get('/api/inbound-plans', { params });
+  return apiClient.get('/api/stock-ins', { params });
 }
 
 // ── Service: KPI tổng quan ──────────────────────────────────────────────────
 export async function getInboundKpis(): Promise<InboundKpiMetrics> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.fetchInboundKpis();
-  }
-
-  return apiClient.get('/api/inbounds/kpis');
+  return apiClient.get('/api/stock-ins/kpis');
 }
 
 // ── Service: Hiệu suất nhà cung cấp ────────────────────────────────────────
 export async function getSupplierPerformance(): Promise<SupplierPerformanceItem[]> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.fetchSupplierPerformance();
-  }
-
-  return apiClient.get('/api/inbounds/supplier-performance');
-}
-
-// ── Service: Tạo đề nghị nhập hàng ─────────────────────────────────────────
-// POST /api/purchase-requests
-export async function createPurchaseRequest(
-  data: Record<string, unknown>,
-): Promise<{ success: boolean; id: string }> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.createPurchaseRequest(data);
-  }
-
-  return apiClient.post('/api/purchase-requests', data);
-}
-
-// ── Service: Ghi nhận nhập hàng thực tế ─────────────────────────────────────
-// POST /api/inbounds
-export async function createInbound(
-  data: Record<string, unknown>,
-): Promise<{ success: boolean; id: string }> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.createInbound(data);
-  }
-
-  return apiClient.post('/api/inbounds', data);
-}
-
-// ── Service: Kiểm đếm và đối chiếu ─────────────────────────────────────────
-// POST /api/inbounds/:id/reconcile
-export async function reconcileInbound(
-  inboundId: string,
-): Promise<{ success: boolean }> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.reconcileInbound(inboundId);
-  }
-
-  return apiClient.post(`/api/inbounds/${inboundId}/reconcile`);
-}
-
-// ── Service: Biên bản chênh lệch ────────────────────────────────────────────
-// POST /api/inbounds/:id/discrepancy-report
-export async function createDiscrepancyReport(
-  inboundId: string,
-  data: Record<string, unknown>,
-): Promise<{ success: boolean; reportId: string }> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.createDiscrepancyReport(inboundId, data);
-  }
-
-  return apiClient.post(`/api/inbounds/${inboundId}/discrepancy-report`, data);
-}
-
-// ── Service: Phân bổ vị trí lưu trữ ────────────────────────────────────────
-// PATCH /api/inbounds/:id/allocate-location
-export async function allocateLocation(
-  inboundId: string,
-  data: Record<string, unknown>,
-): Promise<{ success: boolean }> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.allocateLocation(inboundId, data);
-  }
-
-  return apiClient.patch(`/api/inbounds/${inboundId}/allocate-location`, data);
-}
-
-// ── Service: Export danh sách phiếu nhập ────────────────────────────────────
-// GET /api/inbound-plans/export
-export async function exportInboundDocuments(
-  params: InboundQueryParams,
-): Promise<Blob> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.exportInboundDocuments(params);
-  }
-
-  return apiClient.get('/api/inbound-plans/export', {
-    params,
-    responseType: 'blob',
-  });
+  return apiClient.get('/api/stock-ins/supplier-performance');
 }
 
 // ── Service: Tạo phiếu nhập (Create PO) ─────────────────────────────────────
-// POST /api/inbounds
 export interface CreateInboundPayload {
   supplierId: string;
   supplierName: string;
@@ -152,23 +46,45 @@ export interface CreateInboundPayload {
 
 export interface CreateInboundResponse {
   success: boolean;
-  id: string;
-  documentId: string;
+  data: { id: number; code: string };
+  message: string;
+}
+
+interface LocationSearchResponse {
+  data?: { locations?: Array<{ id: number }> };
+  locations?: Array<{ id: number }>;
 }
 
 export async function createInboundPO(
   payload: CreateInboundPayload,
 ): Promise<CreateInboundResponse> {
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.createInboundPO(payload);
+  let locationId = 1;
+  try {
+    const locRes = (await apiClient.get('/api/warehouses/locations/search', {
+      params: { page: 1, limit: 1 },
+    })) as LocationSearchResponse;
+    const locations = locRes?.data?.locations || locRes?.locations || [];
+    if (locations.length > 0) {
+      locationId = locations[0].id;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch default warehouse location', err);
   }
 
-  return apiClient.post('/api/inbounds', payload);
+  const backendPayload = {
+    warehouse_location_id: locationId, // Dynamically use an existing location
+    description: `[${DOCUMENT_TYPE_LABELS[payload.documentType as keyof typeof DOCUMENT_TYPE_LABELS] || payload.documentType}] Ref: ${payload.referenceCode || 'N/A'}${payload.notes ? ` - ${payload.notes}` : ''}`,
+    details: payload.items.map(item => ({
+      product_id: parseInt(item.productId, 10) || 1,
+      expected_quantity: item.quantity,
+      unit_price: item.unitPrice || 0
+    }))
+  };
+
+  return apiClient.post('/api/stock-ins', backendPayload);
 }
 
 // ── Service: Cập nhật phiếu nhập (Update PO) ────────────────────────────────
-// PUT /api/inbounds/:id
 export interface UpdateInboundPayload extends CreateInboundPayload {
   id: string;
 }
@@ -177,11 +93,15 @@ export async function updateInboundPO(
   payload: UpdateInboundPayload,
 ): Promise<CreateInboundResponse> {
   const { id, ...data } = payload;
+  return apiClient.put(`/api/stock-ins/${id}`, data);
+}
 
-  if (USE_MOCK) {
-    const mock = await getMockModule();
-    return mock.updateInboundPO(id, data);
-  }
-
-  return apiClient.put(`/api/inbounds/${id}`, data);
+// ── Service: Export danh sách phiếu nhập ────────────────────────────────────
+export async function exportInboundDocuments(
+  params: InboundQueryParams,
+): Promise<Blob> {
+  return apiClient.get('/api/stock-ins/export', {
+    params,
+    responseType: 'blob',
+  });
 }
