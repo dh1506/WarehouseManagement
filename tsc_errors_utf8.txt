@@ -1,0 +1,4 @@
+﻿src/features/outbound/components/LineItemEditor.tsx(36,5): error TS6133: 'watch' is declared but its value is never read.
+src/features/outbound/components/OutboundList.tsx(5,1): error TS6133: 'OUTBOUND_STATUS_LABELS' is declared but its value is never read.
+src/features/products/hooks/useProducts.ts(101,56): error TS2304: Cannot find name 'ProductStatus'.
+src/services/advancedPermissionService.ts(223,10): error TS6133: 'hasModuleAccess' is declared but its value is never read.
