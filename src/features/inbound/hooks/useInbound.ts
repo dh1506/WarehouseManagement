@@ -1,77 +1,107 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getInboundDocuments,
-  getInboundKpis,
-  getSupplierPerformance,
-  createInboundPO,
-  updateInboundPO,
+  getStockIns,
+  createStockIn,
+  approveStockIn,
+  completeStockIn,
 } from '../services/inboundService';
 import type {
-  InboundKpiMetrics,
-  InboundPaginatedResult,
-  InboundQueryParams,
-  SupplierPerformanceItem,
+  StockIn,
+  StockInListResponse,
+  StockInQueryParams,
+  StockInKpiStats,
 } from '../types/inboundType';
-import type { CreateInboundPayload, UpdateInboundPayload, CreateInboundResponse } from '../services/inboundService';
+import type { CreateStockInPayload } from '../services/inboundService';
 
-// ── Query keys ổn định và nhất quán ─────────────────────────────────────────
-const INBOUND_KEYS = {
-  all: ['inbound'] as const,
-  documents: (params: InboundQueryParams) =>
-    ['inbound', 'documents', params] as const,
-  kpis: () => ['inbound', 'kpis'] as const,
-  supplierPerformance: () => ['inbound', 'supplier-performance'] as const,
+// ── Stable query keys ─────────────────────────────────────────────────────────
+export const STOCK_IN_KEYS = {
+  all: ['stock-ins'] as const,
+  list: (params: StockInQueryParams) => ['stock-ins', 'list', params] as const,
+  detail: (id: number) => ['stock-ins', 'detail', id] as const,
 };
 
-// ── Hook: Lấy danh sách phiếu nhập có phân trang ────────────────────────────
-export function useInboundDocuments(params: InboundQueryParams) {
-  return useQuery<InboundPaginatedResult>({
-    queryKey: INBOUND_KEYS.documents(params),
-    queryFn: () => getInboundDocuments(params),
-    placeholderData: (previousData) => previousData,
+// ── Hook: paginated list ──────────────────────────────────────────────────────
+export function useStockIns(params: StockInQueryParams) {
+  return useQuery<StockInListResponse>({
+    queryKey: STOCK_IN_KEYS.list(params),
+    queryFn: () => getStockIns(params),
+    placeholderData: (prev) => prev,
   });
 }
 
-// ── Hook: KPI tổng quan với short-polling (AC 17) ───────────────────────────
-export function useInboundKpis() {
-  return useQuery<InboundKpiMetrics>({
-    queryKey: INBOUND_KEYS.kpis(),
-    queryFn: getInboundKpis,
-    refetchInterval: 30_000,
+// ── Hook: KPI stats derived from a full-list query (no separate endpoint) ────
+export function useStockInKpis() {
+  const allParams: StockInQueryParams = {
+    page: 1,
+    limit: 100,
+    search: '',
+    status: 'all',
+  };
+
+  const { data, isLoading, isError } = useQuery<StockInListResponse>({
+    queryKey: ['stock-ins', 'kpis'],
+    queryFn: () => getStockIns(allParams),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
+
+  const kpis: StockInKpiStats | undefined = useMemo(() => {
+    if (!data) return undefined;
+    const items = data.stockIns;
+    return {
+      total: data.pagination.total,
+      draft: items.filter((s) => s.status === 'DRAFT').length,
+      pending: items.filter((s) => s.status === 'PENDING').length,
+      inProgress: items.filter((s) => s.status === 'IN_PROGRESS').length,
+      discrepancy: items.filter((s) => s.status === 'DISCREPANCY').length,
+      completed: items.filter((s) => s.status === 'COMPLETED').length,
+      cancelled: items.filter((s) => s.status === 'CANCELLED').length,
+    };
+  }, [data]);
+
+  return { kpis, isLoading, isError };
 }
 
-// ── Hook: Hiệu suất nhà cung cấp ───────────────────────────────────────────
-export function useSupplierPerformance() {
-  return useQuery<SupplierPerformanceItem[]>({
-    queryKey: INBOUND_KEYS.supplierPerformance(),
-    queryFn: getSupplierPerformance,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-// ── Hook: Tạo PO ────────────────────────────────────────────────────────────
-export function useCreateInbound() {
+// ── Mutation: create new StockIn (DRAFT) ──────────────────────────────────────
+export function useCreateStockIn() {
   const queryClient = useQueryClient();
 
-  return useMutation<CreateInboundResponse, Error, CreateInboundPayload>({
-    mutationFn: createInboundPO,
+  return useMutation<StockIn, Error, CreateStockInPayload>({
+    mutationFn: createStockIn,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INBOUND_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
     },
   });
 }
 
-// ── Hook: Cập nhật PO ───────────────────────────────────────────────────────
-export function useUpdateInbound() {
+// ── Mutation: approve/submit StockIn (DRAFT → PENDING) ───────────────────────
+// Used by both "Submit for Approval" (manager) and "Approve" (CEO) — same endpoint.
+export function useApproveStockIn() {
   const queryClient = useQueryClient();
 
-  return useMutation<CreateInboundResponse, Error, UpdateInboundPayload>({
-    mutationFn: updateInboundPO,
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: INBOUND_KEYS.all });
-      queryClient.invalidateQueries({ queryKey: ['inbound', 'detail', variables.id] });
+  return useMutation<StockIn, Error, number>({
+    mutationFn: approveStockIn,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
+      queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
+    },
+  });
+}
+
+// Alias — table-level quick submit action
+export const useSubmitStockIn = useApproveStockIn;
+
+// ── Mutation: complete StockIn (→ COMPLETED) ──────────────────────────────────
+export function useCompleteStockIn() {
+  const queryClient = useQueryClient();
+
+  return useMutation<StockIn, Error, number>({
+    mutationFn: completeStockIn,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
+      queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
     },
   });
 }

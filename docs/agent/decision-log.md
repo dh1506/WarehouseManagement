@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-04-09 — Inbound Module Real-API Migration
+
+- **Status enum**: Aligned to BE uppercase `StockInStatus` (`DRAFT|PENDING|IN_PROGRESS|DISCREPANCY|COMPLETED|CANCELLED`).
+- **KPI stats**: No BE endpoint — derived client-side by fetching `limit=100` list and counting statuses.
+- **Supplier gap**: `StockIn` has no `supplier_id`; table column replaced with `creator.full_name`.
+- **Date gap**: No `expected_date`/`actual_date` on `StockIn`; table shows `created_at` (BE sorts desc by default).
+- **WorkflowStepper**: Driven by `status` field — DRAFT→0, PENDING→1, IN_PROGRESS/DISCREPANCY→2, COMPLETED→3.
+- **Hook rule**: `usePermission` called twice (not inside `.some()`) to avoid Rules of Hooks violation.
+- **Motion**: All animations use `motion/react` v12 (`motion`, `AnimatePresence`).
+- **Removed widgets**: `AiForecastWidget`, `SupplierPerformanceWidget` removed from dashboard — no real BE data.
+- **Mock files deleted**: `data/mockInboundData.ts`, `data/mockInboundDetailData.ts`.
+
+
 ## DEC-056 - Low occupancy is now a first-class warning tier
 
 **Date:** 2026-04-02  

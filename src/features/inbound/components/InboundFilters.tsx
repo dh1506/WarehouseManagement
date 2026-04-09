@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -8,56 +8,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type {
-  InboundDocumentStatus,
-  InboundDocumentType,
-} from '../types/inboundType';
-import { DOCUMENT_TYPE_LABELS } from '../types/inboundType';
+import { SupplierSearchSelect } from './SupplierSearchSelect';
+import type { StockInStatus } from '../types/inboundType';
+import { STOCK_IN_STATUS_LABELS } from '../types/inboundType';
 
 interface InboundFiltersProps {
   search: string;
   onSearchChange: (value: string) => void;
-  activeStatus: InboundDocumentStatus | 'all';
-  onStatusChange: (status: InboundDocumentStatus | 'all') => void;
-  documentType: InboundDocumentType | 'all';
-  onDocumentTypeChange: (type: InboundDocumentType | 'all') => void;
+  activeStatus: StockInStatus | 'all';
+  onStatusChange: (status: StockInStatus | 'all') => void;
+  supplierId: string;
+  onSupplierChange: (id: string) => void;
   dateFrom: string;
-  dateTo: string;
   onDateFromChange: (value: string) => void;
+  dateTo: string;
   onDateToChange: (value: string) => void;
   onCreatePO: () => void;
-  onExport: () => void;
   canCreatePO: boolean;
-  canExport: boolean;
 }
 
-const STATUS_OPTIONS: Array<{
-  value: InboundDocumentStatus | 'all';
-  label: string;
-}> = [
-    { value: 'all', label: 'All' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'receiving', label: 'Receiving' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
-  ];
+const STATUS_OPTIONS: Array<{ value: StockInStatus | 'all'; label: string }> = [
+  { value: 'all',          label: 'All Statuses' },
+  { value: 'DRAFT',        label: STOCK_IN_STATUS_LABELS.DRAFT },
+  { value: 'PENDING',      label: STOCK_IN_STATUS_LABELS.PENDING },
+  { value: 'IN_PROGRESS',  label: STOCK_IN_STATUS_LABELS.IN_PROGRESS },
+  { value: 'DISCREPANCY',  label: STOCK_IN_STATUS_LABELS.DISCREPANCY },
+  { value: 'COMPLETED',    label: STOCK_IN_STATUS_LABELS.COMPLETED },
+  { value: 'CANCELLED',    label: STOCK_IN_STATUS_LABELS.CANCELLED },
+];
 
 export function InboundFilters({
   search,
   onSearchChange,
   activeStatus,
   onStatusChange,
-  documentType,
-  onDocumentTypeChange,
+  supplierId,
+  onSupplierChange,
   dateFrom,
-  dateTo,
   onDateFromChange,
+  dateTo,
   onDateToChange,
   onCreatePO,
-  onExport,
   canCreatePO,
-  canExport,
 }: InboundFiltersProps) {
   const [localSearch, setLocalSearch] = useState(search);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,220 +57,149 @@ export function InboundFilters({
   const handleSearchInput = useCallback(
     (value: string) => {
       setLocalSearch(value);
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      debounceRef.current = setTimeout(() => {
-        onSearchChange(value);
-      }, 300);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => onSearchChange(value), 350);
     },
     [onSearchChange],
   );
 
-  useEffect(() => {
-    setLocalSearch(search);
-  }, [search]);
+  useEffect(() => { setLocalSearch(search); }, [search]);
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+  const hasActiveFilters =
+    !!search || activeStatus !== 'all' || !!supplierId || !!dateFrom || !!dateTo;
+
+  const clearAll = useCallback(() => {
+    handleSearchInput('');
+    onStatusChange('all');
+    onSupplierChange('');
+    onDateFromChange('');
+    onDateToChange('');
+  }, [handleSearchInput, onStatusChange, onSupplierChange, onDateFromChange, onDateToChange]);
 
   return (
-    <div className="space-y-3">
-      {/* Row: Search + Status + Date + Actions */}
+    <div className="space-y-2">
+      {/* Primary row */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400">
+        {/* Search by code */}
+        <div className="relative flex-1 min-w-44 max-w-xs">
+          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-slate-400 pointer-events-none">
             search
           </span>
           <input
-            id="inbound-search"
             type="text"
             value={localSearch}
             onChange={(e) => handleSearchInput(e.target.value)}
-            placeholder="Search Document ID, Supplier, Code..."
-            className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+            placeholder="Search by order code…"
+            className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-7 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
           />
-          {localSearch && (
-            <button
-              onClick={() => handleSearchInput('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[14px]">close</span>
-            </button>
-          )}
+          <AnimatePresence>
+            {localSearch && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.12 }}
+                onClick={() => handleSearchInput('')}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Status Select */}
-        <Select
-          value={activeStatus}
-          onValueChange={(v) => onStatusChange(v as InboundDocumentStatus | 'all')}
-        >
-          <SelectTrigger className="h-8 w-[130px] border-slate-200 text-xs">
+        {/* Supplier search */}
+        <div className="min-w-44 max-w-52">
+          <SupplierSearchSelect
+            value={supplierId}
+            onValueChange={(id) => onSupplierChange(id)}
+            placeholder="All suppliers"
+            className="h-8 text-xs"
+            allowClear
+          />
+        </div>
+
+        {/* Status */}
+        <Select value={activeStatus} onValueChange={(v) => onStatusChange(v as StockInStatus | 'all')}>
+          <SelectTrigger className="h-8 w-38 border-slate-200 text-xs shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         {/* Date range */}
-        <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5">
-          <span className="material-symbols-outlined text-[14px] text-slate-400">
-            calendar_today
-          </span>
-          <input
-            id="inbound-date-from"
-            type="date"
-            value={dateFrom}
-            onChange={(e) => onDateFromChange(e.target.value)}
-            className="h-6 border-none bg-transparent text-xs text-slate-600 outline-none"
-          />
-          <span className="text-xs text-slate-300">—</span>
-          <input
-            id="inbound-date-to"
-            type="date"
-            value={dateTo}
-            onChange={(e) => onDateToChange(e.target.value)}
-            className="h-6 border-none bg-transparent text-xs text-slate-600 outline-none"
-          />
+        <div className="flex items-center gap-1 shrink-0">
+          <label className="relative flex items-center">
+            <span className="absolute left-2 text-[10px] font-medium text-slate-400 pointer-events-none select-none leading-none" style={{ top: '4px' }}>
+              FROM
+            </span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => onDateFromChange(e.target.value)}
+              max={dateTo || undefined}
+              className={cn(
+                'h-8 w-32 rounded-lg border bg-white pl-2 pr-2 pt-3.5 pb-0.5 text-[11px] text-slate-700 outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 cursor-pointer',
+                dateFrom ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200',
+              )}
+            />
+          </label>
+          <span className="text-slate-300 text-sm shrink-0">→</span>
+          <label className="relative flex items-center">
+            <span className="absolute left-2 text-[10px] font-medium text-slate-400 pointer-events-none select-none leading-none" style={{ top: '4px' }}>
+              TO
+            </span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => onDateToChange(e.target.value)}
+              min={dateFrom || undefined}
+              className={cn(
+                'h-8 w-32 rounded-lg border bg-white pl-2 pr-2 pt-3.5 pb-0.5 text-[11px] text-slate-700 outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 cursor-pointer',
+                dateTo ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200',
+              )}
+            />
+          </label>
         </div>
 
-        {/* Document Type Filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              id="inbound-advanced-filter-btn"
-              className={cn(
-                'flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium transition-all whitespace-nowrap',
-                documentType !== 'all'
-                  ? 'border-blue-200 bg-blue-50 text-blue-700'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-              )}
+        {/* Clear all */}
+        <AnimatePresence>
+          {hasActiveFilters && (
+            <motion.button
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -6 }}
+              transition={{ duration: 0.15 }}
+              onClick={clearAll}
+              className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors shrink-0"
             >
-              <span className="material-symbols-outlined text-[14px]">filter_list</span>
-              Type
-              {documentType !== 'all' && (
-                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-blue-600 text-[8px] font-bold text-white">
-                  1
-                </span>
-              )}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-2">
-            <p className="text-xs font-semibold text-slate-700 mb-1.5">Document Type</p>
-            <div className="space-y-0.5">
-              <FilterOption
-                label="All Types"
-                active={documentType === 'all'}
-                onClick={() => onDocumentTypeChange('all')}
-              />
-              {(Object.entries(DOCUMENT_TYPE_LABELS) as Array<[InboundDocumentType, string]>).map(
-                ([value, label]) => (
-                  <FilterOption
-                    key={value}
-                    label={label}
-                    active={documentType === value}
-                    onClick={() => onDocumentTypeChange(value)}
-                  />
-                ),
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
+              <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
+              Clear
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Export */}
-        {canExport && (
-          <button
-            id="inbound-export-btn"
-            onClick={onExport}
-            title="Export to CSV/Excel"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700"
-          >
-            <span className="material-symbols-outlined text-[16px]">download</span>
-          </button>
-        )}
-
-        {/* Create PO */}
+        {/* Create */}
         {canCreatePO && (
-          <button
-            id="inbound-create-po-btn"
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             onClick={onCreatePO}
-            className="flex h-8 items-center gap-1 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white shadow-sm transition-all hover:bg-blue-700 active:bg-blue-800"
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors shrink-0"
           >
             <span className="material-symbols-outlined text-[14px]">add</span>
-            <span className="hidden sm:inline">Create PO</span>
-          </button>
+            <span className="hidden sm:inline">Create Order</span>
+          </motion.button>
         )}
-      </div>
-
-      {/* Date range for mobile */}
-      <div className="flex md:hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1">
-        <span className="material-symbols-outlined text-[14px] text-slate-400">
-          calendar_today
-        </span>
-        <input
-          id="inbound-date-from-mobile"
-          type="date"
-          value={dateFrom}
-          onChange={(e) => onDateFromChange(e.target.value)}
-          className="h-7 flex-1 border-none bg-transparent text-xs text-slate-600 outline-none"
-        />
-        <span className="text-xs text-slate-300">—</span>
-        <input
-          id="inbound-date-to-mobile"
-          type="date"
-          value={dateTo}
-          onChange={(e) => onDateToChange(e.target.value)}
-          className="h-7 flex-1 border-none bg-transparent text-xs text-slate-600 outline-none"
-        />
       </div>
     </div>
-  );
-}
-
-function FilterOption({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
-        active
-          ? 'bg-blue-50 text-blue-700 font-semibold'
-          : 'text-slate-600 hover:bg-slate-50',
-      )}
-    >
-      <span
-        className={cn(
-          'flex h-3.5 w-3.5 items-center justify-center rounded-full border text-[9px]',
-          active
-            ? 'border-blue-600 bg-blue-600 text-white'
-            : 'border-slate-300',
-        )}
-      >
-        {active && (
-          <span className="material-symbols-outlined text-[9px]">check</span>
-        )}
-      </span>
-      {label}
-    </button>
   );
 }

@@ -1,95 +1,140 @@
-// Trạng thái của phiếu nhập kho
-export type InboundDocumentStatus =
-  | 'completed'
-  | 'receiving'
-  | 'pending'
-  | 'draft'
-  | 'cancelled';
+// ── BE StockIn status enum (mirrors Prisma StockInStatus) ───────────────────
+export type StockInStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'IN_PROGRESS'
+  | 'DISCREPANCY'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
-// Loại chứng từ nhập kho
-export type InboundDocumentType =
-  | 'inbound_receipt'
-  | 'priority_transfer'
-  | 'standard_purchase'
-  | 'return_receipt';
+// ── BE response shape for a single StockIn (list row) ───────────────────────
+export interface StockInCreator {
+  id: number;
+  username: string;
+  full_name: string;
+}
 
-// Thông tin nhà cung cấp hiển thị trên bảng
-export interface InboundSupplier {
-  id: string;
+export interface StockInLocation {
+  id: number;
+  location_code: string;
+  full_path: string;
+}
+
+export interface StockInDetailProduct {
+  code: string;
   name: string;
-  logo?: string;
+  base_uom: { id: number; code: string; name: string };
 }
 
-// Một dòng phiếu nhập trong bảng danh sách
-export interface InboundDocument {
-  id: string;
-  documentId: string;
-  documentType: InboundDocumentType;
-  supplier: InboundSupplier;
-  expectedArrival: string; // ISO date
-  actualArrival: string | null; // null = chưa đến
-  status: InboundDocumentStatus;
-  totalItems: number;
-  totalValue: number; // Ẩn nếu user không có quyền
-  relatedDocumentCode: string;
-  createdAt: string;
+export interface StockInDetail {
+  id: number;
+  product_id: number;
+  expected_quantity: string; // Prisma Decimal serialises as string
+  received_quantity: string;
+  unit_price: string | null;
+  product: StockInDetailProduct;
+  lots: StockInDetailLot[];
 }
 
-// KPI tổng quan
-export interface InboundKpiMetrics {
-  pendingInbound: number;
-  pendingInboundChangePercent: number; // So sánh % với tuần trước
-  activeReceiving: number;
-  totalDocks: number;
-  avgProcessingTimeMinutes: number;
-  avgProcessingTimeChangePercent: number;
+export interface StockInDetailLot {
+  id: number;
+  quantity: string;
+  product_lot: {
+    id: number;
+    lot_no: string;
+    expired_date: string | null;
+    inventory: {
+      location: { full_path: string; id: number };
+    };
+  };
 }
 
-// Hiệu suất giao hàng nhà cung cấp
-export interface SupplierPerformanceItem {
-  supplierId: string;
-  supplierName: string;
-  supplierLogo?: string;
-  onTimeRate: number; // 0-100%
-  totalDeliveries: number;
-  lateDeliveries: number;
+export interface StockInDiscrepancy {
+  id: number;
+  stock_in_id: number;
+  reported_by: number;
+  resolved_by: number | null;
+  expected_qty: string;
+  actual_qty: string;
+  reason: string;
+  action_taken: string | null;
+  status: 'PENDING' | 'RESOLVED';
+  created_at: string;
+  updated_at: string;
 }
 
-// Tham số truy vấn cho danh sách phiếu nhập
-export interface InboundQueryParams {
+export interface StockInSupplier {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface StockIn {
+  id: number;
+  code: string;
+  description: string | null;
+  status: StockInStatus;
+  created_at: string;
+  updated_at: string;
+  location: StockInLocation;
+  creator: StockInCreator;
+  approver: StockInCreator | null;
+  supplier: StockInSupplier | null;
+  details: StockInDetail[];
+  discrepancies: StockInDiscrepancy[];
+}
+
+// ── Pagination shape returned by BE ─────────────────────────────────────────
+export interface StockInPagination {
   page: number;
-  pageSize: number;
-  search: string;
-  status: InboundDocumentStatus | 'all';
-  documentType: InboundDocumentType | 'all';
-  dateFrom: string; // ISO date
-  dateTo: string; // ISO date
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-// Kết quả phân trang
-export interface InboundPaginatedResult {
-  items: InboundDocument[];
+  limit: number;
   total: number;
-  page: number;
-  pageSize: number;
   totalPages: number;
 }
 
-// Nhãn hiển thị cho loại chứng từ
-export const DOCUMENT_TYPE_LABELS: Record<InboundDocumentType, string> = {
-  inbound_receipt: 'Inbound Receipt',
-  priority_transfer: 'Priority Transfer',
-  standard_purchase: 'Standard Purchase',
-  return_receipt: 'Return Receipt',
+// ── Full list response (after apiClient interceptor unwraps response.data) ──
+export interface StockInListResponse {
+  stockIns: StockIn[];
+  pagination: StockInPagination;
+}
+
+// ── Query params sent to BE ──────────────────────────────────────────────────
+export interface StockInQueryParams {
+  page: number;
+  limit: number;
+  search: string;
+  status: StockInStatus | 'all';
+  supplier_id?: number;  // sent to BE (supported)
+  date_from?: string;    // YYYY-MM-DD — client-side filter only
+  date_to?: string;      // YYYY-MM-DD — client-side filter only
+}
+
+// ── KPI stats derived on the FE from list data ───────────────────────────────
+export interface StockInKpiStats {
+  total: number;
+  draft: number;
+  pending: number;
+  inProgress: number;
+  discrepancy: number;
+  completed: number;
+  cancelled: number;
+}
+
+// ── Human-readable labels for BE status ─────────────────────────────────────
+export const STOCK_IN_STATUS_LABELS: Record<StockInStatus, string> = {
+  DRAFT: 'Draft',
+  PENDING: 'Pending Approval',
+  IN_PROGRESS: 'Receiving',
+  DISCREPANCY: 'Discrepancy',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
 };
 
-// Nhãn hiển thị cho trạng thái
-export const DOCUMENT_STATUS_LABELS: Record<InboundDocumentStatus, string> = {
-  completed: 'Completed',
-  receiving: 'Receiving',
-  pending: 'Pending',
-  draft: 'Draft',
-  cancelled: 'Cancelled',
-};
+// ── Helper: compute total value for a StockIn row ───────────────────────────
+export function computeStockInTotalValue(details: StockInDetail[]): number {
+  return details.reduce((sum, d) => {
+    const price = d.unit_price ? Number(d.unit_price) : 0;
+    const qty = Number(d.expected_quantity);
+    return sum + price * qty;
+  }, 0);
+}

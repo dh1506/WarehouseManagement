@@ -66,13 +66,13 @@ export function MainLayout() {
 
         {/* Content Area — overflow-hidden để page con tự quản lý scroll nội bộ */}
         <main className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              key={location.key}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
               className="h-full"
             >
               <Outlet />

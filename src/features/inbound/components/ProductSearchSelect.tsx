@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-interface ProductOption {
+export interface ProductOption {
   id: string;
   name: string;
   sku: string;
@@ -31,14 +31,17 @@ interface ProductSearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   excludeIds?: string[];
+  /** Filter products by category id */
+  categoryId?: string;
 }
 
 export function ProductSearchSelect({
   value,
   onValueChange,
-  placeholder = 'Search product...',
+  placeholder = 'Search product…',
   disabled,
   excludeIds = [],
+  categoryId,
 }: ProductSearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -48,24 +51,19 @@ export function ProductSearchSelect({
   const handleSearchChange = useCallback((val: string) => {
     setSearch(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setDebouncedSearch(val);
-    }, 300);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(val), 200);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', 'options', debouncedSearch],
+    queryKey: ['products', 'options', debouncedSearch, categoryId ?? ''],
     queryFn: () =>
       getProducts({
         page: 1,
         pageSize: 50,
         search: debouncedSearch,
+        categoryId,
       }).then((res) =>
         res.data.map((p) => ({
           id: p.id,
@@ -78,10 +76,7 @@ export function ProductSearchSelect({
     staleTime: 30_000,
   });
 
-  const filteredProducts = products.filter(
-    (p) => !excludeIds.includes(p.id),
-  );
-
+  const filteredProducts = products.filter((p) => !excludeIds.includes(p.id));
   const selected = products.find((p) => p.id === value);
 
   return (
@@ -96,27 +91,32 @@ export function ProductSearchSelect({
           )}
         >
           <span className="truncate">
-            {selected ? `${selected.name} (${selected.sku})` : placeholder}
+            {selected ? (
+              <span>
+                <span className="font-medium text-slate-800">{selected.name}</span>
+                <span className="ml-1.5 text-xs text-slate-400">{selected.sku}</span>
+              </span>
+            ) : placeholder}
           </span>
           <ChevronsUpDown className="ml-1.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search by name or SKU..."
+            placeholder="Search by name or SKU…"
             value={search}
             onValueChange={handleSearchChange}
           />
-          <CommandList>
+          <CommandList className="max-h-52">
             <CommandEmpty>
-              {isLoading ? 'Loading...' : 'No product found.'}
+              {isLoading ? 'Loading…' : 'No product found.'}
             </CommandEmpty>
             <CommandGroup>
               {filteredProducts.map((product) => (
                 <CommandItem
                   key={product.id}
-                  value={`${product.sku} ${product.name}`}
+                  value={product.id}
                   onSelect={() => {
                     onValueChange(product);
                     setOpen(false);
@@ -124,18 +124,12 @@ export function ProductSearchSelect({
                     setDebouncedSearch('');
                   }}
                 >
-                  <Check
-                    className={cn(
-                      'mr-2 h-4 w-4',
-                      value === product.id ? 'opacity-100' : 'opacity-0',
-                    )}
-                  />
+                  <Check className={cn('mr-2 h-4 w-4 shrink-0', value === product.id ? 'opacity-100' : 'opacity-0')} />
                   <div className="min-w-0 flex-1">
-                    <span className="truncate text-sm">{product.name}</span>
-                    <span className="ml-1.5 text-xs text-slate-400">
-                      {product.sku}
-                    </span>
+                    <span className="text-sm">{product.name}</span>
+                    <span className="ml-1.5 text-xs text-slate-400">{product.sku}</span>
                   </div>
+                  <span className="shrink-0 ml-2 text-[10px] text-slate-400 font-medium">{product.uom}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

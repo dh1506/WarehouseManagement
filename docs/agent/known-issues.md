@@ -4,6 +4,15 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 
 ## Open Issues
 
+### [INBOUND-01] KPI stats are approximate (limited to first 100 records)
+**Impact**: `useStockInKpis` fetches `limit=100` — will undercount if total > 100.
+**Resolution**: BE should expose a `/stock-ins/stats` endpoint, or increase limit once pagination total is known.
+
+### [INBOUND-02] `warehouse_location_id` is a raw number input in Create form
+**Impact**: Poor UX — user must know the numeric ID of the warehouse location.
+**Resolution**: A warehouse location search/select component once a `GET /api/warehouse-locations` endpoint is available.
+
+
 1. **Back-end Integration**
    - User management đã bỏ mock và gọi API thật `/api/users`.
    - Presigned URL API for upload ảnh avatar (Backblaze B2) chưa làm.

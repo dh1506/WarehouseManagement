@@ -4,6 +4,26 @@
 
 ## Features
 
+### `features/inbound/` (updated 2026-04-09)
+| File | Purpose |
+|------|---------|
+| `types/inboundType.ts` | BE-aligned `StockIn`, `StockInDetail`, `StockInStatus`, helpers |
+| `types/inboundDetailType.ts` | Re-exports + mutation payload types |
+| `services/inboundService.ts` | `getStockIns`, `createStockIn`, `approveStockIn`, `completeStockIn` |
+| `services/inboundDetailService.ts` | `getStockInDetail`, `recordReceipt`, `createDiscrepancy`, `resolveDiscrepancy`, `allocateLots` |
+| `hooks/useInbound.ts` | `useStockIns`, `useStockInKpis`, `useCreateStockIn`, `useApproveStockIn`, `useCompleteStockIn` |
+| `hooks/useInboundDetail.ts` | `useStockInDetail`, `useRecordReceipt`, `useCreateDiscrepancy`, `useResolveDiscrepancy`, `useAllocateLots` |
+| `schemas/inboundSchemas.ts` | Zod: query, recordReceipt, discrepancy, resolve |
+| `schemas/createPurchaseRequestSchema.ts` | Zod: create form (`warehouse_location_id`, `details[]`) |
+| `components/InboundDashboard.tsx` | Page orchestrator with motion |
+| `components/InboundFilters.tsx` | Search + status filter (BE enum) |
+| `components/InboundTable.tsx` | List table mapped to BE fields + motion rows |
+| `components/KpiCards.tsx` | 4 stat cards from real list data |
+| `components/WorkflowStepper.tsx` | Status → visual steps with motion |
+| `components/InboundDetail.tsx` | Detail view: items, discrepancies, action buttons |
+| `components/CreatePurchaseOrderSheet.tsx` | Slide-in create form → `POST /api/stock-ins` |
+
+
 - **Users**: Admin có thể quản lí user (`src/features/users/`)
   - `components/UserManagement.tsx`: Container chính, wire các components.
   - `components/UserTable.tsx`: Hiện thị danh sách user.
