@@ -6,6 +6,11 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 
 1. **Back-end Integration**
    - User management đã bỏ mock và gọi API thật `/api/users`.
+<<<<<<< HEAD
+=======
+   - Inbound module backend endpoints are not yet implemented; frontend currently uses mock data (USE_MOCK). Endpoints to align with: `/api/inbound-plans`, `/api/inbounds/kpis`, `/api/inbounds/supplier-performance`, `/api/inbound-plans/export`.
+   - Ensure proper API contracts for inbound: filtering by status, dateFrom/dateTo, documentType; date formatting; and export formats.
+>>>>>>> master
    - Presigned URL API for upload ảnh avatar (Backblaze B2) chưa làm.
    - Role permission module đã chuyển sang API thật (`/api/roles`, `/api/roles/:id`, `/api/permissions`, `PUT /api/roles/:id/permissions`).
    - Nếu login payload backend thay đổi thêm field, cần cập nhật mapper tại `features/auth/api/login.ts` để tránh lệch `UserProfile`.
@@ -122,3 +127,9 @@ File này theo dõi các vấn đề cần xử lý, bao gồm technical debt, b
 - 2026-04-03: Product create/update flows still do not expose supplier assignment editing in FE, even though product detail payloads can include supplier relations from backend.
 - 2026-04-03: Role Permissions page now uses the advanced module permission matrix. The legacy `useRolePermissions` hook is still exported from `features/roles/hooks/useRolePermissions.ts` but is no longer used by the `RolePermissions` component (only `useRoles`, `useCreateRole`, `useUpdateRole` remain in use). The legacy `Permission` type and `RolePermissionResponse`/`UpdateRolePermissionPayload` types in `roleType.ts` are also no longer consumed by the RolePermissions component.
 - 2026-04-03: Permission enforcement across User Management, Product Management, Product Settings, and Categories now uses conditional rendering (hide buttons) instead of toast-blocking. Warehouse modules already followed this pattern. The `hasPermission` helper in `CategoryManagementV2.tsx` is still used for that component's permission checks and could be migrated to `usePermission` hook in a future refactor.
+<<<<<<< HEAD
+=======
+- 2026-04-07: Inbound Detail module is mock-bound (`USE_MOCK = true`). Backend endpoints needed: `GET /api/inbounds/:id`, `POST /api/upload` (multipart/form-data), `DELETE /api/attachments/:id`, `PUT /api/inbounds/:id/receive`. When BE is ready, flip `USE_MOCK = false` in `inboundDetailService.ts`.
+- 2026-04-07: Upload progress bar is simulated client-side (10% increments) until the mutation completes. When real BE supports progress events (e.g., Axios `onUploadProgress`), replace the interval with actual progress tracking.
+- 2026-04-07: Permission keys `inbound:receive` and `inbound:view_value` are assumed. These need to be confirmed/added to the backend permission catalog.
+>>>>>>> master

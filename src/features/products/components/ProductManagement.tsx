@@ -613,11 +613,12 @@ export function ProductManagement() {
                               )}
                             </div>
                           </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                        </tr >
+                      ))
+                      }
+                    </tbody >
+                  </table >
+                </div >
 
                 {totalItems > 0 ? (
                   <Pagination
@@ -634,9 +635,9 @@ export function ProductManagement() {
                 ) : null}
               </>
             )}
-          </div>
-        </div>
-      </div>
+          </div >
+        </div >
+      </div >
 
       <ProductFormSheet
         open={isSheetOpen}
@@ -750,7 +751,7 @@ export function ProductManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }
 
