@@ -485,19 +485,9 @@ function AllocateLotModal({
     return Math.max(0, received - allocated);
   };
 
-  const isValid = rows.every((r) => {
-    if (!r.location_id || r.location_id <= 0 || !r.lot_no.trim() || r.quantity <= 0) {
-      return false;
-    }
-    // Check that allocation doesn't exceed remaining quantity
-    const detail = details.find((d) => d.id === r.stock_in_detail_id);
-    if (!detail) return false;
-    const received = Number(detail.received_quantity) || 0;
-    const otherAllocations = rows
-      .filter((row) => row.stock_in_detail_id === r.stock_in_detail_id && row !== r)
-      .reduce((sum, row) => sum + row.quantity, 0);
-    return r.quantity + otherAllocations <= received;
-  });
+  const isValid = rows.every(
+    (r) => !!r.location_id && r.location_id > 0 && r.lot_no.trim().length > 0 && r.quantity > 0,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -542,14 +532,15 @@ function AllocateLotModal({
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">
                     Số lượng
-                    <span className="ml-2 text-blue-600 font-semibold">
-                      ({getRemainingQty(row.stock_in_detail_id)} còn lại)
-                    </span>
+                    {Number(details.find((d) => d.id === row.stock_in_detail_id)?.received_quantity) > 0 && (
+                      <span className="ml-2 text-blue-600 font-semibold">
+                        ({getRemainingQty(row.stock_in_detail_id)} còn lại)
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"
                     min={0}
-                    max={getRemainingQty(row.stock_in_detail_id)}
                     value={row.quantity}
                     onChange={(e) => updateRow(idx, { quantity: Math.max(0, Number(e.target.value)) })}
                     className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm tabular-nums outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -778,7 +769,7 @@ export function StockInWorkerView() {
           location_id: r.location_id as number,
           lot_no: r.lot_no.trim(),
           quantity: r.quantity,
-          expired_date: r.expired_date || undefined,
+          expired_date: r.expired_date ? new Date(r.expired_date).toISOString() : undefined,
         }));
 
       if (allocations.length === 0) return;

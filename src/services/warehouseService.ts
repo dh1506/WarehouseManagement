@@ -1251,28 +1251,51 @@ export async function updateWarehouseZone(
 
 export async function deleteWarehouseZone(warehouseId: string, zoneId: string): Promise<void> {
   const zoneCode = zoneCodeKey(extractZoneCodeFromId(warehouseId, zoneId));
-  const zoneLocations = await fetchLocationsByZoneCode(warehouseId, zoneCode, false);
-  if (zoneLocations.length === 0) {
+
+  console.debug('[deleteWarehouseZone] start', { warehouseId, zoneId, zoneCode });
+
+  // Fetch ALL locations (including inactive) so we get a complete picture.
+  // Then only patch the ones that are currently active — inactive ones are already done.
+  const allZoneLocations = await fetchLocationsByZoneCode(warehouseId, zoneCode, true);
+  const activeLocations = allZoneLocations.filter((loc) => loc.status !== 'inactive');
+
+  console.debug('[deleteWarehouseZone] locations', {
+    all: allZoneLocations.length,
+    active: activeLocations.length,
+    ids: activeLocations.map((l) => l.id),
+    statuses: allZoneLocations.map((l) => ({ id: l.id, status: l.status })),
+  });
+
+  if (allZoneLocations.length === 0) {
+    // Zone has no locations at all — just clean up metadata and exit cleanly.
+    console.debug('[deleteWarehouseZone] no locations found — fallback cleanup only');
+    removeZoneMetadataFallback(warehouseId, zoneCode);
     return;
   }
 
-  await Promise.all(
-    zoneLocations.map((location) => {
-      const normalizedWeight = normalizeWeightForLocationUpdate(location.currentLoad, location.capacity);
-      return apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(location.id)}`, {
-        is_active: false,
-        location_status: 'MAINTENANCE',
-        max_weight: normalizedWeight.maxWeight,
-        current_weight: normalizedWeight.currentWeight,
-        max_volume: null,
-        current_volume: 0,
-      });
-    }),
-  );
+  if (activeLocations.length > 0) {
+    const patchResults = await Promise.allSettled(
+      activeLocations.map((location) =>
+        apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(location.id)}`, {
+          is_active: false,
+          location_status: 'MAINTENANCE',
+        }),
+      ),
+    );
+    const failed = patchResults.filter((r) => r.status === 'rejected');
+    console.debug('[deleteWarehouseZone] patch results', {
+      total: patchResults.length,
+      succeeded: patchResults.length - failed.length,
+      failed: failed.length,
+      errors: failed.map((r) => (r as PromiseRejectedResult).reason),
+    });
+    if (failed.length > 0) {
+      throw new Error(`Không thể vô hiệu hóa ${failed.length}/${patchResults.length} vị trí trong zone.`);
+    }
+  }
 
   removeZoneMetadataFallback(warehouseId, zoneCode);
-
-  void zoneId;
+  console.debug('[deleteWarehouseZone] done');
 }
 
 export async function updateWarehouseLayoutConfig(

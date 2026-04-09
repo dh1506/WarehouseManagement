@@ -273,7 +273,9 @@ export function useDeleteWarehouseZone() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      // Invalidate + immediately refetch so the UI reflects the server state
+      // rather than relying on the optimistic snapshot.
+      void queryClient.refetchQueries({ queryKey: WAREHOUSE_KEYS.hubs, type: 'active' });
     },
   });
 }
