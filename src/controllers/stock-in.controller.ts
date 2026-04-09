@@ -22,6 +22,7 @@ export const getStockIns = catchAsync(async (req: Request, res: Response) => {
     warehouse_location_id: req.query.warehouse_location_id
       ? Number(req.query.warehouse_location_id)
       : undefined,
+    supplier_id: req.query.supplier_id ? Number(req.query.supplier_id) : undefined,
   };
 
   const result = await stockInService.getStockIns(query);
@@ -66,7 +67,7 @@ export const createStockIn = catchAsync(async (req: Request, res: Response) => {
 
 /**
  * Duyệt phiếu đề nghị nhập kho
- * POST /api/stock-ins/:id/approve
+ * PATCH /api/stock-ins/:id/approve
  */
 export const approveStockIn = catchAsync(async (req: Request, res: Response) => {
   const id = Number(req.params.id);

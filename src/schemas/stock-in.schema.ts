@@ -26,6 +26,11 @@ export const getStockInsQuerySchema = z.object({
       .optional()
       .transform((val) => (val ? parseInt(val, 10) : undefined))
       .pipe(z.number().int().positive().optional()),
+    supplier_id: z
+      .string()
+      .optional()
+      .transform((val) => (val ? parseInt(val, 10) : undefined))
+      .pipe(z.number().int().positive().optional()),
   }),
 });
 
@@ -36,6 +41,7 @@ export const getStockInByIdParamSchema = z.object({
 export const createStockInSchema = z.object({
   body: z.object({
     warehouse_location_id: z.number().int().positive("Warehouse Location ID không hợp lệ"),
+    supplier_id: z.number().int().positive("Supplier ID không hợp lệ"),
     description: z.string().optional(),
     details: z.array(
       z.object({

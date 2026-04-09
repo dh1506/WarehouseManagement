@@ -1087,6 +1087,7 @@ async function main() {
           status: "COMPLETED",
           created_by: adminUser.id,
           approved_by: adminUser.id,
+          supplier_id: products[index].supplier.id,
         },
       }),
     ),

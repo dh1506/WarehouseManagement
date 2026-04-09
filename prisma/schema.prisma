@@ -193,6 +193,7 @@ model Supplier {
   created_at       DateTime          @default(now())
   updated_at       DateTime          @updatedAt
   productSuppliers ProductSupplier[]
+  stock_ins        StockIn[]
 
   @@map("suppliers")
 }
@@ -381,6 +382,7 @@ model StockIn {
   status                StockInStatus        @default(DRAFT)
   created_by            Int
   approved_by           Int?
+  supplier_id           Int
   created_at            DateTime             @default(now())
   updated_at            DateTime             @updatedAt
   details               StockInDetail[]
@@ -388,10 +390,12 @@ model StockIn {
   approver              User?                @relation("StockInApprover", fields: [approved_by], references: [id])
   creator               User                 @relation("StockInCreator", fields: [created_by], references: [id])
   location              WarehouseLocation    @relation(fields: [warehouse_location_id], references: [id])
+  supplier              Supplier             @relation(fields: [supplier_id], references: [id])
 
   @@index([warehouse_location_id])
   @@index([created_by])
   @@index([approved_by])
+  @@index([supplier_id])
   @@map("stock_ins")
 }
 
