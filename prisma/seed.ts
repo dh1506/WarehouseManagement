@@ -14,8 +14,14 @@ import dotenv from "dotenv";
 import {
   generateLocationCode,
   generateProductSku,
+  generateStockInCode,
   normalizeNameToCode,
 } from "../src/utils/generate-code.util";
+
+const generateStockOutCode = (sequenceId: number): string => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return `SO-${dateStr}-${sequenceId.toString().padStart(4, "0")}`;
+};
 
 dotenv.config();
 
@@ -31,6 +37,13 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   // Clear existing data in dependency order
   await prisma.inventoryTransaction.deleteMany({});
+  await prisma.stockInDetailLot.deleteMany({});
+  await prisma.stockOutDetailLot.deleteMany({});
+  await prisma.stockInDetail.deleteMany({});
+  await prisma.stockOutDetail.deleteMany({});
+  await prisma.stockInDiscrepancy.deleteMany({});
+  await prisma.stockIn.deleteMany({});
+  await prisma.stockOut.deleteMany({});
   await prisma.productLot.deleteMany({});
   await prisma.inventory.deleteMany({});
   await prisma.locationAllowedCategory.deleteMany({});
@@ -811,14 +824,20 @@ async function main() {
   ];
 
   const productRecords = await Promise.all(
-    products.map((product, index) =>
-      prisma.product.upsert({
+    products.map((product, index) => {
+      const productCode = generateProductSku(
+        ProductType.GOODS,
+        product.brand.id,
+        index + 1,
+      );
+
+      return prisma.product.upsert({
         where: {
-          code: generateProductSku("GOODS", product.brand.id, index + 1),
+          code: productCode,
         },
         update: {},
         create: {
-          code: generateProductSku("GOODS", product.brand.id, index + 1),
+          code: productCode,
           name: product.name,
           description: product.description,
           product_type: ProductType.GOODS,
@@ -831,11 +850,9 @@ async function main() {
           production_date: product.production_date,
           min_stock: product.min_stock,
           max_stock: product.max_stock,
-          created_at: new Date(),
-          updated_at: new Date(),
         },
-      }),
-    ),
+      });
+    }),
   );
 
   await prisma.productCategoryMap.createMany({
@@ -881,7 +898,7 @@ async function main() {
     data: products.map((product, index) => ({
       product_id: productRecords[index].id,
       supplier_id: product.supplier.id,
-      supplier_sku: `${product.brand.name.toUpperCase().replace(/[^A-Z0-9]/g, "-")}-${index + 1}`,
+      supplier_sku: `${product.brand.code}-${(index + 1).toString().padStart(3, "0")}`,
       purchase_price: (0.5 + index * 0.2).toFixed(2),
       is_primary: true,
     })),
@@ -983,18 +1000,25 @@ async function main() {
     skipDuplicates: true,
   });
 
-  await prisma.productLot.createMany({
-    data: productRecords.map((product, index) => ({
-      lot_no: `LOT-${product.code}-${index + 1}`,
-      product_id: product.id,
-      inventories_id: inventoryRecords[index].id,
-      status: LotStatus.ACTIVE,
-      production_date: new Date(`2026-0${(index % 9) + 1}-01T00:00:00.000Z`),
-      expired_date: new Date(`2027-0${(index % 9) + 1}-01T00:00:00.000Z`),
-      received_at: new Date(),
-    })),
-    skipDuplicates: true,
-  });
+  const productLotRecords = await Promise.all(
+    productRecords.map((product, index) =>
+      prisma.productLot.upsert({
+        where: { lot_no: `LOT-${product.code}-${index + 1}` },
+        update: {},
+        create: {
+          lot_no: `LOT-${product.code}-${index + 1}`,
+          product_id: product.id,
+          inventories_id: inventoryRecords[index].id,
+          status: LotStatus.ACTIVE,
+          production_date: new Date(
+            `2026-0${(index % 9) + 1}-01T00:00:00.000Z`,
+          ),
+          expired_date: new Date(`2027-0${(index % 9) + 1}-01T00:00:00.000Z`),
+          received_at: new Date(),
+        },
+      }),
+    ),
+  );
 
   const adminUser = await prisma.user.findUnique({
     where: { username: "admin" },
@@ -1003,12 +1027,142 @@ async function main() {
     throw new Error("Admin user not found after seeding users");
   }
 
+  const stockInRecords = await Promise.all(
+    productRecords.map((product, index) =>
+      prisma.stockIn.upsert({
+        where: { code: generateStockInCode(index + 1) },
+        update: {},
+        create: {
+          warehouse_location_id: locationRecords[index].id,
+          code: generateStockInCode(index + 1),
+          description: `Stock in for ${product.name}`,
+          status: "COMPLETED",
+          created_by: adminUser.id,
+          approved_by: adminUser.id,
+        },
+      }),
+    ),
+  );
+
+  const stockInDetailRecords = await Promise.all(
+    stockInRecords.map((stockIn, index) =>
+      prisma.stockInDetail.create({
+        data: {
+          stock_in_id: stockIn.id,
+          product_id: productRecords[index].id,
+          expected_quantity: (100 + index * 5).toFixed(3),
+          received_quantity: (100 + index * 5).toFixed(3),
+          unit_price: (2 + index * 0.2).toFixed(2),
+        },
+      }),
+    ),
+  );
+
+  await Promise.all(
+    stockInDetailRecords.map((detail, index) =>
+      prisma.stockInDetailLot.create({
+        data: {
+          stock_in_detail_id: detail.id,
+          product_lot_id: productLotRecords[index].id,
+          quantity: detail.received_quantity,
+        },
+      }),
+    ),
+  );
+
+  const stockOutRecords = await Promise.all(
+    productRecords.map((product, index) =>
+      prisma.stockOut.upsert({
+        where: { code: generateStockOutCode(index + 1) },
+        update: {},
+        create: {
+          warehouse_location_id: locationRecords[index].id,
+          code: generateStockOutCode(index + 1),
+          description: `Stock out for ${product.name}`,
+          status: "PENDING",
+          created_by: adminUser.id,
+        },
+      }),
+    ),
+  );
+
+  const stockOutDetailRecords = await Promise.all(
+    stockOutRecords.map((stockOut, index) =>
+      prisma.stockOutDetail.create({
+        data: {
+          stock_out_id: stockOut.id,
+          product_id: productRecords[index].id,
+          quantity: (20 + index * 3).toFixed(3),
+          unit_price: (2.5 + index * 0.15).toFixed(2),
+        },
+      }),
+    ),
+  );
+
+  await Promise.all(
+    stockOutDetailRecords.map((detail, index) =>
+      prisma.stockOutDetailLot.create({
+        data: {
+          stock_out_detail_id: detail.id,
+          product_lot_id: productLotRecords[index].id,
+          quantity: detail.quantity,
+        },
+      }),
+    ),
+  );
+
+  await prisma.stockInDiscrepancy.createMany({
+    data: stockInRecords.map((stockIn, index) => ({
+      stock_in_id: stockIn.id,
+      reported_by: adminUser.id,
+      resolved_by: adminUser.id,
+      expected_qty: (100 + index * 5).toFixed(3),
+      actual_qty: (100 + index * 5 - 1).toFixed(3),
+      reason: `Actual quantity mismatch for stock in ${stockIn.code}`,
+      action_taken: "Adjusted inventory",
+      status: "RESOLVED",
+    })),
+    skipDuplicates: true,
+  });
+
+  await prisma.auditLog.createMany({
+    data: productRecords.map((product, index) => {
+      const auditData: {
+        module: string;
+        entity_type: string;
+        entity_id: number;
+        action: "CREATE" | "UPDATE";
+        old_data?: { name: string };
+        new_data: { name: string };
+        reference_code: string;
+        note: string;
+        created_by: number;
+      } = {
+        module: "products",
+        entity_type: "product",
+        entity_id: product.id,
+        action: index % 2 === 0 ? "CREATE" : "UPDATE",
+        new_data: { name: product.name },
+        reference_code: product.code,
+        note: `Audit log entry for product ${product.code}`,
+        created_by: adminUser.id,
+      };
+
+      if (index % 2 !== 0) {
+        auditData.old_data = { name: `${product.name} old` };
+      }
+
+      return auditData;
+    }),
+    skipDuplicates: true,
+  });
+
   await prisma.inventoryTransaction.createMany({
     data: productRecords.map((product, index) => ({
       warehouse_location_id: locationRecords[index].id,
       product_id: product.id,
       lot_id: null,
-      product_uom_id: uomRecords.find((uom) => uom.code === "L")!.id,
+      product_uom_id: products[index].baseUom.id,
       transaction_type: TransactionType.IN,
       quantity: (120 + index * 10).toFixed(3),
       base_quantity: (120 + index * 10).toFixed(3),
