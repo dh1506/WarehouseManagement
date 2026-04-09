@@ -21,6 +21,7 @@ const stockInSelectFields = {
   location: { select: { id: true, location_code: true, full_path: true } },
   creator: { select: { id: true, username: true, full_name: true } },
   approver: { select: { id: true, username: true, full_name: true } },
+  supplier: { select: { id: true, code: true, name: true } },
   details: {
     select: {
       id: true,
@@ -62,7 +63,7 @@ const stockInSelectFields = {
  * Lấy danh sách phiếu nhập
  */
 export const getStockIns = async (query: GetStockInsQuery) => {
-  const { page, limit, search, status, warehouse_location_id } = query;
+  const { page, limit, search, status, warehouse_location_id, supplier_id } = query;
   const skip = (page - 1) * limit;
 
   const where: Record<string, unknown> = {};
@@ -77,6 +78,10 @@ export const getStockIns = async (query: GetStockInsQuery) => {
 
   if (warehouse_location_id) {
     where.warehouse_location_id = warehouse_location_id;
+  }
+
+  if (supplier_id) {
+    where.supplier_id = supplier_id;
   }
 
   const [stockIns, total] = await Promise.all([
@@ -121,7 +126,7 @@ export const getStockInById = async (id: number) => {
  * Tạo mới đề nghị nhập (DRAFT)
  */
 export const createStockIn = async (userId: number, data: CreateStockInInput) => {
-  const { warehouse_location_id, description, details } = data;
+  const { warehouse_location_id, supplier_id, description, details } = data;
 
   // Kiểm tra location
   const location = await prisma.warehouseLocation.findUnique({
@@ -142,6 +147,15 @@ export const createStockIn = async (userId: number, data: CreateStockInInput) =>
     throw new AppError("Một số sản phẩm không tồn tại trong hệ thống", 400);
   }
 
+  // Kiểm tra supplier
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplier_id },
+  });
+
+  if (!supplier) {
+    throw new AppError("Nhà cung cấp không tồn tại", 400);
+  }
+
   return prisma.$transaction(async (tx) => {
     // Generate Mã SI (Sequence có thể đếm theo số record hiện tại hoặc config)
     const count = await tx.stockIn.count();
@@ -151,6 +165,7 @@ export const createStockIn = async (userId: number, data: CreateStockInInput) =>
       data: {
         code,
         warehouse_location_id,
+        supplier_id,
         description: description ?? null,
         created_by: userId,
         status: "DRAFT",
