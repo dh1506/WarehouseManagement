@@ -20,14 +20,14 @@ model User {
   created_at             DateTime               @default(now())
   updated_at             DateTime               @updatedAt
   warehouse_id           Int?
+  audit_logs             AuditLog[]
   inventory_transactions InventoryTransaction[]
-  stock_ins_created      StockIn[]              @relation("StockInCreator")
-  stock_ins_approved     StockIn[]              @relation("StockInApprover")
-  stock_outs_created     StockOut[]             @relation("StockOutCreator")
-  stock_outs_approved    StockOut[]             @relation("StockOutApprover")
   discrepancies_reported StockInDiscrepancy[]   @relation("DiscrepancyReporter")
   discrepancies_resolved StockInDiscrepancy[]   @relation("DiscrepancyResolver")
-  audit_logs             AuditLog[]
+  stock_ins_approved     StockIn[]              @relation("StockInApprover")
+  stock_ins_created      StockIn[]              @relation("StockInCreator")
+  stock_outs_approved    StockOut[]             @relation("StockOutApprover")
+  stock_outs_created     StockOut[]             @relation("StockOutCreator")
   role                   Role                   @relation(fields: [role_id], references: [id])
   warehouse              Warehouse?             @relation(fields: [warehouse_id], references: [id])
 
@@ -144,9 +144,9 @@ model Product {
   productSuppliers       ProductSupplier[]
   uoms                   ProductUom[]
   warehouses             ProductWarehouse[]
+  base_uom               UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
   stock_in_details       StockInDetail[]
   stock_out_details      StockOutDetail[]
-  base_uom               UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
 
   @@index([base_uom_id], map: "products_base_uom_id_fkey")
   @@map("products")
@@ -332,10 +332,10 @@ model ProductLot {
   expired_date          DateTime?
   received_at           DateTime               @default(now())
   transactions          InventoryTransaction[]
-  stock_in_detail_lots  StockInDetailLot[]
-  stock_out_detail_lots StockOutDetailLot[]
   inventory             Inventory              @relation(fields: [inventories_id], references: [id], onDelete: Cascade)
   product               Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  stock_in_detail_lots  StockInDetailLot[]
+  stock_out_detail_lots StockOutDetailLot[]
 
   @@index([product_id])
   @@index([inventories_id])
@@ -371,6 +371,149 @@ model InventoryTransaction {
   @@index([created_by])
   @@index([product_uom_id], map: "inventory_transactions_product_uom_id_fkey")
   @@map("inventory_transactions")
+}
+
+model StockIn {
+  id                    Int                  @id @default(autoincrement())
+  warehouse_location_id Int
+  code                  String               @unique @map("stock_in_code")
+  description           String?              @db.Text
+  status                StockInStatus        @default(DRAFT)
+  created_by            Int
+  approved_by           Int?
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+  details               StockInDetail[]
+  discrepancies         StockInDiscrepancy[]
+  approver              User?                @relation("StockInApprover", fields: [approved_by], references: [id])
+  creator               User                 @relation("StockInCreator", fields: [created_by], references: [id])
+  location              WarehouseLocation    @relation(fields: [warehouse_location_id], references: [id])
+
+  @@index([warehouse_location_id])
+  @@index([created_by])
+  @@index([approved_by])
+  @@map("stock_ins")
+}
+
+model StockInDetail {
+  id                Int                @id @default(autoincrement())
+  stock_in_id       Int
+  product_id        Int
+  expected_quantity Decimal            @default(0.000) @db.Decimal(15, 3)
+  received_quantity Decimal            @default(0.000) @db.Decimal(15, 3)
+  unit_price        Decimal?           @db.Decimal(15, 2)
+  lots              StockInDetailLot[]
+  product           Product            @relation(fields: [product_id], references: [id])
+  stock_in          StockIn            @relation(fields: [stock_in_id], references: [id], onDelete: Cascade)
+
+  @@index([stock_in_id])
+  @@index([product_id])
+  @@map("stock_in_details")
+}
+
+model StockInDetailLot {
+  id                 Int           @id @default(autoincrement())
+  stock_in_detail_id Int
+  product_lot_id     Int
+  quantity           Decimal       @db.Decimal(15, 3)
+  product_lot        ProductLot    @relation(fields: [product_lot_id], references: [id])
+  stock_in_detail    StockInDetail @relation(fields: [stock_in_detail_id], references: [id], onDelete: Cascade)
+
+  @@index([stock_in_detail_id])
+  @@index([product_lot_id])
+  @@map("stock_in_detail_lots")
+}
+
+model StockInDiscrepancy {
+  id           Int               @id @default(autoincrement())
+  stock_in_id  Int
+  reported_by  Int
+  resolved_by  Int?
+  expected_qty Decimal           @db.Decimal(15, 3)
+  actual_qty   Decimal           @db.Decimal(15, 3)
+  reason       String            @db.Text
+  action_taken String?           @db.Text
+  status       DiscrepancyStatus @default(PENDING)
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+  reporter     User              @relation("DiscrepancyReporter", fields: [reported_by], references: [id])
+  resolver     User?             @relation("DiscrepancyResolver", fields: [resolved_by], references: [id])
+  stock_in     StockIn           @relation(fields: [stock_in_id], references: [id], onDelete: Cascade)
+
+  @@index([stock_in_id])
+  @@index([reported_by], map: "stock_in_discrepancies_reported_by_fkey")
+  @@index([resolved_by], map: "stock_in_discrepancies_resolved_by_fkey")
+  @@map("stock_in_discrepancies")
+}
+
+model StockOut {
+  id                    Int               @id @default(autoincrement())
+  warehouse_location_id Int
+  code                  String            @unique @map("stock_out_code")
+  description           String?           @db.Text
+  status                StockOutStatus    @default(PENDING)
+  created_by            Int
+  approved_by           Int?
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+  details               StockOutDetail[]
+  approver              User?             @relation("StockOutApprover", fields: [approved_by], references: [id])
+  creator               User              @relation("StockOutCreator", fields: [created_by], references: [id])
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
+
+  @@index([warehouse_location_id])
+  @@index([created_by])
+  @@index([approved_by])
+  @@map("stock_outs")
+}
+
+model StockOutDetail {
+  id           Int                 @id @default(autoincrement())
+  stock_out_id Int
+  product_id   Int
+  quantity     Decimal             @db.Decimal(15, 3)
+  unit_price   Decimal?            @db.Decimal(15, 2)
+  lots         StockOutDetailLot[]
+  product      Product             @relation(fields: [product_id], references: [id])
+  stock_out    StockOut            @relation(fields: [stock_out_id], references: [id], onDelete: Cascade)
+
+  @@index([stock_out_id])
+  @@index([product_id])
+  @@map("stock_out_details")
+}
+
+model StockOutDetailLot {
+  id                  Int            @id @default(autoincrement())
+  stock_out_detail_id Int
+  product_lot_id      Int
+  quantity            Decimal        @db.Decimal(15, 3)
+  product_lot         ProductLot     @relation(fields: [product_lot_id], references: [id])
+  stock_out_detail    StockOutDetail @relation(fields: [stock_out_detail_id], references: [id], onDelete: Cascade)
+
+  @@index([stock_out_detail_id])
+  @@index([product_lot_id])
+  @@map("stock_out_detail_lots")
+}
+
+model AuditLog {
+  id             Int         @id @default(autoincrement())
+  module         String      @db.VarChar(100)
+  entity_type    String      @db.VarChar(100)
+  entity_id      Int
+  action         AuditAction
+  old_data       Json?
+  new_data       Json?
+  reference_code String?     @db.VarChar(255)
+  note           String?     @db.Text
+  created_by     Int
+  created_at     DateTime    @default(now())
+  creator        User        @relation(fields: [created_by], references: [id])
+
+  @@index([module])
+  @@index([entity_type, entity_id])
+  @@index([created_by])
+  @@index([created_at])
+  @@map("audit_logs")
 }
 
 enum UserStatus {
@@ -457,157 +600,4 @@ enum StockInStatus {
 enum DiscrepancyStatus {
   PENDING
   RESOLVED
-}
-
-model StockIn {
-  id                    Int           @id @default(autoincrement())
-  warehouse_location_id Int
-  code                  String        @unique @map("stock_in_code")
-  description           String?       @db.Text
-  status                StockInStatus @default(DRAFT)
-  created_by            Int
-  approved_by           Int?
-  created_at            DateTime      @default(now())
-  updated_at            DateTime      @updatedAt
-
-  location WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
-  creator  User              @relation("StockInCreator", fields: [created_by], references: [id])
-  approver User?             @relation("StockInApprover", fields: [approved_by], references: [id])
-
-  details       StockInDetail[]
-  discrepancies StockInDiscrepancy[]
-
-  @@index([warehouse_location_id])
-  @@index([created_by])
-  @@index([approved_by])
-  @@map("stock_ins")
-}
-
-model StockInDetail {
-  id                Int      @id @default(autoincrement())
-  stock_in_id       Int
-  product_id        Int
-  expected_quantity Decimal  @default(0.000) @db.Decimal(15, 3)
-  received_quantity Decimal  @default(0.000) @db.Decimal(15, 3)
-  unit_price        Decimal? @db.Decimal(15, 2)
-
-  stock_in StockIn @relation(fields: [stock_in_id], references: [id], onDelete: Cascade)
-  product  Product @relation(fields: [product_id], references: [id])
-
-  lots StockInDetailLot[]
-
-  @@index([stock_in_id])
-  @@index([product_id])
-  @@map("stock_in_details")
-}
-
-model StockInDetailLot {
-  id                 Int     @id @default(autoincrement())
-  stock_in_detail_id Int
-  product_lot_id     Int
-  quantity           Decimal @db.Decimal(15, 3)
-
-  stock_in_detail StockInDetail @relation(fields: [stock_in_detail_id], references: [id], onDelete: Cascade)
-  product_lot     ProductLot    @relation(fields: [product_lot_id], references: [id])
-
-  @@index([stock_in_detail_id])
-  @@index([product_lot_id])
-  @@map("stock_in_detail_lots")
-}
-
-model StockInDiscrepancy {
-  id           Int               @id @default(autoincrement())
-  stock_in_id  Int
-  reported_by  Int
-  resolved_by  Int?
-  expected_qty Decimal           @db.Decimal(15, 3)
-  actual_qty   Decimal           @db.Decimal(15, 3)
-  reason       String            @db.Text
-  action_taken String?           @db.Text
-  status       DiscrepancyStatus @default(PENDING)
-  created_at   DateTime          @default(now())
-  updated_at   DateTime          @updatedAt
-
-  stock_in StockIn @relation(fields: [stock_in_id], references: [id], onDelete: Cascade)
-  reporter User    @relation("DiscrepancyReporter", fields: [reported_by], references: [id])
-  resolver User?   @relation("DiscrepancyResolver", fields: [resolved_by], references: [id])
-
-  @@index([stock_in_id])
-  @@map("stock_in_discrepancies")
-}
-
-model StockOut {
-  id                    Int               @id @default(autoincrement())
-  warehouse_location_id Int
-  code                  String            @unique @map("stock_out_code")
-  description           String?           @db.Text
-  status                StockOutStatus    @default(PENDING)
-  created_by            Int
-  approved_by           Int?
-  created_at            DateTime          @default(now())
-  updated_at            DateTime          @updatedAt
-
-  location WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
-  creator  User              @relation("StockOutCreator", fields: [created_by], references: [id])
-  approver User?             @relation("StockOutApprover", fields: [approved_by], references: [id])
-
-  details StockOutDetail[]
-
-  @@index([warehouse_location_id])
-  @@index([created_by])
-  @@index([approved_by])
-  @@map("stock_outs")
-}
-
-model StockOutDetail {
-  id           Int   @id @default(autoincrement())
-  stock_out_id Int
-  product_id   Int
-  quantity     Decimal @db.Decimal(15, 3)
-  unit_price   Decimal? @db.Decimal(15, 2)
-
-  stock_out StockOut @relation(fields: [stock_out_id], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [product_id], references: [id])
-
-  lots StockOutDetailLot[]
-
-  @@index([stock_out_id])
-  @@index([product_id])
-  @@map("stock_out_details")
-}
-
-model StockOutDetailLot {
-  id                  Int     @id @default(autoincrement())
-  stock_out_detail_id Int
-  product_lot_id      Int
-  quantity            Decimal @db.Decimal(15, 3)
-
-  stock_out_detail StockOutDetail @relation(fields: [stock_out_detail_id], references: [id], onDelete: Cascade)
-  product_lot      ProductLot     @relation(fields: [product_lot_id], references: [id])
-
-  @@index([stock_out_detail_id])
-  @@index([product_lot_id])
-  @@map("stock_out_detail_lots")
-}
-
-model AuditLog {
-  id             Int         @id @default(autoincrement())
-  module         String      @db.VarChar(100)
-  entity_type    String      @db.VarChar(100)
-  entity_id      Int
-  action         AuditAction
-  old_data       Json?
-  new_data       Json?
-  reference_code String?     @db.VarChar(255)
-  note           String?     @db.Text
-  created_by     Int
-  created_at     DateTime    @default(now())
-
-  creator User @relation(fields: [created_by], references: [id])
-
-  @@index([module])
-  @@index([entity_type, entity_id])
-  @@index([created_by])
-  @@index([created_at])
-  @@map("audit_logs")
 }
