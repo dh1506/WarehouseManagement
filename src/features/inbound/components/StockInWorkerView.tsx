@@ -21,8 +21,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { WarehouseLocationSelect } from './WarehouseLocationSelect';
-import type { WarehouseLocationOption } from './WarehouseLocationSelect';
+import { ZoneMapEmbed, extractZoneCode } from './ZoneMapEmbed';
+import type { BinInfo } from './ZoneMapEmbed';
 import type { StockInDetail, StockInDiscrepancy, StockInStatus } from '../types/inboundType';
 import {
   ArrowLeft,
@@ -429,7 +429,7 @@ function ResolveDiscrepancyModal({
   );
 }
 
-// ── Allocate Lot Modal ──────────────────────────────────────────────────────────
+// ── Allocation row types ───────────────────────────────────────────────────────
 interface AllocationRow {
   stock_in_detail_id: number;
   productName: string;
@@ -439,22 +439,37 @@ interface AllocationRow {
   expired_date: string;
 }
 
-function AllocateLotModal({
+// Extends AllocationRow with display-only fields used inside the map modal
+interface BinAllocationRow extends AllocationRow {
+  /** Hub bin UUID — used as ZoneMapEmbed.selectedBinId to highlight the active bin */
+  selectedBinHubId: string | null;
+  /** Short bin label shown in the badge, e.g. "B05" */
+  selectedBinShort: string | null;
+  /** Full location code for monospace display, e.g. "WH002-AZONE-R05-L05-B05" */
+  selectedBinFullCode: string | null;
+}
+
+// ── Allocate Bin Map Modal ─────────────────────────────────────────────────────
+function AllocateBinMapModal({
   open,
   onOpenChange,
   details,
+  zoneCode,
   onSubmit,
   isPending,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   details: StockInDetail[];
+  zoneCode: string | null;
   onSubmit: (rows: AllocationRow[]) => void;
   isPending: boolean;
 }) {
-  const [rows, setRows] = useState<AllocationRow[]>([]);
+  const { toast } = useToast();
+  const [rows, setRows] = useState<BinAllocationRow[]>([]);
+  const [activeIdx, setActiveIdx] = useState(0);
 
-  // Khởi tạo rows mới mỗi khi mở modal
+  // Seed rows each time the modal opens
   useEffect(() => {
     if (open) {
       setRows(
@@ -465,103 +480,231 @@ function AllocateLotModal({
           lot_no: '',
           quantity: Number(d.received_quantity) || 0,
           expired_date: '',
+          selectedBinHubId: null,
+          selectedBinShort: null,
+          selectedBinFullCode: null,
         })),
       );
+      setActiveIdx(0);
     }
   }, [open, details]);
 
-  const updateRow = (idx: number, patch: Partial<AllocationRow>) => {
+  const updateRow = useCallback((idx: number, patch: Partial<BinAllocationRow>) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-  };
+  }, []);
 
-  // Calculate remaining quantity for each detail
-  const getRemainingQty = (detailId: number): number => {
-    const detail = details.find((d) => d.id === detailId);
-    if (!detail) return 0;
-    const received = Number(detail.received_quantity) || 0;
-    const allocated = rows
-      .filter((r) => r.stock_in_detail_id === detailId)
-      .reduce((sum, r) => sum + r.quantity, 0);
-    return Math.max(0, received - allocated);
-  };
+  // Called when an employee taps a bin cell on the zone map.
+  //
+  // The numeric location_id is embedded directly in bin.id as "loc-{id}"
+  // (set by toZoneBin in warehouseService.ts). No secondary API lookup needed —
+  // this avoids any mismatch between the hub bins endpoint and the locations
+  // search endpoint (which was the root cause of R01 bins not resolving).
+  const handleBinClick = useCallback(
+    (bin: BinInfo) => {
+      // Parse numeric location id from "loc-{id}" — guaranteed format from toZoneBin
+      const numericId = Number(bin.id.replace(/^loc-/, ''));
+      if (!bin.id.startsWith('loc-') || isNaN(numericId) || numericId <= 0) {
+        toast({
+          title: 'Vị trí không hợp lệ',
+          description: `Không đọc được ID của bin ${bin.binCode}. Vui lòng thử lại.`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-  const isValid = rows.every(
-    (r) => !!r.location_id && r.location_id > 0 && r.lot_no.trim().length > 0 && r.quantity > 0,
+      // Assign to the active product row
+      setRows((prev) =>
+        prev.map((r, i) =>
+          i === activeIdx
+            ? {
+                ...r,
+                location_id: numericId,
+                selectedBinHubId: bin.id,
+                selectedBinShort: bin.binCode,
+                selectedBinFullCode: bin.code,
+              }
+            : r,
+        ),
+      );
+
+      // Auto-advance to the next product row that still has no location
+      const nextIdx = rows.findIndex((r, i) => i > activeIdx && r.location_id === null);
+      if (nextIdx !== -1) setActiveIdx(nextIdx);
+    },
+    [activeIdx, rows, toast],
   );
+
+  const assignedCount = rows.filter((r) => r.location_id !== null).length;
+  const isValid = rows.every(
+    (r) => r.location_id !== null && r.lot_no.trim().length > 0 && r.quantity > 0,
+  );
+
+  // Full codes for already-assigned rows (excluding the active row — it uses selectedBinId instead)
+  const highlightCodes = rows
+    .filter((r, i) => i !== activeIdx && r.selectedBinFullCode !== null)
+    .map((r) => r.selectedBinFullCode as string);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-5xl max-h-[92vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-slate-100">
           <DialogTitle className="flex items-center gap-2">
             <Warehouse className="h-4 w-4 text-indigo-600" />
             Phân bổ hàng vào vị trí
           </DialogTitle>
           <DialogDescription>
-            Chọn vị trí (bin) và nhập số lot cho từng sản phẩm.
+            Nhấn vào ô bin trên bản đồ để chọn vị trí. Nhấn vào sản phẩm để chuyển đổi đối tượng đang phân bổ.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-2">
-          {rows.map((row, idx) => (
-            <div key={row.stock_in_detail_id} className="rounded-xl border border-slate-200 p-3 space-y-3">
-              <p className="text-sm font-semibold text-slate-800">{row.productName}</p>
+        {/* Two-panel body: map left, product rows right */}
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Vị trí kho</label>
-                <WarehouseLocationSelect
-                  value={row.location_id}
-                  onValueChange={(opt: WarehouseLocationOption | null) =>
-                    updateRow(idx, { location_id: opt?.id ?? null })
-                  }
-                  placeholder="Chọn vị trí…"
-                />
+          {/* ── Left: Zone map ─────────────────────────────────────────────────── */}
+          <div className="lg:w-[56%] overflow-y-auto bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200 p-4">
+            {zoneCode ? (
+              <ZoneMapEmbed
+                zoneCode={zoneCode}
+                onBinClick={handleBinClick}
+                selectedBinId={rows[activeIdx]?.selectedBinHubId ?? undefined}
+                highlightBinCodes={highlightCodes}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-400">
+                <MapPin className="h-8 w-8 text-slate-200" />
+                <p className="text-sm font-medium">Không có thông tin vùng kho.</p>
               </div>
+            )}
+          </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Số Lot</label>
-                  <input
-                    type="text"
-                    value={row.lot_no}
-                    onChange={(e) => updateRow(idx, { lot_no: e.target.value })}
-                    placeholder="LOT-001"
-                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    Số lượng
-                    {Number(details.find((d) => d.id === row.stock_in_detail_id)?.received_quantity) > 0 && (
-                      <span className="ml-2 text-blue-600 font-semibold">
-                        ({getRemainingQty(row.stock_in_detail_id)} còn lại)
+          {/* ── Right: Product allocation rows ──────────────────────────────────── */}
+          <div className="lg:w-[44%] overflow-y-auto p-4 space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Sản phẩm
+              </p>
+              <span
+                className={cn(
+                  'text-[11px] font-semibold px-2 py-0.5 rounded-full',
+                  assignedCount === rows.length && rows.length > 0
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-slate-100 text-slate-500',
+                )}
+              >
+                {assignedCount}/{rows.length} đã chọn vị trí
+              </span>
+            </div>
+
+            {rows.map((row, idx) => {
+              const receivedQty = Number(
+                details.find((d) => d.id === row.stock_in_detail_id)?.received_quantity,
+              );
+              return (
+                <motion.div
+                  key={row.stock_in_detail_id}
+                  onClick={() => setActiveIdx(idx)}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05, duration: 0.18 }}
+                  className={cn(
+                    'rounded-xl border p-3 space-y-3 cursor-pointer transition-all duration-150',
+                    idx === activeIdx
+                      ? 'border-blue-400 bg-blue-50/60 shadow-sm ring-1 ring-blue-200'
+                      : row.location_id !== null
+                        ? 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300'
+                        : 'border-slate-200 bg-white hover:border-slate-300',
+                  )}
+                >
+                  {/* Row header: name + active indicator + bin badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2">
+                        {row.productName}
+                      </p>
+                      {idx === activeIdx && (
+                        <p className="text-[10px] font-bold text-blue-500 mt-0.5">
+                          ← Nhấn bin trên bản đồ để chọn
+                        </p>
+                      )}
+                    </div>
+                    {row.selectedBinShort ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-700">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {row.selectedBinShort}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-lg border border-dashed border-slate-300 px-2 py-1 text-[10px] font-medium text-slate-400">
+                        Chưa chọn
                       </span>
                     )}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.quantity}
-                    onChange={(e) => updateRow(idx, { quantity: Math.max(0, Number(e.target.value)) })}
-                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm tabular-nums outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-              </div>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Hạn sử dụng (tùy chọn)</label>
-                <input
-                  type="date"
-                  value={row.expired_date}
-                  onChange={(e) => updateRow(idx, { expired_date: e.target.value })}
-                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-            </div>
-          ))}
+                  {/* Full location code */}
+                  {row.selectedBinFullCode && (
+                    <p className="text-[11px] font-mono text-slate-500 bg-slate-100 rounded px-2 py-1 break-all">
+                      {row.selectedBinFullCode}
+                    </p>
+                  )}
+
+                  {/* Lot + Qty */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                        Số Lot
+                      </label>
+                      <input
+                        type="text"
+                        value={row.lot_no}
+                        onChange={(e) => updateRow(idx, { lot_no: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                        placeholder="LOT-001"
+                        className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                        Số lượng
+                        {receivedQty > 0 && (
+                          <span className="ml-1.5 font-bold text-blue-600">
+                            (/{receivedQty.toLocaleString()})
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.quantity}
+                        onChange={(e) =>
+                          updateRow(idx, { quantity: Math.max(0, Number(e.target.value)) })
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs tabular-nums outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Expiry date */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                      Hạn sử dụng{' '}
+                      <span className="font-normal text-slate-400">(tùy chọn)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={row.expired_date}
+                      onChange={(e) => updateRow(idx, { expired_date: e.target.value })}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-colors"
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
 
-        <DialogFooter>
+        {/* Footer */}
+        <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-white">
           <button
             onClick={() => onOpenChange(false)}
             className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
@@ -569,9 +712,20 @@ function AllocateLotModal({
             Hủy
           </button>
           <button
-            onClick={() => onSubmit(rows)}
+            onClick={() =>
+              onSubmit(
+                rows.map((r) => ({
+                  stock_in_detail_id: r.stock_in_detail_id,
+                  productName: r.productName,
+                  location_id: r.location_id,
+                  lot_no: r.lot_no,
+                  quantity: r.quantity,
+                  expired_date: r.expired_date,
+                })),
+              )
+            }
             disabled={!isValid || isPending}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Xác nhận phân bổ
@@ -636,6 +790,52 @@ function hasPendingDiscrepancies(discrepancies: StockInDiscrepancy[]): boolean {
   return discrepancies.some((d) => d.status === 'PENDING');
 }
 
+// ── Step stepper ───────────────────────────────────────────────────────────────
+function StepStepper({
+  step1Done,
+  step2Done,
+  step3Done,
+}: {
+  step1Done: boolean;
+  step2Done: boolean;
+  step3Done: boolean;
+}) {
+  const steps = [
+    { label: 'Kiểm đếm', done: step1Done, active: !step1Done },
+    { label: 'Phân bổ', done: step2Done, active: step1Done && !step2Done },
+    { label: 'Hoàn tất', done: step3Done, active: step2Done && !step3Done },
+  ];
+
+  return (
+    <div className="flex items-center gap-1">
+      {steps.map((s, i) => (
+        <div key={s.label} className="flex items-center gap-1">
+          <div
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all',
+              s.done
+                ? 'bg-emerald-100 text-emerald-700'
+                : s.active
+                  ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
+                  : 'bg-slate-100 text-slate-400',
+            )}
+          >
+            {s.done ? (
+              <CheckCircle2 className="h-3 w-3 shrink-0" />
+            ) : (
+              <span className="w-3 h-3 flex items-center justify-center text-[10px]">{i + 1}</span>
+            )}
+            {s.label}
+          </div>
+          {i < steps.length - 1 && (
+            <ChevronRight className="h-3 w-3 text-slate-300 shrink-0" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main worker view ───────────────────────────────────────────────────────────
 export function StockInWorkerView() {
   const { id } = useParams<{ id: string }>();
@@ -657,6 +857,7 @@ export function StockInWorkerView() {
   const [showDiscForm, setShowDiscForm] = useState(false);
   const [resolveDisc, setResolveDisc] = useState<StockInDiscrepancy | null>(null);
   const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
   // Seed initial quantities from BE received_quantity
   useEffect(() => {
@@ -785,14 +986,24 @@ export function StockInWorkerView() {
     [allocateMutation],
   );
 
-  // ── Step 6: Hoàn tất (IN_PROGRESS → COMPLETED) ────────────────────────────
+  // ── Step 6: Hoàn tất — open confirm dialog first ────────────────────────────
   const handleComplete = useCallback(() => {
+    setShowCompleteConfirm(true);
+  }, []);
+
+  const handleConfirmComplete = useCallback(() => {
     if (!data) return;
-    completeMutation.mutate(data.id);
-    // Toast đã xử lý trong hook useCompleteStockIn
+    completeMutation.mutate(data.id, {
+      onSettled: () => setShowCompleteConfirm(false),
+    });
   }, [data, completeMutation]);
 
   // ── Derived data — kept after all hooks ──────────────────────────────────────
+  // Zone code extracted from the order's assigned location (e.g. "WH002-AZONE-R05-L05-B05" → "AZONE")
+  const zoneCode = data?.location?.location_code
+    ? extractZoneCode(data.location.location_code)
+    : null;
+
   const detailRows = data?.details ?? [];
   const totalItems = detailRows.length;
   const enteredItems = detailRows.filter((d) => (receivedQtys[d.id] ?? 0) > 0).length;
@@ -805,6 +1016,9 @@ export function StockInWorkerView() {
     () => (data?.discrepancies ?? []).filter((d) => d.status === 'PENDING'),
     [data?.discrepancies],
   );
+
+  // All products have had lots allocated
+  const isAllocated = detailRows.length > 0 && detailRows.every((d) => d.lots && d.lots.length > 0);
 
   // ── Xác định trạng thái hiện tại để điều khiển UI ──────────────────────────
   const status: StockInStatus = data?.status ?? 'DRAFT';
@@ -927,16 +1141,25 @@ export function StockInWorkerView() {
           )}
         </div>
 
-        {/* Row 3: progress — chỉ hiện ở bước kiểm đếm */}
-        {canEditQty && (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold uppercase tracking-wide">
-              <span>Tiến độ kiểm đếm</span>
-              <span className="text-emerald-600">
-                {matchedItems === totalItems && totalItems > 0 ? '✓ Tất cả khớp' : `${matchedItems} khớp`}
-              </span>
-            </div>
-            <ProgressBar done={enteredItems} total={totalItems} />
+        {/* Row 3: step stepper + progress bar */}
+        {status !== 'CANCELLED' && (
+          <div className="space-y-2">
+            <StepStepper
+              step1Done={status !== 'PENDING'}
+              step2Done={isAllocated}
+              step3Done={status === 'COMPLETED'}
+            />
+            {canEditQty && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold uppercase tracking-wide">
+                  <span>Tiến độ kiểm đếm</span>
+                  <span className="text-emerald-600">
+                    {matchedItems === totalItems && totalItems > 0 ? '✓ Tất cả khớp' : `${matchedItems} khớp`}
+                  </span>
+                </div>
+                <ProgressBar done={enteredItems} total={totalItems} />
+              </div>
+            )}
           </div>
         )}
 
@@ -962,6 +1185,52 @@ export function StockInWorkerView() {
 
       {/* ── Scrollable content ────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+
+        {/* ── Step notification banners ──────────────────────────────────────── */}
+        <AnimatePresence>
+          {/* Step 1 done → prompt allocation */}
+          {status === 'IN_PROGRESS' && !isAllocated && (
+            <motion.div
+              key="banner-allocate"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mx-4 mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3.5 flex items-start gap-3"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                <CheckCircle2 className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-blue-800">Kiểm đếm hoàn tất</p>
+                <p className="text-xs text-blue-600 mt-0.5">
+                  Tiếp theo: nhấn <span className="font-semibold">Phân bổ hàng</span> để chỉ định vị trí lưu trữ trong kho.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 2 done → prompt complete */}
+          {status === 'IN_PROGRESS' && isAllocated && (
+            <motion.div
+              key="banner-complete"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mx-4 mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 flex items-start gap-3"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <Warehouse className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-emerald-800">Phân bổ hoàn tất</p>
+                <p className="text-xs text-emerald-600 mt-0.5">
+                  Tất cả sản phẩm đã được phân bổ vào vị trí. Nhấn <span className="font-semibold">Hoàn tất nhập kho</span> để kết thúc quy trình.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Product cards — nhập số lượng thực kiểm */}
         <div className="px-4 pt-4 space-y-4">
           {detailRows.map((detail, idx) => (
@@ -978,9 +1247,9 @@ export function StockInWorkerView() {
         </div>
 
         {/* Discrepancy list — hiển thị khi có */}
-        {(data.discrepancies.length > 0) && (
+        {(data.discrepancies?.length ?? 0) > 0 && (
           <DiscrepancyListInline
-            discrepancies={data.discrepancies}
+            discrepancies={data.discrepancies ?? []}
             onResolveClick={(disc) => setResolveDisc(disc)}
           />
         )}
@@ -1016,49 +1285,14 @@ export function StockInWorkerView() {
 
       {/* ── Sticky bottom action bar ───────────────────────────────────────────── */}
       <div className="shrink-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-4 py-4 safe-area-inset-bottom">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto flex-wrap">
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
 
-          {/* PENDING / IN_PROGRESS: Báo cáo sai lệch */}
-          {(status === 'IN_PROGRESS') && (
-            <button
-              onClick={() => setShowDiscForm(true)}
-              className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border-2 border-amber-200 text-amber-700 font-bold text-sm hover:bg-amber-50 transition-colors active:scale-[0.97] touch-manipulation shrink-0"
-            >
-              <GitCompare className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">So sánh & Báo cáo</span>
-              <span className="sm:hidden">So sánh</span>
-            </button>
-          )}
-
-          {/* DISCREPANCY: Nút giải quyết sai lệch */}
-          {status === 'DISCREPANCY' && pendingDiscs.length > 0 && (
-            <button
-              onClick={() => setResolveDisc(pendingDiscs[0])}
-              className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border-2 border-amber-200 text-amber-700 font-bold text-sm hover:bg-amber-50 transition-colors active:scale-[0.97] touch-manipulation shrink-0"
-            >
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span>Giải quyết sai lệch</span>
-            </button>
-          )}
-
-          {/* IN_PROGRESS: Phân bổ hàng */}
-          {status === 'IN_PROGRESS' && (
-            <button
-              onClick={() => setShowAllocateModal(true)}
-              className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border-2 border-indigo-200 text-indigo-700 font-bold text-sm hover:bg-indigo-50 transition-colors active:scale-[0.97] touch-manipulation shrink-0"
-            >
-              <Warehouse className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">Phân bổ hàng</span>
-              <span className="sm:hidden">Phân bổ</span>
-            </button>
-          )}
-
-          {/* PENDING / IN_PROGRESS: Xác nhận kiểm đếm */}
-          {canRecord && (
+          {/* ── STEP 1 (PENDING): only confirm count ────────────────────────── */}
+          {status === 'PENDING' && (
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleRecord}
-              disabled={recordMutation.isPending}
+              disabled={!canRecord || recordMutation.isPending}
               className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-blue-700 hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-colors touch-manipulation text-sm"
             >
               {recordMutation.isPending ? (
@@ -1066,9 +1300,7 @@ export function StockInWorkerView() {
               ) : (
                 <ClipboardCheck className="h-4 w-4 shrink-0" />
               )}
-              <span>
-                {recordMutation.isPending ? 'Đang lưu...' : 'Xác nhận kiểm đếm'}
-              </span>
+              <span>{recordMutation.isPending ? 'Đang lưu...' : 'Xác nhận kiểm đếm'}</span>
               {!recordMutation.isPending && enteredItems > 0 && (
                 <span className="ml-1 text-blue-200 text-xs font-semibold">
                   ({enteredItems}/{totalItems})
@@ -1077,35 +1309,76 @@ export function StockInWorkerView() {
             </motion.button>
           )}
 
-          {/* IN_PROGRESS / DISCREPANCY: Hoàn tất nhập kho */}
-          {(status === 'IN_PROGRESS' || status === 'DISCREPANCY') && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex flex-1">
-                    <motion.button
-                      whileTap={isCompleteBlocked ? undefined : { scale: 0.97 }}
-                      onClick={handleComplete}
-                      disabled={isCompleteBlocked || completeMutation.isPending}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-colors touch-manipulation text-sm"
-                    >
-                      {completeMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      )}
-                      <span>Hoàn tất nhập kho</span>
-                    </motion.button>
-                  </span>
-                </TooltipTrigger>
-                {isCompleteBlocked && (
-                  <TooltipContent side="top" className="max-w-xs">
-                    <p>{completeBlockReason}</p>
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
+          {/* ── STEP 2 (IN_PROGRESS, no lots yet): compare + allocate ────────── */}
+          {status === 'IN_PROGRESS' && !isAllocated && (
+            <>
+              <button
+                onClick={() => setShowDiscForm(true)}
+                className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border-2 border-amber-200 text-amber-700 font-bold text-sm hover:bg-amber-50 transition-colors active:scale-[0.97] touch-manipulation shrink-0"
+              >
+                <GitCompare className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">So sánh & Báo cáo</span>
+                <span className="sm:hidden">Báo cáo</span>
+              </button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowAllocateModal(true)}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-colors touch-manipulation text-sm"
+              >
+                <Warehouse className="h-4 w-4 shrink-0" />
+                Phân bổ hàng
+              </motion.button>
+            </>
           )}
+
+          {/* ── STEP 2 (IN_PROGRESS, allocated): re-allocate + complete ─────── */}
+          {status === 'IN_PROGRESS' && isAllocated && (
+            <>
+              <button
+                onClick={() => setShowAllocateModal(true)}
+                className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border border-slate-200 text-slate-500 font-semibold text-sm hover:bg-slate-50 transition-colors active:scale-[0.97] touch-manipulation shrink-0"
+              >
+                <Warehouse className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Phân bổ lại</span>
+                <span className="sm:hidden">Sửa</span>
+              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex-1 inline-flex">
+                      <motion.button
+                        whileTap={isCompleteBlocked ? undefined : { scale: 0.97 }}
+                        onClick={handleComplete}
+                        disabled={isCompleteBlocked || completeMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-colors touch-manipulation text-sm"
+                      >
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        Hoàn tất nhập kho
+                      </motion.button>
+                    </span>
+                  </TooltipTrigger>
+                  {isCompleteBlocked && (
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p>{completeBlockReason}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            </>
+          )}
+
+          {/* ── DISCREPANCY: resolve first ───────────────────────────────────── */}
+          {status === 'DISCREPANCY' && pendingDiscs.length > 0 && (
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setResolveDisc(pendingDiscs[0])}
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-200 transition-colors touch-manipulation text-sm"
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              Giải quyết sai lệch ({pendingDiscs.length})
+            </motion.button>
+          )}
+
         </div>
       </div>
 
@@ -1138,14 +1411,74 @@ export function StockInWorkerView() {
         isPending={resolveMutation.isPending}
       />
 
-      {/* ── Allocate lot modal ──────────────────────────────────────────────────── */}
-      <AllocateLotModal
+      {/* ── Allocate bin map modal ──────────────────────────────────────────────── */}
+      <AllocateBinMapModal
         open={showAllocateModal}
         onOpenChange={setShowAllocateModal}
         details={data.details}
+        zoneCode={zoneCode}
         onSubmit={handleAllocate}
         isPending={allocateMutation.isPending}
       />
+
+      {/* ── Complete confirmation dialog ────────────────────────────────────────── */}
+      <Dialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              Hoàn tất nhập kho?
+            </DialogTitle>
+            <DialogDescription>
+              Xác nhận hoàn tất phiếu <span className="font-semibold text-slate-700">{data.code}</span>.
+              Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Summary */}
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2 my-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Số sản phẩm</span>
+              <span className="font-bold text-slate-800">{detailRows.length}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Đã phân bổ lot</span>
+              <span className="font-bold text-emerald-700">
+                {detailRows.filter((d) => d.lots && d.lots.length > 0).length} / {detailRows.length}
+              </span>
+            </div>
+            {data.supplier && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Nhà cung cấp</span>
+                <span className="font-medium text-slate-700 truncate max-w-[160px]">{data.supplier.name}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setShowCompleteConfirm(false)}
+              disabled={completeMutation.isPending}
+              className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleConfirmComplete}
+              disabled={completeMutation.isPending}
+              className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
+            >
+              {completeMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              {completeMutation.isPending ? 'Đang xử lý...' : 'Hoàn tất nhập kho'}
+            </motion.button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

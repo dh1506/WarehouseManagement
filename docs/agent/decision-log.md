@@ -13,6 +13,19 @@
 - **Mock files deleted**: `data/mockInboundData.ts`, `data/mockInboundDetailData.ts`.
 
 
+## 2026-04-10 — AllocateLotModal → AllocateBinMapModal (zone map UX)
+
+- **Problem 1**: `AllocateLotModal` used a text-search dropdown (`WarehouseLocationSelect`) to select a bin — no spatial context for the employee.
+- **Problem 2**: `WarehouseLocationSelect` fetched with `limit: 40` and hardcoded `location_status: 'AVAILABLE'`, cutting off most locations.
+- **Decision**: Replaced `AllocateLotModal` entirely with `AllocateBinMapModal` in `StockInWorkerView.tsx`.
+  - Two-panel layout: `ZoneMapEmbed` (left, full zone map with clickable bins) + product rows (right).
+  - Zone is derived from `data.location.location_code` using existing `extractZoneCode()` helper.
+  - Clicking a bin auto-assigns it to the "active" product row and advances to the next unassigned row.
+  - Already-assigned bins are highlighted via `highlightBinCodes`; active selection shown via `selectedBinId`.
+  - FULL bins are rejected with a toast warning.
+- **ID mapping (v2 — fixed)**: `toZoneBin` in `warehouseService.ts` sets `bin.id = "loc-{numericId}"`. The numeric `location_id` is parsed directly via `Number(bin.id.replace(/^loc-/, ''))`. No secondary API lookup needed. The original text-search approach (`/api/warehouses/locations/search?search=zoneCode`) failed for R01 because the hub bins endpoint (`getWarehouseLocations` with `warehouseId`) and the search endpoint return different result sets. Parsing from `bin.id` is authoritative and works for every rack.
+- **WarehouseLocationSelect fix**: `limit` increased 40→200; hardcoded `location_status: 'AVAILABLE'` filter removed. Status badge still shown in results for context.
+
 ## DEC-056 - Low occupancy is now a first-class warning tier
 
 **Date:** 2026-04-02  

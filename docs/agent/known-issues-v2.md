@@ -11,6 +11,16 @@
 
 ## Open Issues
 
+### 0. AllocateBinMapModal — Hub ID vs Location ID mapping (2026-04-10)
+
+**Context:** `ZoneMapEmbed` returns `BinInfo.id` (hub bin UUID, `string`). The allocation API requires `location_id` (numeric integer from `/api/warehouses/locations`). The modal bridges this by doing a secondary fetch of `GET /api/warehouses/locations/search?search=<zoneCode>&limit=500` and building a `location_code → numeric id` lookup map.
+
+**Assumption:** `bin.code` from the hub API equals `location_code` from the locations API (same format: `WH002-AZONE-R05-L05-B05`). If these diverge, the lookup will silently fail and the employee will see a "Không tìm thấy vị trí" toast.
+
+**Risk:** If the backend returns a different `location_code` format, bin clicks won't map to numeric IDs. Recommend confirming exact `location_code` format from both APIs.
+
+**Mitigation:** Comparison is case-insensitive + trimmed. If sync issues surface, a fallback `WarehouseLocationSelect` can be reinstated per row.
+
 ### 1. Backend Integration Pending
 
 **Status:** Blocked by Backend  

@@ -15,6 +15,9 @@
 | `hooks/useInboundDetail.ts` | `useStockInDetail`, `useRecordReceipt`, `useCreateDiscrepancy`, `useResolveDiscrepancy`, `useAllocateLots` |
 | `schemas/inboundSchemas.ts` | Zod: query, recordReceipt, discrepancy, resolve |
 | `schemas/createPurchaseRequestSchema.ts` | Zod: create form (`warehouse_location_id`, `details[]`) |
+| `components/StockInWorkerView.tsx` | Employee receiving view — quantity entry, discrepancy flow, **AllocateBinMapModal** (zone map bin selection) |
+| `components/ZoneMapEmbed.tsx` | Read-only + clickable zone bin grid; `onBinClick`, `selectedBinId`, `highlightBinCodes` supported |
+| `components/WarehouseLocationSelect.tsx` | Text-search location dropdown (limit 200, no status pre-filter) — fallback only |
 | `components/InboundDashboard.tsx` | Page orchestrator with motion |
 | `components/InboundFilters.tsx` | Search + status filter (BE enum) |
 | `components/InboundTable.tsx` | List table mapped to BE fields + motion rows |

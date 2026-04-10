@@ -297,6 +297,8 @@ export function useZoneBins(warehouseId?: string, zoneId?: string) {
     queryKey: WAREHOUSE_KEYS.zoneBins(warehouseId ?? '', zoneId ?? ''),
     queryFn: () => getZoneBins(warehouseId ?? '', zoneId ?? ''),
     enabled: Boolean(warehouseId && zoneId),
+    // Không dùng cache cũ — zone map phải phản ánh occupancy thực tế mỗi khi mount
+    staleTime: 0,
   });
 }
 

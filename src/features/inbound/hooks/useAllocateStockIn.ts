@@ -23,7 +23,9 @@ export function useAllocateStockIn(id: number) {
     onSuccess: (data) => {
       queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
-      // Invalidate warehouse layout data so zone map reflects new inventory
+      // Xóa hoàn toàn cache zone-bins thay vì chỉ invalidate, để lần mở modal tiếp theo
+      // luôn hiển thị loading + dữ liệu mới (không hiển thị occupancy cũ trong khi refetch).
+      queryClient.removeQueries({ queryKey: ['warehouses', 'zone-bins'] });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });
       toast({

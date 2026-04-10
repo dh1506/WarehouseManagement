@@ -84,12 +84,11 @@ export function WarehouseLocationSelect({
       const response = await apiClient.get('/api/warehouses/locations/search', {
         params: {
           page: 1,
-          limit: 40,
+          limit: 200,
           search: debouncedSearch || undefined,
-          location_status: 'AVAILABLE',
         },
       });
-      const payload = (response as ApiResponse<LocationListData>).data;
+      const payload = (response as unknown as ApiResponse<LocationListData>).data;
       return payload.locations.map((loc) => ({
         id: loc.id,
         code: loc.location_code,
