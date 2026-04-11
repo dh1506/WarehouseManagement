@@ -1,0 +1,96 @@
+model Warehouse {
+  id         Int                 @id @default(autoincrement())
+  code       String              @unique @db.VarChar(50)
+  name       String              @db.VarChar(255)
+  is_active  Boolean             @default(true)
+  created_at DateTime            @default(now())
+  updated_at DateTime            @updatedAt
+  products   ProductWarehouse[]
+  users      User[]
+  locations  WarehouseLocation[]
+
+  @@map("warehouses")
+}
+
+model WarehouseLocation {
+  id                     Int                       @id @default(autoincrement())
+  warehouse_id           Int
+  location_code          String                    @unique @db.VarChar(100)
+  zone_code              String?                   @db.VarChar(50)
+  rack_code              String?                   @db.VarChar(50)
+  level_code             String?                   @db.VarChar(50)
+  bin_code               String?                   @db.VarChar(50)
+  full_path              String                    @db.VarChar(255)
+  location_status        LocationStatus            @default(AVAILABLE)
+  is_active              Boolean                   @default(true)
+  max_weight             Decimal?                  @db.Decimal(15, 3)
+  max_volume             Decimal?                  @db.Decimal(15, 3)
+  current_weight         Decimal                   @default(0.000) @db.Decimal(15, 3)
+  current_volume         Decimal                   @default(0.000) @db.Decimal(15, 3)
+  occupancy_percent      Decimal                   @default(0.00) @db.Decimal(5, 2)
+  storage_condition      StorageType               @default(AMBIENT)
+  created_at             DateTime                  @default(now())
+  updated_at             DateTime                  @updatedAt
+  inventories            Inventory[]
+  inventory_transactions InventoryTransaction[]
+  allowed_categories     LocationAllowedCategory[]
+  stock_ins              StockIn[]
+  stock_outs             StockOut[]
+  warehouse              Warehouse                 @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+
+  @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")
+  @@map("warehouse_locations")
+}
+
+model LocationAllowedCategory {
+  id                  Int               @id @default(autoincrement())
+  location_id         Int
+  category_id         Int
+  is_allowed          Boolean           @default(true)
+  rule_source         RuleSource        @default(DIRECT)
+  inherit_from_parent Boolean           @default(true)
+  priority            Int               @default(0)
+  effective_from      DateTime          @default(now())
+  effective_to        DateTime?
+  note                String?           @db.Text
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
+  category            ProductCategory   @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  location            WarehouseLocation @relation(fields: [location_id], references: [id], onDelete: Cascade)
+
+  @@unique([location_id, category_id])
+  @@index([category_id], map: "location_allowed_categories_category_id_fkey")
+  @@map("location_allowed_categories")
+}
+
+model ProductWarehouse {
+  product_id   Int
+  warehouse_id Int
+  assigned_at  DateTime  @default(now())
+  product      Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  warehouse    Warehouse @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, warehouse_id])
+  @@index([warehouse_id])
+  @@map("product_warehouses")
+}
+
+enum LocationStatus {
+  AVAILABLE
+  PARTIAL
+  FULL
+  MAINTENANCE
+}
+
+enum StorageType {
+  AMBIENT
+  CHILLED
+  FROZEN
+  DRY
+}
+
+enum RuleSource {
+  DIRECT
+  INHERITED
+  OVERRIDE
+}

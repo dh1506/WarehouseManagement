@@ -1,4 +1,25 @@
 -- CreateTable
+CREATE TABLE `audit_logs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `module` VARCHAR(100) NOT NULL,
+    `entity_type` VARCHAR(100) NOT NULL,
+    `entity_id` INTEGER NOT NULL,
+    `action` ENUM('CREATE', 'UPDATE', 'DELETE') NOT NULL,
+    `old_data` JSON NULL,
+    `new_data` JSON NULL,
+    `reference_code` VARCHAR(255) NULL,
+    `note` TEXT NULL,
+    `created_by` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `audit_logs_module_idx`(`module`),
+    INDEX `audit_logs_entity_type_entity_id_idx`(`entity_type`, `entity_id`),
+    INDEX `audit_logs_created_by_idx`(`created_by`),
+    INDEX `audit_logs_created_at_idx`(`created_at`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `users` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `username` VARCHAR(191) NOT NULL,
@@ -58,6 +79,67 @@ CREATE TABLE `role_permissions` (
 
     INDEX `role_permissions_permission_id_fkey`(`permission_id`),
     PRIMARY KEY (`role_id`, `permission_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `inventories` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `product_id` INTEGER NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `reserved_quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `available_quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `inventories_product_id_idx`(`product_id`),
+    INDEX `inventories_warehouse_location_id_idx`(`warehouse_location_id`),
+    UNIQUE INDEX `inventories_product_id_warehouse_location_id_key`(`product_id`, `warehouse_location_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `product_lots` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `lot_no` VARCHAR(191) NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `inventories_id` INTEGER NOT NULL,
+    `status` ENUM('ACTIVE', 'INACTIVE', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
+    `production_date` DATETIME(3) NULL,
+    `expired_date` DATETIME(3) NULL,
+    `received_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `product_lots_lot_no_key`(`lot_no`),
+    INDEX `product_lots_product_id_idx`(`product_id`),
+    INDEX `product_lots_inventories_id_idx`(`inventories_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `inventory_transactions` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `lot_id` INTEGER NULL,
+    `product_uom_id` INTEGER NOT NULL,
+    `transaction_type` ENUM('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT') NOT NULL,
+    `quantity` DECIMAL(15, 3) NOT NULL,
+    `base_quantity` DECIMAL(15, 3) NOT NULL,
+    `balance_after` DECIMAL(15, 3) NOT NULL,
+    `reference_type` VARCHAR(191) NULL,
+    `reference_id` VARCHAR(191) NULL,
+    `reference_line_id` VARCHAR(191) NULL,
+    `note` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `created_by` INTEGER NULL,
+    `transaction_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `inventory_transactions_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `inventory_transactions_product_id_idx`(`product_id`),
+    INDEX `inventory_transactions_lot_id_idx`(`lot_id`),
+    INDEX `inventory_transactions_created_by_idx`(`created_by`),
+    INDEX `inventory_transactions_product_uom_id_fkey`(`product_uom_id`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -152,111 +234,6 @@ CREATE TABLE `product_uoms` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `suppliers` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `code` VARCHAR(191) NOT NULL,
-    `name` VARCHAR(191) NOT NULL,
-    `contact_person` VARCHAR(191) NULL,
-    `phone` VARCHAR(191) NULL,
-    `email` VARCHAR(191) NULL,
-    `address` TEXT NULL,
-    `is_active` BOOLEAN NOT NULL DEFAULT true,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `suppliers_code_key`(`code`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `product_suppliers` (
-    `product_id` INTEGER NOT NULL,
-    `supplier_id` INTEGER NOT NULL,
-    `supplier_sku` VARCHAR(191) NULL,
-    `purchase_price` DECIMAL(15, 2) NOT NULL,
-    `is_primary` BOOLEAN NOT NULL DEFAULT false,
-
-    INDEX `product_suppliers_supplier_id_fkey`(`supplier_id`),
-    PRIMARY KEY (`product_id`, `supplier_id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `warehouses` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `code` VARCHAR(50) NOT NULL,
-    `name` VARCHAR(255) NOT NULL,
-    `is_active` BOOLEAN NOT NULL DEFAULT true,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `warehouses_code_key`(`code`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `inventories` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `product_id` INTEGER NOT NULL,
-    `warehouse_location_id` INTEGER NOT NULL,
-    `quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
-    `reserved_quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
-    `available_quantity` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
-
-    INDEX `inventories_product_id_idx`(`product_id`),
-    INDEX `inventories_warehouse_location_id_idx`(`warehouse_location_id`),
-    UNIQUE INDEX `inventories_product_id_warehouse_location_id_key`(`product_id`, `warehouse_location_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `warehouse_locations` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `warehouse_id` INTEGER NOT NULL,
-    `location_code` VARCHAR(100) NOT NULL,
-    `zone_code` VARCHAR(50) NULL,
-    `rack_code` VARCHAR(50) NULL,
-    `level_code` VARCHAR(50) NULL,
-    `bin_code` VARCHAR(50) NULL,
-    `full_path` VARCHAR(255) NOT NULL,
-    `location_status` ENUM('AVAILABLE', 'PARTIAL', 'FULL', 'MAINTENANCE') NOT NULL DEFAULT 'AVAILABLE',
-    `is_active` BOOLEAN NOT NULL DEFAULT true,
-    `max_weight` DECIMAL(15, 3) NULL,
-    `max_volume` DECIMAL(15, 3) NULL,
-    `current_weight` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
-    `current_volume` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
-    `occupancy_percent` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
-    `storage_condition` ENUM('AMBIENT', 'CHILLED', 'FROZEN', 'DRY') NOT NULL DEFAULT 'AMBIENT',
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `warehouse_locations_location_code_key`(`location_code`),
-    INDEX `warehouse_locations_warehouse_id_fkey`(`warehouse_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `location_allowed_categories` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `location_id` INTEGER NOT NULL,
-    `category_id` INTEGER NOT NULL,
-    `is_allowed` BOOLEAN NOT NULL DEFAULT true,
-    `rule_source` ENUM('DIRECT', 'INHERITED', 'OVERRIDE') NOT NULL DEFAULT 'DIRECT',
-    `inherit_from_parent` BOOLEAN NOT NULL DEFAULT true,
-    `priority` INTEGER NOT NULL DEFAULT 0,
-    `effective_from` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `effective_to` DATETIME(3) NULL,
-    `note` TEXT NULL,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` DATETIME(3) NOT NULL,
-
-    INDEX `location_allowed_categories_category_id_fkey`(`category_id`),
-    UNIQUE INDEX `location_allowed_categories_location_id_category_id_key`(`location_id`, `category_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `brands_products` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `brand_id` INTEGER NOT NULL,
@@ -271,60 +248,6 @@ CREATE TABLE `brands_products` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `product_warehouses` (
-    `product_id` INTEGER NOT NULL,
-    `warehouse_id` INTEGER NOT NULL,
-    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    INDEX `product_warehouses_warehouse_id_idx`(`warehouse_id`),
-    PRIMARY KEY (`product_id`, `warehouse_id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `product_lots` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `lot_no` VARCHAR(191) NOT NULL,
-    `product_id` INTEGER NOT NULL,
-    `inventories_id` INTEGER NOT NULL,
-    `status` ENUM('ACTIVE', 'INACTIVE', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
-    `production_date` DATETIME(3) NULL,
-    `expired_date` DATETIME(3) NULL,
-    `received_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    UNIQUE INDEX `product_lots_lot_no_key`(`lot_no`),
-    INDEX `product_lots_product_id_idx`(`product_id`),
-    INDEX `product_lots_inventories_id_idx`(`inventories_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `inventory_transactions` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `warehouse_location_id` INTEGER NOT NULL,
-    `product_id` INTEGER NOT NULL,
-    `lot_id` INTEGER NULL,
-    `product_uom_id` INTEGER NOT NULL,
-    `transaction_type` ENUM('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT') NOT NULL,
-    `quantity` DECIMAL(15, 3) NOT NULL,
-    `base_quantity` DECIMAL(15, 3) NOT NULL,
-    `balance_after` DECIMAL(15, 3) NOT NULL,
-    `reference_type` VARCHAR(191) NULL,
-    `reference_id` VARCHAR(191) NULL,
-    `reference_line_id` VARCHAR(191) NULL,
-    `note` TEXT NULL,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `created_by` INTEGER NULL,
-    `transaction_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    INDEX `inventory_transactions_warehouse_location_id_idx`(`warehouse_location_id`),
-    INDEX `inventory_transactions_product_id_idx`(`product_id`),
-    INDEX `inventory_transactions_lot_id_idx`(`lot_id`),
-    INDEX `inventory_transactions_created_by_idx`(`created_by`),
-    INDEX `inventory_transactions_product_uom_id_fkey`(`product_uom_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `stock_ins` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `warehouse_location_id` INTEGER NOT NULL,
@@ -333,6 +256,7 @@ CREATE TABLE `stock_ins` (
     `status` ENUM('DRAFT', 'PENDING', 'IN_PROGRESS', 'DISCREPANCY', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
     `created_by` INTEGER NOT NULL,
     `approved_by` INTEGER NULL,
+    `supplier_id` INTEGER NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
@@ -340,6 +264,7 @@ CREATE TABLE `stock_ins` (
     INDEX `stock_ins_warehouse_location_id_idx`(`warehouse_location_id`),
     INDEX `stock_ins_created_by_idx`(`created_by`),
     INDEX `stock_ins_approved_by_idx`(`approved_by`),
+    INDEX `stock_ins_supplier_id_idx`(`supplier_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -434,25 +359,105 @@ CREATE TABLE `stock_out_detail_lots` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `audit_logs` (
+CREATE TABLE `suppliers` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `module` VARCHAR(100) NOT NULL,
-    `entity_type` VARCHAR(100) NOT NULL,
-    `entity_id` INTEGER NOT NULL,
-    `action` ENUM('CREATE', 'UPDATE', 'DELETE') NOT NULL,
-    `old_data` JSON NULL,
-    `new_data` JSON NULL,
-    `reference_code` VARCHAR(255) NULL,
-    `note` TEXT NULL,
-    `created_by` INTEGER NOT NULL,
+    `code` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `contact_person` VARCHAR(191) NULL,
+    `phone` VARCHAR(191) NULL,
+    `email` VARCHAR(191) NULL,
+    `address` TEXT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
 
-    INDEX `audit_logs_module_idx`(`module`),
-    INDEX `audit_logs_entity_type_entity_id_idx`(`entity_type`, `entity_id`),
-    INDEX `audit_logs_created_by_idx`(`created_by`),
-    INDEX `audit_logs_created_at_idx`(`created_at`),
+    UNIQUE INDEX `suppliers_code_key`(`code`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `product_suppliers` (
+    `product_id` INTEGER NOT NULL,
+    `supplier_id` INTEGER NOT NULL,
+    `supplier_sku` VARCHAR(191) NULL,
+    `purchase_price` DECIMAL(15, 2) NOT NULL,
+    `is_primary` BOOLEAN NOT NULL DEFAULT false,
+
+    INDEX `product_suppliers_supplier_id_fkey`(`supplier_id`),
+    PRIMARY KEY (`product_id`, `supplier_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `warehouses` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `warehouses_code_key`(`code`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `warehouse_locations` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `warehouse_id` INTEGER NOT NULL,
+    `location_code` VARCHAR(100) NOT NULL,
+    `zone_code` VARCHAR(50) NULL,
+    `rack_code` VARCHAR(50) NULL,
+    `level_code` VARCHAR(50) NULL,
+    `bin_code` VARCHAR(50) NULL,
+    `full_path` VARCHAR(255) NOT NULL,
+    `location_status` ENUM('AVAILABLE', 'PARTIAL', 'FULL', 'MAINTENANCE') NOT NULL DEFAULT 'AVAILABLE',
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `max_weight` DECIMAL(15, 3) NULL,
+    `max_volume` DECIMAL(15, 3) NULL,
+    `current_weight` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `current_volume` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `occupancy_percent` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+    `storage_condition` ENUM('AMBIENT', 'CHILLED', 'FROZEN', 'DRY') NOT NULL DEFAULT 'AMBIENT',
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `warehouse_locations_location_code_key`(`location_code`),
+    INDEX `warehouse_locations_warehouse_id_fkey`(`warehouse_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `location_allowed_categories` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `location_id` INTEGER NOT NULL,
+    `category_id` INTEGER NOT NULL,
+    `is_allowed` BOOLEAN NOT NULL DEFAULT true,
+    `rule_source` ENUM('DIRECT', 'INHERITED', 'OVERRIDE') NOT NULL DEFAULT 'DIRECT',
+    `inherit_from_parent` BOOLEAN NOT NULL DEFAULT true,
+    `priority` INTEGER NOT NULL DEFAULT 0,
+    `effective_from` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `effective_to` DATETIME(3) NULL,
+    `note` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `location_allowed_categories_category_id_fkey`(`category_id`),
+    UNIQUE INDEX `location_allowed_categories_location_id_category_id_key`(`location_id`, `category_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `product_warehouses` (
+    `product_id` INTEGER NOT NULL,
+    `warehouse_id` INTEGER NOT NULL,
+    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `product_warehouses_warehouse_id_idx`(`warehouse_id`),
+    PRIMARY KEY (`product_id`, `warehouse_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `users` ADD CONSTRAINT `users_role_id_fkey` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -467,55 +472,10 @@ ALTER TABLE `role_permissions` ADD CONSTRAINT `role_permissions_permission_id_fk
 ALTER TABLE `role_permissions` ADD CONSTRAINT `role_permissions_role_id_fkey` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `product_categories` ADD CONSTRAINT `product_categories_parent_id_fkey` FOREIGN KEY (`parent_id`) REFERENCES `product_categories`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `products` ADD CONSTRAINT `products_base_uom_id_fkey` FOREIGN KEY (`base_uom_id`) REFERENCES `units_of_measure`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_category_map` ADD CONSTRAINT `product_category_map_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_category_map` ADD CONSTRAINT `product_category_map_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_uoms` ADD CONSTRAINT `product_uoms_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_uoms` ADD CONSTRAINT `product_uoms_uom_id_fkey` FOREIGN KEY (`uom_id`) REFERENCES `units_of_measure`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_suppliers` ADD CONSTRAINT `product_suppliers_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_suppliers` ADD CONSTRAINT `product_suppliers_supplier_id_fkey` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `inventories` ADD CONSTRAINT `inventories_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `inventories` ADD CONSTRAINT `inventories_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `warehouse_locations` ADD CONSTRAINT `warehouse_locations_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_location_id_fkey` FOREIGN KEY (`location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_brand_id_fkey` FOREIGN KEY (`brand_id`) REFERENCES `brands`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `product_lots` ADD CONSTRAINT `product_lots_inventories_id_fkey` FOREIGN KEY (`inventories_id`) REFERENCES `inventories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -539,6 +499,30 @@ ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_prod
 ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `product_categories` ADD CONSTRAINT `product_categories_parent_id_fkey` FOREIGN KEY (`parent_id`) REFERENCES `product_categories`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `products` ADD CONSTRAINT `products_base_uom_id_fkey` FOREIGN KEY (`base_uom_id`) REFERENCES `units_of_measure`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_category_map` ADD CONSTRAINT `product_category_map_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_category_map` ADD CONSTRAINT `product_category_map_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_uoms` ADD CONSTRAINT `product_uoms_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_uoms` ADD CONSTRAINT `product_uoms_uom_id_fkey` FOREIGN KEY (`uom_id`) REFERENCES `units_of_measure`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_brand_id_fkey` FOREIGN KEY (`brand_id`) REFERENCES `brands`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -546,6 +530,9 @@ ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_created_by_fkey` FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_supplier_id_fkey` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_in_details` ADD CONSTRAINT `stock_in_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -590,4 +577,22 @@ ALTER TABLE `stock_out_detail_lots` ADD CONSTRAINT `stock_out_detail_lots_produc
 ALTER TABLE `stock_out_detail_lots` ADD CONSTRAINT `stock_out_detail_lots_stock_out_detail_id_fkey` FOREIGN KEY (`stock_out_detail_id`) REFERENCES `stock_out_details`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `product_suppliers` ADD CONSTRAINT `product_suppliers_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_suppliers` ADD CONSTRAINT `product_suppliers_supplier_id_fkey` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `warehouse_locations` ADD CONSTRAINT `warehouse_locations_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `product_categories`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `location_allowed_categories` ADD CONSTRAINT `location_allowed_categories_location_id_fkey` FOREIGN KEY (`location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `product_warehouses` ADD CONSTRAINT `product_warehouses_warehouse_id_fkey` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,0 +1,82 @@
+model Inventory {
+  id                    Int               @id @default(autoincrement())
+  product_id            Int
+  warehouse_location_id Int
+  quantity              Decimal           @default(0.000) @db.Decimal(15, 3)
+  reserved_quantity     Decimal           @default(0.000) @db.Decimal(15, 3)
+  available_quantity    Decimal           @default(0.000) @db.Decimal(15, 3)
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+  product               Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
+  lots                  ProductLot[]
+
+  @@unique([product_id, warehouse_location_id])
+  @@index([product_id])
+  @@index([warehouse_location_id])
+  @@map("inventories")
+}
+
+model ProductLot {
+  id                    Int                    @id @default(autoincrement())
+  lot_no                String                 @unique
+  product_id            Int
+  inventories_id        Int
+  status                LotStatus              @default(ACTIVE)
+  production_date       DateTime?
+  expired_date          DateTime?
+  received_at           DateTime               @default(now())
+  transactions          InventoryTransaction[]
+  inventory             Inventory              @relation(fields: [inventories_id], references: [id], onDelete: Cascade)
+  product               Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  stock_in_detail_lots  StockInDetailLot[]
+  stock_out_detail_lots StockOutDetailLot[]
+
+  @@index([product_id])
+  @@index([inventories_id])
+  @@map("product_lots")
+}
+
+model InventoryTransaction {
+  id                    Int               @id @default(autoincrement())
+  warehouse_location_id Int
+  product_id            Int
+  lot_id                Int?
+  product_uom_id        Int
+  transaction_type      TransactionType
+  quantity              Decimal           @db.Decimal(15, 3)
+  base_quantity         Decimal           @db.Decimal(15, 3)
+  balance_after         Decimal           @db.Decimal(15, 3)
+  reference_type        String?
+  reference_id          String?
+  reference_line_id     String?
+  note                  String?           @db.Text
+  created_at            DateTime          @default(now())
+  created_by            Int?
+  transaction_date      DateTime          @default(now())
+  creator               User?             @relation(fields: [created_by], references: [id])
+  lot                   ProductLot?       @relation(fields: [lot_id], references: [id])
+  product               Product           @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  uom                   ProductUom        @relation(fields: [product_uom_id], references: [id])
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id], onDelete: Cascade)
+
+  @@index([warehouse_location_id])
+  @@index([product_id])
+  @@index([lot_id])
+  @@index([created_by])
+  @@index([product_uom_id], map: "inventory_transactions_product_uom_id_fkey")
+  @@map("inventory_transactions")
+}
+
+enum LotStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum TransactionType {
+  IN
+  OUT
+  TRANSFER
+  ADJUSTMENT
+}

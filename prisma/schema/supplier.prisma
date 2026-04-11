@@ -1,0 +1,30 @@
+model Supplier {
+  id               Int               @id @default(autoincrement())
+  code             String            @unique
+  name             String
+  contact_person   String?
+  phone            String?
+  email            String?
+  address          String?           @db.Text
+  is_active        Boolean           @default(true)
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+  productSuppliers ProductSupplier[]
+  stock_ins        StockIn[]
+
+  @@map("suppliers")
+}
+
+model ProductSupplier {
+  product_id     Int
+  supplier_id    Int
+  supplier_sku   String?
+  purchase_price Decimal  @db.Decimal(15, 2)
+  is_primary     Boolean  @default(false)
+  product        Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  supplier       Supplier @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, supplier_id])
+  @@index([supplier_id], map: "product_suppliers_supplier_id_fkey")
+  @@map("product_suppliers")
+}

@@ -1,0 +1,74 @@
+model User {
+  id                     Int                    @id @default(autoincrement())
+  username               String                 @unique
+  password_hash          String
+  full_name              String
+  email                  String?                @unique
+  phone                  String?                @unique
+  avatar_url             String?
+  role_id                Int
+  user_status            UserStatus             @default(ACTIVE)
+  created_at             DateTime               @default(now())
+  updated_at             DateTime               @updatedAt
+  warehouse_id           Int?
+  audit_logs             AuditLog[]
+  inventory_transactions InventoryTransaction[]
+  discrepancies_reported StockInDiscrepancy[]   @relation("DiscrepancyReporter")
+  discrepancies_resolved StockInDiscrepancy[]   @relation("DiscrepancyResolver")
+  stock_ins_approved     StockIn[]              @relation("StockInApprover")
+  stock_ins_created      StockIn[]              @relation("StockInCreator")
+  stock_outs_approved    StockOut[]             @relation("StockOutApprover")
+  stock_outs_created     StockOut[]             @relation("StockOutCreator")
+  role                   Role                   @relation(fields: [role_id], references: [id])
+  warehouse              Warehouse?             @relation(fields: [warehouse_id], references: [id])
+
+  @@index([role_id], map: "users_role_id_fkey")
+  @@index([warehouse_id], map: "users_warehouse_id_fkey")
+  @@map("users")
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  is_active   Boolean          @default(true)
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  module      String
+  action      String
+  is_active   Boolean          @default(true)
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  roles       RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  role_id       Int
+  permission_id Int
+  assigned_at   DateTime   @default(now())
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
+  @@index([permission_id], map: "role_permissions_permission_id_fkey")
+  @@map("role_permissions")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}

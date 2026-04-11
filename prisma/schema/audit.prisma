@@ -1,0 +1,26 @@
+model AuditLog {
+  id             Int         @id @default(autoincrement())
+  module         String      @db.VarChar(100)
+  entity_type    String      @db.VarChar(100)
+  entity_id      Int
+  action         AuditAction
+  old_data       Json?
+  new_data       Json?
+  reference_code String?     @db.VarChar(255)
+  note           String?     @db.Text
+  created_by     Int
+  created_at     DateTime    @default(now())
+  creator        User        @relation(fields: [created_by], references: [id])
+
+  @@index([module])
+  @@index([entity_type, entity_id])
+  @@index([created_by])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
