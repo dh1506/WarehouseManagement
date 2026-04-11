@@ -1127,11 +1127,8 @@ export async function updateWarehouseZone(
   zoneId: string,
   payload: WarehouseZoneFormValues,
 ): Promise<Zone> {
-  const nextZoneCode = zoneCodeKey(payload.code);
+  // Zone code là bất biến khi update — luôn dùng code từ zoneId (server source of truth).
   const currentZoneCode = zoneCodeKey(extractZoneCodeFromId(warehouseId, zoneId));
-  if (nextZoneCode !== currentZoneCode) {
-    throw new Error('Backend chưa hỗ trợ đổi zone code. Vui lòng giữ nguyên mã zone khi chỉnh sửa.');
-  }
 
   const hubs = await getWarehouseHubs();
   const warehouse = hubs.find((item) => item.id === warehouseId);

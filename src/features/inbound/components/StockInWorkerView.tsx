@@ -1029,15 +1029,32 @@ export function StockInWorkerView() {
   // Có thể xác nhận kiểm đếm
   const canRecord = canEditQty && totalItems > 0;
 
-  // Hoàn tất bị hard-block nếu còn sai lệch PENDING hoặc status là DISCREPANCY
+  // Mismatch without report — only relevant BEFORE allocation.
+  // Once every product has a lot assigned, the allocated quantities are the
+  // authoritative record of what was received; the pre-check must not fire.
+  const hasMismatchWithoutReport =
+    !isAllocated &&
+    detailRows.some((d) => {
+      const received = Number(d.received_quantity ?? 0);
+      const expected = Number(d.expected_quantity);
+      // received === 0 means the count step was skipped, not that it's wrong
+      return received > 0 && received !== expected;
+    }) &&
+    (data.discrepancies?.length ?? 0) === 0;
+
+  // Hoàn tất bị hard-block nếu còn sai lệch PENDING hoặc status DISCREPANCY
   const isCompleteBlocked =
-    status === 'DISCREPANCY' || hasPendingDiscrepancies(data?.discrepancies ?? []);
+    status === 'DISCREPANCY' ||
+    hasPendingDiscrepancies(data?.discrepancies ?? []) ||
+    hasMismatchWithoutReport;
 
   const completeBlockReason = status === 'DISCREPANCY'
     ? 'Phiếu đang ở trạng thái Sai lệch. Giải quyết trước khi hoàn tất.'
     : hasPendingDiscrepancies(data?.discrepancies ?? [])
       ? 'Còn sai lệch chưa giải quyết.'
-      : '';
+      : hasMismatchWithoutReport
+        ? 'Số lượng thực nhận không khớp với dự kiến. Vui lòng nhấn "So sánh & Báo cáo" để tạo biên bản trước.'
+        : '';
 
   // ── Status pill config ────────────────────────────────────────────────────────
   const STATUS_PILL: Record<string, string> = {
@@ -1435,6 +1452,16 @@ export function StockInWorkerView() {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Mismatch warning */}
+          {hasMismatchWithoutReport && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 font-medium leading-snug">
+                Số lượng thực nhận không khớp với dự kiến. Hãy tạo <span className="font-bold">Biên bản So sánh &amp; Báo cáo</span> trước khi hoàn tất.
+              </p>
+            </div>
+          )}
+
           {/* Summary */}
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2 my-1">
             <div className="flex items-center justify-between text-sm">
@@ -1466,7 +1493,7 @@ export function StockInWorkerView() {
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleConfirmComplete}
-              disabled={completeMutation.isPending}
+              disabled={completeMutation.isPending || isCompleteBlocked}
               className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
             >
               {completeMutation.isPending ? (
