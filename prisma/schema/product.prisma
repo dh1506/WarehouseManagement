@@ -1,0 +1,139 @@
+model ProductCategory {
+  id             Int                       @id @default(autoincrement())
+  code           String                    @unique
+  name           String
+  description    String?
+  parent_id      Int?
+  created_at     DateTime                  @default(now())
+  updated_at     DateTime                  @updatedAt
+  location_rules LocationAllowedCategory[]
+  parent         ProductCategory?          @relation("CategoryHierarchy", fields: [parent_id], references: [id])
+  children       ProductCategory[]         @relation("CategoryHierarchy")
+  products       ProductCategoryMap[]
+
+  @@index([parent_id], map: "product_categories_parent_id_fkey")
+  @@map("product_categories")
+}
+
+model Brand {
+  id         Int            @id @default(autoincrement())
+  code       String         @unique
+  name       String
+  is_active  Boolean        @default(true)
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+  products   BrandProduct[]
+
+  @@map("brands")
+}
+
+model UnitOfMeasure {
+  id           Int          @id @default(autoincrement())
+  code         String       @unique
+  name         String
+  uom_type     UomType
+  is_active    Boolean      @default(true)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  product_uoms ProductUom[]
+  products     Product[]
+
+  @@map("units_of_measure")
+}
+
+model Product {
+  id                     Int                    @id @default(autoincrement())
+  code                   String                 @unique
+  name                   String
+  description            String?                @db.Text
+  product_type           ProductType            @default(GOODS)
+  product_status         ProductStatus          @default(ACTIVE)
+  base_uom_id            Int
+  has_batch              Boolean                @default(false)
+  min_stock              Decimal?               @db.Decimal(15, 3)
+  max_stock              Decimal?               @db.Decimal(15, 3)
+  storage_conditions     String?
+  image_url              String?
+  created_at             DateTime               @default(now())
+  updated_at             DateTime               @updatedAt
+  expiry_date            DateTime?
+  production_date        DateTime?
+  brands                 BrandProduct[]
+  inventories            Inventory[]
+  inventory_transactions InventoryTransaction[]
+  categories             ProductCategoryMap[]
+  lots                   ProductLot[]
+  productSuppliers       ProductSupplier[]
+  uoms                   ProductUom[]
+  warehouses             ProductWarehouse[]
+  base_uom               UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
+  stock_in_details       StockInDetail[]
+  stock_out_details      StockOutDetail[]
+
+  @@index([base_uom_id], map: "products_base_uom_id_fkey")
+  @@map("products")
+}
+
+model ProductCategoryMap {
+  product_id  Int
+  category_id Int
+  assigned_at DateTime        @default(now())
+  category    ProductCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, category_id])
+  @@index([category_id], map: "product_category_map_category_id_fkey")
+  @@map("product_category_map")
+}
+
+model ProductUom {
+  id                    Int                    @id @default(autoincrement())
+  product_id            Int
+  uom_id                Int
+  conversion_factor     Decimal                @db.Decimal(15, 6)
+  is_default            Boolean                @default(false)
+  created_at            DateTime               @default(now())
+  updated_at            DateTime               @updatedAt
+  inventoryTransactions InventoryTransaction[]
+  product               Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  uom                   UnitOfMeasure          @relation(fields: [uom_id], references: [id])
+
+  @@unique([product_id, uom_id])
+  @@index([uom_id], map: "product_uoms_uom_id_fkey")
+  @@map("product_uoms")
+}
+
+model BrandProduct {
+  id         Int      @id @default(autoincrement())
+  brand_id   Int
+  product_id Int
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  brand      Brand    @relation(fields: [brand_id], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([brand_id])
+  @@index([product_id])
+  @@map("brands_products")
+}
+
+enum ProductType {
+  GOODS
+  MATERIAL
+  CONSUMABLE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+enum UomType {
+  WEIGHT
+  VOLUME
+  LENGTH
+  QUANTITY
+  PACK
+}
