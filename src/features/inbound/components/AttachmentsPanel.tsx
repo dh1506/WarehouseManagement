@@ -13,7 +13,6 @@ interface AttachmentsPanelProps {
 }
 
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
-const MAX_FILE_SIZE = 10_485_760; // 10MB
 
 export function AttachmentsPanel({
   attachments,
@@ -35,7 +34,7 @@ export function AttachmentsPanel({
       });
 
       if (!result.success) {
-        const firstError = result.error.errors[0]?.message;
+        const firstError = result.error.issues[0]?.message;
         toast({
           title: 'Invalid file',
           description: firstError ?? 'File does not meet requirements',

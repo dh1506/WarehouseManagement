@@ -197,7 +197,6 @@ export async function getProductCategoryById(id: string): Promise<CategoryDetail
 
 export async function createProductCategory(data: CategoryFormData): Promise<ProductCategory> {
   const response = await apiClient.post<ApiResponse<CategoryListApiItem>>('/api/product-categories', {
-    code: data.code.trim().toUpperCase(),
     name: data.name.trim(),
     description: data.description.trim() || undefined,
     parent_id: data.parentId ? Number(data.parentId) : undefined,
@@ -218,7 +217,6 @@ export async function updateProductCategory(
   data: CategoryFormData,
 ): Promise<ProductCategory> {
   const response = await apiClient.patch<ApiResponse<CategoryListApiItem>>(`/api/product-categories/${id}`, {
-    code: data.code.trim().toUpperCase(),
     name: data.name.trim(),
     description: data.description.trim() || null,
     parent_id: data.parentId ? Number(data.parentId) : null,

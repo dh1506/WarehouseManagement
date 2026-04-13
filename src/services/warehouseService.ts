@@ -939,12 +939,21 @@ export async function updateWarehouseLocation(
   id: string,
   payload: WarehouseLocationFormValues,
 ): Promise<WarehouseLocationItem> {
-  const response = await apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(id)}`, {
-    location_status: mapLocationStatusForRequest(payload.status),
-    is_active: payload.status !== 'inactive',
-    max_weight: payload.capacity,
-    current_weight: payload.currentLoad,
-  });
+  // Only send location_status when explicitly switching to/from MAINTENANCE (blocked).
+  // For 'active' locations, omit the field so BE retains its inventory-calculated
+  // PARTIAL or FULL status instead of being overwritten with AVAILABLE.
+  const locationStatusOverride: Partial<{ location_status: WarehouseLocationApiItem['location_status'] }> =
+    payload.status === 'blocked' ? { location_status: 'MAINTENANCE' } : {};
+
+  const response = await apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(
+    `/api/warehouses/locations/${Number(id)}`,
+    {
+      ...locationStatusOverride,
+      is_active: payload.status !== 'inactive',
+      max_weight: payload.capacity,
+      current_weight: payload.currentLoad,
+    },
+  );
 
   return mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
 }

@@ -38,7 +38,6 @@ export function CategoryFormSheetV2({
   const form = useForm<CategoryFormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      code: '',
       name: '',
       description: '',
       parentId: null,
@@ -58,7 +57,6 @@ export function CategoryFormSheetV2({
     }
 
     reset({
-      code: activeCategory?.code ?? '',
       name: activeCategory?.name ?? '',
       description: activeCategory?.description ?? '',
       parentId: activeCategory?.parentId ?? null,
@@ -87,7 +85,6 @@ export function CategoryFormSheetV2({
             }
 
             await onSave({
-              code: value.code.trim(),
               name: value.name.trim(),
               description: value.description.trim(),
               parentId: value.parentId,
@@ -108,14 +105,6 @@ export function CategoryFormSheetV2({
 
           <div className="flex-1 overflow-y-auto px-6 py-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Category Code" error={errors.code?.message}>
-                <input
-                  {...register('code')}
-                  disabled={isView || isPending}
-                  className={inputClass(Boolean(errors.code))}
-                />
-              </Field>
-
               <Field label="Parent Category" error={errors.parentId?.message}>
                 <select
                   {...register('parentId')}

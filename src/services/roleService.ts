@@ -142,9 +142,15 @@ function mapRoleFromApi(role: RoleApiItem): Role {
 }
 
 async function getPermissionCatalog(): Promise<PermissionApiItem[]> {
-  const response = await apiClient.get<ApiResponse<PermissionsListApiData>>('/api/permissions');
-  const payload = unwrapApiData<PermissionsListApiData>(response);
-  return payload.permissions.filter((permission) => permission.is_active);
+  try {
+    const response = await apiClient.get<ApiResponse<PermissionsListApiData>>('/api/permissions');
+    const payload = unwrapApiData<PermissionsListApiData>(response);
+    return payload.permissions.filter((permission) => permission.is_active);
+  } catch {
+    // User lacks permissions:read — degrade gracefully.
+    // Matrix will be built from assigned permissions only (no empty module rows).
+    return [];
+  }
 }
 
 function mapPayloadToPermissionIds(payload: UpdateRolePermissionPayload, permissionCatalog: PermissionApiItem[]): number[] {

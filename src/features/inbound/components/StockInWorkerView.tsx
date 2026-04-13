@@ -1029,7 +1029,20 @@ export function StockInWorkerView() {
   // Có thể xác nhận kiểm đếm
   const canRecord = canEditQty && totalItems > 0;
 
-  // Hoàn tất bị hard-block nếu còn sai lệch PENDING hoặc status là DISCREPANCY
+  // Mismatch without report — only relevant BEFORE allocation.
+  // Once every product has a lot assigned, the allocated quantities are the
+  // authoritative record of what was received; the pre-check must not fire.
+  const hasMismatchWithoutReport =
+    !isAllocated &&
+    detailRows.some((d) => {
+      const received = Number(d.received_quantity ?? 0);
+      const expected = Number(d.expected_quantity);
+      // received === 0 means the count step was skipped, not that it's wrong
+      return received > 0 && received !== expected;
+    }) &&
+    (data?.discrepancies?.length ?? 0) === 0;
+
+  // Hoàn tất bị hard-block nếu còn sai lệch PENDING hoặc status DISCREPANCY
   const isCompleteBlocked =
     status === 'DISCREPANCY' || hasPendingDiscrepancies(data?.discrepancies ?? []);
 

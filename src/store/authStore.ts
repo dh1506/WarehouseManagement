@@ -6,6 +6,7 @@ export interface UserProfile {
   name: string;
   email: string;
   role: string;
+  role_id?: number;
   permissions: string[];
   avatar?: string;
 }
@@ -51,6 +52,7 @@ function normalizeUserProfile(user: unknown): UserProfile | null {
     name: typeof raw.name === 'string' ? raw.name : '',
     email: typeof raw.email === 'string' ? raw.email : '',
     role: normalizeRoleValue(raw.role),
+    role_id: typeof raw.role_id === 'number' ? raw.role_id : undefined,
     permissions: Array.isArray(raw.permissions)
       ? raw.permissions.filter((permission): permission is string => typeof permission === 'string')
       : [],
@@ -109,8 +111,15 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage', // Lưu vào localStorage
-      version: 2,
-      migrate: (persistedState) => normalizePersistedAuthState(persistedState),
+      version: 3,
+      // v3: role_id is now required for permission refresh.
+      // Any session older than v3 is cleared — user re-logs in once and gets role_id.
+      migrate: (_persistedState, version) => {
+        if (version < 3) {
+          return { token: null, user: null, isAuthenticated: false };
+        }
+        return normalizePersistedAuthState(_persistedState);
+      },
       partialize: (state) => ({ token: state.token, user: state.user, isAuthenticated: state.isAuthenticated }), // Chỉ persist những field này
     }
   )

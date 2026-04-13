@@ -7,11 +7,6 @@ export function buildCategoryFormSchema(
 ) {
   return z
     .object({
-      code: z
-        .string()
-        .trim()
-        .min(1, 'Category code is required')
-        .max(50, 'Category code must be 50 characters or fewer'),
       name: z
         .string()
         .trim()
@@ -24,22 +19,7 @@ export function buildCategoryFormSchema(
       parentId: z.string().nullable(),
     })
     .superRefine((value, ctx) => {
-      const normalizedCode = value.code.trim().toUpperCase();
       const normalizedName = value.name.trim().toLowerCase();
-
-      const duplicateCode = categories.find(
-        (category) =>
-          category.id !== currentCategoryId &&
-          category.code.trim().toUpperCase() === normalizedCode,
-      );
-
-      if (duplicateCode) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['code'],
-          message: 'Category code already exists',
-        });
-      }
 
       const duplicateName = categories.find(
         (category) =>

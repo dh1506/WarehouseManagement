@@ -426,6 +426,15 @@
 **Decision:** Remove aisle from warehouse location FE types/schemas/forms/table copy and stop sending/deriving `aisle_code` in warehouse service payloads and zone/bin mapping logic.
 **Rationale:** Keeps FE strictly aligned to the approved API contract and schema-backed data model, while minimizing scope to warehouse modules only.
 
+## DEC-079 - BE/FE contract gap analysis completed (2026-04-13)
+
+**Findings**: 4 critical gaps, 4 medium gaps, 4 minor gaps identified from full read of all 14 BE route+schema files vs all FE services/types.
+- **GAP-C1**: Category `code` sent by FE silently dropped by BE (not in schema)
+- **GAP-C2**: Product create sends `product_status` — not in BE createProductSchema
+- **GAP-C3**: `unit_price` min(0) in FE vs positive() in BE for StockIn
+- **GAP-C4**: `supplier_id` missing from `createStockInFormSchema`
+- Full details in `sprint-tracker.md`
+
 ## DEC-078 - Warehouse hub and zone detail UX polish kept scope-safe
 
 **Date:** 2026-04-08
