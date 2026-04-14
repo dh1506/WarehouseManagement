@@ -75,23 +75,29 @@ model StockInDiscrepancy {
 }
 
 model StockOut {
-  id                    Int               @id @default(autoincrement())
+  id                    Int                     @id @default(autoincrement())
   warehouse_location_id Int
-  code                  String            @unique @map("stock_out_code")
-  description           String?           @db.Text
-  status                StockOutStatus    @default(PENDING)
+  code                  String                  @unique @map("stock_out_code")
+  type                  StockOutType            @default(SALES)
+  reference_number      String?
+  supplier_id           Int?
+  description           String?                 @db.Text
+  status                StockOutStatus          @default(DRAFT)
   created_by            Int
   approved_by           Int?
-  created_at            DateTime          @default(now())
-  updated_at            DateTime          @updatedAt
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
   details               StockOutDetail[]
-  approver              User?             @relation("StockOutApprover", fields: [approved_by], references: [id])
-  creator               User              @relation("StockOutCreator", fields: [created_by], references: [id])
-  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
+  history               StockOutStatusHistory[]
+  approver              User?                   @relation("StockOutApprover", fields: [approved_by], references: [id])
+  creator               User                    @relation("StockOutCreator", fields: [created_by], references: [id])
+  location              WarehouseLocation       @relation(fields: [warehouse_location_id], references: [id])
+  supplier              Supplier?               @relation(fields: [supplier_id], references: [id])
 
   @@index([warehouse_location_id])
   @@index([created_by])
   @@index([approved_by])
+  @@index([supplier_id])
   @@map("stock_outs")
 }
 
@@ -123,6 +129,21 @@ model StockOutDetailLot {
   @@map("stock_out_detail_lots")
 }
 
+model StockOutStatusHistory {
+  id           Int            @id @default(autoincrement())
+  stock_out_id Int
+  status       StockOutStatus
+  changed_by   Int
+  note         String?        @db.Text
+  created_at   DateTime       @default(now())
+  stock_out    StockOut       @relation(fields: [stock_out_id], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [changed_by], references: [id])
+
+  @@index([stock_out_id])
+  @@index([changed_by])
+  @@map("stock_out_status_history")
+}
+
 enum StockInStatus {
   DRAFT
   PENDING
@@ -133,10 +154,17 @@ enum StockInStatus {
 }
 
 enum StockOutStatus {
+  DRAFT
   PENDING
+  APPROVED
   PICKING
-  SHIPPED
+  COMPLETED
   CANCELLED
+}
+
+enum StockOutType {
+  SALES
+  RETURN_TO_SUPPLIER
 }
 
 enum DiscrepancyStatus {

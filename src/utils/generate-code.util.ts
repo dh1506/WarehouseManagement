@@ -69,3 +69,12 @@ export const generateAdjustmentCode = (sequenceId: number): string => {
   const seqPart = sequenceId.toString().padStart(4, '0');
   return `ADJ-${dateStr}-${seqPart}`;
 };
+
+/**
+ * Sinh mã code cho phiếu xuất kho (Ví dụ: OUT-20260408-0001)
+ */
+export const generateStockOutCode = (sequenceId: number): string => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = sequenceId.toString().padStart(4, '0');
+  return `OUT-${dateStr}-${seqPart}`;
+};

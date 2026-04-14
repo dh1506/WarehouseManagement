@@ -16,6 +16,7 @@ import warehouseRoutes from "./routes/warehouse.route";
 import inventoryRoutes from "./routes/inventory.route";
 import locationAllowedCategoryRoutes from "./routes/location-allowed-category.route";
 import stockInRoutes from "./routes/stock-in.route";
+import stockOutRoutes from "./routes/stock-out.route";
 import inventoryTransactionRoutes from "./routes/inventory-transaction.route";
 import { globalErrorHandler } from "./middlewares/error.middleware";
 
@@ -49,6 +50,7 @@ app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/inventories", inventoryRoutes);
 app.use("/api/location-allowed-categories", locationAllowedCategoryRoutes);
 app.use("/api/stock-ins", stockInRoutes);
+app.use("/api/stock-outs", stockOutRoutes);
 app.use("/api/inventory-transactions", inventoryTransactionRoutes);
 
 // Error Middleware
