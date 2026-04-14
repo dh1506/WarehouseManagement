@@ -26,6 +26,8 @@ export function useCompleteStockIn() {
     onSuccess: (data) => {
       queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
+      // Remove zone-bins cache so next map open always shows fresh occupancy
+      queryClient.removeQueries({ queryKey: ['warehouses', 'zone-bins'] });
       // Invalidate warehouse layout data so zone map reflects finalized inventory
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });

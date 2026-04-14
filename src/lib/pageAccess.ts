@@ -116,7 +116,9 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
   { id: 'inventory', label: 'Inventory', path: '/inventory', modules: ['inventory'] },
   { id: 'inventory-transactions', label: 'Audit Log', path: '/inventory/transactions', modules: ['inventory_transactions'] },
   { id: 'ai-forecast', label: 'AI Forecast', path: '/ai-forecast', modules: [] },
-  { id: 'inbound', label: 'Inbound Flow', path: '/inbound', modules: ['stock_ins'] },
+  { id: 'sales-data', label: 'Sales Data', path: '/sales-data', modules: [] },
+  { id: 'reports', label: 'Reports', path: '/reports', modules: [] },
+  { id: 'inbound', label: 'Inbound Flow', path: '/inbound', modules: [] },
   { id: 'users', label: 'User Management', path: '/admin/users', modules: ['users'] },
   { id: 'roles', label: 'Roles', path: '/admin/role-permissions', modules: ['roles', 'permissions'] },
   {

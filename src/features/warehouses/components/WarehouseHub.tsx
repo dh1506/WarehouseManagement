@@ -821,7 +821,13 @@ function WarehouseZoneFormDialog({
             </div>
           ) : null}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Zone Code" error={errors.code?.message}><input {...register('code')} disabled={isPending || mode === 'edit'} className={inputClass(!!errors.code)} /></Field>
+            {mode === 'edit' ? (
+              <Field label="Zone Code">
+                <div className={`${inputClass(false)} flex items-center bg-slate-50 text-slate-500 select-none`}>{zone?.code ?? ''}</div>
+              </Field>
+            ) : (
+              <Field label="Zone Code" error={errors.code?.message}><input {...register('code')} disabled={isPending} className={inputClass(!!errors.code)} /></Field>
+            )}
             <Field label="Zone Type" error={errors.type?.message}><input {...register('type')} disabled={isPending} className={inputClass(!!errors.type)} /></Field>
           </div>
           <Field label="Zone Name" error={errors.name?.message}><input {...register('name')} disabled={isPending} className={inputClass(!!errors.name)} /></Field>
