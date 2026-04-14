@@ -22,6 +22,8 @@ const navItems: NavItem[] = [
   { to: '/inventory', icon: 'widgets', label: 'Inventory' },
   { to: '/inventory/transactions', icon: 'history', label: 'Audit Log' },
   { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
+  { to: '/sales-data', icon: 'bar_chart', label: 'Sales Data' },
+  { to: '/reports', icon: 'monitoring', label: 'Reports' },
   { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
   { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
   { to: '/admin/approval-configuration', icon: 'approval', label: 'Approval Configuration' },
