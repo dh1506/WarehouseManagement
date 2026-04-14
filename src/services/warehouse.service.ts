@@ -104,6 +104,20 @@ export const updateWarehouse = async (id: number, data: UpdateWarehouseInput) =>
     }
   }
 
+  if (data.is_active === false) {
+    const [productAssignments, inventoryCount] = await Promise.all([
+      prisma.productWarehouse.count({ where: { warehouse_id: id } }),
+      prisma.inventory.count({ where: { location: { warehouse_id: id } } }),
+    ]);
+
+    if (productAssignments > 0 || inventoryCount > 0) {
+      throw new AppError(
+        'Không thể hủy kích hoạt kho khi vẫn còn sản phẩm hoặc tồn kho trong kho',
+        400,
+      );
+    }
+  }
+
   const updateData: any = {};
   if (data.code !== undefined) updateData.code = data.code;
   if (data.name !== undefined) updateData.name = data.name;
