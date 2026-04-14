@@ -13,8 +13,8 @@ model StockIn {
   discrepancies         StockInDiscrepancy[]
   approver              User?                @relation("StockInApprover", fields: [approved_by], references: [id])
   creator               User                 @relation("StockInCreator", fields: [created_by], references: [id])
-  location              WarehouseLocation    @relation(fields: [warehouse_location_id], references: [id])
   supplier              Supplier             @relation(fields: [supplier_id], references: [id])
+  location              WarehouseLocation    @relation(fields: [warehouse_location_id], references: [id])
 
   @@index([warehouse_location_id])
   @@index([created_by])
