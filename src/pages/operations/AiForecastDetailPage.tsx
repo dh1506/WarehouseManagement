@@ -9,7 +9,8 @@ import {
   Tag,
   Table,
   Breadcrumb,
-  Avatar
+  Avatar,
+  Badge
 } from 'antd';
 import {
   DownloadOutlined,
