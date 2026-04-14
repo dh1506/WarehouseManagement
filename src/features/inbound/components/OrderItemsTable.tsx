@@ -21,12 +21,12 @@ export function OrderItemsTable({
     onItemsChange([
       ...items,
       {
-        productId: '',
+        product_id: 0,
         productName: '',
         sku: '',
         uom: '',
-        quantity: 0,
-        unitPrice: 0,
+        expected_quantity: 0,
+        unit_price: undefined,
       },
     ]);
   }, [items, onItemsChange]);
@@ -41,7 +41,7 @@ export function OrderItemsTable({
   const handleProductSelect = useCallback(
     (index: number, product: { id: string; name: string; sku: string; uom: string }) => {
       const isDuplicate = items.some(
-        (item, i) => i !== index && item.productId === product.id,
+        (item, i) => i !== index && String(item.product_id) === product.id,
       );
 
       if (isDuplicate) {
@@ -51,7 +51,7 @@ export function OrderItemsTable({
       const updated = [...items];
       updated[index] = {
         ...updated[index],
-        productId: product.id,
+        product_id: Number(product.id),
         productName: product.name,
         sku: product.sku,
         uom: product.uom,
@@ -62,9 +62,9 @@ export function OrderItemsTable({
   );
 
   const handleFieldChange = useCallback(
-    (index: number, field: 'quantity' | 'unitPrice', value: string) => {
+    (index: number, field: 'expected_quantity' | 'unit_price', value: string) => {
       const updated = [...items];
-      const numValue = value === '' ? 0 : Number(value);
+      const numValue = value === '' ? undefined : Number(value);
       updated[index] = { ...updated[index], [field]: numValue };
       onItemsChange(updated);
     },
@@ -72,11 +72,11 @@ export function OrderItemsTable({
   );
 
   const totalValue = items.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
+    (sum, item) => sum + item.expected_quantity * (item.unit_price ?? 0),
     0,
   );
 
-  const excludeIds = items.map((item) => item.productId);
+  const excludeIds = items.map((item) => String(item.product_id || ''));
 
   return (
     <div className="space-y-3">
@@ -102,20 +102,21 @@ export function OrderItemsTable({
           </thead>
           <tbody className="divide-y divide-slate-50">
             {items.map((item, index) => {
-              const lineTotal = item.quantity * item.unitPrice;
+              const lineTotal = item.expected_quantity * (item.unit_price ?? 0);
+              const itemIdStr = String(item.product_id || '');
               const isDuplicate = items.some(
-                (other, i) => i !== index && other.productId === item.productId && item.productId !== '',
+                (other, i) => i !== index && String(other.product_id) === itemIdStr && item.product_id !== 0,
               );
 
               return (
                 <tr key={index} className={cn(isDuplicate && 'bg-rose-50/30')}>
                   <td className="py-2 px-4">
                     <ProductSearchSelect
-                      value={item.productId}
+                      value={itemIdStr}
                       onValueChange={(product) => handleProductSelect(index, product)}
                       placeholder="Search product..."
                       disabled={disabled}
-                      excludeIds={excludeIds.filter((id) => id !== item.productId)}
+                      excludeIds={excludeIds.filter((id) => id !== itemIdStr)}
                     />
                     {errors?.[index] && (
                       <p className="text-[10px] text-rose-500 mt-0.5">{errors[index]}</p>
@@ -129,8 +130,8 @@ export function OrderItemsTable({
                   <td className="py-2 px-4">
                     <input
                       type="number"
-                      value={item.quantity || ''}
-                      onChange={(e) => handleFieldChange(index, 'quantity', e.target.value)}
+                      value={item.expected_quantity || ''}
+                      onChange={(e) => handleFieldChange(index, 'expected_quantity', e.target.value)}
                       min={1}
                       disabled={disabled}
                       className="w-full h-8 rounded-md border border-slate-200 bg-white px-2 text-right text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:opacity-50 tabular-nums"
@@ -139,9 +140,9 @@ export function OrderItemsTable({
                   <td className="py-2 px-4">
                     <input
                       type="number"
-                      value={item.unitPrice || ''}
-                      onChange={(e) => handleFieldChange(index, 'unitPrice', e.target.value)}
-                      min={0}
+                      value={item.unit_price || ''}
+                      onChange={(e) => handleFieldChange(index, 'unit_price', e.target.value)}
+                      min={0.01}
                       step="0.01"
                       disabled={disabled}
                       className="w-full h-8 rounded-md border border-slate-200 bg-white px-2 text-right text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:opacity-50 tabular-nums"

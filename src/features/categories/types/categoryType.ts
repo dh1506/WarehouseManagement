@@ -17,7 +17,6 @@ export interface ProductCategory {
 }
 
 export interface CategoryFormData {
-  code: string;
   name: string;
   description: string;
   parentId: string | null;

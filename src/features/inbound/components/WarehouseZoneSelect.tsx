@@ -108,7 +108,7 @@ export function WarehouseZoneSelect({
           search: debouncedSearch || undefined,
         },
       });
-      return (res as ApiResponse<LocationListResponse>).data.locations;
+      return (res as unknown as ApiResponse<LocationListResponse>).data.locations;
     },
     staleTime: 60_000,
     enabled: open,
@@ -126,7 +126,7 @@ export function WarehouseZoneSelect({
           page: 1,
         },
       });
-      const items = (res as ApiResponse<AllowedCategoryResponse>).data.locationAllowedCategories;
+      const items = (res as unknown as ApiResponse<AllowedCategoryResponse>).data.locationAllowedCategories;
       return new Set(items.map((i) => i.location_id));
     },
     staleTime: 60_000,

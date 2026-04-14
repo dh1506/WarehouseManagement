@@ -109,6 +109,14 @@ export interface StockInQueryParams {
   date_to?: string;      // YYYY-MM-DD — client-side filter only
 }
 
+// ── Supplier performance for dashboard widget ────────────────────────────────
+export interface SupplierPerformanceItem {
+  supplierId: number | string;
+  supplierName: string;
+  onTimeRate: number;
+  totalDeliveries: number;
+}
+
 // ── KPI stats derived on the FE from list data ───────────────────────────────
 export interface StockInKpiStats {
   total: number;

@@ -212,7 +212,8 @@ function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update'
     name: payload.name.trim(),
     description: payload.description.trim() || undefined,
     product_type: payload.productType.toUpperCase(),
-    product_status: payload.status.toUpperCase(),
+    // product_status is only accepted by BE in the update schema, not create
+    ...(mode === 'update' ? { product_status: payload.status.toUpperCase() } : {}),
     brand_ids: payload.brandId ? [Number(payload.brandId)] : [],
     base_uom_id: Number(payload.unitId),
     has_batch: payload.trackedByLot,

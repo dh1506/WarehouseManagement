@@ -188,7 +188,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
         .map((it) => ({
           product_id: it.product_id,
           expected_quantity: it.expected_quantity,
-          unit_price: it.unit_price ?? undefined,
+          unit_price: it.unit_price && it.unit_price > 0 ? it.unit_price : undefined,
         })),
     };
     createMutation.mutate(payload, {
@@ -494,7 +494,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                                 type="number"
                                 value={item.unit_price ?? ''}
                                 onChange={(e) => handlePriceChange(index, e.target.value)}
-                                min={0}
+                                min={0.01}
                                 step="0.01"
                                 placeholder="0.00"
                                 className="h-7 w-full rounded-md border border-slate-200 bg-white pl-6 pr-2.5 text-right text-sm tabular-nums outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"

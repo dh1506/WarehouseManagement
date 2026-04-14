@@ -65,10 +65,14 @@ function DefaultLandingRoute() {
   const role = user?.role;
 
   const candidates = [
+    '/admin/warehouses',
     '/admin/product-settings',
     '/admin/categories',
     '/admin/products',
-    '/admin/warehouses',
+    '/inbound',
+    '/outbound',
+    '/inventory',
+    '/inventory/transactions',
     '/admin/users',
     '/admin/role-permissions',
     '/admin/approval-configuration',

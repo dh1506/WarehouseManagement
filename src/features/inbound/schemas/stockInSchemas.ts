@@ -13,7 +13,7 @@ const createStockInDetailItemSchema = z.object({
     .positive('Số lượng phải lớn hơn 0'),
   unit_price: z.coerce
     .number()
-    .min(0, 'Đơn giá phải ≥ 0')
+    .positive('Đơn giá phải lớn hơn 0')
     .optional(),
 });
 

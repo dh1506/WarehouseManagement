@@ -205,7 +205,7 @@ function mapToSidebarModules(
       create: canCreate ? hasAnyAction(permissionSet, template.backendModules, ['create']) : false,
       edit: canEdit ? hasAnyAction(permissionSet, template.backendModules, ['update']) : false,
       delete: canDelete
-        ? hasAnyAction(permissionSet, template.backendModules, ['delete', 'update'])
+        ? hasAnyAction(permissionSet, template.backendModules, ['delete'])
         : false,
       approve: canApprove ? hasAnyAction(permissionSet, template.backendModules, ['approve']) : false,
     };
@@ -235,7 +235,6 @@ function toActionSet(modulePermission: ModulePermission): string[] {
   if (modulePermission.edit) actions.add('update');
   if (modulePermission.delete) {
     actions.add('delete');
-    actions.add('update');
   }
   if (modulePermission.approve) actions.add('approve');
 

@@ -17,12 +17,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-interface SupplierOption {
-  id: string;
-  name: string;
-  code: string;
-}
-
 interface SupplierSearchSelectProps {
   value: string;
   onValueChange: (value: string, name: string) => void;

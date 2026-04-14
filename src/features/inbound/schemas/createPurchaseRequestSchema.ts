@@ -9,7 +9,7 @@ export const orderItemSchema = z.object({
   expected_quantity: z.coerce
     .number()
     .positive('Quantity must be greater than 0'),
-  unit_price: z.coerce.number().min(0, 'Unit price must be 0 or greater').optional(),
+  unit_price: z.coerce.number().positive('Unit price must be greater than 0').optional(),
 });
 
 export type OrderItemSchema = z.infer<typeof orderItemSchema>;
@@ -20,6 +20,10 @@ export const createStockInFormSchema = z.object({
     .number()
     .int()
     .positive('Warehouse location is required'),
+  supplier_id: z.coerce
+    .number()
+    .int()
+    .positive('Supplier is required'),
   description: z
     .string()
     .trim()
