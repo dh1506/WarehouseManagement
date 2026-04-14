@@ -11,6 +11,7 @@ model Supplier {
   updated_at       DateTime          @updatedAt
   productSuppliers ProductSupplier[]
   stock_ins        StockIn[]
+  stockOuts        StockOut[]
 
   @@map("suppliers")
 }
