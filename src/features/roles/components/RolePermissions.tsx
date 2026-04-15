@@ -373,21 +373,18 @@ export function RolePermissions() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
-        <p className="text-sm text-gray-500 max-w-2xl">
-          Define access levels per sidebar page. Each page row controls all underlying BE modules it depends on.
-        </p>
+    <div className="flex-1 overflow-hidden flex flex-col p-3 gap-3">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-base font-bold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
       </div>
 
-      <div className="flex-1 flex gap-6 min-h-0">
+      <div className="flex-1 flex gap-4 min-h-0">
 
         {/* ── Left Pane: Role List ─────────────────────────────────────────── */}
         <div
           ref={roleListScrollRef}
           onScroll={updateRoleListFade}
-          className="relative w-80 flex flex-col gap-4 overflow-y-auto rounded-xl bg-gray-50 p-4"
+          className="relative w-72 flex flex-col gap-3 overflow-y-auto rounded-xl bg-gray-50 p-3"
         >
           <div className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-gray-50 to-transparent transition-opacity duration-200 ${showRoleTopFade ? 'opacity-100' : 'opacity-0'}`} />
 

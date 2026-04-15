@@ -1,57 +1,93 @@
-import type { OutboundOrder, OutboundStatus } from '../types/outboundType';
-import { OUTBOUND_STATUS_LABELS, OUTBOUND_PRIORITY_LABELS } from '../types/outboundType';
+import { cn } from '@/lib/utils';
+import type { OutboundStatus, OutboundType } from '../types/outboundType';
+import { OUTBOUND_STATUS_LABELS, OUTBOUND_TYPE_LABELS } from '../types/outboundType';
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<OutboundStatus, string> = {
-  DRAFT: 'bg-gray-100 text-gray-600 border border-gray-200',
-  CONFIRMED: 'bg-blue-50 text-blue-700 border border-blue-200',
-  PICKING: 'bg-amber-50 text-amber-700 border border-amber-200',
-  COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  DRAFT:     'bg-slate-100 text-slate-600 border border-slate-200',
+  PENDING:   'bg-amber-50 text-amber-700 border border-amber-200',
+  APPROVED:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  PICKING:   'bg-blue-50 text-blue-700 border border-blue-200',
+  COMPLETED: 'bg-purple-50 text-purple-700 border border-purple-200',
   CANCELLED: 'bg-red-50 text-red-600 border border-red-200',
 };
 
 const STATUS_DOTS: Record<OutboundStatus, string> = {
-  DRAFT: 'bg-gray-400',
-  CONFIRMED: 'bg-blue-500',
-  PICKING: 'bg-amber-500 animate-pulse',
-  COMPLETED: 'bg-emerald-500',
+  DRAFT:     'bg-slate-400',
+  PENDING:   'bg-amber-500 animate-pulse',
+  APPROVED:  'bg-emerald-500',
+  PICKING:   'bg-blue-500 animate-pulse',
+  COMPLETED: 'bg-purple-500',
   CANCELLED: 'bg-red-500',
-};
-
-const PRIORITY_STYLES: Record<OutboundOrder['priority'], string> = {
-  LOW: 'bg-gray-100 text-gray-500',
-  NORMAL: 'bg-sky-100 text-sky-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  URGENT: 'bg-red-100 text-red-700',
 };
 
 interface OutboundStatusBadgeProps {
   status: OutboundStatus;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
-export function OutboundStatusBadge({ status, size = 'md' }: OutboundStatusBadgeProps) {
-  const base = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
+export function OutboundStatusBadge({
+  status,
+  size = 'md',
+  className,
+}: OutboundStatusBadgeProps) {
+  const sizeClass =
+    size === 'sm'
+      ? 'px-2 py-0.5 text-[10px]'
+      : size === 'lg'
+        ? 'px-3.5 py-1.5 text-sm'
+        : 'px-2.5 py-1 text-xs';
+
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${base} ${STATUS_STYLES[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOTS[status]}`} />
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full font-semibold',
+        sizeClass,
+        STATUS_STYLES[status],
+        className,
+      )}
+    >
+      <span className={cn('rounded-full', size === 'lg' ? 'w-2 h-2' : 'w-1.5 h-1.5', STATUS_DOTS[status])} />
       {OUTBOUND_STATUS_LABELS[status]}
     </span>
   );
 }
 
-interface OutboundPriorityBadgeProps {
-  priority: OutboundOrder['priority'];
+// ─── Type Badge ───────────────────────────────────────────────────────────────
+
+const TYPE_STYLES: Record<OutboundType, string> = {
+  SALES:              'bg-sky-50 text-sky-700 border border-sky-200',
+  RETURN_TO_SUPPLIER: 'bg-orange-50 text-orange-700 border border-orange-200',
+};
+
+const TYPE_ICONS: Record<OutboundType, string> = {
+  SALES:              'storefront',
+  RETURN_TO_SUPPLIER: 'undo',
+};
+
+interface OutboundTypeBadgeProps {
+  type: OutboundType;
   size?: 'sm' | 'md';
+  className?: string;
 }
 
-export function OutboundPriorityBadge({ priority, size = 'md' }: OutboundPriorityBadgeProps) {
-  const base = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
+export function OutboundTypeBadge({ type, size = 'md', className }: OutboundTypeBadgeProps) {
+  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
+  const iconSize = size === 'sm' ? 'text-[12px]' : 'text-[14px]';
+
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full font-semibold ${base} ${PRIORITY_STYLES[priority]}`}>
-      {priority === 'URGENT' && (
-        <span className="material-symbols-outlined text-[12px]" data-icon="bolt">bolt</span>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full font-semibold',
+        sizeClass,
+        TYPE_STYLES[type],
+        className,
       )}
-      {OUTBOUND_PRIORITY_LABELS[priority]}
+    >
+      <span className={cn('material-symbols-outlined', iconSize)}>{TYPE_ICONS[type]}</span>
+      {OUTBOUND_TYPE_LABELS[type]}
     </span>
   );
 }

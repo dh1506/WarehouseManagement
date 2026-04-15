@@ -435,6 +435,28 @@
 - **GAP-C4**: `supplier_id` missing from `createStockInFormSchema`
 - Full details in `sprint-tracker.md`
 
+## DEC-080 - Outbound module full rewrite aligned to real BE API (2026-04-15)
+
+**Date:** 2026-04-15
+**Context:** Outbound FE was built against a stale spec with wrong status values (`CONFIRMED` state does not exist in BE), an invented `PickingTask` abstraction with no backend equivalent, and a `OutboundPriorityBadge` where the type should be `SALES | RETURN_TO_SUPPLIER`. The new BE contract was reviewed end-to-end before rewriting.
+
+**Critical discrepancies corrected:**
+1. **Status flow**: FE had `DRAFT→PENDING→CONFIRMED→PICKING→COMPLETED`. BE is `DRAFT→PENDING→APPROVED→PICKING→COMPLETED` (+ `CANCELLED`). Fixed in types, schema, stepper, all components.
+2. **PickingTask eliminated**: FE invented a `PickingTask` abstraction (model, hooks, service) with no backend counterpart. Replaced with direct `StockOutDetail[]` model and local `LotAssignment[]` state submitted atomically via `PUT /api/stock-outs/:id/picked-lots`.
+3. **Lot assignment endpoint**: `PUT /picked-lots` is atomic replacement — all lots at once, not incremental patch per lot.
+4. **Type field**: Renamed from `priority` (FE) to `type: SALES | RETURN_TO_SUPPLIER` (BE). `OutboundPriorityBadge` replaced with `OutboundTypeBadge`.
+5. **Create routing**: BE has two separate POST endpoints: `POST /api/stock-outs/sales` and `POST /api/stock-outs/returns`. FE `OutboundCreateForm` routes to the correct mutation based on `type` selection.
+
+**Architecture decisions:**
+- **KPI**: No dedicated stats endpoint — use 4 parallel `useQueries` calls each with `limit: 1` for a specific status, reading `.total` from list response. Manager-only via `hasPermission('stock_outs:approve')`.
+- **Proof upload (B2)**: Full upload UI built against service stubs (`getProofUploadUrl`, `uploadFileToB2`, `confirmProofUpload`). On service failure: `uploadStatus: 'error'` shown with Vietnamese friendly message, no crash.
+- **Discrepancy handling**: Two-layer — (1) local pre-check (picked qty vs required qty) before hitting BE; (2) catches BE 400 error. Both surface `DiscrepancyPanel`.
+- **RBAC gate**: `hasPermission('stock_outs:approve')` distinguishes manager (can approve) from staff (sees info badge only).
+- **Tailwind v4 canonical classes**: Used `bg-linear-to-r`, `min-h-100`, `max-w-15`, `min-w-125` throughout.
+- **Motion**: All animations via `motion/react` v12 (`motion`, `AnimatePresence`). Staggered entrance for KPI cards, animated progress bars in picking screen.
+
+**Rationale:** Eliminates all FE/BE contract drift in the outbound module. No BE changes made — read-only reference.
+
 ## DEC-078 - Warehouse hub and zone detail UX polish kept scope-safe
 
 **Date:** 2026-04-08

@@ -336,8 +336,8 @@ export function ZoneDetail() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-[#f8f9fb] p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+    <div className="flex h-full flex-col overflow-y-auto bg-[#f8f9fb] p-3 sm:p-4 lg:p-5">
+      <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
           <button
             type="button"
@@ -375,8 +375,8 @@ export function ZoneDetail() {
 
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
         <div className="space-y-6 xl:col-span-8">
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-8 flex flex-wrap gap-6 border-b border-slate-200 pb-6">
+          <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex flex-wrap gap-4 border-b border-slate-200 pb-4">
               {(['empty', 'low', 'partial', 'full', 'overloaded'] as BinOccupancyLevel[]).map((levelValue) => (
                 <div key={levelValue} className="flex items-center gap-2">
                   <span className={`h-4 w-4 rounded ${getOccupancyColor(levelValue).split(' ')[0]}`}></span>

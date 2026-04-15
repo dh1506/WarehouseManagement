@@ -27,7 +27,9 @@ interface PaginationApiModel {
   page: number;
   limit: number;
   total: number;
-  totalPages: number;
+  total_pages: number;
+  // legacy alias — some endpoints return camelCase
+  totalPages?: number;
 }
 
 interface WarehouseApiItem {
@@ -449,7 +451,7 @@ async function fetchAllLocationAllowedCategories(params?: {
 
     const payload = unwrapApiData<LocationAllowedCategoryListApiData>(response);
     all.push(...payload.locationAllowedCategories);
-    totalPages = payload.pagination.totalPages;
+    totalPages = payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1;
     page += 1;
   }
 
@@ -463,19 +465,24 @@ async function fetchAllInventories(params?: {
   let page = 1;
   let totalPages = 1;
 
-  while (page <= totalPages) {
-    const response = await apiClient.get<ApiResponse<InventoryListApiData>>('/api/inventories', {
-      params: {
-        page,
-        limit: 100,
-        warehouse_location_id: params?.warehouseLocationId ? Number(params.warehouseLocationId) : undefined,
-      },
-    });
+  try {
+    while (page <= totalPages) {
+      const response = await apiClient.get<ApiResponse<InventoryListApiData>>('/api/inventories', {
+        params: {
+          page,
+          limit: 100,
+          warehouse_location_id: params?.warehouseLocationId ? Number(params.warehouseLocationId) : undefined,
+        },
+      });
 
-    const payload = unwrapApiData<InventoryListApiData>(response);
-    all.push(...payload.inventories);
-    totalPages = payload.pagination.totalPages;
-    page += 1;
+      const payload = unwrapApiData<InventoryListApiData>(response);
+      all.push(...payload.inventories);
+      totalPages = payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1;
+      page += 1;
+    }
+  } catch {
+    // /api/inventories chưa sẵn sàng — trả về mảng rỗng để hub/zone vẫn load được
+    return [];
   }
 
   return all;

@@ -202,5 +202,6 @@ font:not([class]) {
     }
   html {
     @apply font-sans;
+    font-size: 14px;
     }
 }

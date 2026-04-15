@@ -153,8 +153,8 @@ export function CategoryManagementV2() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
           title="Category Management"
           description="Manage the hierarchical product category structure that supports product master data and future inventory workflows."
@@ -174,9 +174,9 @@ export function CategoryManagementV2() {
           )}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-slate-400">search</span>
             <input
               value={searchTerm}
               onChange={(event) => {
@@ -184,11 +184,11 @@ export function CategoryManagementV2() {
                 setPage(1);
               }}
               placeholder="Search by category code, name, or description..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition-all duration-200 ease-out focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-4 text-sm outline-none transition-all duration-200 ease-out focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
             />
           </div>
 
-          <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
+          <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
             <div
               ref={tableScrollRef}
               onScroll={updateScrollFade}
@@ -214,7 +214,7 @@ export function CategoryManagementV2() {
             </div>
 
             {total > 0 ? (
-              <div className="flex shrink-0 flex-col gap-3 border-t border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm font-medium text-slate-500">
                   Showing {pageStart} - {pageEnd} of {total} categories
                 </p>

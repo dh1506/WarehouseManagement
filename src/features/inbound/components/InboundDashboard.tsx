@@ -67,7 +67,7 @@ export function InboundDashboard() {
     >
       {/* ── Fixed top section ───────────────────────────────────────────────── */}
       <motion.div
-        className="shrink-0 space-y-3 px-3 pt-3 pb-2 md:px-4 md:pt-4"
+        className="shrink-0 space-y-2 px-2 pt-2 pb-1.5 md:px-3 md:pt-3"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -96,7 +96,7 @@ export function InboundDashboard() {
       </motion.div>
 
       {/* ── Table fills remaining height ─────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 px-3 pb-3 md:px-4 md:pb-4">
+      <div className="flex-1 min-h-0 px-2 pb-2 md:px-3 md:pb-3">
         <InboundTable
           data={filteredData}
           isLoading={isLoading}

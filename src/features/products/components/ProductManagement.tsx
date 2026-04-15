@@ -427,8 +427,8 @@ export function ProductManagement() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
           // eyebrow="Sprint 1 � Product Master"
           title="Product Management"
@@ -469,15 +469,8 @@ export function ProductManagement() {
           )}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">Master catalog</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Use real category, unit, and brand master data to keep product records consistent across modules.
-              </p>
-            </div>
-
+        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex flex-col gap-3">
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-12">
               <div className="xl:col-span-5">
                 <SearchInput
@@ -607,35 +600,34 @@ export function ProductManagement() {
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
                       {currentProducts.map((item) => (
-                        <tr key={item.id} className="align-top transition-colors duration-200 ease-out hover:bg-slate-50/60">
-                          <td className="px-4 py-4">
+                        <tr key={item.id} className="align-middle transition-colors duration-200 ease-out hover:bg-slate-50/60">
+                          <td className="px-4 py-2">
                             <Checkbox
                               checked={selectedProductIds.includes(item.id)}
                               onCheckedChange={(checked) => handleToggleSelectProduct(item.id, checked === true)}
                               aria-label={`Select ${item.name}`}
                             />
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-2">
                             <div className="font-semibold text-slate-900">{item.name}</div>
-                            <div className="mt-1 text-sm text-slate-500">{item.sku}</div>
-                            <div className="mt-2 text-xs text-slate-400">{item.supplierName || 'No supplier'}</div>
+                            <div className="mt-0.5 text-xs text-slate-400">{item.sku}</div>
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">
+                          <td className="px-4 py-2 text-sm text-slate-600">
                             <div>{item.categoryName}</div>
-                            {item.categoryNames.length > 1 ? <div className="mt-1 text-xs text-slate-400">+{item.categoryNames.length - 1} more</div> : null}
+                            {item.categoryNames.length > 1 ? <div className="mt-0.5 text-xs text-slate-400">+{item.categoryNames.length - 1} more</div> : null}
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">
+                          <td className="px-4 py-2 text-sm text-slate-600">
                             <div>{item.unitName}</div>
-                            <div className="mt-1 text-xs text-slate-400">{item.brandName}</div>
+                            <div className="mt-0.5 text-xs text-slate-400">{item.brandName}</div>
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-600">
-                            <div>Min {item.minStock} � Max {item.maxStock}</div>
-                            <div className="mt-1 text-xs text-slate-400">
-                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} � {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+                          <td className="px-4 py-2 text-sm text-slate-600">
+                            <div>Min {item.minStock} · Max {item.maxStock}</div>
+                            <div className="mt-0.5 text-xs text-slate-400">
+                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
                             </div>
                           </td>
-                          <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-2"><StatusBadge status={item.status} /></td>
+                          <td className="px-4 py-2">
                             <div className="flex justify-end gap-2">
                               <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
                               {canEdit && (

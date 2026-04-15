@@ -1,25 +1,65 @@
 import { z } from 'zod';
 
-export const outboundLineItemSchema = z.object({
-  productId: z.string().min(1, 'Vui lòng chọn sản phẩm'),
-  locationId: z.string().min(1, 'Vui lòng chọn vị trí'),
-  unitId: z.string().min(1, 'Vui lòng chọn đơn vị'),
-  lotNumber: z.string().min(1, 'Vui lòng nhập số lô'),
-  expiryDate: z.string().default(''),
-  requestedQty: z
+// ─── Tạo phiếu xuất ───────────────────────────────────────────────────────────
+
+export const createStockOutDetailSchema = z.object({
+  product_id: z
+    .number({ required_error: 'Vui lòng nhập mã sản phẩm' })
+    .int('Mã sản phẩm phải là số nguyên')
+    .positive('Mã sản phẩm không hợp lệ'),
+  quantity: z
+    .number({ required_error: 'Vui lòng nhập số lượng' })
+    .positive('Số lượng phải lớn hơn 0'),
+  unit_price: z
     .number()
-    .int('Số lượng phải là số nguyên')
-    .min(1, 'Số lượng tối thiểu là 1'),
-  note: z.string().default(''),
+    .nonnegative('Đơn giá không được âm')
+    .nullable()
+    .optional(),
 });
 
-export const outboundFormSchema = z.object({
-  warehouseId: z.string().min(1, 'Vui lòng chọn kho'),
-  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
-  expectedDate: z.string().default(''),
-  note: z.string().default(''),
-  lineItems: z.array(outboundLineItemSchema).min(1, 'Phiếu xuất phải có ít nhất 1 dòng hàng'),
+export const createStockOutSchema = z.object({
+  warehouse_location_id: z
+    .number({ required_error: 'Vui lòng chọn vị trí kho' })
+    .int()
+    .positive('Vị trí kho không hợp lệ'),
+  type: z.enum(['SALES', 'RETURN_TO_SUPPLIER']).default('SALES'),
+  reference_number: z.string().optional().default(''),
+  supplier_id: z.number().int().positive().nullable().optional(),
+  description: z.string().optional().default(''),
+  details: z
+    .array(createStockOutDetailSchema)
+    .min(1, 'Phiếu xuất phải có ít nhất 1 sản phẩm'),
 });
 
-export type OutboundLineItemSchemaValues = z.infer<typeof outboundLineItemSchema>;
-export type OutboundFormSchemaValues = z.infer<typeof outboundFormSchema>;
+// ─── Gán lô hàng (picked-lots) ────────────────────────────────────────────────
+
+export const pickedLotEntrySchema = z.object({
+  stock_out_detail_id: z
+    .number()
+    .int()
+    .positive('ID dòng phiếu không hợp lệ'),
+  product_lot_id: z
+    .number({ required_error: 'Vui lòng nhập mã lô' })
+    .int()
+    .positive('Mã lô không hợp lệ'),
+  quantity: z
+    .number({ required_error: 'Vui lòng nhập số lượng' })
+    .positive('Số lượng phải lớn hơn 0'),
+});
+
+export const updatePickedLotsSchema = z.object({
+  lots: z.array(pickedLotEntrySchema).min(1, 'Phải có ít nhất 1 lô được gán'),
+});
+
+// ─── Hủy phiếu ────────────────────────────────────────────────────────────────
+
+export const cancelStockOutSchema = z.object({
+  reason: z.string().optional(),
+});
+
+// ─── Inferred types ───────────────────────────────────────────────────────────
+
+export type CreateStockOutSchemaValues = z.infer<typeof createStockOutSchema>;
+export type CreateStockOutDetailSchemaValues = z.infer<typeof createStockOutDetailSchema>;
+export type UpdatePickedLotsSchemaValues = z.infer<typeof updatePickedLotsSchema>;
+export type CancelStockOutSchemaValues = z.infer<typeof cancelStockOutSchema>;

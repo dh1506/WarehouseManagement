@@ -105,8 +105,8 @@ export function WarehouseManagement() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex w-full flex-1 flex-col gap-3">
         <PageHeader
           eyebrow="Sprint 1 · Warehouse Structure"
           title="Warehouse & Locations"

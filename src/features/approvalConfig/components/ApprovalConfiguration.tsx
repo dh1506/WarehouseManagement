@@ -198,19 +198,16 @@ export function ApprovalConfiguration() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
       {/* ── Page Header ──────────────────────────────────────── */}
-      <section className="px-8 py-5 flex justify-between items-end shrink-0">
+      <section className="px-4 py-3 flex justify-between items-center shrink-0">
         <div>
-          <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">
             Cấu hình Quy trình &amp; Phê duyệt
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Thiết lập chi tiết các bước, vai trò và mô tả nghiệp vụ cho hệ thống.
-          </p>
         </div>
       </section>
 
       {/* ── Main Content ─────────────────────────────────────── */}
-      <div className="flex-1 flex px-8 pb-6 gap-6 overflow-hidden">
+      <div className="flex-1 flex px-4 pb-3 gap-4 overflow-hidden">
 
         {/* ── Left Sidebar: Active Scenarios ── */}
         <div className="w-80 flex flex-col gap-4 overflow-y-auto pr-2 shrink-0">

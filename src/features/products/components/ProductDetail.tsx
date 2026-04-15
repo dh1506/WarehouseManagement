@@ -33,7 +33,7 @@ export function ProductDetail() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4">
         <StatePanel title="Loading product details" description="The system is retrieving the current product record." icon="hourglass_top" />
       </div>
     );
@@ -41,7 +41,7 @@ export function ProductDetail() {
 
   if (isError || !product) {
     return (
-      <div className="p-8">
+      <div className="p-4">
         <StatePanel
           title="Unable to load product details"
           description="Please try again to view the product record."
@@ -63,7 +63,7 @@ export function ProductDetail() {
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe]">
-      <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 sm:px-4 lg:px-5">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -74,8 +74,8 @@ export function ProductDetail() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-        <div className="mx-auto w-full max-w-7xl space-y-8">
+      <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-5">
+        <div className="mx-auto w-full max-w-7xl space-y-4">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div className="flex-1">
               <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -99,9 +99,9 @@ export function ProductDetail() {
             </button>
           </div>
 
-          <div className="grid grid-cols-12 gap-8">
+          <div className="grid grid-cols-12 gap-4">
             <div className="col-span-12 space-y-6 xl:col-span-7">
-              <div className="rounded-2xl bg-white p-8 shadow-sm">
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">info</span>
                   <h3 className="text-sm font-bold">General Information</h3>
@@ -119,7 +119,7 @@ export function ProductDetail() {
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-2xl bg-white p-8 shadow-sm">
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">tracking_ads</span>
                     <h3 className="text-sm font-bold">Tracking Rules</h3>
@@ -131,7 +131,7 @@ export function ProductDetail() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-white p-8 shadow-sm">
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">inventory_2</span>
                     <h3 className="text-sm font-bold">Stock Policy</h3>
@@ -151,7 +151,7 @@ export function ProductDetail() {
             </div>
 
             <div className="col-span-12 space-y-6 xl:col-span-5">
-              <div className="rounded-2xl bg-white p-6 shadow-sm border-l-4 border-primary">
+              <div className="rounded-2xl bg-white p-4 shadow-sm border-l-4 border-primary">
                 <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">Master Data Summary</h3>
                 <div className="space-y-4 text-sm text-slate-700">
                   <div className="flex items-center justify-between">

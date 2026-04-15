@@ -77,7 +77,7 @@ function PermCheckbox({
       aria-checked={checked}
       onClick={onChange}
       disabled={disabled}
-      className={`mx-auto w-[1.25rem] h-[1.25rem] rounded-[0.25em] border-[1.5px] flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${checked
+      className={`w-[1.25rem] h-[1.25rem] rounded-[0.25em] border-[1.5px] flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${checked
         ? 'bg-blue-800 border-blue-800'
         : 'bg-white border-slate-300 hover:border-blue-400'
         }`}
@@ -226,15 +226,15 @@ export function AdvancedPermissions() {
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50">
-      <div className="max-w-7xl mx-auto px-8 py-4 space-y-4 pb-12">
+      <div className="max-w-7xl px-4 py-3 space-y-3 pb-6">
 
         {/* ── Page Header ──────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center justify-between gap-3">
           <div className="max-w-3xl">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 tracking-tight">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Advanced Permissions with Expanded Matrix
             </h2>
-            <p className="text-slate-500 text-sm leading-relaxed">
+            <p className="hidden text-slate-500 text-sm leading-relaxed">
               Define granular access levels and operational boundaries for organizational roles
               using the Predictive Matrix.
             </p>

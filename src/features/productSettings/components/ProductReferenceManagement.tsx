@@ -227,8 +227,8 @@ export function ProductReferenceManagement() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
           // eyebrow="Sprint 1 · Product Foundation"
           title="Product Supporting Masters"
@@ -371,18 +371,15 @@ export function ProductReferenceManagement() {
                           </thead>
                           <tbody className="divide-y divide-slate-200 bg-white">
                             {data?.data.map((item) => (
-                              <tr key={item.id} className="align-top transition-colors duration-200 ease-out hover:bg-slate-50/60">
-                                <td className="px-4 py-4">
+                              <tr key={item.id} className="align-middle transition-colors duration-200 ease-out hover:bg-slate-50/60">
+                                <td className="px-4 py-2">
                                   <div className="font-semibold text-slate-900">{item.code}</div>
-                                  <div className="mt-1 text-xs text-slate-400">
-                                    Updated {new Date(item.updatedAt).toLocaleDateString('vi-VN')}
-                                  </div>
                                 </td>
-                                <td className="px-4 py-4 text-sm font-medium text-slate-800">{item.name}</td>
-                                <td className="px-4 py-4 text-sm text-slate-500">{getReferenceSummary(item)}</td>
-                                <td className="px-4 py-4 text-sm text-slate-600">{item.usageCount} products</td>
-                                <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
-                                <td className="px-4 py-4">
+                                <td className="px-4 py-2 text-sm font-medium text-slate-800">{item.name}</td>
+                                <td className="px-4 py-2 text-sm text-slate-500">{getReferenceSummary(item)}</td>
+                                <td className="px-4 py-2 text-sm text-slate-600">{item.usageCount} products</td>
+                                <td className="px-4 py-2"><StatusBadge status={item.status} /></td>
+                                <td className="px-4 py-2">
                                   <div className="flex justify-end gap-2">
                                     <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
                                     {canUpdateCurrentTab && (

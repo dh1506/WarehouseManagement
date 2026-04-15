@@ -1,5 +1,29 @@
 # Sprint Tracker
 
+## Outbound Module Full Rewrite — 2026-04-15 (COMPLETED)
+
+All 6 outbound feature files rewritten against real BE contract. No BE changes made.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `outboundType.ts` — correct status/type enums | ✅ | `APPROVED` replaces `CONFIRMED`; `OutboundType` replaces `OutboundPriority` |
+| `outboundSchema.ts` — Zod aligned to BE | ✅ | Two create schemas routed by type; picked-lots + cancel schemas added |
+| `outboundService.ts` — real endpoints | ✅ | Dual POST routes, `PUT /picked-lots` atomic, proof stubs |
+| `useOutbound.ts` — hooks + parallel KPI queries | ✅ | 4 `useQueries` for stats; 60s polling; mutations with toast |
+| `OutboundStatusBadge.tsx` | ✅ | `OutboundTypeBadge` replaces `OutboundPriorityBadge` |
+| `OutboundList.tsx` | ✅ | KPI cards (manager-only), filters, skeleton, pagination |
+| `LineItemEditor.tsx` | ✅ | Matches new `CreateStockOutSchemaValues` |
+| `OutboundDetail.tsx` | ✅ | `ConfirmDialog`, stepper, `ActionPanel` with RBAC, detail table + lots |
+| `OutboundPickingScreen.tsx` | ✅ | Lot assignment, `ProofUploadSection` (B2 stub), `DiscrepancyPanel` |
+| Tailwind v4 canonical classes | ✅ | Fixed `bg-gradient-to-r→bg-linear-to-r`, `max-w-[60px]→max-w-15`, `min-h-[400px]→min-h-100`, `min-w-[500px]→min-w-125` |
+
+**Pending BE integration:**
+- Proof upload presigned URL endpoint (`GET /api/stock-outs/:id/proof-upload-url`)
+- Proof confirmation endpoint (`POST /api/stock-outs/:id/confirm-proof`)
+- Available lot picker (currently free-text input for lot ID)
+
+---
+
 ## Contract Gap Fixes — 2026-04-13 (COMPLETED)
 
 All critical and medium-M4 gaps fixed. No BE changes made.

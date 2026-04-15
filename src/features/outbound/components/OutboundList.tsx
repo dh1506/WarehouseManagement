@@ -1,430 +1,469 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useOutboundOrders } from '../hooks/useOutbound';
-import type { OutboundListParams, OutboundStatus, OutboundOrder } from '../types/outboundType';
+import { motion, AnimatePresence } from 'motion/react';
+import { useAuthStore } from '@/store/authStore';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useStockOuts, useStockOutKpis } from '../hooks/useOutbound';
+import { OutboundStatusBadge, OutboundTypeBadge } from './OutboundStatusBadge';
+import type { OutboundStatus, OutboundType, StockOut } from '../types/outboundType';
+import { OUTBOUND_STATUS_LABELS, OUTBOUND_TYPE_LABELS } from '../types/outboundType';
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+
+interface KpiCardProps {
+  label: string;
+  count: number;
+  icon: string;
+  colorClass: string;
+  isLoading: boolean;
+  onClick?: () => void;
+  delay?: number;
+}
+
+function KpiCard({ label, count, icon, colorClass, isLoading, onClick, delay = 0 }: KpiCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay }}
+      onClick={onClick}
+      className={`bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex items-center gap-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+    >
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}>
+        <span className="material-symbols-outlined text-base">{icon}</span>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+        {isLoading ? (
+          <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-1" />
+        ) : (
+          <p className="text-lg font-extrabold text-slate-800 leading-tight">{count}</p>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Items Popover ────────────────────────────────────────────────────────────
+
+function ItemsPopover({ order }: { order: StockOut }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Đóng popover khi click ra ngoài
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+
+  if (!order.details || order.details.length === 0) {
+    return <span className="text-xs text-slate-400">—</span>;
+  }
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 text-xs font-semibold transition-colors"
+      >
+        <span className="material-symbols-outlined text-[13px]">inventory_2</span>
+        {order.details.length} sản phẩm
+        <span className="material-symbols-outlined text-[13px]">
+          {open ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full mt-2 left-0 z-50 bg-white border border-slate-200 rounded-xl shadow-xl min-w-[280px] max-w-sm overflow-hidden"
+          >
+            <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Sản phẩm trong phiếu
+              </p>
+            </div>
+            <ul className="divide-y divide-slate-50 max-h-48 overflow-y-auto">
+              {order.details.map((d) => (
+                <li key={d.id} className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-800 truncate">{d.product?.name ?? `SP #${d.product_id}`}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">{d.product?.sku ?? '—'}</p>
+                  </div>
+                  <span className="text-xs font-bold text-blue-700 shrink-0 bg-blue-50 px-2 py-0.5 rounded-full">
+                    ×{d.quantity}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const ALL_STATUSES: OutboundStatus[] = ['DRAFT', 'PENDING', 'APPROVED', 'PICKING', 'COMPLETED', 'CANCELLED'];
+const ALL_TYPES: OutboundType[] = ['SALES', 'RETURN_TO_SUPPLIER'];
 
 export function OutboundList() {
   const navigate = useNavigate();
-  const [params, setParams] = useState<OutboundListParams>({
-    page: 1,
-    pageSize: 10,
-    status: 'ALL',
-    search: '',
+  const { hasPermission } = useAuthStore();
+
+  // Manager = có quyền duyệt phiếu xuất
+  const isManager = hasPermission('stock_outs:approve');
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<OutboundStatus | 'ALL'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<OutboundType | 'ALL'>('ALL');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  const debouncedSearch = useDebounce(search, 350);
+
+  // Tham số query dựa theo vai trò
+  const queryParams = {
+    page,
+    limit: PAGE_SIZE,
+    search: debouncedSearch || undefined,
+    status: statusFilter !== 'ALL' ? statusFilter : undefined,
+    type: typeFilter !== 'ALL' ? typeFilter : undefined,
+  };
+
+  // Polling 60 giây để giữ dữ liệu mới nhất
+  const { data, isLoading, isFetching } = useStockOuts(queryParams, {
+    refetchInterval: 60_000,
   });
 
-  const { data, isLoading } = useOutboundOrders(params);
+  // KPI chỉ load khi là Manager
+  const { kpis, isLoading: kpisLoading } = useStockOutKpis(isManager);
 
-  const handlePageChange = (page: number) => {
-    setParams((prev) => ({ ...prev, page }));
+  const orders = data?.items ?? [];
+  const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
+
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const getPriorityInfo = (priority: OutboundOrder['priority']) => {
-    switch (priority) {
-      case 'HIGH':
-      case 'URGENT':
-        return {
-          badgeClass: 'bg-error-container text-on-error-container',
-          icon: 'priority_high',
-          label: 'HIGH'
-        };
-      case 'NORMAL':
-        return {
-          badgeClass: 'bg-orange-100 text-orange-700',
-          icon: 'drag_handle',
-          label: 'MED'
-        };
-      case 'LOW':
-      default:
-        return {
-          badgeClass: 'bg-slate-100 text-slate-600',
-          icon: 'low_priority',
-          label: 'LOW'
-        };
-    }
+  // Reset page khi filter thay đổi
+  const handleStatusFilter = (s: OutboundStatus | 'ALL') => {
+    setStatusFilter(s);
+    setPage(1);
+  };
+  const handleTypeFilter = (t: OutboundType | 'ALL') => {
+    setTypeFilter(t);
+    setPage(1);
   };
 
-  const getStatusInfo = (status: OutboundStatus) => {
-    switch (status) {
-      case 'DRAFT':
-        return {
-          ringClass: 'bg-slate-100 text-slate-500',
-          textClass: 'text-slate-500',
-          icon: 'draft',
-          label: 'Draft',
-          fill: false,
-          animate: false
-        };
-      case 'CONFIRMED':
-        return {
-          ringClass: 'bg-blue-100 text-blue-700',
-          textClass: 'text-blue-700',
-          icon: 'inventory',
-          label: 'Packing',
-          fill: false,
-          animate: false
-        };
-      case 'PICKING':
-        return {
-          ringClass: 'bg-blue-50 text-blue-600',
-          textClass: 'text-blue-600',
-          icon: 'hail',
-          label: 'Picking',
-          fill: false,
-          animate: true
-        };
-      case 'COMPLETED':
-        return {
-          ringClass: 'bg-green-100 text-green-700',
-          textClass: 'text-green-700',
-          icon: 'check_circle',
-          label: 'Delivered',
-          fill: true,
-          animate: false
-        };
-      case 'CANCELLED':
-      default:
-        return {
-          ringClass: 'bg-red-50 text-red-600',
-          textClass: 'text-red-500',
-          icon: 'cancel',
-          label: 'Archived',
-          fill: false,
-          animate: false
-        };
-    }
-  };
-
-  const formatEtd = (dateStr: string | null) => {
-    if (!dateStr) return { date: '—', time: '' };
-    const dateObj = new Date(dateStr);
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
     return {
-      date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      date: d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      time: d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     };
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-[1600px] h-full overflow-y-auto">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-blue-900 tracking-tight mb-2">Outbound Management</h1>
-          <p className="text-on-surface-variant max-w-2xl">
-            Monitor and manage high-velocity export cycles. Use AI forecasting to anticipate loading bay congestion and prioritize critical shipments.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-5 py-2.5 bg-surface-container-low text-blue-900 font-semibold rounded-xl hover:bg-surface-container-high transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]" data-icon="upload_file">upload_file</span>
-            Export Data
-          </button>
-          <button
-            onClick={() => navigate('/outbound/create')}
-            className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary-container text-white font-semibold rounded-xl shadow-lg shadow-primary/20 hover:scale-[0.99] transition-transform flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[20px]" data-icon="add_circle">add_circle</span>
-            New Manifest
-          </button>
-        </div>
-      </div>
+    <div className="flex h-full flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
 
-      {/* Bento Filter & KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* AI Forecast Widget */}
-        <div className="md:col-span-2 bg-surface-container-lowest rounded-xl p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4">
-            <span className="bg-secondary-container text-on-secondary-container text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-md">
-              <span className="material-symbols-outlined text-[12px]" data-icon="auto_awesome" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-              AI PREDICTION
-            </span>
-          </div>
+      {/* ── Fixed top section ─────────────────────────────────────────────── */}
+      <div className="shrink-0 space-y-2">
+
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+        >
           <div>
-            <p className="text-sm font-medium text-on-surface-variant mb-1">Peak Outbound Volume</p>
-            <h3 className="text-4xl font-extrabold text-blue-900">14:00 - 16:30</h3>
-            <p className="text-xs text-secondary font-semibold mt-2 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span>
-              24% increase expected in Zone B
-            </p>
+            <h1 className="text-base font-bold text-blue-900 tracking-tight">
+              Quản lý Phiếu Xuất Kho
+            </h1>
           </div>
-          <div className="mt-6 flex items-end gap-1 h-12">
-            <div className="flex-1 bg-surface-container-high rounded-t-sm h-[30%]"></div>
-            <div className="flex-1 bg-surface-container-high rounded-t-sm h-[45%]"></div>
-            <div className="flex-1 bg-surface-container-high rounded-t-sm h-[60%]"></div>
-            <div className="flex-1 bg-secondary-container rounded-t-sm h-[90%]"></div>
-            <div className="flex-1 bg-secondary rounded-t-sm h-[100%]"></div>
-            <div className="flex-1 bg-secondary-container rounded-t-sm h-[80%]"></div>
-            <div className="flex-1 bg-surface-container-high rounded-t-sm h-[50%]"></div>
-            <div className="flex-1 bg-surface-container-high rounded-t-sm h-[35%]"></div>
-          </div>
-        </div>
-
-        {/* Priority Filters */}
-        <div className="bg-surface-container-low rounded-xl p-6 flex flex-col gap-4">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Priority Distribution</p>
-          <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-transparent hover:border-blue-200 transition-all text-sm group">
-              <span className="flex items-center gap-2 font-medium">
-                <span className="w-2 h-2 rounded-full bg-error"></span>
-                High Priority
+          <div className="flex items-center gap-2 shrink-0">
+            {isFetching && !isLoading && (
+              <span className="flex items-center gap-1 text-xs text-slate-400 font-medium">
+                <span className="w-3 h-3 border-2 border-slate-200 border-t-primary rounded-full animate-spin" />
+                Đang cập nhật...
               </span>
-              <span className="bg-error-container text-on-error-container px-2 py-0.5 rounded font-bold text-xs">12</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-transparent hover:border-blue-200 transition-all text-sm group">
-              <span className="flex items-center gap-2 font-medium">
-                <span className="w-2 h-2 rounded-full bg-orange-400"></span>
-                Medium
-              </span>
-              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold text-xs">48</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-transparent hover:border-blue-200 transition-all text-sm group">
-              <span className="flex items-center gap-2 font-medium">
-                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                Low
-              </span>
-              <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold text-xs">156</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Date Filter */}
-        <div className="bg-surface-container-low rounded-xl p-6 flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Delivery Window</p>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">calendar_today</span>
-              <select className="w-full pl-10 pr-4 py-2 bg-white border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 outline-none appearance-none font-medium">
-                <option>Next 24 Hours</option>
-                <option>Next 3 Days</option>
-                <option>This Week</option>
-              </select>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-200/50">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-on-surface-variant">Selected range</span>
-              <span className="font-bold text-blue-900">Oct 24 - Oct 25</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Shipping Table Section */}
-      <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm">
-        <div className="px-8 py-5 border-b border-slate-200/10 flex items-center justify-between bg-surface-container-low/30">
-          <h2 className="font-bold text-blue-900 flex items-center gap-2">
-            <span className="material-symbols-outlined" data-icon="local_shipping">local_shipping</span>
-            Shipping Manifests & Orders
-          </h2>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-xs text-on-surface-variant font-medium">
-              <span className="w-2 h-2 rounded-full bg-slate-300"></span>
-              Draft
-            </div>
-            <div className="flex items-center gap-1 text-xs text-on-surface-variant font-medium">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-              In-Progress
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low/50">
-                <th className="px-8 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Order / Manifest</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Customer & Address</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Priority</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">ETD</th>
-                <th className="px-8 py-4 text-right"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100/50">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-10">
-                    <div className="flex justify-center items-center gap-2 text-slate-500">
-                      <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                      Loading...
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                data?.data?.map((order) => {
-                  const priorityInfo = getPriorityInfo(order.priority);
-                  const statusInfo = getStatusInfo(order.status);
-                  const etdInfo = formatEtd(order.expectedDate);
-                  const isArchived = order.status === 'CANCELLED';
-
-                  return (
-                    <tr
-                      key={order.id}
-                      onClick={() => navigate(`/outbound/${order.id}`)}
-                      className={`hover:bg-slate-50/80 transition-colors group cursor-pointer ${isArchived ? 'bg-slate-50/20' : ''}`}
-                    >
-                      <td className="px-8 py-5">
-                        <div className="flex flex-col">
-                          <span className={`text-sm font-bold ${isArchived ? 'text-slate-400 line-through' : 'text-blue-900'}`}>
-                            {order.code}
-                          </span>
-                          <span className="text-[11px] font-medium text-slate-400 uppercase">
-                            {isArchived ? 'ARCHIVED' : `MANIFEST-${order.id.slice(-4)}-BL`}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col">
-                          <span className={`text-sm font-semibold ${isArchived ? 'text-slate-500' : 'text-on-surface'}`}>
-                            {order.requestedBy || 'Customer'}
-                          </span>
-                          <span className="text-xs text-on-surface-variant">
-                            {order.warehouseName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold ${priorityInfo.badgeClass}`}>
-                          <span className="material-symbols-outlined text-[14px]" data-icon={priorityInfo.icon}>{priorityInfo.icon}</span>
-                          {priorityInfo.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center ${statusInfo.ringClass} ${statusInfo.animate ? 'animate-pulse' : ''}`}>
-                            <span
-                              className="material-symbols-outlined text-[18px]"
-                              data-icon={statusInfo.icon}
-                              style={statusInfo.fill ? { fontVariationSettings: "'FILL' 1" } : {}}
-                            >
-                              {statusInfo.icon}
-                            </span>
-                          </span>
-                          <span className={`text-xs font-bold ${statusInfo.textClass}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col">
-                          <span className={`text-sm font-medium ${isArchived ? 'text-slate-500' : 'text-on-surface'}`}>
-                            {etdInfo.date}
-                          </span>
-                          <span className={`text-[11px] font-bold uppercase ${statusInfo.label === 'Delivered' ? 'text-green-600' : 'text-slate-400'}`}>
-                            {statusInfo.label === 'Delivered' ? 'COMPLETE' : etdInfo.time || 'N/A'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-all">
-                          <span className="material-symbols-outlined">{isArchived ? 'visibility' : 'more_vert'}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer Pagination */}
-        <div className="px-8 py-4 border-t border-slate-200/50 flex items-center justify-between bg-surface-container-low/20">
-          <p className="text-xs text-on-surface-variant font-medium">
-            Showing <span className="font-bold text-on-surface">{((params.page! - 1) * params.pageSize!) + 1}-{Math.min(params.page! * params.pageSize!, data?.total ?? 0)}</span> of <span className="font-bold text-on-surface">{data?.total ?? 0}</span> shipments
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(Math.max(1, params.page! - 1))}
-              disabled={params.page === 1}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-50 hover:text-blue-600 hover:border-blue-200 transition-all"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-            </button>
-            {Array.from({ length: data?.totalPages ?? 1 }, (_, i) => i + 1).slice(0, 5).map((page) => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`w-8 h-8 rounded-lg text-xs font-bold ${params.page === page ? 'bg-blue-700 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                {page}
-              </button>
-            ))}
-            {(data?.totalPages ?? 0) > 5 && <span className="text-slate-300">...</span>}
-            {(data?.totalPages ?? 0) > 5 && (
-              <button
-                onClick={() => handlePageChange(data!.totalPages)}
-                className={`w-8 h-8 rounded-lg text-xs font-bold ${params.page === data?.totalPages ? 'bg-blue-700 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                {data?.totalPages}
-              </button>
             )}
             <button
-              onClick={() => handlePageChange(Math.min(data?.totalPages ?? 1, params.page! + 1))}
-              disabled={params.page === (data?.totalPages ?? 1)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-50 hover:text-blue-600 hover:border-blue-200 transition-all"
+              onClick={() => navigate('/outbound/create')}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl shadow-sm shadow-blue-700/20 transition-all active:scale-[0.98] text-sm"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[18px]">add_circle</span>
+              Tạo phiếu xuất
             </button>
           </div>
-        </div>
+        </motion.div>
+
+        {/* KPI Cards (Manager only) */}
+        {isManager && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard label="Phiếu nháp" count={kpis.draft} icon="draft" colorClass="bg-slate-100 text-slate-600" isLoading={kpisLoading} onClick={() => handleStatusFilter('DRAFT')} delay={0} />
+            <KpiCard label="Chờ duyệt" count={kpis.pending} icon="pending_actions" colorClass="bg-amber-100 text-amber-700" isLoading={kpisLoading} onClick={() => handleStatusFilter('PENDING')} delay={0.05} />
+            <KpiCard label="Đang lấy hàng" count={kpis.picking} icon="hail" colorClass="bg-blue-100 text-blue-700" isLoading={kpisLoading} onClick={() => handleStatusFilter('PICKING')} delay={0.1} />
+            <KpiCard label="Hoàn thành" count={kpis.completedToday} icon="check_circle" colorClass="bg-purple-100 text-purple-700" isLoading={kpisLoading} onClick={() => handleStatusFilter('COMPLETED')} delay={0.15} />
+          </div>
+        )}
+
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex flex-col sm:flex-row gap-2"
+        >
+          <div className="relative flex-1 min-w-0">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[16px]">search</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Tìm theo mã phiếu, số tham chiếu..."
+              className="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-400 transition-colors"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => handleStatusFilter(e.target.value as OutboundStatus | 'ALL')}
+            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-w-[140px] font-medium text-slate-700"
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            {ALL_STATUSES.map((s) => (<option key={s} value={s}>{OUTBOUND_STATUS_LABELS[s]}</option>))}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => handleTypeFilter(e.target.value as OutboundType | 'ALL')}
+            className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-w-[140px] font-medium text-slate-700"
+          >
+            <option value="ALL">Tất cả loại phiếu</option>
+            {ALL_TYPES.map((t) => (<option key={t} value={t}>{OUTBOUND_TYPE_LABELS[t]}</option>))}
+          </select>
+        </motion.div>
       </div>
 
-      {/* Warehouse Layout Preview (The "Cell" visualization) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 bg-surface-container-lowest rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-blue-900">Loading Dock Availability</h3>
-            <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Live Feed</span>
-          </div>
-          <div className="grid grid-cols-6 gap-3">
-            {/* Bay 1-6 representation */}
-            <div className="aspect-square bg-primary-container/20 border-2 border-primary-container rounded-lg flex flex-col items-center justify-center gap-1 group relative cursor-pointer">
-              <span className="text-[10px] font-bold text-primary">BAY 01</span>
-              <span className="material-symbols-outlined text-primary" data-icon="local_shipping">local_shipping</span>
-              <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-10 transition-opacity rounded-lg"></div>
-            </div>
-            <div className="aspect-square bg-surface-container-high rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-slate-200 transition-colors cursor-pointer">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">BAY 02</span>
-              <span className="material-symbols-outlined text-slate-300" data-icon="check_circle">check_circle</span>
-            </div>
-            <div className="aspect-square bg-primary-container/20 border-2 border-primary-container rounded-lg flex flex-col items-center justify-center gap-1">
-              <span className="text-[10px] font-bold text-primary">BAY 03</span>
-              <span className="material-symbols-outlined text-primary" data-icon="local_shipping">local_shipping</span>
-            </div>
-            <div className="aspect-square bg-secondary-container/20 border-2 border-secondary-container rounded-lg flex flex-col items-center justify-center gap-1 animate-pulse">
-              <span className="text-[10px] font-bold text-secondary">BAY 04</span>
-              <span className="material-symbols-outlined text-secondary" data-icon="hourglass_empty">hourglass_empty</span>
-            </div>
-            <div className="aspect-square bg-surface-container-high rounded-lg flex flex-col items-center justify-center gap-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">BAY 05</span>
-              <span className="material-symbols-outlined text-slate-300" data-icon="check_circle">check_circle</span>
-            </div>
-            <div className="aspect-square bg-surface-container-high rounded-lg flex flex-col items-center justify-center gap-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">BAY 06</span>
-              <span className="material-symbols-outlined text-slate-300" data-icon="check_circle">check_circle</span>
-            </div>
-          </div>
+      {/* ── Scrollable table ──────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.15 }}
+        className="mt-2 flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+      >
+        <div className="flex-1 min-h-0 overflow-auto">
+          <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-6 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Mã phiếu
+                  </th>
+                  <th className="px-4 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Loại
+                  </th>
+                  <th className="px-4 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Vị trí xuất
+                  </th>
+                  <th className="px-4 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Sản phẩm
+                  </th>
+                  <th className="px-4 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Người tạo
+                  </th>
+                  <th className="px-4 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Trạng thái
+                  </th>
+                  <th className="px-4 py-3.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    Ngày tạo
+                  </th>
+                  <th className="px-4 py-3.5" />
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-50">
+                {isLoading ? (
+                  // Skeleton rows
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      {Array.from({ length: 8 }).map((__, j) => (
+                        <td key={j} className="px-4 py-4">
+                          <div className="h-4 bg-slate-100 rounded animate-pulse" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <span className="material-symbols-outlined text-5xl text-slate-200">
+                          local_shipping
+                        </span>
+                        <p className="text-slate-400 font-medium">
+                          Không có phiếu xuất nào phù hợp với bộ lọc hiện tại.
+                        </p>
+                        <button
+                          onClick={() => { setStatusFilter('ALL'); setTypeFilter('ALL'); setSearch(''); }}
+                          className="text-sm text-blue-600 font-semibold hover:underline"
+                        >
+                          Xóa bộ lọc
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  orders.map((order, idx) => {
+                    const isCancelled = order.status === 'CANCELLED';
+                    const isActionable = order.status === 'APPROVED' || order.status === 'PICKING';
+                    const dateInfo = formatDate(order.created_at);
+
+                    return (
+                      <motion.tr
+                        key={order.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: idx * 0.03 }}
+                        onClick={() => navigate(`/outbound/${order.id}`)}
+                        className={`hover:bg-slate-50 transition-colors cursor-pointer group ${isCancelled ? 'opacity-60' : ''}`}
+                      >
+                        {/* Mã phiếu */}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-bold ${isCancelled ? 'text-slate-400 line-through' : 'text-blue-900'}`}>
+                              {order.code}
+                            </span>
+                            {order.reference_number && (
+                              <span className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                Ref: {order.reference_number}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Loại */}
+                        <td className="px-4 py-4">
+                          <OutboundTypeBadge type={order.type} size="sm" />
+                        </td>
+
+                        {/* Vị trí */}
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-slate-700 font-medium">
+                            {order.location?.name ?? `#${order.warehouse_location_id}`}
+                          </span>
+                          {order.location?.code && (
+                            <span className="block text-[10px] text-slate-400 font-mono">
+                              {order.location.code}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Sản phẩm (items dropdown) */}
+                        <td className="px-4 py-4">
+                          <ItemsPopover order={order} />
+                        </td>
+
+                        {/* Người tạo */}
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-slate-700">
+                            {order.creator?.full_name ?? `User #${order.created_by}`}
+                          </span>
+                        </td>
+
+                        {/* Trạng thái */}
+                        <td className="px-4 py-4">
+                          <OutboundStatusBadge status={order.status} />
+                        </td>
+
+                        {/* Ngày tạo */}
+                        <td className="px-4 py-4">
+                          <div className="text-sm text-slate-700">{dateInfo.date}</div>
+                          <div className="text-[10px] text-slate-400">{dateInfo.time}</div>
+                        </td>
+
+                        {/* Quick action */}
+                        <td className="px-4 py-4 text-right">
+                          {isActionable ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/outbound/${order.id}/picking`);
+                              }}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                              title="Bắt đầu lấy hàng"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">hail</span>
+                              Lấy hàng
+                            </button>
+                          ) : (
+                            <button
+                              className="p-1.5 text-slate-300 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/outbound/${order.id}`); }}
+                            >
+                              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                            </button>
+                          )}
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
         </div>
 
-        {/* Export Health Card */}
-        <div className="bg-surface-container-low rounded-xl p-6 relative overflow-hidden flex flex-col">
-          <div className="z-10">
-            <h3 className="font-bold text-blue-900 mb-2">Export Efficiency</h3>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-blue-950">94.2%</span>
-              <span className="text-xs font-bold text-green-600">+1.4%</span>
+        {/* ── Pagination ──────────────────────────────────────────────────── */}
+        {!isLoading && orders.length > 0 && (
+            <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <p className="text-xs text-slate-500 font-medium">
+                Hiển thị{' '}
+                <span className="font-bold text-slate-700">
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data?.total ?? 0)}
+                </span>{' '}
+                trong tổng số{' '}
+                <span className="font-bold text-slate-700">{data?.total ?? 0}</span> phiếu
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handlePageChange(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-40 hover:text-blue-600 hover:border-blue-200 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                </button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const p = totalPages <= 5 ? i + 1 : Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => handlePageChange(p)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${page === p ? 'bg-blue-700 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                  disabled={page >= totalPages}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-40 hover:text-blue-600 hover:border-blue-200 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-on-surface-variant mt-4 leading-relaxed">
-              Processing times are optimized. dock turnaround currently averaging 24 mins per manifest.
-            </p>
-          </div>
-          {/* Background aesthetic element */}
-          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-secondary-container opacity-20 rounded-full blur-3xl"></div>
-          <button className="mt-auto z-10 w-full py-2 bg-white text-blue-700 text-xs font-bold rounded-lg border border-blue-100 hover:bg-blue-50 transition-colors">
-            View Detailed Audit
-          </button>
-        </div>
-      </div>
+          )}
+      </motion.div>
     </div>
   );
 }

@@ -1042,7 +1042,8 @@ export function StockInWorkerView() {
     }) &&
     (data.discrepancies?.length ?? 0) === 0;
 
-  // Hoàn tất bị hard-block nếu còn sai lệch PENDING hoặc status DISCREPANCY
+  // Hoàn tất bị hard-block nếu còn sai lệch PENDING, status DISCREPANCY,
+  // hoặc có chênh lệch số lượng chưa được lập biên bản (chỉ trước khi phân bổ)
   const isCompleteBlocked =
     status === 'DISCREPANCY' ||
     hasPendingDiscrepancies(data?.discrepancies ?? []) ||

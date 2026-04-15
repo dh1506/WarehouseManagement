@@ -4,6 +4,28 @@
 
 ## Features
 
+### `features/outbound/` (rewritten 2026-04-15)
+
+Full rewrite against real BE `/api/stock-outs` contract. Zero mock data. No `PickingTask` abstraction.
+
+| File | Purpose |
+|------|---------|
+| `types/outboundType.ts` | `OutboundStatus` (DRAFT/PENDING/APPROVED/PICKING/COMPLETED/CANCELLED), `OutboundType` (SALES/RETURN_TO_SUPPLIER), `StockOut`, `StockOutDetail`, `StockOutDetailLot`, `CreateStockOutPayload`, `UpdatePickedLotsPayload`, `PickedLotEntry`, labels, stepper steps |
+| `schemas/outboundSchema.ts` | Zod: `createStockOutSchema` (with nested `details[]`), `pickedLotEntrySchema`, `updatePickedLotsSchema`, `cancelStockOutSchema` |
+| `services/outboundService.ts` | All real endpoints: `getStockOuts`, `getStockOutById`, `createSalesStockOut` (`POST /sales`), `createReturnStockOut` (`POST /returns`), `submitStockOut`, `approveStockOut`, `updatePickedLots` (`PUT /picked-lots`), `completeStockOut`, `cancelStockOut`. Proof upload stubs: `getProofUploadUrl`, `uploadFileToB2`, `confirmProofUpload` |
+| `hooks/useOutbound.ts` | `stockOutKeys` factory, `useStockOuts`, `useStockOut`, `useStockOutKpis` (4 parallel `useQueries`), all mutations with Vietnamese toast messages |
+| `components/OutboundStatusBadge.tsx` | `OutboundStatusBadge` (6 statuses) + `OutboundTypeBadge` (SALES/RETURN_TO_SUPPLIER) with `size` prop |
+| `components/OutboundList.tsx` | KPI cards (manager-only, staggered motion), debounced search, status/type filters, 60s polling, skeleton rows, pagination, "Lấy hàng" quick action |
+| `components/LineItemEditor.tsx` | `useFieldArray` editor: `product_id`, `quantity`, `unit_price` (nullable). Info banner about lot assignment post-approval. |
+| `components/OutboundDetail.tsx` | `ConfirmDialog` (reusable, optional reason textarea), `WorkflowStepper` (5 steps, animated progress bar), `ActionPanel` (RBAC-aware buttons), `OutboundDetail` (detail view with lot display for PICKING/COMPLETED), `OutboundCreateForm` (type-aware routing to correct mutation) |
+| `components/OutboundPickingScreen.tsx` | Mobile-first lot assignment screen: `DetailCard` with per-lot rows, `ProgressBar` (motion), `ProofUploadSection` (B2 stub with graceful failure), `DiscrepancyPanel`, atomic `PUT /picked-lots`, discrepancy guard before `PATCH /complete` |
+
+**Known backend dependencies (stubs in place):**
+- `GET /api/stock-outs/:id/proof-upload-url` — presigned URL for B2 upload
+- `POST /api/stock-outs/:id/confirm-proof` — confirm after upload
+- Available lots endpoint for lot ID picker (currently free-text input)
+- Date range filter for KPI (currently counting by status only)
+
 ### `features/inbound/` (updated 2026-04-09)
 | File | Purpose |
 |------|---------|

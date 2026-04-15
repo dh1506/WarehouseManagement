@@ -91,7 +91,7 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
             return (
               <div
                 key={item.id}
-                className={`grid grid-cols-12 gap-4 p-4 items-center transition-colors group relative ${isSub ? 'bg-slate-50/50 hover:bg-slate-50' : 'hover:bg-slate-50'}`}
+                className={`grid grid-cols-12 gap-4 py-2 px-4 items-center transition-colors group relative ${isSub ? 'bg-slate-50/50 hover:bg-slate-50' : 'hover:bg-slate-50'}`}
               >
                 {/* Tree lines graphics based on depth */}
                 {depth > 0 && Array.from({ length: depth }).map((_, dIdx) => (

@@ -393,18 +393,17 @@ export function UserManagement() {
   };
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
+    <div className="flex h-full w-full flex-col gap-2 px-2 py-2 sm:gap-3 sm:px-3 sm:py-3 lg:px-4 lg:py-3">
 
       {/* Page Title & Actions */}
       <motion.div
-        className="flex-none flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        className="flex-none flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
       >
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-gray-900 sm:text-2xl">User Management</h2>
-          <p className="mt-1 text-sm text-gray-500 sm:text-[15px]">Oversee enterprise access and role definitions.</p>
+          <h2 className="text-base font-bold tracking-tight text-gray-900">User Management</h2>
         </div>
         {canCreateUser ? (
           <button
@@ -419,7 +418,7 @@ export function UserManagement() {
 
       {/* Filters */}
       <motion.div
-        className="flex-none rounded-2xl bg-gray-50 p-3 sm:p-4"
+        className="flex-none rounded-xl bg-gray-50 p-2 sm:p-3"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.04 }}

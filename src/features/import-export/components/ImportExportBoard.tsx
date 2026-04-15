@@ -80,8 +80,8 @@ export function ImportExportBoard() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
           title="Import / Export Control"
           description="Review master-data readiness and storage pressure before opening inbound or outbound waves."

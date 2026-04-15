@@ -90,7 +90,7 @@ export function MainLayout() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 shrink-0 flex items-center justify-between border-b border-gray-100 bg-white/70 px-8 backdrop-blur-sm">
+        <header className="h-12 shrink-0 flex items-center justify-between border-b border-gray-100 bg-white/70 px-5 backdrop-blur-sm">
           {/* Breadcrumb / Title area — để trống, từng page component tự render title */}
           <div />
 
