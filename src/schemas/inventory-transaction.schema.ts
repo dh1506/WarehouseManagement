@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-// ==================== PARAMS ====================
-
 const paramsIdSchema = z.object({
   id: z
     .string()
@@ -9,7 +7,7 @@ const paramsIdSchema = z.object({
     .pipe(z.number().int().positive("ID phải là số nguyên dương")),
 });
 
-// ==================== QUERY: Danh sách giao dịch ====================
+// QUERY: Danh sách giao dịch 
 
 export const getTransactionsQuerySchema = z.object({
   query: z.object({
@@ -59,13 +57,13 @@ export const getTransactionsQuerySchema = z.object({
   }),
 });
 
-// ==================== PARAMS: Chi tiết giao dịch ====================
+//Chi tiết giao dịch 
 
 export const getTransactionByIdSchema = z.object({
   params: paramsIdSchema,
 });
 
-// ==================== BODY: Lập phiếu điều chỉnh ====================
+//Lập phiếu điều chỉnh 
 
 export const createAdjustmentSchema = z.object({
   body: z.object({
@@ -80,7 +78,7 @@ export const createAdjustmentSchema = z.object({
   }),
 });
 
-// ==================== TYPES EXPORT ====================
+//TYPES EXPORT
 
 export type GetTransactionsQuery = z.infer<typeof getTransactionsQuerySchema>["query"];
 export type GetTransactionByIdParam = z.infer<typeof getTransactionByIdSchema>["params"];

@@ -48,6 +48,7 @@ export async function seedProduct(prisma: PrismaClient) {
         has_batch: true,
         min_stock: 10,
         max_stock: 1000,
+        safe_stock: 50,
       },
     });
 

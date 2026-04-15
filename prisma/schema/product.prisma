@@ -52,6 +52,7 @@ model Product {
   has_batch              Boolean                @default(false)
   min_stock              Decimal?               @db.Decimal(15, 3)
   max_stock              Decimal?               @db.Decimal(15, 3)
+  safe_stock             Decimal?               @db.Decimal(15, 3)
   storage_conditions     String?
   image_url              String?
   created_at             DateTime               @default(now())

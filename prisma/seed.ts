@@ -24,6 +24,8 @@ async function main() {
 
   // Xóa dữ liệu cũ theo thứ tự phụ thuộc
   console.log("Đang dọn dẹp dữ liệu cũ...");
+  await prisma.auditLog.deleteMany({});
+  await prisma.inventoryClosing.deleteMany({});
   await prisma.inventoryTransaction.deleteMany({});
   await prisma.stockInDetailLot.deleteMany({});
   await prisma.stockOutDetailLot.deleteMany({});
@@ -51,7 +53,6 @@ async function main() {
   await prisma.role.deleteMany({});
   await prisma.permission.deleteMany({});
   await prisma.warehouse.deleteMany({});
-  await prisma.auditLog.deleteMany({});
 
   // Chạy các module seed theo thứ tự logic
   await seedAuth(prisma);
