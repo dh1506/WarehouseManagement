@@ -143,6 +143,18 @@ CREATE TABLE `inventory_transactions` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `inventory_closings` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `closing_date` DATETIME(3) NOT NULL,
+    `closed_by` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `inventory_closings_closing_date_key`(`closing_date`),
+    INDEX `inventory_closings_closed_by_idx`(`closed_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `product_categories` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `code` VARCHAR(191) NOT NULL,
@@ -196,6 +208,7 @@ CREATE TABLE `products` (
     `has_batch` BOOLEAN NOT NULL DEFAULT false,
     `min_stock` DECIMAL(15, 3) NULL,
     `max_stock` DECIMAL(15, 3) NULL,
+    `safe_stock` DECIMAL(15, 3) NULL,
     `storage_conditions` VARCHAR(191) NULL,
     `image_url` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -363,20 +376,6 @@ CREATE TABLE `stock_out_detail_lots` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `stock_out_status_history` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `stock_out_id` INTEGER NOT NULL,
-    `status` ENUM('DRAFT', 'PENDING', 'APPROVED', 'PICKING', 'COMPLETED', 'CANCELLED') NOT NULL,
-    `changed_by` INTEGER NOT NULL,
-    `note` TEXT NULL,
-    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    INDEX `stock_out_status_history_stock_out_id_idx`(`stock_out_id`),
-    INDEX `stock_out_status_history_changed_by_idx`(`changed_by`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `suppliers` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `code` VARCHAR(191) NOT NULL,
@@ -517,6 +516,9 @@ ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_prod
 ALTER TABLE `inventory_transactions` ADD CONSTRAINT `inventory_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `inventory_closings` ADD CONSTRAINT `inventory_closings_closed_by_fkey` FOREIGN KEY (`closed_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `product_categories` ADD CONSTRAINT `product_categories_parent_id_fkey` FOREIGN KEY (`parent_id`) REFERENCES `product_categories`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -580,10 +582,10 @@ ALTER TABLE `stock_outs` ADD CONSTRAINT `stock_outs_approved_by_fkey` FOREIGN KE
 ALTER TABLE `stock_outs` ADD CONSTRAINT `stock_outs_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_outs` ADD CONSTRAINT `stock_outs_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stock_outs` ADD CONSTRAINT `stock_outs_supplier_id_fkey` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_outs` ADD CONSTRAINT `stock_outs_supplier_id_fkey` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `stock_outs` ADD CONSTRAINT `stock_outs_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_out_details` ADD CONSTRAINT `stock_out_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -596,12 +598,6 @@ ALTER TABLE `stock_out_detail_lots` ADD CONSTRAINT `stock_out_detail_lots_produc
 
 -- AddForeignKey
 ALTER TABLE `stock_out_detail_lots` ADD CONSTRAINT `stock_out_detail_lots_stock_out_detail_id_fkey` FOREIGN KEY (`stock_out_detail_id`) REFERENCES `stock_out_details`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_out_status_history` ADD CONSTRAINT `stock_out_status_history_stock_out_id_fkey` FOREIGN KEY (`stock_out_id`) REFERENCES `stock_outs`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_out_status_history` ADD CONSTRAINT `stock_out_status_history_changed_by_fkey` FOREIGN KEY (`changed_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `product_suppliers` ADD CONSTRAINT `product_suppliers_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

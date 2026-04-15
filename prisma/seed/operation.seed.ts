@@ -109,62 +109,7 @@ export async function seedOperation(prisma: PrismaClient) {
           i % 3 === 0
             ? `Trả hàng cho nhà cung cấp ${i + 1}`
             : `Xuất bán cho chi nhánh ${i + 1}`,
-        history: {
-          create: [
-            {
-              status: StockOutStatus.DRAFT,
-              changed_by: admin.id,
-              note: "Tạo phiếu xuất",
-            },
-            ...(statusSequence[i] !== StockOutStatus.DRAFT
-              ? [
-                  {
-                    status: StockOutStatus.PENDING,
-                    changed_by: admin.id,
-                    note: "Gửi duyệt phiếu xuất",
-                  },
-                ]
-              : []),
-            ...(statusSequence[i] !== StockOutStatus.DRAFT &&
-            statusSequence[i] !== StockOutStatus.PENDING
-              ? [
-                  {
-                    status: StockOutStatus.APPROVED,
-                    changed_by: approver?.id || admin.id,
-                    note: "Phê duyệt phiếu xuất",
-                  },
-                ]
-              : []),
-            ...(statusSequence[i] === StockOutStatus.PICKING ||
-            statusSequence[i] === StockOutStatus.COMPLETED
-              ? [
-                  {
-                    status: StockOutStatus.PICKING,
-                    changed_by: admin.id,
-                    note: "Bắt đầu picking",
-                  },
-                ]
-              : []),
-            ...(statusSequence[i] === StockOutStatus.COMPLETED
-              ? [
-                  {
-                    status: StockOutStatus.COMPLETED,
-                    changed_by: admin.id,
-                    note: "Hoàn tất giao hàng",
-                  },
-                ]
-              : []),
-            ...(statusSequence[i] === StockOutStatus.CANCELLED
-              ? [
-                  {
-                    status: StockOutStatus.CANCELLED,
-                    changed_by: admin.id,
-                    note: "Hủy phiếu xuất do lỗi nhập liệu",
-                  },
-                ]
-              : []),
-          ],
-        },
+
         details: {
           create: {
             product_id: products[i % products.length].id,
@@ -189,22 +134,7 @@ export async function seedOperation(prisma: PrismaClient) {
     }
   }
 
-  // Stock Out Status History - Tạo thêm history entries cho audit trail (10+)
-  const completedStockOuts = await prisma.stockOut.findMany({
-    where: { status: StockOutStatus.COMPLETED },
-    take: 5,
-  });
 
-  for (const stockOut of completedStockOuts) {
-    await prisma.stockOutStatusHistory.create({
-      data: {
-        stock_out_id: stockOut.id,
-        status: StockOutStatus.COMPLETED,
-        changed_by: admin.id,
-        note: "Audit trail - Confirm delivery",
-      },
-    });
-  }
 
   // Audit Logs (15+)
   for (let i = 0; i < 15; i++) {

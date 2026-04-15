@@ -2,6 +2,7 @@ import { prisma } from '../config/db.config';
 import { AppError } from '../utils/app-error';
 import { generateStockOutCode } from '../utils/generate-code.util';
 import { StockOutStatus, StockOutType, TransactionType } from '../generated';
+import { checkIsClosed, validateAvailableStock } from './inventory.service';
 
 export interface CreateStockOutData {
   warehouse_location_id: number;
@@ -75,10 +76,7 @@ export const getStockOutById = async (id: number) => {
           }
         }
       },
-      history: {
-        include: { user: { select: { id: true, full_name: true, email: true } } },
-        orderBy: { created_at: 'desc' }
-      }
+
     },
   });
 
@@ -122,13 +120,7 @@ export const createStockOut = async (data: CreateStockOutData, createdBy: number
             })),
           }
         },
-        history: {
-          create: {
-            status: StockOutStatus.DRAFT,
-            changed_by: createdBy,
-            note: 'Tạo phiếu xuất',
-          }
-        }
+
       },
       include: { details: true },
     });
@@ -149,13 +141,7 @@ export const submitStockOut = async (id: number, userId: number) => {
     where: { id },
     data: {
       status: StockOutStatus.PENDING,
-      history: {
-        create: {
-          status: StockOutStatus.PENDING,
-          changed_by: userId,
-          note: 'Gửi duyệt phiếu xuất',
-        }
-      }
+
     }
   });
 };
@@ -172,7 +158,13 @@ export const approveStockOut = async (id: number, approvedBy: number) => {
       throw new AppError('Chỉ có thể duyệt phiếu ở trạng thái CHỜ DUYỆT (PENDING)', 400);
     }
 
+    // Kiểm tra khóa sổ
+    await checkIsClosed(new Date());
+
     for (const detail of stockOut.details) {
+      // Kiểm tra tồn kho khả dụng
+      await validateAvailableStock(detail.product_id, stockOut.warehouse_location_id, Number(detail.quantity));
+
       const inventories: any[] = await tx.$queryRaw`
         SELECT id, available_quantity, reserved_quantity 
         FROM inventories 
@@ -207,13 +199,7 @@ export const approveStockOut = async (id: number, approvedBy: number) => {
       data: {
         status: StockOutStatus.APPROVED,
         approved_by: approvedBy,
-        history: {
-          create: {
-            status: StockOutStatus.APPROVED,
-            changed_by: approvedBy,
-            note: 'Phê duyệt phiếu xuất',
-          }
-        }
+
       }
     });
   });
@@ -263,13 +249,7 @@ export const updatePickedLots = async (id: number, data: PickedLotData, userId: 
         where: { id },
         data: {
           status: StockOutStatus.PICKING,
-          history: {
-            create: {
-              status: StockOutStatus.PICKING,
-              changed_by: userId,
-              note: 'Bắt đầu lấy hàng (gán lô)',
-            }
-          }
+
         }
       });
     }
@@ -293,6 +273,9 @@ export const completeStockOut = async (id: number, userId: number) => {
     if (stockOut.status !== StockOutStatus.PICKING) {
       throw new AppError('Chi có thể hoàn tất khi phiếu ở trạng thái ĐANG LẤY HÀNG (PICKING)', 400);
     }
+
+    // Kiểm tra khóa sổ
+    await checkIsClosed(new Date());
 
     for (const detail of stockOut.details) {
       const totalPicked = detail.lots.reduce((sum, l) => sum + Number(l.quantity), 0);
@@ -354,13 +337,7 @@ export const completeStockOut = async (id: number, userId: number) => {
       where: { id },
       data: {
         status: StockOutStatus.COMPLETED,
-        history: {
-          create: {
-            status: StockOutStatus.COMPLETED,
-            changed_by: userId,
-            note: 'Hoàn tất giao hàng & trừ kho',
-          }
-        }
+
       }
     });
 
@@ -378,6 +355,9 @@ export const cancelStockOut = async (id: number, userId: number, reason?: string
     if (stockOut.status === StockOutStatus.COMPLETED || stockOut.status === StockOutStatus.CANCELLED) {
       throw new AppError('Không thể hủy phiếu đã hoàn tất hoặc đã hủy', 400);
     }
+
+    // Kiểm tra khóa sổ
+    await checkIsClosed(new Date());
 
     if (stockOut.status === StockOutStatus.APPROVED || stockOut.status === StockOutStatus.PICKING) {
       for (const detail of stockOut.details) {
@@ -405,13 +385,7 @@ export const cancelStockOut = async (id: number, userId: number, reason?: string
       where: { id },
       data: {
         status: StockOutStatus.CANCELLED,
-        history: {
-          create: {
-            status: StockOutStatus.CANCELLED,
-            changed_by: userId,
-            note: reason || 'Người dùng hủy phiếu',
-          }
-        }
+
       }
     });
   });

@@ -1,6 +1,7 @@
 import { prisma } from "../config/db.config";
 import { AppError } from "../utils/app-error";
 import { generateStockInCode } from "../utils/generate-code.util";
+import { checkIsClosed } from "./inventory.service";
 import type {
   CreateStockInInput,
   RecordReceiptInput,
@@ -464,7 +465,10 @@ export const completeStockIn = async (id: number, userId: number) => {
     );
   }
 
-  // 3. Hoàn tất & Ghi nhận tồn kho
+  // 3. Kiểm tra khóa sổ
+  await checkIsClosed(new Date());
+
+  // 4. Hoàn tất & Ghi nhận tồn kho
   return prisma.$transaction(async (tx) => {
     for (const detail of stockIn.details) {
       for (const mapLot of detail.lots) {
