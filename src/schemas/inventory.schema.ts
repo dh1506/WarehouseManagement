@@ -51,26 +51,7 @@ export const setProductStockThresholdSchema = z.object({
   }),
 });
 
-export const getInventoriesQuerySchema = z.object({
-  query: z.object({
-    page: z
-      .string()
-      .optional()
-      .transform((val) => (val ? parseInt(val, 10) : 1)),
-    limit: z
-      .string()
-      .optional()
-      .transform((val) => (val ? parseInt(val, 10) : 10)),
-    product_id: z
-      .string()
-      .optional()
-      .transform((val) => (val ? parseInt(val, 10) : undefined)),
-    warehouse_location_id: z
-      .string()
-      .optional()
-      .transform((val) => (val ? parseInt(val, 10) : undefined)),
-  }),
-});
+
 
 export const inventoryParamSchema = z.object({
   params: z.object({
@@ -125,6 +106,5 @@ export type QueryInventoryInput = z.infer<typeof queryInventorySchema>["query"];
 export type SetStockThresholdInput = z.infer<typeof setProductStockThresholdSchema>["body"];
 export type InventoryClosingInput = z.infer<typeof inventoryClosingSchema>["body"];
 export type InventoryAlertsQuery = z.infer<typeof inventoryAlertsQuerySchema>["query"];
-export type GetInventoriesQuery = z.infer<typeof getInventoriesQuerySchema>["query"];
 export type CreateInventoryInput = z.infer<typeof createInventorySchema>["body"];
 export type UpdateInventoryInput = z.infer<typeof updateInventorySchema>["body"];
