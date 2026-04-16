@@ -7,7 +7,26 @@ import { catchAsync } from "../utils/catch-async";
  * GET /api/inventories
  */
 export const getInventories = catchAsync(async (req: Request, res: Response) => {
-  const result = await inventoryService.getInventories(req.query as any);
+  const query = {
+    page: req.query.page ? Number(req.query.page) : 1,
+    limit: req.query.limit ? Number(req.query.limit) : 10,
+    product_id: req.query.product_id ? Number(req.query.product_id) : undefined,
+    warehouse_id: req.query.warehouse_id ? Number(req.query.warehouse_id) : undefined,
+    warehouse_location_id: req.query.warehouse_location_id
+      ? Number(req.query.warehouse_location_id)
+      : undefined,
+    lot_id: req.query.lot_id ? Number(req.query.lot_id) : undefined,
+    expires_before: req.query.expires_before
+      ? new Date(String(req.query.expires_before))
+      : undefined,
+    is_available: req.query.is_available !== undefined 
+      ? req.query.is_available === "true" 
+      : undefined,
+    search: req.query.search ? String(req.query.search) : undefined,
+  };
+
+  // Gọi service với object query đã được chuẩn hóa
+  const result = await inventoryService.getInventories(query);
 
   res.status(200).json({
     success: true,

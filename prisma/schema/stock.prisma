@@ -75,24 +75,24 @@ model StockInDiscrepancy {
 }
 
 model StockOut {
-  id                    Int               @id @default(autoincrement())
+  id                    Int                   @id @default(autoincrement())
   warehouse_location_id Int
-  code                  String            @unique @map("stock_out_code")
-  type                  StockOutType      @default(SALES)
+  code                  String                @unique @map("stock_out_code")
+  type                  StockOutType          @default(SALES)
   reference_number      String?
   supplier_id           Int?
-  description           String?           @db.Text
-  status                StockOutStatus    @default(DRAFT)
+  description           String?               @db.Text
+  status                StockOutStatus        @default(DRAFT)
   created_by            Int
   approved_by           Int?
-  created_at            DateTime          @default(now())
-  updated_at            DateTime          @updatedAt
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
   details               StockOutDetail[]
   discrepancies         StockOutDiscrepancy[]
-  approver              User?             @relation("StockOutApprover", fields: [approved_by], references: [id])
-  creator               User              @relation("StockOutCreator", fields: [created_by], references: [id])
-  supplier              Supplier?         @relation(fields: [supplier_id], references: [id])
-  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
+  approver              User?                 @relation("StockOutApprover", fields: [approved_by], references: [id])
+  creator               User                  @relation("StockOutCreator", fields: [created_by], references: [id])
+  supplier              Supplier?             @relation(fields: [supplier_id], references: [id])
+  location              WarehouseLocation     @relation(fields: [warehouse_location_id], references: [id])
 
   @@index([warehouse_location_id])
   @@index([created_by])
