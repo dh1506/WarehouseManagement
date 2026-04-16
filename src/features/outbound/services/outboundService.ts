@@ -11,6 +11,20 @@ import type {
   ProofType,
 } from '../types/outboundType';
 
+interface ProductInventoryRow {
+  warehouse_location_id?: number;
+  available_quantity?: number | string;
+  availableQuantity?: number | string;
+  quantity?: number | string;
+  reserved_quantity?: number | string;
+  reservedQuantity?: number | string;
+}
+
+interface ProductInventoryPayload {
+  items?: ProductInventoryRow[];
+  inventories?: ProductInventoryRow[];
+}
+
 // ─── Helper unwrap ────────────────────────────────────────────────────────────
 
 function unwrap<T>(response: unknown): T {
@@ -164,4 +178,47 @@ export async function getStockOutHistory(id: number): Promise<StockOutHistoryIte
     `/api/stock-outs/${id}/history`,
   );
   return unwrap<StockOutHistoryItem[]>(response);
+}
+
+/**
+ * FE helper for create-sheet validation.
+ * Reads available quantity by product and returns a preferred location id
+ * (first row from inventory list) so FE can keep BE payload compatible.
+ */
+export async function getOutboundProductInventoryAvailability(productId: number): Promise<{
+  availableQty: number;
+  preferredLocationId: number | null;
+}> {
+  const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
+    params: {
+      product_id: productId,
+      page: 1,
+      limit: 100,
+    },
+  });
+
+  const payload = unwrap<ProductInventoryPayload>(response);
+  const rows = payload.items ?? payload.inventories ?? [];
+
+  let availableQty = 0;
+  let preferredLocationId: number | null = null;
+
+  rows.forEach((row) => {
+    const explicitAvailable = Number(row.available_quantity ?? row.availableQuantity);
+    const quantity = Number(row.quantity);
+    const reserved = Number(row.reserved_quantity ?? row.reservedQuantity);
+    const nextAvailable = Number.isFinite(explicitAvailable)
+      ? explicitAvailable
+      : (Number.isFinite(quantity) ? quantity - (Number.isFinite(reserved) ? reserved : 0) : 0);
+    availableQty += nextAvailable;
+
+    if (preferredLocationId == null && typeof row.warehouse_location_id === 'number' && row.warehouse_location_id > 0) {
+      preferredLocationId = row.warehouse_location_id;
+    }
+  });
+
+  return {
+    availableQty,
+    preferredLocationId,
+  };
 }

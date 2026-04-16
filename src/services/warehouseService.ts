@@ -540,6 +540,50 @@ async function fetchAllInventories(params?: {
   return all;
 }
 
+async function syncBinInventoryFromCurrentLoad(params: {
+  locationId: string;
+  productId: string;
+  currentLoad: number;
+}): Promise<void> {
+  const { locationId, productId, currentLoad } = params;
+
+  const locationIdNumber = Number(locationId);
+  const productIdNumber = Number(productId);
+  if (Number.isNaN(locationIdNumber) || Number.isNaN(productIdNumber)) {
+    return;
+  }
+
+  if (Date.now() < inventoryApiUnavailableUntil) {
+    return;
+  }
+
+  const normalizedLoad = Math.max(0, Number(currentLoad) || 0);
+
+  try {
+    const locationInventories = await fetchAllInventories({ warehouseLocationId: locationId });
+    const matchedInventory = locationInventories.find((item) => String(item.product_id) === productId);
+
+    if (matchedInventory) {
+      await apiClient.put(`/api/inventories/${matchedInventory.id}`, {
+        quantity: normalizedLoad,
+        reserved_quantity: 0,
+        available_quantity: normalizedLoad,
+      });
+      return;
+    }
+
+    await apiClient.post('/api/inventories', {
+      product_id: productIdNumber,
+      warehouse_location_id: locationIdNumber,
+      quantity: normalizedLoad,
+      reserved_quantity: 0,
+      available_quantity: normalizedLoad,
+    });
+  } catch {
+    inventoryApiUnavailableUntil = Date.now() + 5 * 60 * 1000;
+  }
+}
+
 function buildLocationAllowedCategoryMap(
   rules: LocationAllowedCategoryApiItem[],
   activeLocationIdSet?: Set<string>,
@@ -1540,6 +1584,13 @@ export async function updateZoneBinCapacity(
 
   // Persist selected category scope on this location so re-open/re-select hydrates correct form values.
   await syncLocationCategoryScope([locationId], [payload.categoryId]);
+
+  // Keep inventories in sync with bin load so outbound availability reads up-to-date values.
+  await syncBinInventoryFromCurrentLoad({
+    locationId,
+    productId: payload.productId,
+    currentLoad: payload.currentLoad,
+  });
 
   // FE fallback persistence for assigned SKU in case inventory endpoints are unavailable.
   setBinAssignmentFallback(locationId, {

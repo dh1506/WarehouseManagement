@@ -28,7 +28,6 @@ import { TransactionHistoryPage } from './pages/operations/TransactionHistoryPag
 
 import { OutboundListPage } from './pages/operations/OutboundListPage';
 import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
-import { OutboundCreatePage } from './pages/operations/OutboundCreatePage';
 import { OutboundPickingPage } from './pages/operations/OutboundPickingPage';
 import { Toaster } from './components/ui/toaster';
 import { AntdDashboard } from './pages/AntdDashboard';
@@ -140,7 +139,6 @@ function App() {
             <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundManagementPage /></PageAccessRoute>} />
             <Route path="/inbound/:id" element={<PageAccessRoute path="/inbound"><InboundDetailPage /></PageAccessRoute>} />
             <Route path="/outbound" element={<PageAccessRoute path="/outbound"><OutboundListPage /></PageAccessRoute>} />
-            <Route path="/outbound/create" element={<PageAccessRoute path="/outbound"><OutboundCreatePage /></PageAccessRoute>} />
             <Route path="/outbound/:id" element={<PageAccessRoute path="/outbound"><OutboundDetailPage /></PageAccessRoute>} />
             <Route path="/outbound/:id/picking" element={<PageAccessRoute path="/outbound"><OutboundPickingPage /></PageAccessRoute>} />
           </Route>
