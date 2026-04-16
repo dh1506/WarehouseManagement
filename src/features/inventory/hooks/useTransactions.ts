@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import {
   getTransactions,
@@ -31,6 +31,29 @@ export function useTransactions(params: TransactionQueryParams) {
     queryFn: () => getTransactions(params),
     placeholderData: (prev) => prev,
   });
+}
+
+// ── Hook: KPI totals by transaction type ─────────────────────────────────────
+// Gửi 3 query song song, mỗi query limit=1, chỉ lấy pagination.total.
+// Tránh đếm trên trang hiện tại (chỉ 10 dòng → sai kết quả).
+
+export function useTransactionKpis() {
+  const types = ['IN', 'OUT', 'ADJUSTMENT'] as const;
+
+  const results = useQueries({
+    queries: types.map((type) => ({
+      queryKey: TRANSACTION_KEYS.list({ transaction_type: type, page: 1, limit: 1 }),
+      queryFn: () => getTransactions({ transaction_type: type, page: 1, limit: 1 }),
+      staleTime: 30_000,
+    })),
+  });
+
+  return {
+    inCount:          results[0].data?.pagination.total ?? 0,
+    outCount:         results[1].data?.pagination.total ?? 0,
+    adjustmentCount:  results[2].data?.pagination.total ?? 0,
+    isLoading:        results.some((r) => r.isLoading),
+  };
 }
 
 // ── Hook: single transaction detail ───────────────────────────────────────────

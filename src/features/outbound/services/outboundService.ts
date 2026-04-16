@@ -2,6 +2,7 @@ import apiClient from '@/services/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type {
   StockOut,
+  StockOutHistoryItem,
   StockOutListParams,
   StockOutListResponse,
   CreateStockOutPayload,
@@ -153,4 +154,14 @@ export async function confirmProofUpload(
   type: ProofType,
 ): Promise<void> {
   await apiClient.post(`/api/stock-outs/${stockOutId}/proofs`, { key, type });
+}
+
+// ─── Lịch sử thao tác phiếu xuất ─────────────────────────────────────────────
+// Lấy danh sách audit log của một phiếu xuất, sắp xếp theo thời gian tăng dần
+
+export async function getStockOutHistory(id: number): Promise<StockOutHistoryItem[]> {
+  const response = await apiClient.get<ApiResponse<StockOutHistoryItem[]>>(
+    `/api/stock-outs/${id}/history`,
+  );
+  return unwrap<StockOutHistoryItem[]>(response);
 }

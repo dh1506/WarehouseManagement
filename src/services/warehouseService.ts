@@ -120,7 +120,8 @@ interface InventoryApiItem {
 }
 
 interface InventoryListApiData {
-  inventories: InventoryApiItem[];
+  inventories?: InventoryApiItem[];
+  items?: InventoryApiItem[];
   pagination: PaginationApiModel;
 }
 
@@ -265,6 +266,9 @@ interface ZoneCoordinate {
 
 const WAREHOUSE_CATEGORY_SCOPE_KEY = 'wm:warehouse-category-scope';
 const ZONE_METADATA_SCOPE_KEY = 'wm:zone-metadata-scope';
+const BIN_ASSIGNMENT_SCOPE_KEY = 'wm:bin-assignment-scope';
+
+let inventoryApiUnavailableUntil = 0;
 
 interface ZoneMetadataFallback {
   name: string;
@@ -358,6 +362,48 @@ function removeZoneMetadataFallback(warehouseId: string, zoneCode: string): void
 
   delete map[key];
   writeStorageMap(ZONE_METADATA_SCOPE_KEY, map);
+}
+
+function getBinAssignmentFallbackMap(): Record<string, BinAssignmentValue> {
+  const map = readStorageMap<BinAssignmentValue>(BIN_ASSIGNMENT_SCOPE_KEY);
+  const result: Record<string, BinAssignmentValue> = {};
+
+  Object.entries(map).forEach(([locationId, value]) => {
+    if (!value || typeof value !== 'object') {
+      return;
+    }
+
+    const productId = typeof value.productId === 'string' ? value.productId.trim() : '';
+    if (!productId) {
+      return;
+    }
+
+    const productName = typeof value.productName === 'string' && value.productName.trim().length > 0
+      ? value.productName.trim()
+      : `Product #${productId}`;
+
+    const categoryId = typeof value.categoryId === 'string' && value.categoryId.trim().length > 0
+      ? value.categoryId.trim()
+      : undefined;
+
+    result[locationId] = {
+      categoryId,
+      productId,
+      productName,
+    };
+  });
+
+  return result;
+}
+
+function setBinAssignmentFallback(locationId: string, value: BinAssignmentValue): void {
+  const next = readStorageMap<BinAssignmentValue>(BIN_ASSIGNMENT_SCOPE_KEY);
+  next[locationId] = {
+    categoryId: value.categoryId,
+    productId: value.productId,
+    productName: value.productName,
+  };
+  writeStorageMap(BIN_ASSIGNMENT_SCOPE_KEY, next);
 }
 
 function buildZoneCoordinatesByStructure(racks: number, levels: number, bins: number): ZoneCoordinate[] {
@@ -465,6 +511,10 @@ async function fetchAllInventories(params?: {
   let page = 1;
   let totalPages = 1;
 
+  if (Date.now() < inventoryApiUnavailableUntil) {
+    return [];
+  }
+
   try {
     while (page <= totalPages) {
       const response = await apiClient.get<ApiResponse<InventoryListApiData>>('/api/inventories', {
@@ -476,12 +526,14 @@ async function fetchAllInventories(params?: {
       });
 
       const payload = unwrapApiData<InventoryListApiData>(response);
-      all.push(...payload.inventories);
+      const records = payload.items ?? payload.inventories ?? [];
+      all.push(...records);
       totalPages = payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1;
       page += 1;
     }
   } catch {
-    // /api/inventories chưa sẵn sàng — trả về mảng rỗng để hub/zone vẫn load được
+    // /api/inventories chưa sẵn sàng — tắt tạm 5 phút để tránh spam lỗi trong UI flow.
+    inventoryApiUnavailableUntil = Date.now() + 5 * 60 * 1000;
     return [];
   }
 
@@ -536,6 +588,23 @@ function buildInventoryAssignmentMap(
     };
   });
 
+  const fallbackMap = getBinAssignmentFallbackMap();
+  Object.entries(fallbackMap).forEach(([locationId, assignment]) => {
+    const existing = map[locationId];
+    if (existing) {
+      if (!existing.categoryId) {
+        existing.categoryId = assignment.categoryId ?? locationCategoryMap[locationId]?.[0];
+      }
+      return;
+    }
+
+    map[locationId] = {
+      categoryId: assignment.categoryId ?? locationCategoryMap[locationId]?.[0],
+      productId: assignment.productId,
+      productName: assignment.productName,
+    };
+  });
+
   return map;
 }
 
@@ -579,17 +648,24 @@ async function fetchLocationsByZoneCode(
   zoneCode: string,
   includeInactive = true,
 ): Promise<WarehouseLocationItem[]> {
-  const response = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
-    params: {
-      page: 1,
-      limit: 1000,
-      warehouse_id: Number(warehouseId),
-      zone_code: zoneCodeKey(zoneCode),
+  const all = await collectPaginatedItems({
+    fetchPage: async (page, limit) => {
+      const response = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
+        params: {
+          page,
+          limit,
+          warehouse_id: Number(warehouseId),
+          zone_code: zoneCodeKey(zoneCode),
+        },
+      });
+
+      return unwrapApiData<WarehouseLocationListApiData>(response);
     },
+    getItems: (payload) => payload.locations.map(mapLocation),
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
   });
 
-  const payload = unwrapApiData<WarehouseLocationListApiData>(response);
-  const mapped = payload.locations.map(mapLocation);
+  const mapped = all;
   if (includeInactive) {
     return mapped;
   }
@@ -1181,10 +1257,35 @@ export async function updateWarehouseZone(
       .filter((location) => location.rack.trim() && location.level.trim() && location.bin.trim())
       .map((location) => [buildCoordinateKey(location), location]),
   );
+  const existingByLocationCode = new Map(
+    zoneLocations.map((location) => [location.code.trim().toUpperCase(), location]),
+  );
 
-  const upsertRequests = desiredCoordinates.map((coordinate) => {
+  const resolveExistingLocationForCoordinate = (
+    coordinate: ZoneCoordinate,
+    allLocations: WarehouseLocationItem[],
+  ): WarehouseLocationItem | undefined => {
     const key = buildCoordinateKeyFromCodes(coordinate);
-    const existingLocation = existingMap.get(key);
+    const byCoordinate = allLocations.find((location) => buildCoordinateKey(location) === key);
+    if (byCoordinate) {
+      return byCoordinate;
+    }
+
+    const warehouseCode = warehouse?.code?.trim().toUpperCase();
+    if (!warehouseCode) {
+      return undefined;
+    }
+
+    const expectedLocationCode = `${warehouseCode}-${currentZoneCode}-${coordinate.rackCode}-${coordinate.levelCode}-${coordinate.binCode}`;
+    return allLocations.find((location) => location.code.trim().toUpperCase() === expectedLocationCode);
+  };
+
+  const upsertRequests = desiredCoordinates.map(async (coordinate) => {
+    const key = buildCoordinateKeyFromCodes(coordinate);
+    const desiredLocationCode = buildLocationCodeFromCoordinate(warehouseId, currentZoneCode, coordinate)
+      .trim()
+      .toUpperCase();
+    const existingLocation = existingMap.get(key) ?? existingByLocationCode.get(desiredLocationCode);
 
     if (existingLocation) {
       const normalizedWeight = normalizeWeightForLocationUpdate(existingLocation.currentLoad, existingLocation.capacity);
@@ -1199,18 +1300,42 @@ export async function updateWarehouseZone(
       });
     }
 
-    return apiClient.post<ApiResponse<WarehouseLocationApiItem>>('/api/warehouses/locations', {
-      warehouse_id: Number(warehouseId),
-      location_code: `${buildLocationCodeFromCoordinate(warehouseId, currentZoneCode, coordinate)}-${Date.now().toString().slice(-5)}`,
-      zone_code: currentZoneCode,
-      rack_code: coordinate.rackCode,
-      level_code: coordinate.levelCode,
-      bin_code: coordinate.binCode,
-      location_status: 'AVAILABLE',
-      is_active: true,
-      max_weight: 100,
-      storage_condition: normalizedType,
-    });
+    try {
+      return await apiClient.post<ApiResponse<WarehouseLocationApiItem>>('/api/warehouses/locations', {
+        warehouse_id: Number(warehouseId),
+        location_code: desiredLocationCode,
+        zone_code: currentZoneCode,
+        rack_code: coordinate.rackCode,
+        level_code: coordinate.levelCode,
+        bin_code: coordinate.binCode,
+        location_status: 'AVAILABLE',
+        is_active: true,
+        max_weight: 100,
+        storage_condition: normalizedType,
+      });
+    } catch (error) {
+      const responseStatus = (error as { response?: { status?: number } })?.response?.status;
+      if (responseStatus !== 400) {
+        throw error;
+      }
+
+      const refreshedLocations = await fetchLocationsByZoneCode(warehouseId, currentZoneCode, true);
+      const resolvedLocation = resolveExistingLocationForCoordinate(coordinate, refreshedLocations);
+      if (!resolvedLocation) {
+        throw error;
+      }
+
+      const normalizedWeight = normalizeWeightForLocationUpdate(resolvedLocation.currentLoad, resolvedLocation.capacity);
+      return apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(`/api/warehouses/locations/${Number(resolvedLocation.id)}`, {
+        is_active: true,
+        location_status: deriveLocationStatus(normalizedWeight.currentWeight, normalizedWeight.maxWeight),
+        storage_condition: normalizedType,
+        max_weight: normalizedWeight.maxWeight,
+        current_weight: normalizedWeight.currentWeight,
+        max_volume: null,
+        current_volume: 0,
+      });
+    }
   });
 
   const softDeleteRequests = zoneLocations
@@ -1389,14 +1514,11 @@ export async function updateZoneBinCapacity(
     throw new Error('Không thể cập nhật bin vì id vị trí kho không hợp lệ.');
   }
 
-  const hubs = await getWarehouseHubs();
-  const warehouse = hubs.find((item) => item.id === warehouseId);
-  const zone = warehouse?.zones.find((item) => item.id === zoneId);
-  if (!warehouse || !zone) {
-    throw new Error('Không tìm thấy zone để gán danh mục và sản phẩm cho ô lưu trữ.');
-  }
-
-  if (!zone.allowedCategoryIds.includes(payload.categoryId)) {
+  const existingRules = await fetchAllLocationAllowedCategories({ locationId });
+  const allowedCategoryIds = normalizeIdList(
+    existingRules.filter((rule) => rule.is_allowed).map((rule) => String(rule.category_id)),
+  );
+  if (allowedCategoryIds.length > 0 && !allowedCategoryIds.includes(payload.categoryId)) {
     throw new Error('Danh mục của ô lưu trữ phải nằm trong phạm vi danh mục đã cấu hình cho zone.');
   }
 
@@ -1404,12 +1526,6 @@ export async function updateZoneBinCapacity(
   const selectedProduct = products.find((product) => product.id === payload.productId);
   if (!selectedProduct) {
     throw new Error('Sản phẩm được chọn không thuộc danh mục hợp lệ của zone.');
-  }
-
-  const inventoriesAtLocation = await fetchAllInventories({ warehouseLocationId: locationId });
-  const conflictingInventory = inventoriesAtLocation.find((item) => String(item.product_id) !== payload.productId);
-  if (conflictingInventory) {
-    throw new Error('Mỗi ô/bin chỉ được chứa 1 SKU tại một thời điểm. Ô này đang có SKU khác.');
   }
 
   const response = await apiClient.patch<ApiResponse<WarehouseLocationApiItem>>(
@@ -1422,23 +1538,15 @@ export async function updateZoneBinCapacity(
     },
   );
 
-  const quantity = Math.max(0, payload.currentLoad);
-  const existingInventory = inventoriesAtLocation.find((item) => String(item.product_id) === payload.productId);
-  if (existingInventory) {
-    await apiClient.patch(`/api/inventories/${existingInventory.id}`, {
-      quantity,
-      reserved_quantity: 0,
-      available_quantity: quantity,
-    });
-  } else {
-    await apiClient.post('/api/inventories', {
-      product_id: Number(payload.productId),
-      warehouse_location_id: Number(locationId),
-      quantity,
-      reserved_quantity: 0,
-      available_quantity: quantity,
-    });
-  }
+  // Persist selected category scope on this location so re-open/re-select hydrates correct form values.
+  await syncLocationCategoryScope([locationId], [payload.categoryId]);
+
+  // FE fallback persistence for assigned SKU in case inventory endpoints are unavailable.
+  setBinAssignmentFallback(locationId, {
+    categoryId: payload.categoryId,
+    productId: payload.productId,
+    productName: selectedProduct.name,
+  });
 
   const location = mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
 

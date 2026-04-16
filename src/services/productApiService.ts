@@ -1,8 +1,10 @@
 import type {
   ProductFormValues,
+  ProductInventoryData,
   ProductItem,
   ProductListParams,
   ProductListResponse,
+  ProductLotItem,
   ProductOptionItem,
   ProductStatus,
   ProductType,
@@ -325,6 +327,117 @@ export async function updateProductStatus(id: string, status: ProductStatus): Pr
   });
 
   return mapProduct(unwrapApiData<ProductApiItem>(response));
+}
+
+// ── Inventory raw API types ──────────────────────────────────────────────────
+
+interface InventoryLotApiItem {
+  id: number;
+  lot_no: string;
+  product_id: number;
+  inventories_id: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+  production_date: string | null;
+  expired_date: string | null;
+  received_at: string;
+}
+
+interface InventoryLocationApiItem {
+  id: number;
+  code: string;
+  warehouse?: { id: number; name: string } | null;
+}
+
+interface InventoryApiItem {
+  id: number;
+  product_id: number;
+  warehouse_location_id: number;
+  quantity: string;
+  reserved_quantity: string;
+  available_quantity: string;
+  created_at: string;
+  updated_at: string;
+  location: InventoryLocationApiItem;
+  lots: InventoryLotApiItem[];
+}
+
+interface InventoryListApiData {
+  items: InventoryApiItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+  };
+}
+
+const EXPIRY_CRITICAL_DAYS = 7;
+const EXPIRY_NEAR_DAYS = 30;
+
+/**
+ * Lấy dữ liệu tồn kho và danh sách lô cho một sản phẩm.
+ * Gọi GET /api/inventories?product_id=X&limit=100 rồi tổng hợp phía client.
+ */
+export async function getProductInventoryData(productId: string): Promise<ProductInventoryData> {
+  const response = await apiClient.get<ApiResponse<InventoryListApiData>>('/api/inventories', {
+    params: {
+      product_id: Number(productId),
+      limit: 100,
+      page: 1,
+    },
+  });
+
+  const payload = unwrapApiData<InventoryListApiData>(response);
+  const nowMs = Date.now();
+  const criticalThresholdMs = nowMs + EXPIRY_CRITICAL_DAYS * 24 * 60 * 60 * 1000;
+  const nearThresholdMs = nowMs + EXPIRY_NEAR_DAYS * 24 * 60 * 60 * 1000;
+
+  let totalAvailableQty = 0;
+  const lots: ProductLotItem[] = [];
+
+  for (const row of payload.items ?? []) {
+    totalAvailableQty += Number(row.available_quantity) || 0;
+
+    for (const lot of row.lots ?? []) {
+      lots.push({
+        id: String(lot.id),
+        lotNo: lot.lot_no,
+        status: lot.status,
+        expiredDate: lot.expired_date,
+        productionDate: lot.production_date,
+        receivedAt: lot.received_at,
+        locationCode: row.location?.code ?? null,
+        warehouseName: row.location?.warehouse?.name ?? null,
+      });
+    }
+  }
+
+  const activeLots = lots.filter((l) => l.status === 'ACTIVE');
+
+  let nearExpiryCount = 0;
+  let criticalExpiryCount = 0;
+
+  for (const lot of activeLots) {
+    if (!lot.expiredDate) continue;
+    const expiryMs = new Date(lot.expiredDate).getTime();
+    if (expiryMs <= criticalThresholdMs) {
+      criticalExpiryCount += 1;
+    } else if (expiryMs <= nearThresholdMs) {
+      nearExpiryCount += 1;
+    }
+  }
+
+  // Lô có status EXPIRED cũng tính là critical
+  criticalExpiryCount += lots.filter((l) => l.status === 'EXPIRED').length;
+
+  return {
+    productId,
+    totalAvailableQty,
+    activeLotCount: activeLots.length,
+    nearExpiryCount,
+    criticalExpiryCount,
+    lots,
+  };
 }
 
 export async function getBrandOptions(): Promise<ProductOptionItem[]> {

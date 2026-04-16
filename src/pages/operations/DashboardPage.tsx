@@ -8,7 +8,6 @@ import {
   Col,
   Space,
   Radio,
-  List,
 } from 'antd';
 import {
   RobotOutlined,
@@ -46,7 +45,7 @@ const tasksData = [
 
 export const DashboardPage: React.FC = () => {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="p-6 md:p-8 h-full overflow-y-auto w-full bg-[#fcfcfc] custom-antd-dashboard"
@@ -58,9 +57,9 @@ export const DashboardPage: React.FC = () => {
           <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#1f1f1f' }}>Predictive Logistics Engine</Title>
         </div>
         <div className="flex gap-6 text-sm text-gray-500 font-medium">
-            <span className="cursor-pointer hover:text-gray-900 transition-colors">Global View</span>
-            <span className="cursor-pointer text-[#0050b3] font-semibold border-b-2 border-[#0050b3] pb-1">Metrics</span>
-            <span className="cursor-pointer hover:text-gray-900 transition-colors">Logs</span>
+          <span className="cursor-pointer hover:text-gray-900 transition-colors">Global View</span>
+          <span className="cursor-pointer text-[#0050b3] font-semibold border-b-2 border-[#0050b3] pb-1">Metrics</span>
+          <span className="cursor-pointer hover:text-gray-900 transition-colors">Logs</span>
         </div>
       </div>
 
@@ -87,8 +86,8 @@ export const DashboardPage: React.FC = () => {
           {/* Left Column */}
           <Col xs={24} lg={15}>
             {/* Urgent Pick Card */}
-            <Card 
-              styles={{ body: { padding: 0 } }} 
+            <Card
+              styles={{ body: { padding: 0 } }}
               style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: 'none', marginBottom: '24px' }}
             >
               <Row align="middle" style={{ minHeight: '260px' }}>
@@ -99,22 +98,22 @@ export const DashboardPage: React.FC = () => {
                     </Tag>
                     <Text type="secondary" style={{ fontFamily: 'monospace' }}>ID: #PX-9921</Text>
                   </div>
-                  
+
                   <Title level={3} style={{ margin: '0 0 8px 0', fontWeight: 700 }}>Aisle 14, Bin C-04</Title>
                   <Text style={{ fontSize: '16px', color: '#595959', display: 'block', marginBottom: '32px' }}>
                     Industrial High-Torque Drill (x12)
                   </Text>
-                  
+
                   <button className="flex items-center gap-2 bg-[#003eb3] hover:bg-[#002c8c] text-white px-8 py-3 rounded-lg font-medium text-base transition-colors shadow-md">
                     <ScanOutlined /> Start Scanning
                   </button>
                 </Col>
                 <Col xs={24} sm={10} style={{ height: '100%' }}>
-                  <div style={{ 
-                    minHeight: '260px', 
+                  <div style={{
+                    minHeight: '260px',
                     height: '100%',
-                    backgroundImage: 'url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=2070&auto=format&fit=crop")', 
-                    backgroundSize: 'cover', 
+                    backgroundImage: 'url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=2070&auto=format&fit=crop")',
+                    backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     position: 'relative',
                     display: 'flex',
@@ -128,26 +127,25 @@ export const DashboardPage: React.FC = () => {
             </Card>
 
             {/* Task List */}
-            <Card 
-              style={{ borderRadius: '12px', border: 'none', backgroundColor: '#fcfcfc' }} 
+            <Card
+              style={{ borderRadius: '12px', border: 'none', backgroundColor: '#fcfcfc' }}
               styles={{ body: { padding: 0 } }}
             >
-              <List
-                dataSource={tasksData}
-                renderItem={(item) => (
-                  <List.Item
+              <div>
+                {tasksData.map((item) => (
+                  <div
+                    key={item.id}
                     style={{
-                      backgroundColor: '#f5f5f5', 
-                      borderRadius: '12px', 
-                      padding: '20px 24px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: '12px',
+                      padding: '20px 24px',
+                      display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'space-between',
                       marginBottom: item.id === 1 ? '16px' : '0',
                       cursor: 'pointer',
                       transition: 'background-color 0.2s',
                       borderLeft: item.active ? '4px solid #0050b3' : 'none',
-                      borderBottom: 'none'
                     }}
                     className="hover:bg-gray-200"
                   >
@@ -164,19 +162,19 @@ export const DashboardPage: React.FC = () => {
                       <Text type="secondary" style={{ fontSize: '13px' }}>{item.tagLabel} <strong style={{ color: '#8c8c8c' }}>{item.tagValue}</strong></Text>
                       <ArrowRightOutlined style={{ color: '#8c8c8c' }} />
                     </Space>
-                  </List.Item>
-                )}
-              />
+                  </div>
+                ))}
+              </div>
             </Card>
           </Col>
 
           {/* Right Column */}
           <Col xs={24} lg={9}>
             {/* Shift Progress */}
-            <Card 
-              style={{ 
-                borderRadius: '16px', 
-                border: 'none', 
+            <Card
+              style={{
+                borderRadius: '16px',
+                border: 'none',
                 marginBottom: '24px',
                 background: 'linear-gradient(135deg, #36cfc9 0%, #13c2c2 100%)',
                 color: 'white',
@@ -195,17 +193,17 @@ export const DashboardPage: React.FC = () => {
                     142 items handled
                   </Text>
                 </div>
-                
+
                 <div style={{ marginTop: '20px' }}>
-                  <Progress percent={84} showInfo={false} strokeColor="white" trailColor="rgba(255,255,255,0.3)" size={['100%', 8]} />
+                  <Progress percent={84} showInfo={false} strokeColor="white" railColor="rgba(255,255,255,0.3)" size={['100%', 8]} />
                 </div>
               </div>
             </Card>
 
             {/* AI Prediction */}
-            <Card 
-              style={{ 
-                borderRadius: '16px', 
+            <Card
+              style={{
+                borderRadius: '16px',
                 border: '1px solid #f0f0f0',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
               }}
@@ -214,12 +212,12 @@ export const DashboardPage: React.FC = () => {
                 <RobotOutlined style={{ color: '#006d75' }} />
                 <Text style={{ color: '#006d75', fontSize: '12px', fontWeight: 600, letterSpacing: '0.5px' }}>AI PREDICTION</Text>
               </Space>
-              
+
               <Title level={4} style={{ margin: '0 0 12px 0' }}>Congestion Alert in Aisle 12</Title>
               <Text type="secondary" style={{ display: 'block', marginBottom: '24px', lineHeight: '1.6' }}>
                 Predicted delay of 12 mins. Suggesting re-routing via Sector C for next 3 picks.
               </Text>
-              
+
               <Link style={{ color: '#0050b3', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 View Dynamic Route <ArrowRightOutlined />
               </Link>

@@ -8,46 +8,55 @@
 
 Full rewrite against real BE `/api/stock-outs` contract. Zero mock data. No `PickingTask` abstraction.
 
-| File | Purpose |
-|------|---------|
-| `types/outboundType.ts` | `OutboundStatus` (DRAFT/PENDING/APPROVED/PICKING/COMPLETED/CANCELLED), `OutboundType` (SALES/RETURN_TO_SUPPLIER), `StockOut`, `StockOutDetail`, `StockOutDetailLot`, `CreateStockOutPayload`, `UpdatePickedLotsPayload`, `PickedLotEntry`, labels, stepper steps |
-| `schemas/outboundSchema.ts` | Zod: `createStockOutSchema` (with nested `details[]`), `pickedLotEntrySchema`, `updatePickedLotsSchema`, `cancelStockOutSchema` |
-| `services/outboundService.ts` | All real endpoints: `getStockOuts`, `getStockOutById`, `createSalesStockOut` (`POST /sales`), `createReturnStockOut` (`POST /returns`), `submitStockOut`, `approveStockOut`, `updatePickedLots` (`PUT /picked-lots`), `completeStockOut`, `cancelStockOut`. Proof upload stubs: `getProofUploadUrl`, `uploadFileToB2`, `confirmProofUpload` |
-| `hooks/useOutbound.ts` | `stockOutKeys` factory, `useStockOuts`, `useStockOut`, `useStockOutKpis` (4 parallel `useQueries`), all mutations with Vietnamese toast messages |
-| `components/OutboundStatusBadge.tsx` | `OutboundStatusBadge` (6 statuses) + `OutboundTypeBadge` (SALES/RETURN_TO_SUPPLIER) with `size` prop |
-| `components/OutboundList.tsx` | KPI cards (manager-only, staggered motion), debounced search, status/type filters, 60s polling, skeleton rows, pagination, "Lấy hàng" quick action |
-| `components/LineItemEditor.tsx` | `useFieldArray` editor: `product_id`, `quantity`, `unit_price` (nullable). Info banner about lot assignment post-approval. |
-| `components/OutboundDetail.tsx` | `ConfirmDialog` (reusable, optional reason textarea), `WorkflowStepper` (5 steps, animated progress bar), `ActionPanel` (RBAC-aware buttons), `OutboundDetail` (detail view with lot display for PICKING/COMPLETED), `OutboundCreateForm` (type-aware routing to correct mutation) |
-| `components/OutboundPickingScreen.tsx` | Mobile-first lot assignment screen: `DetailCard` with per-lot rows, `ProgressBar` (motion), `ProofUploadSection` (B2 stub with graceful failure), `DiscrepancyPanel`, atomic `PUT /picked-lots`, discrepancy guard before `PATCH /complete` |
+| File                                   | Purpose                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types/outboundType.ts`                | `OutboundStatus` (DRAFT/PENDING/APPROVED/PICKING/COMPLETED/CANCELLED), `OutboundType` (SALES/RETURN_TO_SUPPLIER), `StockOut`, `StockOutDetail`, `StockOutDetailLot`, `CreateStockOutPayload`, `UpdatePickedLotsPayload`, `PickedLotEntry`, labels, stepper steps                                                                            |
+| `schemas/outboundSchema.ts`            | Zod: `createStockOutSchema` (with nested `details[]`), `pickedLotEntrySchema`, `updatePickedLotsSchema`, `cancelStockOutSchema`                                                                                                                                                                                                             |
+| `services/outboundService.ts`          | All real endpoints: `getStockOuts`, `getStockOutById`, `createSalesStockOut` (`POST /sales`), `createReturnStockOut` (`POST /returns`), `submitStockOut`, `approveStockOut`, `updatePickedLots` (`PUT /picked-lots`), `completeStockOut`, `cancelStockOut`. Proof upload stubs: `getProofUploadUrl`, `uploadFileToB2`, `confirmProofUpload` |
+| `hooks/useOutbound.ts`                 | `stockOutKeys` factory, `useStockOuts`, `useStockOut`, `useStockOutKpis` (4 parallel `useQueries`), all mutations with Vietnamese toast messages                                                                                                                                                                                            |
+| `components/OutboundStatusBadge.tsx`   | `OutboundStatusBadge` (6 statuses) + `OutboundTypeBadge` (SALES/RETURN_TO_SUPPLIER) with `size` prop                                                                                                                                                                                                                                        |
+| `components/OutboundList.tsx`          | KPI cards (manager-only, staggered motion), debounced search, status/type filters, 60s polling, skeleton rows, pagination, "Lấy hàng" quick action                                                                                                                                                                                          |
+| `components/LineItemEditor.tsx`        | `useFieldArray` editor: `product_id`, `quantity`, `unit_price` (nullable). Info banner about lot assignment post-approval.                                                                                                                                                                                                                  |
+| `components/OutboundDetail.tsx`        | `ConfirmDialog` (reusable, optional reason textarea), `WorkflowStepper` (5 steps, animated progress bar), `ActionPanel` (RBAC-aware buttons), `OutboundDetail` (detail view with lot display for PICKING/COMPLETED), `OutboundCreateForm` (type-aware routing to correct mutation)                                                          |
+| `components/OutboundPickingScreen.tsx` | Mobile-first lot assignment screen: `DetailCard` with per-lot rows, `ProgressBar` (motion), `ProofUploadSection` (B2 stub with graceful failure), `DiscrepancyPanel`, atomic `PUT /picked-lots`, discrepancy guard before `PATCH /complete`                                                                                                 |
 
 **Known backend dependencies (stubs in place):**
+
 - `GET /api/stock-outs/:id/proof-upload-url` — presigned URL for B2 upload
 - `POST /api/stock-outs/:id/confirm-proof` — confirm after upload
 - Available lots endpoint for lot ID picker (currently free-text input)
 - Date range filter for KPI (currently counting by status only)
 
 ### `features/inbound/` (updated 2026-04-09)
-| File | Purpose |
-|------|---------|
-| `types/inboundType.ts` | BE-aligned `StockIn`, `StockInDetail`, `StockInStatus`, helpers |
-| `types/inboundDetailType.ts` | Re-exports + mutation payload types |
-| `services/inboundService.ts` | `getStockIns`, `createStockIn`, `approveStockIn`, `completeStockIn` |
-| `services/inboundDetailService.ts` | `getStockInDetail`, `recordReceipt`, `createDiscrepancy`, `resolveDiscrepancy`, `allocateLots` |
-| `hooks/useInbound.ts` | `useStockIns`, `useStockInKpis`, `useCreateStockIn`, `useApproveStockIn`, `useCompleteStockIn` |
-| `hooks/useInboundDetail.ts` | `useStockInDetail`, `useRecordReceipt`, `useCreateDiscrepancy`, `useResolveDiscrepancy`, `useAllocateLots` |
-| `schemas/inboundSchemas.ts` | Zod: query, recordReceipt, discrepancy, resolve |
-| `schemas/createPurchaseRequestSchema.ts` | Zod: create form (`warehouse_location_id`, `details[]`) |
-| `components/StockInWorkerView.tsx` | Employee receiving view — quantity entry, discrepancy flow, **AllocateBinMapModal** (zone map bin selection) |
-| `components/ZoneMapEmbed.tsx` | Read-only + clickable zone bin grid; `onBinClick`, `selectedBinId`, `highlightBinCodes` supported |
-| `components/WarehouseLocationSelect.tsx` | Text-search location dropdown (limit 200, no status pre-filter) — fallback only |
-| `components/InboundDashboard.tsx` | Page orchestrator with motion |
-| `components/InboundFilters.tsx` | Search + status filter (BE enum) |
-| `components/InboundTable.tsx` | List table mapped to BE fields + motion rows |
-| `components/KpiCards.tsx` | 4 stat cards from real list data |
-| `components/WorkflowStepper.tsx` | Status → visual steps with motion |
-| `components/InboundDetail.tsx` | Detail view: items, discrepancies, action buttons |
-| `components/CreatePurchaseOrderSheet.tsx` | Slide-in create form → `POST /api/stock-ins` |
 
+| File                                      | Purpose                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `types/inboundType.ts`                    | BE-aligned `StockIn`, `StockInDetail`, `StockInStatus`, helpers                                              |
+| `types/inboundDetailType.ts`              | Re-exports + mutation payload types                                                                          |
+| `services/inboundService.ts`              | `getStockIns`, `createStockIn`, `approveStockIn`, `completeStockIn`                                          |
+| `services/inboundDetailService.ts`        | `getStockInDetail`, `recordReceipt`, `createDiscrepancy`, `resolveDiscrepancy`, `allocateLots`               |
+| `hooks/useInbound.ts`                     | `useStockIns`, `useStockInKpis`, `useCreateStockIn`, `useApproveStockIn`, `useCompleteStockIn`               |
+| `hooks/useInboundDetail.ts`               | `useStockInDetail`, `useRecordReceipt`, `useCreateDiscrepancy`, `useResolveDiscrepancy`, `useAllocateLots`   |
+| `schemas/inboundSchemas.ts`               | Zod: query, recordReceipt, discrepancy, resolve                                                              |
+| `schemas/createPurchaseRequestSchema.ts`  | Zod: create form (`warehouse_location_id`, `details[]`)                                                      |
+| `components/StockInWorkerView.tsx`        | Employee receiving view — quantity entry, discrepancy flow, **AllocateBinMapModal** (zone map bin selection) |
+| `components/ZoneMapEmbed.tsx`             | Read-only + clickable zone bin grid; `onBinClick`, `selectedBinId`, `highlightBinCodes` supported            |
+| `components/WarehouseLocationSelect.tsx`  | Text-search location dropdown (limit 200, no status pre-filter) — fallback only                              |
+| `components/InboundDashboard.tsx`         | Page orchestrator with motion                                                                                |
+| `components/InboundFilters.tsx`           | Search + status filter (BE enum)                                                                             |
+| `components/InboundTable.tsx`             | List table mapped to BE fields + motion rows                                                                 |
+| `components/KpiCards.tsx`                 | 4 stat cards from real list data                                                                             |
+| `components/WorkflowStepper.tsx`          | Status → visual steps with motion                                                                            |
+| `components/InboundDetail.tsx`            | Detail view: items, discrepancies, action buttons                                                            |
+| `components/CreatePurchaseOrderSheet.tsx` | Slide-in create form → `POST /api/stock-ins`                                                                 |
+
+### `features/warehouses/` (zone detail bugfix 2026-04-16)
+
+| File                           | Purpose                                                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `components/ZoneDetail.tsx`    | Bin inspector now forces live refresh on bin select and after save (`binsQuery.refetch`) so CAPACITY/CURRENT LOAD/CATEGORY/PRODUCT hydrate from latest DB-backed data; Save button shows pending spinner+disabled state. |
+| `schemas/warehouseSchemas.ts`  | `binCapacityFormSchema.currentLoad` allows `>= 0` (no hard block against `> capacity`) so overload preview can render red as designed.                                                                                   |
+| `services/warehouseService.ts` | `updateZoneBinCapacity` now persists selected category scope per location through `syncLocationCategoryScope`, preventing category/product fallback mismatch when re-opening bins.                                       |
 
 - **Users**: Admin có thể quản lí user (`src/features/users/`)
   - `components/UserManagement.tsx`: Container chính, wire các components.

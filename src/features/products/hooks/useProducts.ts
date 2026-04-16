@@ -3,13 +3,14 @@ import { getProductCategories } from '@/services/categoryApiService';
 import {
   createProduct,
   discontinueProduct,
+  getProductInventoryData,
   updateProductStatus,
   getBrandOptions,
   getProducts,
   getUnitOptions,
   updateProduct,
 } from '@/services/productApiService';
-import type { ProductFormValues, ProductListParams, ProductStatus } from '../types/productType';
+import type { ProductFormValues, ProductInventoryData, ProductListParams, ProductStatus } from '../types/productType';
 
 export const PRODUCT_KEYS = {
   all: ['products'] as const,
@@ -18,6 +19,7 @@ export const PRODUCT_KEYS = {
   categories: ['products', 'categories'] as const,
   units: ['products', 'units'] as const,
   brands: ['products', 'brands'] as const,
+  inventory: (productId: string) => ['product', productId, 'inventory'] as const,
 };
 
 export function useProducts(params: ProductListParams) {
@@ -87,6 +89,19 @@ export function useDiscontinueProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
     },
+  });
+}
+
+/**
+ * Lấy dữ liệu tồn kho và lô hàng cho một sản phẩm.
+ * enabled=false để tải lazy (ví dụ: chỉ khi dialog mở).
+ */
+export function useProductInventoryData(productId: string, enabled = true) {
+  return useQuery<ProductInventoryData>({
+    queryKey: PRODUCT_KEYS.inventory(productId),
+    queryFn: () => getProductInventoryData(productId),
+    enabled: enabled && !!productId,
+    staleTime: 2 * 60 * 1000, // cache 2 phút
   });
 }
 

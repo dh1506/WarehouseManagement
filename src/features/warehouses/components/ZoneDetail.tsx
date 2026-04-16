@@ -309,6 +309,7 @@ export function ZoneDetail() {
         binId: selectedBin.id,
         payload,
       });
+      await binsQuery.refetch();
       toast({ title: 'Đã cập nhật sức chứa', description: `Bin ${selectedBin.code} đã được cấu hình.` });
     } catch (error) {
       toast({
@@ -326,6 +327,11 @@ export function ZoneDetail() {
       </div>
     );
   }
+
+  const handleSelectBin = (binId: string) => {
+    setSelectedBinId(binId);
+    void binsQuery.refetch();
+  };
 
   if (hubsQuery.isError || binsQuery.isError || !zone) {
     return (
@@ -452,7 +458,7 @@ export function ZoneDetail() {
                             <button
                               key={bin.id}
                               type="button"
-                              onClick={() => setSelectedBinId(bin.id)}
+                              onClick={() => handleSelectBin(bin.id)}
                               className={`flex h-12 w-24 items-center justify-center rounded-lg px-1 text-[11px] font-bold leading-tight ring-offset-2 transition hover:ring-2 ${getOccupancyColor(bin.occupancyLevel)} ${selectedBin?.id === bin.id ? 'ring-2 ring-blue-700' : ''}`}
                               title={`Bin ${coordinate.binCode}`}
                             >
@@ -474,7 +480,7 @@ export function ZoneDetail() {
                   <button
                     key={bin.id}
                     type="button"
-                    onClick={() => setSelectedBinId(bin.id)}
+                    onClick={() => handleSelectBin(bin.id)}
                     className={`w-full rounded-lg border-2 p-3 text-left transition ${selectedBin?.id === bin.id ? 'border-blue-700 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
                   >
                     <div className="flex items-center justify-between">
@@ -490,18 +496,6 @@ export function ZoneDetail() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="relative overflow-hidden rounded-3xl border border-cyan-300 bg-cyan-100 p-6">
-              <span className="mb-4 inline-block rounded-full bg-cyan-300 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-900">AI Optimization</span>
-              <h3 className="mb-2 text-xs font-bold text-slate-900">Space Consolidation</h3>
-              <p className="text-sm leading-relaxed text-slate-700">System recommends moving items from Row A to Row B to free up 12% space for upcoming high-velocity shipments.</p>
-            </div>
-            <div className="relative overflow-hidden rounded-3xl border border-red-300 bg-red-100 p-6">
-              <span className="mb-4 inline-block rounded-full bg-red-300 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-red-900">Urgent Attention</span>
-              <h3 className="mb-2 text-xs font-bold text-slate-900">Critical Congestion</h3>
-              <p className="text-sm leading-relaxed text-slate-700">Bin {selectedBin?.code ?? 'N/A'} exceeds capacity threshold and requires reallocation workflow.</p>
-            </div>
-          </div>
         </div>
 
         <div className="space-y-6 xl:col-span-4">
@@ -539,10 +533,10 @@ export function ZoneDetail() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Capacity" error={errors.capacity?.message}><input type="number" {...register('capacity', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.capacity)} /></Field>
-                  <Field label="Current Load" error={errors.currentLoad?.message}><input type="number" {...register('currentLoad', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.currentLoad)} /></Field>
-                  <Field label="Items" error={errors.items?.message}><input type="number" {...register('items', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.items)} /></Field>
-                  <Field label="Product Count" error={errors.productCount?.message}><input type="number" {...register('productCount', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.productCount)} /></Field>
+                  <input type="hidden" {...register('items', { valueAsNumber: true })} />
+                  <input type="hidden" {...register('productCount', { valueAsNumber: true })} />
+                  <Field label="Capacity" error={errors.capacity?.message}><input type="number" min={1} step={1} {...register('capacity', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.capacity)} /></Field>
+                  <Field label="Current Load" error={errors.currentLoad?.message}><input type="number" min={0} step="any" {...register('currentLoad', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.currentLoad)} /></Field>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
@@ -613,9 +607,14 @@ export function ZoneDetail() {
                 <button
                   type="submit"
                   disabled={!canManage || updateBinMutation.isPending}
-                  className="w-full rounded-xl bg-blue-700 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {updateBinMutation.isPending ? 'Đang lưu cấu hình...' : canManage ? 'Lưu cấu hình sức chứa' : 'Bạn không có quyền chỉnh sửa'}
+                  {updateBinMutation.isPending ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      Đang lưu cấu hình...
+                    </>
+                  ) : canManage ? 'Lưu cấu hình sức chứa' : 'Bạn không có quyền chỉnh sửa'}
                 </button>
               </motion.form>
             ) : (
@@ -623,34 +622,6 @@ export function ZoneDetail() {
             )}
           </div>
 
-          <div className="rounded-[2rem] bg-slate-100 p-6">
-            <h4 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-900">
-              <span className="material-symbols-outlined text-sm">thermostat</span>
-              Zone Telemetry
-            </h4>
-            <div className="space-y-3 text-sm">
-              <p className="flex items-center justify-between"><span className="text-slate-600">Temperature</span><span className="font-bold text-slate-900">{selectedBin?.temperature?.toFixed(1) ?? 'N/A'}°C</span></p>
-              <p className="flex items-center justify-between"><span className="text-slate-600">Humidity</span><span className="font-bold text-slate-900">{selectedBin?.humidity?.toFixed(0) ?? 'N/A'}%</span></p>
-              <p className="flex items-center justify-between"><span className="text-slate-600">AGV Activity</span><span className="font-bold text-cyan-700">High (6 active)</span></p>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-cyan-700">trending_up</span>
-              <h4 className="text-sm font-bold text-slate-900">Demand Forecast</h4>
-            </div>
-            <div className="mb-4 flex h-24 items-end gap-2">
-              <div className="h-[40%] flex-1 rounded-t-lg bg-slate-100"></div>
-              <div className="h-[60%] flex-1 rounded-t-lg bg-slate-100"></div>
-              <div className="h-[50%] flex-1 rounded-t-lg bg-slate-100"></div>
-              <div className="h-[90%] flex-1 rounded-t-lg bg-cyan-700"></div>
-              <div className="h-[75%] flex-1 rounded-t-lg bg-cyan-500"></div>
-              <div className="h-[55%] flex-1 rounded-t-lg bg-cyan-400"></div>
-              <div className="h-[40%] flex-1 rounded-t-lg bg-cyan-300"></div>
-            </div>
-            <p className="text-xs leading-relaxed text-slate-600">Zone {zone.code} expected to reach <span className="font-bold text-slate-900">98% capacity</span> in 4 days.</p>
-          </div>
         </div>
       </div>
     </div>

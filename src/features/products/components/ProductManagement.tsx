@@ -13,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import { getProducts } from '@/services/productApiService';
@@ -22,14 +29,16 @@ import {
   useUpdateProductStatus,
   useProductBrandOptions,
   useProductCategoryOptions,
+  useProductInventoryData,
   useProducts,
   useProductUnitOptions,
   useUpdateProduct,
 } from '../hooks/useProducts';
 import type { ProductFormData } from '../schemas/productSchemas';
-import type { ProductItem, ProductStatus } from '../types/productType';
+import type { ProductInventoryData, ProductItem, ProductStatus } from '../types/productType';
 import { exportProductsToExcel } from '../utils/exportProducts';
 import { parseProductsFromExcel } from '../utils/importProducts';
+import { BatchListDialog } from './BatchListDialog';
 import { ProductFormSheet } from './ProductFormSheets';
 
 const PAGE_SIZE = 10;
@@ -60,6 +69,7 @@ export function ProductManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<ProductItem | null>(null);
   const [statusTarget, setStatusTarget] = useState<ProductItem | null>(null);
+  const [batchDialogProduct, setBatchDialogProduct] = useState<{ id: string; name: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
@@ -430,7 +440,6 @@ export function ProductManagement() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
-          // eyebrow="Sprint 1 � Product Master"
           title="Product Management"
           description="Manage product master data for inbound, outbound, inventory, and planning workflows."
           actions={(
@@ -594,6 +603,8 @@ export function ProductManagement() {
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3">Unit / Brand</th>
                         <th className="px-4 py-3">Stock Policy</th>
+                        <th className="px-4 py-3">In Stock</th>
+                        <th className="px-4 py-3">Batches</th>
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
@@ -626,30 +637,69 @@ export function ProductManagement() {
                               {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
                             </div>
                           </td>
+                          <td className="px-4 py-2">
+                            <StockQtyCell productId={item.id} minStock={item.minStock} />
+                          </td>
+                          <td className="px-4 py-2">
+                            <BatchCountCell
+                              productId={item.id}
+                              trackedByLot={item.trackedByLot}
+                              onOpen={() => setBatchDialogProduct({ id: item.id, name: item.name })}
+                            />
+                          </td>
                           <td className="px-4 py-2"><StatusBadge status={item.status} /></td>
                           <td className="px-4 py-2">
-                            <div className="flex justify-end gap-2">
-                              <ActionButton icon="visibility" label="View" onClick={() => openView(item)} />
-                              {canEdit && (
-                                <ActionButton icon="edit" label="Edit" onClick={() => openEdit(item)} />
-                              )}
-                              {canEdit && item.status !== 'discontinued' && (
-                                <ActionButton
-                                  icon={item.status === 'active' ? 'block' : 'check_circle'}
-                                  label={item.status === 'active' ? 'Deactivate' : 'Activate'}
-                                  tone={item.status === 'active' ? 'danger' : 'default'}
-                                  onClick={() => openStatusToggle(item)}
-                                />
-                              )}
-                              {canDelete && (
-                                <ActionButton
-                                  icon="delete"
-                                  label="Delete"
-                                  onClick={() => openDelete(item)}
-                                  tone="danger"
-                                  disabled={item.status === 'discontinued'}
-                                />
-                              )}
+                            <div className="flex justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="rounded-lg p-2 text-slate-400 transition-colors duration-200 ease-out hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    title="Actions"
+                                  >
+                                    <span className="material-symbols-outlined text-[18px]">more_vert</span>
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => openView(item)}>
+                                    <span className="material-symbols-outlined text-[16px] text-slate-500">visibility</span>
+                                    View details
+                                  </DropdownMenuItem>
+                                  {canEdit && (
+                                    <DropdownMenuItem onClick={() => openEdit(item)}>
+                                      <span className="material-symbols-outlined text-[16px] text-slate-500">edit</span>
+                                      Edit
+                                    </DropdownMenuItem>
+                                  )}
+                                  {canEdit && item.status !== 'discontinued' && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        variant={item.status === 'active' ? 'destructive' : 'default'}
+                                        onClick={() => openStatusToggle(item)}
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">
+                                          {item.status === 'active' ? 'block' : 'check_circle'}
+                                        </span>
+                                        {item.status === 'active' ? 'Deactivate' : 'Activate'}
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  {canDelete && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        disabled={item.status === 'discontinued'}
+                                        onClick={() => openDelete(item)}
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </td>
                         </tr>
@@ -710,6 +760,15 @@ export function ProductManagement() {
         isOptionsLoading={isOptionsLoading}
       />
 
+      {/* Dialog xem danh sách lô hàng */}
+      <BatchListDialog
+        open={!!batchDialogProduct}
+        onClose={() => setBatchDialogProduct(null)}
+        productId={batchDialogProduct?.id ?? ''}
+        productName={batchDialogProduct?.name ?? ''}
+      />
+
+      {/* Dialog xác nhận xóa */}
       <Dialog
         open={isDeleteDialogOpen}
         onOpenChange={(nextOpen) => {
@@ -751,6 +810,7 @@ export function ProductManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog xác nhận đổi trạng thái */}
       <Dialog
         open={!!statusTarget}
         onOpenChange={(nextOpen) => {
@@ -794,6 +854,102 @@ export function ProductManagement() {
     </div>
   );
 }
+
+// ── Inline cell components ────────────────────────────────────────────────────
+
+/**
+ * Hiển thị tổng tồn kho khả dụng của sản phẩm.
+ * Cảnh báo khi số lượng thấp hơn mức tối thiểu (minStock).
+ */
+function StockQtyCell({ productId, minStock }: { productId: string; minStock: number }) {
+  const { data, isLoading } = useProductInventoryData(productId);
+
+  if (isLoading) {
+    return <div className="h-4 w-12 animate-pulse rounded bg-slate-100" />;
+  }
+
+  if (!data) {
+    return <span className="text-sm text-slate-300">—</span>;
+  }
+
+  const isLow = data.totalAvailableQty < minStock;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`tabular-nums text-sm font-semibold ${isLow ? 'text-red-600' : 'text-slate-800'}`}>
+        {data.totalAvailableQty.toLocaleString()}
+      </span>
+      {isLow && (
+        <span
+          className="material-symbols-outlined text-[14px] text-amber-500"
+          title={`Below minimum stock (${minStock})`}
+        >
+          warning
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Hiển thị số lô hàng đang active.
+ * Màu phản ánh mức độ cảnh báo hết hạn.
+ * Nhấn để mở dialog danh sách lô.
+ */
+function BatchCountCell({
+  productId,
+  trackedByLot,
+  onOpen,
+}: {
+  productId: string;
+  trackedByLot: boolean;
+  onOpen: () => void;
+}) {
+  const { data, isLoading } = useProductInventoryData(productId, trackedByLot);
+
+  if (!trackedByLot) {
+    return <span className="text-sm text-slate-300">—</span>;
+  }
+
+  if (isLoading) {
+    return <div className="h-6 w-10 animate-pulse rounded-full bg-slate-100" />;
+  }
+
+  if (!data) {
+    return <span className="text-sm text-slate-300">—</span>;
+  }
+
+  const hasCritical = data.criticalExpiryCount > 0;
+  const hasNear = data.nearExpiryCount > 0;
+
+  const colorClass = hasCritical
+    ? 'bg-red-50 text-red-700 hover:bg-red-100'
+    : hasNear
+      ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+
+  const tooltipText = hasCritical
+    ? `${data.criticalExpiryCount} lot(s) critical — expiring ≤ 7 days or expired`
+    : hasNear
+      ? `${data.nearExpiryCount} lot(s) expiring within 30 days`
+      : `${data.activeLotCount} active lot(s)`;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={tooltipText}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors duration-150 ${colorClass}`}
+    >
+      {data.activeLotCount}
+      {(hasCritical || hasNear) && (
+        <span className="material-symbols-outlined text-[12px]">warning</span>
+      )}
+    </button>
+  );
+}
+
+// ── Filter / Search / Pagination helpers ─────────────────────────────────────
 
 function SearchInput({
   value,
@@ -1000,36 +1156,6 @@ function FilterSelect({
         </AnimatePresence>
       </div>
     </div>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  onClick,
-  tone = 'default',
-  disabled = false,
-}: {
-  icon: string;
-  label: string;
-  onClick: () => void;
-  tone?: 'default' | 'danger';
-  disabled?: boolean;
-}) {
-  const toneClass = tone === 'danger'
-    ? 'text-red-500 hover:bg-red-50 hover:text-red-700 disabled:hover:bg-transparent disabled:hover:text-red-400'
-    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:hover:bg-transparent disabled:hover:text-slate-500';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded-lg p-2 transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
-      title={label}
-    >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
-    </button>
   );
 }
 

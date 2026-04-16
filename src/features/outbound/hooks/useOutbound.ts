@@ -10,6 +10,7 @@ import type {
 import {
   getStockOuts,
   getStockOutById,
+  getStockOutHistory,
   createSalesStockOut,
   createReturnStockOut,
   submitStockOut,
@@ -27,6 +28,7 @@ export const stockOutKeys = {
   list: (params: StockOutListParams) => [...stockOutKeys.lists(), params] as const,
   details: () => [...stockOutKeys.all, 'detail'] as const,
   detail: (id: number) => [...stockOutKeys.details(), id] as const,
+  history: (id: number) => [...stockOutKeys.details(), id, 'history'] as const,
 };
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -47,6 +49,15 @@ export function useStockOut(id: number) {
   return useQuery({
     queryKey: stockOutKeys.detail(id),
     queryFn: () => getStockOutById(id),
+    enabled: id > 0,
+  });
+}
+
+/** Lấy lịch sử thao tác (audit log) của một phiếu xuất. */
+export function useStockOutHistory(id: number) {
+  return useQuery({
+    queryKey: stockOutKeys.history(id),
+    queryFn: () => getStockOutHistory(id),
     enabled: id > 0,
   });
 }

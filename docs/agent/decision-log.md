@@ -12,7 +12,6 @@
 - **Removed widgets**: `AiForecastWidget`, `SupplierPerformanceWidget` removed from dashboard — no real BE data.
 - **Mock files deleted**: `data/mockInboundData.ts`, `data/mockInboundDetailData.ts`.
 
-
 ## 2026-04-10 — AllocateLotModal → AllocateBinMapModal (zone map UX)
 
 - **Problem 1**: `AllocateLotModal` used a text-search dropdown (`WarehouseLocationSelect`) to select a bin — no spatial context for the employee.
@@ -429,6 +428,7 @@
 ## DEC-079 - BE/FE contract gap analysis completed (2026-04-13)
 
 **Findings**: 4 critical gaps, 4 medium gaps, 4 minor gaps identified from full read of all 14 BE route+schema files vs all FE services/types.
+
 - **GAP-C1**: Category `code` sent by FE silently dropped by BE (not in schema)
 - **GAP-C2**: Product create sends `product_status` — not in BE createProductSchema
 - **GAP-C3**: `unit_price` min(0) in FE vs positive() in BE for StockIn
@@ -441,6 +441,7 @@
 **Context:** Outbound FE was built against a stale spec with wrong status values (`CONFIRMED` state does not exist in BE), an invented `PickingTask` abstraction with no backend equivalent, and a `OutboundPriorityBadge` where the type should be `SALES | RETURN_TO_SUPPLIER`. The new BE contract was reviewed end-to-end before rewriting.
 
 **Critical discrepancies corrected:**
+
 1. **Status flow**: FE had `DRAFT→PENDING→CONFIRMED→PICKING→COMPLETED`. BE is `DRAFT→PENDING→APPROVED→PICKING→COMPLETED` (+ `CANCELLED`). Fixed in types, schema, stepper, all components.
 2. **PickingTask eliminated**: FE invented a `PickingTask` abstraction (model, hooks, service) with no backend counterpart. Replaced with direct `StockOutDetail[]` model and local `LotAssignment[]` state submitted atomically via `PUT /api/stock-outs/:id/picked-lots`.
 3. **Lot assignment endpoint**: `PUT /picked-lots` is atomic replacement — all lots at once, not incremental patch per lot.
@@ -448,6 +449,7 @@
 5. **Create routing**: BE has two separate POST endpoints: `POST /api/stock-outs/sales` and `POST /api/stock-outs/returns`. FE `OutboundCreateForm` routes to the correct mutation based on `type` selection.
 
 **Architecture decisions:**
+
 - **KPI**: No dedicated stats endpoint — use 4 parallel `useQueries` calls each with `limit: 1` for a specific status, reading `.total` from list response. Manager-only via `hasPermission('stock_outs:approve')`.
 - **Proof upload (B2)**: Full upload UI built against service stubs (`getProofUploadUrl`, `uploadFileToB2`, `confirmProofUpload`). On service failure: `uploadStatus: 'error'` shown with Vietnamese friendly message, no crash.
 - **Discrepancy handling**: Two-layer — (1) local pre-check (picked qty vs required qty) before hitting BE; (2) catches BE 400 error. Both surface `DiscrepancyPanel`.
@@ -463,3 +465,29 @@
 **Context:** Sprint follow-up required preserving approved warehouse UI language while improving interaction quality and explicit form states.
 **Decision:** Add lightweight `motion` entry transitions in warehouse list/zone cards and zone-grid panels, and surface explicit loading/error/empty states for category/product assignment selectors in Zone Detail without changing service, schema, or hook contracts.
 **Rationale:** Improves responsiveness and user clarity while strictly preserving architecture boundaries (`services` -> `hooks` -> `features`) and avoiding unrelated refactors.
+
+## DEC-081 - Zone Detail bin reselect now hydrates from persisted scope + live refetch
+
+**Date:** 2026-04-16
+**Context:** After saving a bin in Zone Detail, re-selecting the same bin or revisiting the page could show missing/incorrect Category/Product in FE even when DB had updated location and inventory values.
+**Decision:**
+
+1. Persist per-location category scope in `updateZoneBinCapacity` via `syncLocationCategoryScope([locationId], [payload.categoryId])`.
+2. Trigger live `binsQuery.refetch()` on bin click and after successful save in `ZoneDetail.tsx` so form fields always hydrate from latest server data.
+3. Keep overload flow supported in FE validation by allowing `currentLoad >= 0` without `currentLoad <= capacity` hard block; occupancy preview already renders red when `> 100%`.
+4. Add disabled+spinner state on Save button while mutation is pending to prevent double submit.
+
+**Rationale:** Removes FE fallback drift for dependent dropdown hydration and ensures selected-bin configuration reflects persisted DB state immediately after save/reselect.
+
+## DEC-082 - Zone Detail save flow decoupled from unstable inventory endpoints
+
+**Date:** 2026-04-16
+**Context:** `/api/inventories` currently returns 500/400 in this environment, causing save-bin flow to fail/noise despite location data persisting correctly.
+**Decision:**
+
+1. Remove blocking inventory create/update calls from `updateZoneBinCapacity`.
+2. Keep source-of-truth updates on warehouse location + location-category scope.
+3. Persist assigned product/category fallback in FE storage per location and merge fallback when hydrating bins.
+4. Add a 5-minute circuit-breaker in `fetchAllInventories` after first failure to stop repeated error spam.
+
+**Rationale:** Frontend remains stable and reflects saved bin configuration without depending on unavailable inventory APIs.

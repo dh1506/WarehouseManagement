@@ -13,7 +13,6 @@ import {
   Badge,
   Space,
   Radio,
-  List,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -190,10 +189,10 @@ export const AntdDashboard: React.FC = () => {
                 style={{ borderRadius: '12px', border: 'none', backgroundColor: '#fcfcfc' }}
                 styles={{ body: { padding: 0 } }}
               >
-                <List
-                  dataSource={tasksData}
-                  renderItem={(item) => (
-                    <List.Item
+                <div>
+                  {tasksData.map((item) => (
+                    <div
+                      key={item.id}
                       style={{
                         backgroundColor: '#f5f5f5',
                         borderRadius: '12px',
@@ -205,7 +204,6 @@ export const AntdDashboard: React.FC = () => {
                         cursor: 'pointer',
                         transition: 'background-color 0.2s',
                         borderLeft: item.active ? '4px solid #0050b3' : 'none',
-                        borderBottom: 'none'
                       }}
                     >
                       <Space size={20}>
@@ -221,9 +219,9 @@ export const AntdDashboard: React.FC = () => {
                         <Text type="secondary" style={{ fontSize: '13px' }}>{item.tagLabel} <strong style={{ color: '#8c8c8c' }}>{item.tagValue}</strong></Text>
                         <ArrowRightOutlined style={{ color: '#8c8c8c' }} />
                       </Space>
-                    </List.Item>
-                  )}
-                />
+                    </div>
+                  ))}
+                </div>
               </Card>
             </Col>
 
@@ -254,7 +252,7 @@ export const AntdDashboard: React.FC = () => {
                   </div>
 
                   <div style={{ marginTop: '20px' }}>
-                    <Progress percent={84} showInfo={false} strokeColor="white" trailColor="rgba(255,255,255,0.3)" size={['100%', 8]} />
+                    <Progress percent={84} showInfo={false} strokeColor="white" railColor="rgba(255,255,255,0.3)" size={['100%', 8]} />
                   </div>
                 </div>
               </Card>

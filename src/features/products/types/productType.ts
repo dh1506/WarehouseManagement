@@ -1,5 +1,6 @@
 export type ProductStatus = 'active' | 'inactive' | 'discontinued';
 export type ProductType = 'goods' | 'material' | 'consumable';
+export type LotStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
 
 export interface ProductOptionItem {
   id: string;
@@ -39,6 +40,30 @@ export interface ProductItem {
   images: ProductImage[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductLotItem {
+  id: string;
+  lotNo: string;
+  status: LotStatus;
+  expiredDate: string | null;
+  productionDate: string | null;
+  receivedAt: string;
+  locationCode: string | null;
+  warehouseName: string | null;
+}
+
+export interface ProductInventoryData {
+  productId: string;
+  /** Tổng available_quantity trên tất cả inventory rows của sản phẩm */
+  totalAvailableQty: number;
+  /** Số lô có status ACTIVE */
+  activeLotCount: number;
+  /** Lô active có expiredDate ≤ 30 ngày */
+  nearExpiryCount: number;
+  /** Lô active có expiredDate ≤ 7 ngày hoặc status EXPIRED */
+  criticalExpiryCount: number;
+  lots: ProductLotItem[];
 }
 
 export interface ProductListParams {

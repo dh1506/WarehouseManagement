@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useTransactions, useExportTransactions } from '../hooks/useTransactions';
+import { useTransactions, useTransactionKpis, useExportTransactions } from '../hooks/useTransactions';
 import { TransactionDetailSheet } from './TransactionDetailSheet';
 import type { TransactionType, TransactionQueryParams, InventoryTransaction } from '../types/transactionType';
 import {
@@ -285,6 +285,7 @@ export function TransactionHistory() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(10);
   const [typeFilter, setTypeFilter] = useState<TransactionType | ''>('');
+  const [referenceType, setReferenceType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -297,11 +298,13 @@ export function TransactionHistory() {
     page,
     limit,
     ...(typeFilter ? { transaction_type: typeFilter } : {}),
+    ...(referenceType ? { reference_type: referenceType } : {}),
     ...(fromDate ? { from_date: fromDate } : {}),
     ...(toDate ? { to_date: toDate } : {}),
-  }), [page, limit, typeFilter, fromDate, toDate]);
+  }), [page, limit, typeFilter, referenceType, fromDate, toDate]);
 
   const { data, isLoading, isError, isFetching, refetch } = useTransactions(queryParams);
+  const kpis = useTransactionKpis();
   const { exportExcel, exportPdf } = useExportTransactions();
 
   // ── Derived ─────────────────────────────────────────────────────────────
@@ -309,17 +312,6 @@ export function TransactionHistory() {
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
   const total = pagination?.total ?? 0;
-
-  const kpis = useMemo(() => {
-    if (!data) return null;
-    const txs = data.transactions;
-    return {
-      total: data.pagination.total,
-      inCount: txs.filter((t) => t.transaction_type === 'IN').length,
-      outCount: txs.filter((t) => t.transaction_type === 'OUT').length,
-      adjustmentCount: txs.filter((t) => t.transaction_type === 'ADJUSTMENT').length,
-    };
-  }, [data]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
   const handleViewDetail = useCallback((id: number) => setDetailId(id), []);
@@ -343,12 +335,13 @@ export function TransactionHistory() {
 
   const handleClearFilters = useCallback(() => {
     setTypeFilter('');
+    setReferenceType('');
     setFromDate('');
     setToDate('');
     setPage(1);
   }, []);
 
-  const hasActiveFilters = typeFilter || fromDate || toDate;
+  const hasActiveFilters = typeFilter || referenceType || fromDate || toDate;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
@@ -399,7 +392,7 @@ export function TransactionHistory() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             label="Tổng giao dịch"
-            value={kpis?.total ?? 0}
+            value={total}
             borderColor="border-blue-600"
             icon={TrendingUp}
             iconBg="bg-blue-50 text-blue-600"
@@ -407,7 +400,7 @@ export function TransactionHistory() {
           />
           <StatCard
             label="Nhập kho"
-            value={kpis?.inCount ?? 0}
+            value={kpis.inCount}
             borderColor="border-emerald-500"
             icon={ArrowDownLeft}
             iconBg="bg-emerald-50 text-emerald-600"
@@ -415,7 +408,7 @@ export function TransactionHistory() {
           />
           <StatCard
             label="Xuất kho"
-            value={kpis?.outCount ?? 0}
+            value={kpis.outCount}
             borderColor="border-rose-500"
             icon={ArrowUpRight}
             iconBg="bg-rose-50 text-rose-600"
@@ -423,7 +416,7 @@ export function TransactionHistory() {
           />
           <StatCard
             label="Điều chỉnh"
-            value={kpis?.adjustmentCount ?? 0}
+            value={kpis.adjustmentCount}
             borderColor="border-amber-500"
             icon={RefreshCw}
             iconBg="bg-amber-50 text-amber-600"
@@ -442,7 +435,7 @@ export function TransactionHistory() {
               className="overflow-hidden"
             >
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {/* Type filter */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
@@ -461,6 +454,27 @@ export function TransactionHistory() {
                         <SelectItem value="OUT">Xuất kho (OUT)</SelectItem>
                         <SelectItem value="ADJUSTMENT">Điều chỉnh (ADJ)</SelectItem>
                         <SelectItem value="TRANSFER">Chuyển kho (TRF)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Reference source filter */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Nguồn chứng từ
+                    </label>
+                    <Select
+                      value={referenceType || 'all'}
+                      onValueChange={(v) => { setReferenceType(v === 'all' ? '' : v); setPage(1); }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tất cả" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="STOCK_IN">Phiếu nhập (STOCK_IN)</SelectItem>
+                        <SelectItem value="STOCK_OUT">Phiếu xuất (STOCK_OUT)</SelectItem>
+                        <SelectItem value="ADJUSTMENT">Điều chỉnh thủ công</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

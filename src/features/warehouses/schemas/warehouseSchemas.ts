@@ -62,15 +62,11 @@ export const warehouseZoneFormSchema = z.object({
 export const binCapacityFormSchema = z
   .object({
     capacity: z.number().int().min(1, 'Sức chứa phải lớn hơn 0'),
-    currentLoad: z.number().int().min(0, 'Tải hiện tại không hợp lệ'),
+    currentLoad: z.number().min(0, 'Tải hiện tại không hợp lệ'),
     items: z.number().int().min(0, 'Số lượng kiện không hợp lệ'),
     productCount: z.number().int().min(0, 'Số SKU không hợp lệ'),
     categoryId: z.string().trim().min(1, 'Vui lòng chọn danh mục cho ô lưu trữ'),
     productId: z.string().trim().min(1, 'Vui lòng chọn sản phẩm cụ thể cho ô lưu trữ'),
-  })
-  .refine((data) => data.currentLoad <= data.capacity, {
-    path: ['currentLoad'],
-    message: 'Tải hiện tại không được vượt quá sức chứa',
   });
 
 export type WarehouseFormData = z.infer<typeof warehouseFormSchema>;

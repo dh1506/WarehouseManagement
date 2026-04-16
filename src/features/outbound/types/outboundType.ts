@@ -201,6 +201,26 @@ export interface StockOutDiscrepancy {
   difference: number;
 }
 
+// ─── Audit Log / History ──────────────────────────────────────────────────────
+
+/** Một bản ghi trong lịch sử thao tác của phiếu xuất (từ bảng audit_logs) */
+export interface StockOutHistoryItem {
+  id: number;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  /** Trạng thái / dữ liệu trước khi thay đổi */
+  old_data: Record<string, unknown> | null;
+  /** Trạng thái / dữ liệu sau khi thay đổi */
+  new_data: Record<string, unknown> | null;
+  note: string | null;
+  reference_code: string | null;
+  created_at: string;
+  creator: {
+    id: number;
+    full_name: string;
+    email: string;
+  };
+}
+
 // ─── Labels & helpers ─────────────────────────────────────────────────────────
 
 export const OUTBOUND_STATUS_LABELS: Record<OutboundStatus, string> = {
