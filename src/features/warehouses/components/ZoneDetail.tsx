@@ -144,6 +144,11 @@ export function ZoneDetail() {
   const [selectedRackCode, setSelectedRackCode] = useState<string>(rackList[0] ?? '');
   const viewMode: 'grid' = 'grid';
   const [selectedBinId, setSelectedBinId] = useState<string>('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [draftFilterCategoryId, setDraftFilterCategoryId] = useState('');
+  const [draftFilterProductId, setDraftFilterProductId] = useState('');
+  const [appliedFilterCategoryId, setAppliedFilterCategoryId] = useState('');
+  const [appliedFilterProductId, setAppliedFilterProductId] = useState('');
 
   useEffect(() => {
     if (filteredRackList.length === 0) return;
@@ -227,6 +232,9 @@ export function ZoneDetail() {
 
   const selectedBinTone = selectedBin ? getCapacityTone(selectedBin.occupancy) : null;
 
+  const hasActiveFilter = Boolean(appliedFilterCategoryId || appliedFilterProductId);
+  const activeFilterCount = Number(Boolean(appliedFilterCategoryId)) + Number(Boolean(appliedFilterProductId));
+
   useEffect(() => {
     if (selectedBin) {
       setSelectedBinId(selectedBin.id);
@@ -263,16 +271,58 @@ export function ZoneDetail() {
   const productOptionsQuery = useWarehouseProductOptions(undefined, Boolean(zone));
   const isProductLoading = productOptionsQuery.isLoading || productOptionsQuery.isFetching;
   const isProductError = productOptionsQuery.isError;
+  const allProductOptions = productOptionsQuery.data ?? [];
+  const productCategoryMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    allProductOptions.forEach((product) => {
+      map.set(product.id, new Set(product.categoryIds));
+    });
+    return map;
+  }, [allProductOptions]);
+
+  const filterProducts = useMemo(() => {
+    if (!draftFilterCategoryId) {
+      return allProductOptions;
+    }
+
+    return allProductOptions.filter((product) => product.categoryIds.includes(draftFilterCategoryId));
+  }, [allProductOptions, draftFilterCategoryId]);
+
   const filteredProducts = useMemo(
     () => {
       if (!categoryId) {
         return [];
       }
 
-      return (productOptionsQuery.data ?? []).filter((product) => product.categoryIds.includes(categoryId));
+      return allProductOptions.filter((product) => product.categoryIds.includes(categoryId));
     },
-    [categoryId, productOptionsQuery.data],
+    [allProductOptions, categoryId],
   );
+
+  const doesBinMatchFilter = (bin: typeof bins[number]) => {
+    if (!hasActiveFilter) {
+      return true;
+    }
+
+    const matchedByCategory = !appliedFilterCategoryId
+      || bin.assignedCategoryId === appliedFilterCategoryId
+      || (bin.assignedProductId
+        ? (productCategoryMap.get(bin.assignedProductId)?.has(appliedFilterCategoryId) ?? false)
+        : false);
+
+    const matchedByProduct = !appliedFilterProductId || bin.assignedProductId === appliedFilterProductId;
+    return matchedByCategory && matchedByProduct;
+  };
+
+  const matchedBinIdSet = useMemo(() => {
+    return new Set(
+      bins
+        .filter((bin) => doesBinMatchFilter(bin))
+        .map((bin) => bin.id),
+    );
+  }, [appliedFilterCategoryId, appliedFilterProductId, bins, productCategoryMap]);
+
+  const hasMatchedBinsInZone = matchedBinIdSet.size > 0;
 
   useEffect(() => {
     if (!selectedBin) return;
@@ -333,6 +383,27 @@ export function ZoneDetail() {
     void binsQuery.refetch();
   };
 
+  const handleToggleFilter = () => {
+    if (!isFilterOpen) {
+      setDraftFilterCategoryId(appliedFilterCategoryId);
+      setDraftFilterProductId(appliedFilterProductId);
+    }
+    setIsFilterOpen((current) => !current);
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedFilterCategoryId(draftFilterCategoryId);
+    setAppliedFilterProductId(draftFilterProductId);
+    setIsFilterOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setDraftFilterCategoryId('');
+    setDraftFilterProductId('');
+    setAppliedFilterCategoryId('');
+    setAppliedFilterProductId('');
+  };
+
   if (hubsQuery.isError || binsQuery.isError || !zone) {
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -368,10 +439,6 @@ export function ZoneDetail() {
               </span>
             ) : null}
           </div>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-700/20">
-            <span className="material-symbols-outlined text-[20px]">filter_list</span>
-            View Filters
-          </button>
         </div>
       </div>
 
@@ -391,14 +458,87 @@ export function ZoneDetail() {
                     ))}
                   </div>
                 </div>
-                <div className="mb-2 relative">
-                  <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400">search</span>
-                  <input
-                    value={rackBinSearch}
-                    onChange={(event) => setRackBinSearch(event.target.value)}
-                    placeholder="Tìm rack hoặc bin..."
-                    className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-2 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400">search</span>
+                    <input
+                      value={rackBinSearch}
+                      onChange={(event) => setRackBinSearch(event.target.value)}
+                      placeholder="Tìm rack hoặc bin..."
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div className="relative sm:shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleToggleFilter}
+                      className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white shadow-lg sm:w-auto ${hasActiveFilter ? 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' : 'bg-blue-700 shadow-blue-700/20 hover:bg-blue-800'}`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                      View Filters
+                      {hasActiveFilter ? (
+                        <span className="rounded-full bg-white/90 px-2 py-0.5 text-xs font-black text-amber-700">{activeFilterCount}</span>
+                      ) : null}
+                    </button>
+
+                    {isFilterOpen ? (
+                      <div className="absolute right-0 z-20 mt-2 w-[320px] rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
+                        <div className="space-y-3">
+                          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            Category
+                            <select
+                              value={draftFilterCategoryId}
+                              onChange={(event) => {
+                                const nextCategoryId = event.target.value;
+                                setDraftFilterCategoryId(nextCategoryId);
+                                setDraftFilterProductId('');
+                              }}
+                              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                              disabled={isCategoryLoading || isCategoryError}
+                            >
+                              <option value="">All categories</option>
+                              {allowedCategories.map((item) => (
+                                <option key={item.id} value={item.id}>{item.name}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            Assigned Product
+                            <select
+                              value={draftFilterProductId}
+                              onChange={(event) => setDraftFilterProductId(event.target.value)}
+                              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                              disabled={isProductLoading || isProductError || filterProducts.length === 0}
+                            >
+                              <option value="">All products</option>
+                              {filterProducts.map((item) => (
+                                <option key={item.id} value={item.id}>{item.sku} - {item.name}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <div className="flex justify-between gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={handleClearFilters}
+                              className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
+                            >
+                              Clear Filters
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleApplyFilters}
+                              className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-800"
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {filteredRackList.map((item) => (
@@ -437,9 +577,11 @@ export function ZoneDetail() {
                 {filteredRackList.length === 0 ? (
                   <p className="mt-2 text-xs text-slate-500">Không có rack phù hợp với từ khóa tìm kiếm.</p>
                 ) : null}
-              </div>
-              <div className="inline-flex rounded-full bg-slate-100 p-1.5 shadow-inner">
-                <span className="rounded-full bg-white px-6 py-2 text-sm font-bold text-blue-700 shadow-sm">Grid View</span>
+                {hasActiveFilter && !hasMatchedBinsInZone ? (
+                  <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    No bins found matching the filter criteria.
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -453,15 +595,24 @@ export function ZoneDetail() {
                         <div className="overflow-x-auto">
                           <div className="mx-auto flex w-max min-w-full justify-center gap-2 pb-1">
                             {group.items.map(({ bin, coordinate }) => (
-                              <button
-                                key={bin.id}
-                                type="button"
-                                onClick={() => handleSelectBin(bin.id)}
-                                className={`flex h-10 w-20 items-center justify-center rounded-lg px-1 text-[11px] font-bold leading-tight ring-offset-2 transition hover:ring-2 ${getOccupancyColor(bin.occupancyLevel)} ${selectedBin?.id === bin.id ? 'ring-2 ring-blue-700' : ''}`}
-                                title={`Bin ${coordinate.binCode}`}
-                              >
-                                {coordinate.binCode}
-                              </button>
+                              (() => {
+                                const matched = matchedBinIdSet.has(bin.id);
+                                const isSelected = selectedBin?.id === bin.id;
+                                const dimClass = hasActiveFilter && !matched
+                                  ? (isSelected ? 'opacity-70 grayscale' : 'opacity-35 grayscale')
+                                  : '';
+                                return (
+                                  <button
+                                    key={bin.id}
+                                    type="button"
+                                    onClick={() => handleSelectBin(bin.id)}
+                                    className={`flex h-10 w-20 items-center justify-center rounded-lg px-1 text-[11px] font-bold leading-tight ring-offset-2 transition hover:ring-2 ${getOccupancyColor(bin.occupancyLevel)} ${dimClass} ${isSelected ? 'ring-2 ring-blue-700' : ''}`}
+                                    title={`Bin ${coordinate.binCode}`}
+                                  >
+                                    {coordinate.binCode}
+                                  </button>
+                                );
+                              })()
                             ))}
                           </div>
                         </div>
