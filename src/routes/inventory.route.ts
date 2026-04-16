@@ -5,6 +5,9 @@ import {
   inventoryAlertsQuerySchema,
   setProductStockThresholdSchema,
   inventoryClosingSchema,
+  inventoryParamSchema,
+  createInventorySchema,
+  updateInventorySchema,
 } from "../schemas/inventory.schema";
 import { authenticate } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
@@ -25,6 +28,28 @@ router.get(
   requirePermission("inventory:read"),
   validateRequest(queryInventorySchema),
   inventoryController.getInventories,
+);
+
+router.get(
+  "/:id",
+  validateRequest(inventoryParamSchema),
+  inventoryController.getInventoryById,
+);
+
+router.post(
+  "/",
+  validateRequest(createInventorySchema),
+  inventoryController.createInventory,
+);
+router.put(
+  "/:id",
+  validateRequest(updateInventorySchema),
+  inventoryController.updateInventory,
+);
+router.delete(
+  "/:id",
+  validateRequest(inventoryParamSchema),
+  inventoryController.deleteInventory,
 );
 
 /**

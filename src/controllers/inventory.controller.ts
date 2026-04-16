@@ -16,6 +16,58 @@ export const getInventories = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
+
+export const getInventoryById = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const inventory = await inventoryService.getInventoryById(id);
+
+    res.status(200).json({
+      success: true,
+      data: inventory,
+      message: "Lấy thông tin inventory thành công",
+    });
+  },
+);
+
+export const createInventory = catchAsync(
+  async (req: Request, res: Response) => {
+    const inventory = await inventoryService.createInventory(req.body);
+
+    res.status(201).json({
+      success: true,
+      data: inventory,
+      message: "Tạo inventory thành công",
+    });
+  },
+);
+
+export const updateInventory = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const inventory = await inventoryService.updateInventory(id, req.body);
+
+    res.status(200).json({
+      success: true,
+      data: inventory,
+      message: "Cập nhật inventory thành công",
+    });
+  },
+);
+
+export const deleteInventory = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    await inventoryService.deleteInventory(id);
+
+    res.status(200).json({
+      success: true,
+      data: null,
+      message: "Xóa inventory thành công",
+    });
+  },
+);
+
 /**
  * Cảnh báo tồn kho
  * GET /api/inventories/alerts
