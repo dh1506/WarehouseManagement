@@ -344,20 +344,16 @@ export function ZoneDetail() {
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-[#f8f9fb] p-3 sm:p-4 lg:p-5">
       <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-center">
-        <div>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
+            aria-label="Back to Warehouse"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50 hover:text-blue-800"
           >
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            Back to Warehouse
           </button>
-          <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">Warehouse Zone {zone.code}</h1>
-          <p className="mt-1 flex items-center gap-2 text-slate-600">
-            <span className="material-symbols-outlined text-sm text-cyan-700">auto_awesome</span>
-            AI-Optimized Storage Map • Last updated {selectedBin?.lastUpdated ? 'just now' : 'N/A'}
-          </p>
+          <h1 className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Warehouse Zone {zone.code}</h1>
         </div>
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
@@ -382,18 +378,19 @@ export function ZoneDetail() {
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
         <div className="space-y-6 xl:col-span-8">
           <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-4 flex flex-wrap gap-4 border-b border-slate-200 pb-4">
-              {(['empty', 'low', 'partial', 'full', 'overloaded'] as BinOccupancyLevel[]).map((levelValue) => (
-                <div key={levelValue} className="flex items-center gap-2">
-                  <span className={`h-4 w-4 rounded ${getOccupancyColor(levelValue).split(' ')[0]}`}></span>
-                  <span className="text-sm text-slate-600">{getLegendLabel(levelValue)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="mb-4 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
-                <p className="mb-2 text-sm font-semibold text-slate-600">Storage Rack</p>
+                <div className="mb-2 flex flex-wrap items-center gap-3">
+                  <p className="text-sm font-semibold text-slate-600">Storage Rack</p>
+                  <div className="flex flex-wrap gap-3">
+                    {(['empty', 'low', 'partial', 'full', 'overloaded'] as BinOccupancyLevel[]).map((levelValue) => (
+                      <div key={levelValue} className="flex items-center gap-1.5">
+                        <span className={`h-3.5 w-3.5 rounded ${getOccupancyColor(levelValue).split(' ')[0]}`}></span>
+                        <span className="text-xs text-slate-600">{getLegendLabel(levelValue)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="mb-2 relative">
                   <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-slate-400">search</span>
                   <input
@@ -447,32 +444,34 @@ export function ZoneDetail() {
             </div>
 
             {viewMode === 'grid' ? (
-              <motion.div className="space-y-6 pb-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-                {levelGroups.map((group) => {
-                  return (
-                    <div key={group.levelCode} className="space-y-3">
-                      <p className="text-sm font-bold text-slate-900">LEVEL {group.levelCode}</p>
-                      <div className="overflow-x-auto">
-                        <div className="flex min-w-max gap-2 pb-1">
-                          {group.items.map(({ bin, coordinate }) => (
-                            <button
-                              key={bin.id}
-                              type="button"
-                              onClick={() => handleSelectBin(bin.id)}
-                              className={`flex h-12 w-24 items-center justify-center rounded-lg px-1 text-[11px] font-bold leading-tight ring-offset-2 transition hover:ring-2 ${getOccupancyColor(bin.occupancyLevel)} ${selectedBin?.id === bin.id ? 'ring-2 ring-blue-700' : ''}`}
-                              title={`Bin ${coordinate.binCode}`}
-                            >
-                              {coordinate.binCode}
-                            </button>
-                          ))}
+              <motion.div className="pb-2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                <div className="h-[calc(100vh-22rem)] min-h-104 max-h-[70vh] space-y-4 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/40 p-2.5 pr-2 sm:p-3">
+                  {levelGroups.map((group) => {
+                    return (
+                      <div key={group.levelCode} className="space-y-2">
+                        <p className="text-center text-xs font-bold text-slate-900">LEVEL {group.levelCode}</p>
+                        <div className="overflow-x-auto">
+                          <div className="mx-auto flex w-max min-w-full justify-center gap-2 pb-1">
+                            {group.items.map(({ bin, coordinate }) => (
+                              <button
+                                key={bin.id}
+                                type="button"
+                                onClick={() => handleSelectBin(bin.id)}
+                                className={`flex h-10 w-20 items-center justify-center rounded-lg px-1 text-[11px] font-bold leading-tight ring-offset-2 transition hover:ring-2 ${getOccupancyColor(bin.occupancyLevel)} ${selectedBin?.id === bin.id ? 'ring-2 ring-blue-700' : ''}`}
+                                title={`Bin ${coordinate.binCode}`}
+                              >
+                                {coordinate.binCode}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-                {levelGroups.length === 0 ? (
-                  <StatePanel title="Không có ô phù hợp" description="Thử thay đổi bộ lọc rack/bin để xem dữ liệu phù hợp." icon="search" />
-                ) : null}
+                    );
+                  })}
+                  {levelGroups.length === 0 ? (
+                    <StatePanel title="Không có ô phù hợp" description="Thử thay đổi bộ lọc rack/bin để xem dữ liệu phù hợp." icon="search" />
+                  ) : null}
+                </div>
               </motion.div>
             ) : (
               <div className="max-h-105 space-y-2 overflow-y-auto pr-1">
