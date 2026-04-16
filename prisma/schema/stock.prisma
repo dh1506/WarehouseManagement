@@ -88,6 +88,7 @@ model StockOut {
   created_at            DateTime          @default(now())
   updated_at            DateTime          @updatedAt
   details               StockOutDetail[]
+  discrepancies         StockOutDiscrepancy[]
   approver              User?             @relation("StockOutApprover", fields: [approved_by], references: [id])
   creator               User              @relation("StockOutCreator", fields: [created_by], references: [id])
   supplier              Supplier?         @relation(fields: [supplier_id], references: [id])
@@ -128,6 +129,28 @@ model StockOutDetailLot {
   @@map("stock_out_detail_lots")
 }
 
+model StockOutDiscrepancy {
+  id           Int               @id @default(autoincrement())
+  stock_out_id Int
+  reported_by  Int
+  resolved_by  Int?
+  expected_qty Decimal           @db.Decimal(15, 3)
+  actual_qty   Decimal           @db.Decimal(15, 3)
+  reason       String            @db.Text
+  action_taken String?           @db.Text
+  status       DiscrepancyStatus @default(PENDING)
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+  reporter     User              @relation("StockOutDiscrepancyReporter", fields: [reported_by], references: [id])
+  resolver     User?             @relation("StockOutDiscrepancyResolver", fields: [resolved_by], references: [id])
+  stock_out    StockOut          @relation(fields: [stock_out_id], references: [id], onDelete: Cascade)
+
+  @@index([stock_out_id])
+  @@index([reported_by], map: "stock_out_discrepancies_reported_by_fkey")
+  @@index([resolved_by], map: "stock_out_discrepancies_resolved_by_fkey")
+  @@map("stock_out_discrepancies")
+}
+
 enum StockInStatus {
   DRAFT
   PENDING
@@ -142,6 +165,7 @@ enum StockOutStatus {
   PENDING
   APPROVED
   PICKING
+  DISCREPANCY
   COMPLETED
   CANCELLED
 }

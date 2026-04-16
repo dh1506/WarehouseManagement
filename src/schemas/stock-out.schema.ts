@@ -47,3 +47,29 @@ export const stockOutIdParamSchema = z.object({
     id: z.coerce.number().int().positive(),
   }),
 });
+
+export const createDiscrepancySchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+  }),
+  body: z.object({
+    reason: z.string().min(5, "Lý do phải có ít nhất 5 ký tự"),
+  }),
+});
+
+export const resolveDiscrepancySchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive("Stock Out ID phải là số nguyên dương"),
+    discId: z.coerce.number().int().positive("Discrepancy ID phải là số nguyên dương"),
+  }),
+  body: z.object({
+    action_taken: z.string().min(5, "Vui lòng nhập phương án giải quyết (ít nhất 5 ký tự)"),
+  }),
+});
+
+// Types export
+export type CreateStockOutInput = z.infer<typeof createStockOutSchema>["body"];
+export type UpdatePickedLotsInput = z.infer<typeof updatePickedLotsSchema>["body"];
+export type CancelStockOutInput = z.infer<typeof cancelStockOutSchema>["body"];
+export type CreateDiscrepancyInput = z.infer<typeof createDiscrepancySchema>["body"];
+export type ResolveDiscrepancyInput = z.infer<typeof resolveDiscrepancySchema>["body"];

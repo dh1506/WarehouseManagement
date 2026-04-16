@@ -143,3 +143,43 @@ export const cancelStockOut = catchAsync(async (req: Request, res: Response) => 
     message: 'Hủy phiếu xuất kho thành công',
   });
 });
+
+/**
+ * Lập biên bản chênh lệch khi thừa/thiếu hàng
+ * POST /api/stock-outs/:id/discrepancies
+ */
+export const createDiscrepancy = catchAsync(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const reporterId = (req.user as any).id;
+  const body = req.body;
+  const discrepancy = await stockOutService.createDiscrepancy(id, reporterId, body);
+
+  res.status(201).json({
+    success: true,
+    data: discrepancy,
+    message: "Lập biên bản chênh lệch thành công",
+  });
+});
+
+/**
+ * Xử lý biên bản chênh lệch
+ * PATCH /api/stock-outs/:id/discrepancies/:discId/resolve
+ */
+export const resolveDiscrepancy = catchAsync(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const discId = Number(req.params.discId);
+  const resolverId = (req.user as any).id;
+  const body = req.body;
+  const discrepancy = await stockOutService.resolveDiscrepancy(
+    id,
+    discId,
+    resolverId,
+    body
+  );
+
+  res.status(200).json({
+    success: true,
+    data: discrepancy,
+    message: "Xử lý biên bản chênh lệch thành công",
+  });
+});

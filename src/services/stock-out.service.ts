@@ -1,8 +1,9 @@
 import { prisma } from '../config/db.config';
 import { AppError } from '../utils/app-error';
 import { generateStockOutCode } from '../utils/generate-code.util';
-import { StockOutStatus, StockOutType, TransactionType } from '../generated';
+import { StockOutStatus, StockOutType, TransactionType, Prisma } from '../generated';
 import { checkIsClosed, validateAvailableStock } from './inventory.service';
+import type { CreateDiscrepancyInput, ResolveDiscrepancyInput } from '../schemas/stock-out.schema';
 
 export interface CreateStockOutData {
   warehouse_location_id: number;
@@ -258,6 +259,99 @@ export const updatePickedLots = async (id: number, data: PickedLotData, userId: 
   });
 };
 
+/**
+ * Tạo biên bản chênh lệch
+ */
+export const createDiscrepancy = async (
+  id: number,
+  reporterId: number,
+  data: CreateDiscrepancyInput
+) => {
+  const stockOut = await prisma.stockOut.findUnique({
+    where: { id },
+    include: { details: { include: { lots: true } } },
+  });
+
+  if (!stockOut) throw new AppError("Không tìm thấy phiếu xuất", 404);
+
+  // Tính tổng chênh lệch
+  const expectedQty = stockOut.details.reduce(
+    (acc, val) => acc + Number(val.quantity),
+    0
+  );
+  const actualQty = stockOut.details.reduce(
+    (acc, val) => {
+      const picked = val.lots.reduce((sum, l) => sum + Number(l.quantity), 0);
+      return acc + picked;
+    },
+    0
+  );
+
+  if (expectedQty === actualQty) {
+    throw new AppError("Số lượng không có chênh lệch", 400);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const discrepancy = await tx.stockOutDiscrepancy.create({
+      data: {
+        stock_out_id: id,
+        reported_by: reporterId,
+        expected_qty: new Prisma.Decimal(expectedQty),
+        actual_qty: new Prisma.Decimal(actualQty),
+        reason: data.reason,
+        status: "PENDING",
+      },
+    });
+
+    await tx.stockOut.update({
+      where: { id },
+      data: { status: StockOutStatus.DISCREPANCY },
+    });
+
+    return discrepancy;
+  });
+};
+
+/**
+ * Duyệt biên bản xử lý
+ */
+export const resolveDiscrepancy = async (
+  id: number,
+  discId: number,
+  resolverId: number,
+  data: ResolveDiscrepancyInput
+) => {
+  const discrepancy = await prisma.stockOutDiscrepancy.findUnique({
+    where: { id: discId },
+  });
+
+  if (!discrepancy || discrepancy.stock_out_id !== id) {
+    throw new AppError("Biên bản chênh lệch không tồn tại", 404);
+  }
+  if (discrepancy.status === "RESOLVED") {
+    throw new AppError("Biên bản chênh lệch đã được xử lý", 400);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const resolved = await tx.stockOutDiscrepancy.update({
+      where: { id: discId },
+      data: {
+        status: "RESOLVED",
+        resolved_by: resolverId,
+        action_taken: data.action_taken,
+      },
+    });
+
+    // Quay lại PICKING cho stockout
+    await tx.stockOut.update({
+      where: { id },
+      data: { status: StockOutStatus.PICKING },
+    });
+
+    return resolved;
+  });
+};
+
 export const completeStockOut = async (id: number, userId: number) => {
   return await prisma.$transaction(async (tx) => {
     const stockOut = await tx.stockOut.findUnique({
@@ -270,8 +364,36 @@ export const completeStockOut = async (id: number, userId: number) => {
     });
 
     if (!stockOut) throw new AppError('Không tìm thấy phiếu', 404);
-    if (stockOut.status !== StockOutStatus.PICKING) {
-      throw new AppError('Chi có thể hoàn tất khi phiếu ở trạng thái ĐANG LẤY HÀNG (PICKING)', 400);
+    if (stockOut.status !== StockOutStatus.PICKING && stockOut.status !== StockOutStatus.DISCREPANCY) {
+      throw new AppError('Chỉ có thể hoàn tất khi phiếu ở trạng thái ĐANG LẤY HÀNG (PICKING) hoặc CHÊNH LỆCH (DISCREPANCY)', 400);
+    }
+
+    // 1. Kiểm tra discrepancies Pending
+    const discrepancies = await tx.stockOutDiscrepancy.findMany({
+      where: { stock_out_id: id }
+    });
+    const hasPendingDisc = discrepancies.some(
+      (d) => d.status === "PENDING"
+    );
+    if (hasPendingDisc) {
+      throw new AppError("Vẫn còn biên bản chênh lệch chưa giải quyết", 400);
+    }
+
+    // 2. Validate expected vs received nếu không có biên bản (nếu có chênh lệch thì bắt buộc phải có biên bản)
+    let isDiff = false;
+    for (const detail of stockOut.details) {
+      const totalPicked = detail.lots.reduce((sum, l) => sum + Number(l.quantity), 0);
+      if (totalPicked !== Number(detail.quantity)) {
+        isDiff = true;
+        break;
+      }
+    }
+
+    if (isDiff && discrepancies.length === 0) {
+      throw new AppError(
+        "Có chênh lệch số lượng nhưng chưa có biên bản xử lý nào được tạo",
+        400
+      );
     }
 
     // Kiểm tra khóa sổ
@@ -279,9 +401,7 @@ export const completeStockOut = async (id: number, userId: number) => {
 
     for (const detail of stockOut.details) {
       const totalPicked = detail.lots.reduce((sum, l) => sum + Number(l.quantity), 0);
-      if (totalPicked !== Number(detail.quantity)) {
-        throw new AppError(`Số lượng lô đã lấy (${totalPicked}) không khớp với yêu cầu xuất (${detail.quantity}) cho sản phẩm mang ID ${detail.product_id}`, 400);
-      }
+      // Bỏ check totalPicked !== Number(detail.quantity) cũ vì đã handled bởi discrepancy ở trên
 
       const inventories: any[] = await tx.$queryRaw`
         SELECT id, quantity, reserved_quantity 

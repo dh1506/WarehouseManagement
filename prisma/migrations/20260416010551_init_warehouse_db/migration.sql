@@ -336,7 +336,7 @@ CREATE TABLE `stock_outs` (
     `reference_number` VARCHAR(191) NULL,
     `supplier_id` INTEGER NULL,
     `description` TEXT NULL,
-    `status` ENUM('DRAFT', 'PENDING', 'APPROVED', 'PICKING', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    `status` ENUM('DRAFT', 'PENDING', 'APPROVED', 'PICKING', 'DISCREPANCY', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
     `created_by` INTEGER NOT NULL,
     `approved_by` INTEGER NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -372,6 +372,26 @@ CREATE TABLE `stock_out_detail_lots` (
 
     INDEX `stock_out_detail_lots_stock_out_detail_id_idx`(`stock_out_detail_id`),
     INDEX `stock_out_detail_lots_product_lot_id_idx`(`product_lot_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_out_discrepancies` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_out_id` INTEGER NOT NULL,
+    `reported_by` INTEGER NOT NULL,
+    `resolved_by` INTEGER NULL,
+    `expected_qty` DECIMAL(15, 3) NOT NULL,
+    `actual_qty` DECIMAL(15, 3) NOT NULL,
+    `reason` TEXT NOT NULL,
+    `action_taken` TEXT NULL,
+    `status` ENUM('PENDING', 'RESOLVED') NOT NULL DEFAULT 'PENDING',
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `stock_out_discrepancies_stock_out_id_idx`(`stock_out_id`),
+    INDEX `stock_out_discrepancies_reported_by_fkey`(`reported_by`),
+    INDEX `stock_out_discrepancies_resolved_by_fkey`(`resolved_by`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -598,6 +618,15 @@ ALTER TABLE `stock_out_detail_lots` ADD CONSTRAINT `stock_out_detail_lots_produc
 
 -- AddForeignKey
 ALTER TABLE `stock_out_detail_lots` ADD CONSTRAINT `stock_out_detail_lots_stock_out_detail_id_fkey` FOREIGN KEY (`stock_out_detail_id`) REFERENCES `stock_out_details`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_out_discrepancies` ADD CONSTRAINT `stock_out_discrepancies_reported_by_fkey` FOREIGN KEY (`reported_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_out_discrepancies` ADD CONSTRAINT `stock_out_discrepancies_resolved_by_fkey` FOREIGN KEY (`resolved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_out_discrepancies` ADD CONSTRAINT `stock_out_discrepancies_stock_out_id_fkey` FOREIGN KEY (`stock_out_id`) REFERENCES `stock_outs`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `product_suppliers` ADD CONSTRAINT `product_suppliers_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
