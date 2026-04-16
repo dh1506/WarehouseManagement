@@ -8,6 +8,8 @@ import {
   updatePickedLotsSchema,
   cancelStockOutSchema,
   stockOutIdParamSchema,
+  createDiscrepancySchema,
+  resolveDiscrepancySchema,
 } from "../schemas/stock-out.schema";
 
 const router = Router();
@@ -84,6 +86,22 @@ router.patch(
   requirePermission("stock_outs:cancel"),
   validateRequest(cancelStockOutSchema),
   stockOutController.cancelStockOut,
+);
+
+// Lập biên bản chênh lệch
+router.post(
+  "/:id/discrepancies",
+  requirePermission("stock_outs:update"), 
+  validateRequest(createDiscrepancySchema),
+  stockOutController.createDiscrepancy,
+);
+
+// Xử lý chênh lệch
+router.patch(
+  "/:id/discrepancies/:discId/resolve",
+  requirePermission("stock_outs:approve"), // Đòi hỏi quyền cao hơn để duyệt phương án
+  validateRequest(resolveDiscrepancySchema),
+  stockOutController.resolveDiscrepancy,
 );
 
 export default router;

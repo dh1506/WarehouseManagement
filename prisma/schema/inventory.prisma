@@ -68,6 +68,17 @@ model InventoryTransaction {
   @@map("inventory_transactions")
 }
 
+model InventoryClosing {
+  id           Int      @id @default(autoincrement())
+  closing_date DateTime @unique
+  closed_by    Int
+  created_at   DateTime @default(now())
+  user         User     @relation(fields: [closed_by], references: [id])
+
+  @@index([closed_by])
+  @@map("inventory_closings")
+}
+
 enum LotStatus {
   ACTIVE
   INACTIVE
@@ -79,15 +90,4 @@ enum TransactionType {
   OUT
   TRANSFER
   ADJUSTMENT
-}
-
-model InventoryClosing {
-  id           Int      @id @default(autoincrement())
-  closing_date DateTime @unique
-  closed_by    Int
-  created_at   DateTime @default(now())
-  user         User     @relation(fields: [closed_by], references: [id])
-
-  @@index([closed_by])
-  @@map("inventory_closings")
 }

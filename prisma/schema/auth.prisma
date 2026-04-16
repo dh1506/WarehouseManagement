@@ -12,17 +12,18 @@ model User {
   updated_at             DateTime               @updatedAt
   warehouse_id           Int?
   audit_logs             AuditLog[]
+  inventoryClosings      InventoryClosing[]
   inventory_transactions InventoryTransaction[]
-  discrepancies_reported StockInDiscrepancy[]   @relation("DiscrepancyReporter")
-  discrepancies_resolved StockInDiscrepancy[]   @relation("DiscrepancyResolver")
-  stock_ins_approved     StockIn[]              @relation("StockInApprover")
+  discrepancies_reported         StockInDiscrepancy[]   @relation("DiscrepancyReporter")
+  discrepancies_resolved         StockInDiscrepancy[]   @relation("DiscrepancyResolver")
+  stock_out_discrepancies_reported StockOutDiscrepancy[] @relation("StockOutDiscrepancyReporter")
+  stock_out_discrepancies_resolved StockOutDiscrepancy[] @relation("StockOutDiscrepancyResolver")
+  stock_ins_approved             StockIn[]              @relation("StockInApprover")
   stock_ins_created      StockIn[]              @relation("StockInCreator")
-
-  stock_outs_approved StockOut[]         @relation("StockOutApprover")
-  stock_outs_created  StockOut[]         @relation("StockOutCreator")
-  role                Role               @relation(fields: [role_id], references: [id])
-  warehouse           Warehouse?         @relation(fields: [warehouse_id], references: [id])
-  inventoryClosings   InventoryClosing[]
+  stock_outs_approved    StockOut[]             @relation("StockOutApprover")
+  stock_outs_created     StockOut[]             @relation("StockOutCreator")
+  role                   Role                   @relation(fields: [role_id], references: [id])
+  warehouse              Warehouse?             @relation(fields: [warehouse_id], references: [id])
 
   @@index([role_id], map: "users_role_id_fkey")
   @@index([warehouse_id], map: "users_warehouse_id_fkey")
