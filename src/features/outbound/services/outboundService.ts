@@ -24,6 +24,19 @@ interface ProductInventoryRow {
 interface ProductInventoryPayload {
   items?: ProductInventoryRow[];
   inventories?: ProductInventoryRow[];
+  pagination?: {
+    total_pages?: number;
+    totalPages?: number;
+  };
+}
+
+function getInventoryRows(payload: ProductInventoryPayload): ProductInventoryRow[] {
+  return payload.items ?? payload.inventories ?? [];
+}
+
+function getInventoryTotalPages(payload: ProductInventoryPayload): number {
+  const rawPages = payload.pagination?.total_pages ?? payload.pagination?.totalPages ?? 1;
+  return Number.isFinite(rawPages) && rawPages > 0 ? rawPages : 1;
 }
 
 // ─── Helper unwrap ────────────────────────────────────────────────────────────
@@ -198,17 +211,29 @@ export async function getOutboundProductInventoryAvailability(productId: number)
   // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
   const fallbackQty = getProductAvailableQtyFromBinFallback(String(productId));
 
-  // Lớp 2: gọi API song song với lớp 1 (không chặn nhau)
+  // Lớp 2: gọi API inventory theo toàn bộ pagination để đồng bộ với màn Inventory Overview.
   let apiQty = 0;
   let preferredLocationId: number | null = null;
+  let apiSucceeded = false;
 
   try {
-    const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
+    const firstResponse = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
       params: { product_id: productId, page: 1, limit: 100 },
     });
 
-    const payload = unwrap<ProductInventoryPayload>(response);
-    const rows = payload.items ?? payload.inventories ?? [];
+    const firstPayload = unwrap<ProductInventoryPayload>(firstResponse);
+    const totalPages = getInventoryTotalPages(firstPayload);
+    const rows: ProductInventoryRow[] = [...getInventoryRows(firstPayload)];
+
+    if (totalPages > 1) {
+      for (let page = 2; page <= totalPages; page += 1) {
+        const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
+          params: { product_id: productId, page, limit: 100 },
+        });
+        const payload = unwrap<ProductInventoryPayload>(response);
+        rows.push(...getInventoryRows(payload));
+      }
+    }
 
     rows.forEach((row) => {
       const explicitAvailable = Number(row.available_quantity ?? row.availableQuantity);
@@ -223,7 +248,7 @@ export async function getOutboundProductInventoryAvailability(productId: number)
             ? quantity - (Number.isFinite(reserved) ? reserved : 0)
             : 0;
 
-      apiQty += rowAvailable;
+      apiQty += Math.max(0, rowAvailable);
 
       if (
         preferredLocationId == null &&
@@ -233,13 +258,21 @@ export async function getOutboundProductInventoryAvailability(productId: number)
         preferredLocationId = row.warehouse_location_id;
       }
     });
+
+    apiSucceeded = true;
   } catch {
-    // API chưa sẵn sàng hoặc timeout — fallback sẽ được dùng
+    if (fallbackQty <= 0) {
+      throw new Error('Cannot load inventory availability for this product at the moment.');
+    }
   }
 
   // Ưu tiên fallback khi có dữ liệu (operator vừa lưu bin trong Zone Detail)
   // vì API inventory có thể chưa phản ánh đúng sau syncBinInventoryFromCurrentLoad
   const availableQty = fallbackQty > 0 ? fallbackQty : apiQty;
+
+  if (!apiSucceeded && fallbackQty <= 0) {
+    throw new Error('Inventory availability is unavailable. Please retry.');
+  }
 
   return { availableQty, preferredLocationId };
 }

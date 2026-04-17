@@ -1,5 +1,56 @@
 # Sprint Tracker
 
+## Outbound Create Sheet Available=0 Mismatch vs Inventory Overview — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Align outbound inventory fetch with Inventory Overview aggregation | ✅ | `getOutboundProductInventoryAvailability` now reads all inventory pages (`page 1..N`) instead of only first page |
+| Remove silent API-fail fallback to misleading `available=0` | ✅ | If inventory API fails and no fallback data exists, service throws explicit error |
+| Prevent false `Exceeded available inventory (0)` message on fetch failure | ✅ | Create sheet now treats `inventory.error` as unavailable state and blocks save with dedicated message |
+| Keep blocking behavior for invalid outbound qty | ✅ | Still blocks `qty <= 0` and `qty > available` |
+
+**Files changed:**
+- `src/features/outbound/services/outboundService.ts`
+- `src/features/outbound/components/OutboundCreateSheet.tsx`
+
+**Root cause addressed:**
+- Inventory screen aggregates all rows/pages, while outbound create flow previously queried only first inventory page and swallowed API errors to `0`, causing false validation failures.
+
+## Outbound Create Form (Detail Page) — Inventory Guard At Submit — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Add submit-time inventory validation per line item | ✅ | On submit, FE now re-checks each selected product against `getOutboundProductInventoryAvailability` |
+| Block negative/zero outbound qty at submit layer | ✅ | Adds manual error `Số lượng xuất phải lớn hơn 0` for invalid qty |
+| Block over-available outbound qty at submit layer | ✅ | Adds manual error `Số lượng xuất vượt quá tồn kho khả dụng (X)` |
+| Focus first invalid field | ✅ | Uses `setFocus` to guide operator to first invalid line |
+
+**File changed:**
+- `src/features/outbound/components/OutboundDetail.tsx`
+
+**Why this was needed:**
+- `LineItemEditor` already had realtime guard per row, but submit-time revalidation hardens safety and prevents edge-case bypass when inventory checks are still stabilizing.
+
+## Outbound Create Sheet AC Alignment — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Ensure one empty row exists on open/reset | ✅ | `OutboundCreateSheet` now auto-appends an empty row when opened and resets with one row |
+| Keep close/cancel/overlay safe-close confirmation behavior | ✅ | Dialog copy aligned to unsaved-data warning requirement |
+| Strengthen block-submit UX for invalid forms | ✅ | Added invalid submit callback to scroll/focus first error and trigger visual attention animation |
+| Align quantity over-limit wording with AC | ✅ | Message now: `Exceeded available inventory (X)` |
+| Align save loading label with AC | ✅ | Button label now `Saving...` while mutation is pending |
+| Preserve list auto-refresh and success toast flow | ✅ | Existing invalidate pattern kept; sales success toast aligned to draft-created message |
+
+**Files changed:**
+- `src/features/outbound/components/OutboundCreateSheet.tsx`
+- `src/features/outbound/hooks/useOutbound.ts`
+- `src/index.css`
+
+**Notes:**
+- No backend changes.
+- Architecture boundaries preserved: UI in feature component, API in service, query/mutation in hook.
+
 ## Outbound LineItemEditor — Inventory Availability Display & Validation — 2026-04-17 (COMPLETED)
 
 | Task | Status | Notes |

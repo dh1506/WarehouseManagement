@@ -89,12 +89,12 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
   const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryState>>({});
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [errorAttention, setErrorAttention] = useState(false);
 
   const hasUnsavedData = useMemo(() => {
     if (!open) return false;
-    if (isDirty) return true;
-    return (details?.length ?? 0) > 0;
-  }, [details?.length, isDirty, open]);
+    return isDirty;
+  }, [isDirty, open]);
 
   const selectedProductIds = useMemo(
     () => (details ?? []).map((item) => item.productId).filter((value) => value.length > 0),
@@ -113,6 +113,13 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
         .map(([id]) => id),
     );
   }, [selectedProductIds]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (fields.length > 0) return;
+
+    append({ categoryId: '', productId: '', quantity: 0 });
+  }, [append, fields.length, open]);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,7 +193,24 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   }, [clearErrors, details, duplicateProductIds, errors.details, setError]);
 
   const validateLineQuantity = (line: CreateSheetValues['details'][number], index: number) => {
-    const available = line.productId ? inventoryMap[line.productId]?.availableQty ?? 0 : 0;
+    const inventory = line.productId ? inventoryMap[line.productId] : undefined;
+    const available = inventory?.availableQty ?? 0;
+
+    if (inventory?.loading) {
+      setError(`details.${index}.quantity`, {
+        type: 'manual',
+        message: 'Inventory is loading. Please wait a moment.',
+      });
+      return false;
+    }
+
+    if (inventory?.error) {
+      setError(`details.${index}.quantity`, {
+        type: 'manual',
+        message: 'Cannot validate quantity while inventory is unavailable.',
+      });
+      return false;
+    }
 
     if (!line.quantity || Number(line.quantity) <= 0) {
       setError(`details.${index}.quantity`, {
@@ -199,7 +223,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     if (Number(line.quantity) > available) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
-        message: `Quantity cannot exceed available inventory (${available})`,
+        message: `Exceeded available inventory (${available})`,
       });
       return false;
     }
@@ -213,19 +237,43 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       return true;
     }
 
+    if (duplicateProductIds.size > 0) {
+      return true;
+    }
+
     return details.some((line) => {
       if (!line.productId || !line.quantity || Number(line.quantity) <= 0) {
         return true;
       }
 
-      const available = inventoryMap[line.productId]?.availableQty ?? 0;
+      const inventory = inventoryMap[line.productId];
+      if (inventory?.loading) {
+        return true;
+      }
+
+      if (inventory?.error) {
+        return true;
+      }
+
+      const available = inventory?.availableQty ?? 0;
       return Number(line.quantity) > available;
     });
-  }, [details, inventoryMap]);
+  }, [details, duplicateProductIds, inventoryMap]);
 
-  const scrollToFirstError = () => {
-    const target = document.querySelector('.outbound-sheet-error') as HTMLElement | null;
+  const highlightAndScrollToFirstError = () => {
+    setErrorAttention(true);
+    window.setTimeout(() => setErrorAttention(false), 650);
+
+    const invalidInput = document.querySelector(
+      '.outbound-create-sheet [aria-invalid="true"]',
+    ) as HTMLElement | null;
+    const manualError = document.querySelector(
+      '.outbound-create-sheet .outbound-sheet-error',
+    ) as HTMLElement | null;
+    const target = invalidInput ?? manualError;
+
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target?.focus?.();
   };
 
   const resetSheet = () => {
@@ -233,10 +281,11 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       type: 'SALES',
       reference_number: '',
       description: '',
-      details: [],
+      details: [{ categoryId: '', productId: '', quantity: 0 }],
     });
     setInventoryMap({});
     setCloseConfirmOpen(false);
+    setErrorAttention(false);
   };
 
   const requestClose = () => {
@@ -257,7 +306,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   const onSubmit = async (values: CreateSheetValues) => {
     if (values.details.length === 0) {
       setError('details', { type: 'manual', message: 'Please add at least one product' });
-      scrollToFirstError();
+      highlightAndScrollToFirstError();
       return;
     }
 
@@ -268,7 +317,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     });
 
     if (!allValid) {
-      scrollToFirstError();
+      highlightAndScrollToFirstError();
       return;
     }
 
@@ -300,6 +349,10 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     await mutation.mutateAsync(payload);
     resetSheet();
     onOpenChange(false);
+  };
+
+  const onInvalidSubmit = () => {
+    highlightAndScrollToFirstError();
   };
 
   const isSaving = createSalesMutation.isPending || createReturnMutation.isPending;
@@ -348,7 +401,10 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
               </div>
             </SheetHeader>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <form
+              onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}
+              className={`outbound-create-sheet flex min-h-0 flex-1 flex-col ${errorAttention ? 'form-error-attention' : ''}`}
+            >
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
                 <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200">
                   <h3 className="mb-4 text-sm font-bold text-slate-800">General Information</h3>
@@ -400,7 +456,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     <h3 className="text-sm font-bold text-slate-800">Outbound Product List</h3>
                     <button
                       type="button"
-                      onClick={() => append({ categoryId: '', productId: '', quantity: 1 })}
+                      onClick={() => append({ categoryId: '', productId: '', quantity: 0 })}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                     >
                       <span className="material-symbols-outlined text-[14px]">add</span>
@@ -425,7 +481,11 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                       const lineQuantity = Number(line?.quantity ?? 0);
                       const inventory = lineProductId ? inventoryMap[lineProductId] : undefined;
                       const availableQty = inventory?.availableQty ?? 0;
-                      const quantityExceeded = lineProductId.length > 0 && lineQuantity > availableQty;
+                      const quantityExceeded =
+                        lineProductId.length > 0
+                        && !inventory?.loading
+                        && !inventory?.error
+                        && lineQuantity > availableQty;
                       const lineErrors = Array.isArray(errors.details) ? errors.details[index] : undefined;
 
                       const excludeProductIds = selectedProductIds.filter((id, itemIndex) => id && itemIndex !== index);
@@ -491,7 +551,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                                 {lineProductId
                                   ? (inventory?.loading
                                     ? 'Loading...'
-                                    : availableQty.toLocaleString('en-US'))
+                                    : inventory?.error
+                                      ? 'Unavailable'
+                                      : availableQty.toLocaleString('en-US'))
                                   : '—'}
                               </div>
                             </div>
@@ -516,14 +578,16 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                               ) : null}
                               {!lineErrors?.quantity && quantityExceeded ? (
                                 <p className="mt-1 text-[11px] text-red-500">
-                                  Quantity cannot exceed available inventory ({availableQty})
+                                  Exceeded available inventory ({availableQty})
                                 </p>
                               ) : null}
                             </div>
                           </div>
 
                           {inventory?.error ? (
-                            <p className="text-[11px] text-amber-700">Cannot load inventory: {inventory.error}</p>
+                            <p className="text-[11px] text-amber-700">
+                              Cannot load inventory right now. Please reselect the product or retry.
+                            </p>
                           ) : null}
                         </div>
                       );
@@ -549,7 +613,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     {isSaving ? (
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        Processing...
+                        Saving...
                       </>
                     ) : (
                       'Save Outbound Ticket'
@@ -565,9 +629,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to exit?</AlertDialogTitle>
+            <AlertDialogTitle>You have unsaved data.</AlertDialogTitle>
             <AlertDialogDescription>
-              The entered data will not be saved.
+              Are you sure you want to close and cancel this operation?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

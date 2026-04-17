@@ -13,6 +13,7 @@ import {
   useApproveStockOut,
   useCancelStockOut,
 } from '../hooks/useOutbound';
+import { getOutboundProductInventoryAvailability } from '../services/outboundService';
 import { createStockOutSchema, type CreateStockOutSchemaValues } from '../schemas/outboundSchema';
 import {
   OUTBOUND_STEPPER_STEPS,
@@ -812,13 +813,81 @@ export function OutboundCreateForm() {
     register,
     handleSubmit,
     watch,
+    setError,
+    clearErrors,
+    setFocus,
     formState: { errors, isSubmitting },
   } = methods;
 
   const selectedType = watch('type');
   const isReturn = selectedType === 'RETURN_TO_SUPPLIER';
 
+  const validateDetailsWithInventory = async (
+    details: CreateStockOutSchemaValues['details'],
+  ): Promise<boolean> => {
+    let firstInvalidField: `details.${number}.product_id` | `details.${number}.quantity` | null = null;
+
+    for (let index = 0; index < details.length; index += 1) {
+      const detail = details[index];
+
+      if (!Number.isFinite(detail.product_id) || detail.product_id <= 0) {
+        const fieldName = `details.${index}.product_id` as const;
+        setError(fieldName, {
+          type: 'manual',
+          message: 'Vui lòng chọn sản phẩm hợp lệ',
+        });
+
+        if (!firstInvalidField) {
+          firstInvalidField = fieldName;
+        }
+        continue;
+      }
+
+      if (!Number.isFinite(detail.quantity) || detail.quantity <= 0) {
+        const fieldName = `details.${index}.quantity` as const;
+        setError(fieldName, {
+          type: 'manual',
+          message: 'Số lượng xuất phải lớn hơn 0',
+        });
+
+        if (!firstInvalidField) {
+          firstInvalidField = fieldName;
+        }
+        continue;
+      }
+
+      const inventory = await getOutboundProductInventoryAvailability(detail.product_id);
+      const availableQty = inventory.availableQty;
+
+      if (detail.quantity > availableQty) {
+        const fieldName = `details.${index}.quantity` as const;
+        setError(fieldName, {
+          type: 'manual',
+          message: `Số lượng xuất vượt quá tồn kho khả dụng (${availableQty})`,
+        });
+
+        if (!firstInvalidField) {
+          firstInvalidField = fieldName;
+        }
+      } else {
+        clearErrors(`details.${index}.quantity` as const);
+      }
+    }
+
+    if (firstInvalidField) {
+      setFocus(firstInvalidField);
+      return false;
+    }
+
+    return true;
+  };
+
   const onSubmit = async (values: CreateStockOutSchemaValues) => {
+    const isInventoryValid = await validateDetailsWithInventory(values.details);
+    if (!isInventoryValid) {
+      return;
+    }
+
     const payload = {
       warehouse_location_id: values.warehouse_location_id,
       type: values.type,

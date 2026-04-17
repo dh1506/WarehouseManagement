@@ -491,3 +491,42 @@
 4. Add a 5-minute circuit-breaker in `fetchAllInventories` after first failure to stop repeated error spam.
 
 **Rationale:** Frontend remains stable and reflects saved bin configuration without depending on unavailable inventory APIs.
+
+## DEC-083 - Outbound create sheet AC-first validation and close safety
+
+**Date:** 2026-04-17
+**Context:** The create outbound sheet already implemented most behaviors, but sprint AC required stricter parity on default row behavior, blocked submit guidance, and exact save/validation wording.
+**Decision:**
+
+1. Keep create flow inside `features/outbound/components/OutboundCreateSheet.tsx` and do not introduce new abstractions.
+2. Guarantee one empty line item row on open/reset for safer operator onboarding.
+3. Add explicit invalid-submit handling: scroll/focus first invalid control and trigger short visual attention animation.
+4. Align over-limit validation copy to `Exceeded available inventory (X)` and saving label to `Saving...`.
+5. Keep existing React Query invalidate flow and toast pattern; adjust sales success copy to draft-created wording.
+
+**Rationale:** Meets acceptance criteria without refactoring architecture, preserves existing reusable service/hook patterns, and minimizes code surface risk.
+
+## DEC-084 - Outbound create form submit guard for inventory safety
+
+**Date:** 2026-04-17
+**Context:** Realtime validation exists in line-item UI, but create flow in Outbound Detail page still needed a submit-time hard guard to guarantee outbound quantity never exceeds available inventory in edge cases.
+**Decision:** Add synchronous submit-time validation loop in `OutboundCreateForm` that:
+
+1. Re-checks each selected product via `getOutboundProductInventoryAvailability(productId)`.
+2. Blocks invalid quantity (`<= 0`).
+3. Blocks over-limit quantity (`quantity > availableQty`).
+4. Sets manual field errors and focuses first invalid field.
+
+**Rationale:** Enforces business-critical FE rule at the final submit boundary while preserving current architecture and existing hooks/services.
+
+## DEC-085 - Outbound available quantity must not silently degrade to zero
+
+**Date:** 2026-04-17
+**Context:** Inventory Overview could show positive available quantity while Outbound Create Sheet showed `Exceeded available inventory (0)` for the same SKU.
+**Decision:**
+
+1. Make outbound availability fetch aggregate all `/api/inventories` pages (same approach as Inventory Overview) rather than `page=1` only.
+2. Remove silent fallback-to-zero behavior when inventory API fails and no fallback dataset exists; throw explicit error instead.
+3. Update create-sheet UI to render inventory as unavailable on fetch error and block submit with explicit validation message.
+
+**Rationale:** Avoids false-negative validation and keeps outbound quantity checks trustworthy and consistent with inventory dashboard numbers.
