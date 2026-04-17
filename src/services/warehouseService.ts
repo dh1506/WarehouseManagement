@@ -441,6 +441,35 @@ export function getProductAvailableQtyFromBinFallback(productId: string): number
   return total;
 }
 
+/**
+ * Chọn location có currentLoad cao nhất cho product từ localStorage fallback.
+ * Dùng để suy ra warehouse_location_id khi API inventories tạm thời chưa trả row.
+ */
+export function getProductPreferredLocationIdFromBinFallback(productId: string): number | null {
+  const map = getBinAssignmentFallbackMap();
+  let selectedLocationId: number | null = null;
+  let maxLoad = -1;
+
+  Object.entries(map).forEach(([locationId, assignment]) => {
+    if (assignment.productId !== productId || typeof assignment.currentLoad !== 'number') {
+      return;
+    }
+
+    const normalizedLoad = Math.max(0, assignment.currentLoad);
+    const parsedLocationId = Number(locationId);
+    if (!Number.isFinite(parsedLocationId) || parsedLocationId <= 0) {
+      return;
+    }
+
+    if (normalizedLoad > maxLoad) {
+      maxLoad = normalizedLoad;
+      selectedLocationId = parsedLocationId;
+    }
+  });
+
+  return selectedLocationId;
+}
+
 function buildZoneCoordinatesByStructure(racks: number, levels: number, bins: number): ZoneCoordinate[] {
   const coordinates: ZoneCoordinate[] = [];
 

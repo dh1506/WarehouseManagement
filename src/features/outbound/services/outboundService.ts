@@ -1,6 +1,10 @@
 import apiClient from '@/services/apiClient';
 import type { ApiResponse } from '@/types/api';
-import { getProductAvailableQtyFromBinFallback } from '@/services/warehouseService';
+import { collectPaginatedItems } from '@/services/searchFallback';
+import {
+  getProductAvailableQtyFromBinFallback,
+  getProductPreferredLocationIdFromBinFallback,
+} from '@/services/warehouseService';
 import { getProductAvailableFromInventory } from '@/services/inventoryOverviewService';
 import type {
   StockOut,
@@ -24,6 +28,28 @@ const pendingProductAvailability = new Map<
   number,
   Promise<{ availableQty: number; preferredLocationId: number | null }>
 >();
+
+interface ReviewInventoryRow {
+  product_id: number;
+  warehouse_location_id: number;
+  available_quantity: number | string;
+}
+
+interface ReviewInventoryPage {
+  items?: ReviewInventoryRow[];
+  inventories?: ReviewInventoryRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    total_pages?: number;
+    totalPages?: number;
+  };
+}
+
+export interface StockOutReviewSnapshot {
+  order: StockOut;
+  availableByProduct: Record<number, number>;
+}
 
 // ─── Helper unwrap ────────────────────────────────────────────────────────────
 
@@ -55,6 +81,52 @@ export async function getStockOuts(params: StockOutListParams = {}): Promise<Sto
 export async function getStockOutById(id: number): Promise<StockOut> {
   const response = await apiClient.get<ApiResponse<StockOut>>(`/api/stock-outs/${id}`);
   return unwrap<StockOut>(response);
+}
+
+/**
+ * Detail review snapshot: load stock-out detail and inventory state in parallel.
+ * This protects page load latency and gives realtime available qty for each line item.
+ */
+export async function getStockOutReviewSnapshot(id: number): Promise<StockOutReviewSnapshot> {
+  const inventoryTask = collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
+    fetchPage: async (page, limit) => {
+      const response = await apiClient.get<ApiResponse<ReviewInventoryPage>>('/api/inventories', {
+        params: { page, limit },
+      });
+      return unwrap<ReviewInventoryPage>(response);
+    },
+    getItems: (payload) => payload.items ?? payload.inventories ?? [],
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+  });
+
+  const [order, inventoryRows] = await Promise.all([
+    getStockOutById(id),
+    inventoryTask,
+  ]);
+
+  const availableByProduct: Record<number, number> = {};
+  const lineProductIds = new Set(order.details.map((detail) => detail.product_id));
+
+  order.details.forEach((detail) => {
+    availableByProduct[detail.product_id] = 0;
+  });
+
+  inventoryRows.forEach((row) => {
+    if (
+      row.warehouse_location_id !== order.warehouse_location_id
+      || !lineProductIds.has(row.product_id)
+    ) {
+      return;
+    }
+
+    availableByProduct[row.product_id] =
+      (availableByProduct[row.product_id] ?? 0) + (Number(row.available_quantity) || 0);
+  });
+
+  return {
+    order,
+    availableByProduct,
+  };
 }
 
 // ─── Tạo phiếu xuất bán ──────────────────────────────────────────────────────
@@ -221,14 +293,15 @@ export async function getOutboundProductInventoryAvailabilityWithOptions(
   }
 
   const task = (async () => {
-  // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
+    // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
     const fallbackQty = getProductAvailableQtyFromBinFallback(String(productId));
+    const fallbackPreferredLocationId = getProductPreferredLocationIdFromBinFallback(String(productId));
 
-  // Fast-path: nếu fallback đã có dữ liệu dương, ưu tiên trả ngay để UI phản hồi tức thì.
+    // Fast-path: nếu fallback đã có dữ liệu dương, ưu tiên trả ngay để UI phản hồi tức thì.
     if (!forceNetwork && fallbackQty > 0) {
       const fastResult = {
         availableQty: fallbackQty,
-        preferredLocationId: null,
+        preferredLocationId: fallbackPreferredLocationId,
       };
       productAvailabilityCache.set(productId, {
         fetchedAt: Date.now(),
@@ -237,7 +310,7 @@ export async function getOutboundProductInventoryAvailabilityWithOptions(
       return fastResult;
     }
 
-  // Lớp 2: dùng cùng logic với Inventory Overview: quét full inventory rows rồi cộng available_quantity theo product_id.
+    // Lớp 2: dùng cùng logic với Inventory Overview: quét full inventory rows rồi cộng available_quantity theo product_id.
     let apiQty = 0;
     let preferredLocationId: number | null = null;
     let apiSucceeded = false;
@@ -254,15 +327,16 @@ export async function getOutboundProductInventoryAvailabilityWithOptions(
       }
     }
 
-  // Ưu tiên fallback khi có dữ liệu (operator vừa lưu bin trong Zone Detail)
-  // vì API inventory có thể chưa phản ánh đúng ngay sau thao tác cập nhật bin.
+    // Ưu tiên fallback khi có dữ liệu (operator vừa lưu bin trong Zone Detail)
+    // vì API inventory có thể chưa phản ánh đúng ngay sau thao tác cập nhật bin.
     const availableQty = fallbackQty > 0 ? fallbackQty : apiQty;
+    const resolvedPreferredLocationId = preferredLocationId ?? fallbackPreferredLocationId;
 
     if (!apiSucceeded && fallbackQty <= 0) {
       throw new Error('Inventory availability is unavailable. Please retry.');
     }
 
-    const result = { availableQty, preferredLocationId };
+    const result = { availableQty, preferredLocationId: resolvedPreferredLocationId };
     productAvailabilityCache.set(productId, {
       fetchedAt: Date.now(),
       data: result,

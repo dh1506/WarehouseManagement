@@ -2,36 +2,39 @@
 
 ## Outbound Product Select Must Trigger Inventories API — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add force-network option for outbound availability | ✅ | New `getOutboundProductInventoryAvailabilityWithOptions(..., { forceNetwork: true })` |
-| Trigger inventory API call right after product selection | ✅ | In `OutboundCreateSheet`, `onValueChange` now explicitly requests fresh inventory data from API |
+| Task                                                     | Status | Notes                                                                                           |
+| -------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
+| Add force-network option for outbound availability       | ✅     | New `getOutboundProductInventoryAvailabilityWithOptions(..., { forceNetwork: true })`           |
+| Trigger inventory API call right after product selection | ✅     | In `OutboundCreateSheet`, `onValueChange` now explicitly requests fresh inventory data from API |
 
 **Files changed:**
+
 - `src/features/outbound/services/outboundService.ts`
 - `src/features/outbound/components/OutboundCreateSheet.tsx`
 
 ## Outbound Create Reuses Inventory Available Helper — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add reusable inventory helper for product available qty | ✅ | New `getProductAvailableFromInventory(productId)` in inventory service |
-| Wire outbound availability to shared inventory helper | ✅ | Outbound create now consumes Inventory service helper instead of duplicated aggregation logic |
+| Task                                                    | Status | Notes                                                                                         |
+| ------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------- |
+| Add reusable inventory helper for product available qty | ✅     | New `getProductAvailableFromInventory(productId)` in inventory service                        |
+| Wire outbound availability to shared inventory helper   | ✅     | Outbound create now consumes Inventory service helper instead of duplicated aggregation logic |
 
 **Files changed:**
+
 - `src/services/inventoryOverviewService.ts`
 - `src/features/outbound/services/outboundService.ts`
 
 ## Outbound Create Sheet — Product-ID Inventory Fast Path + AC UX Alignment — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Optimize available fetch speed by product_id | ✅ | Outbound availability now queries `/api/inventories` with `product_id` pagination first |
-| Keep consistency with Inventory Overview logic | ✅ | If product-filtered query returns empty, fallback to full inventory scan and client-side filter by `product_id` |
-| Add short-lived cache + in-flight dedupe | ✅ | Product availability cache (20s) + pending promise map to avoid duplicate requests across rows |
-| Align validation/toast/save-loading text with AC | ✅ | Vietnamese validation strings, success toast `Tạo phiếu xuất thành công`, button state `Đang lưu...` |
+| Task                                             | Status | Notes                                                                                                           |
+| ------------------------------------------------ | ------ | --------------------------------------------------------------------------------------------------------------- |
+| Optimize available fetch speed by product_id     | ✅     | Outbound availability now queries `/api/inventories` with `product_id` pagination first                         |
+| Keep consistency with Inventory Overview logic   | ✅     | If product-filtered query returns empty, fallback to full inventory scan and client-side filter by `product_id` |
+| Add short-lived cache + in-flight dedupe         | ✅     | Product availability cache (20s) + pending promise map to avoid duplicate requests across rows                  |
+| Align validation/toast/save-loading text with AC | ✅     | Vietnamese validation strings, success toast `Tạo phiếu xuất thành công`, button state `Đang lưu...`            |
 
 **Files changed:**
+
 - `src/features/outbound/services/outboundService.ts`
 - `src/features/outbound/components/OutboundCreateSheet.tsx`
 - `src/features/outbound/hooks/useOutbound.ts`
@@ -47,6 +50,44 @@
 **File changed:**
 
 - `src/features/outbound/services/outboundService.ts`
+
+## Outbound Save Button Stuck Disabled Despite Valid Qty — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Remove hidden pre-submit disable gate on Save button | ✅ | Save button now disabled only while mutation is pending |
+| Keep business validation at submit-time with field errors/toast | ✅ | Existing `onSubmit` validation remains source of truth |
+
+**File changed:**
+- `src/features/outbound/components/OutboundCreateSheet.tsx`
+
+## Outbound Picking: Remove Proof + Mandatory Discrepancy Measure — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Remove proof upload section from picking UI | ✅ | `ProofUploadSection` removed from `OutboundPickingScreen.tsx` |
+| Require discrepancy mitigation before continue | ✅ | `DiscrepancyPanel` adds required textarea `Biện pháp xử lý chênh lệch` |
+| Block continue until mitigation is entered | ✅ | Continue button disabled when mitigation is empty |
+
+**File changed:**
+- `src/features/outbound/components/OutboundPickingScreen.tsx`
+
+## Delivery Request Review Page Hardening — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Parallel load order + inventory for review page | ✅ | Added `getStockOutReviewSnapshot` with `Promise.all` |
+| Realtime Available Qty + inline insufficiency warning | ✅ | Added `Khả dụng realtime` column and red warning style |
+| Replace Unit Price with Unit of Measurement | ✅ | Review table now shows UoM column |
+| Block approve when insufficient stock | ✅ | Approve disabled in PENDING if any line requested > available |
+| Race-condition guard at approve click | ✅ | Force-network recheck before `PATCH /approve` |
+| Integer-safe total requested quantity | ✅ | Total uses numeric truncation-safe reducer |
+| Cancel reason required | ✅ | Cancel confirm blocks submit without reason |
+
+**Files changed:**
+- `src/features/outbound/services/outboundService.ts`
+- `src/features/outbound/hooks/useOutbound.ts`
+- `src/features/outbound/components/OutboundDetail.tsx`
 
 ## Outbound Create Sheet Still Showing Exceeded (0) — 2026-04-17 (COMPLETED)
 
@@ -248,13 +289,11 @@ All 6 outbound feature files rewritten against real BE contract. No BE changes m
 | `OutboundList.tsx`                              | ✅     | KPI cards (manager-only), filters, skeleton, pagination                                                                |
 | `LineItemEditor.tsx`                            | ✅     | Matches new `CreateStockOutSchemaValues`                                                                               |
 | `OutboundDetail.tsx`                            | ✅     | `ConfirmDialog`, stepper, `ActionPanel` with RBAC, detail table + lots                                                 |
-| `OutboundPickingScreen.tsx`                     | ✅     | Lot assignment, `ProofUploadSection` (B2 stub), `DiscrepancyPanel`                                                     |
+| `OutboundPickingScreen.tsx`                     | ✅     | Lot assignment, `DiscrepancyPanel` with required mitigation input before continue                                      |
 | Tailwind v4 canonical classes                   | ✅     | Fixed `bg-gradient-to-r→bg-linear-to-r`, `max-w-[60px]→max-w-15`, `min-h-[400px]→min-h-100`, `min-w-[500px]→min-w-125` |
 
 **Pending BE integration:**
 
-- Proof upload presigned URL endpoint (`GET /api/stock-outs/:id/proof-upload-url`)
-- Proof confirmation endpoint (`POST /api/stock-outs/:id/confirm-proof`)
 - Available lot picker (currently free-text input for lot ID)
 
 ---

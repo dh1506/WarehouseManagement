@@ -1,19 +1,12 @@
-import { useState, useCallback, useId } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStockOut, useUpdatePickedLots, useCompleteStockOut } from '../hooks/useOutbound';
 import { useToast } from '@/hooks/use-toast';
-import {
-  getProofUploadUrl,
-  uploadFileToB2,
-  confirmProofUpload,
-} from '../services/outboundService';
 import type {
   StockOutDetail,
   PickedLotEntry,
-  LocalProofEntry,
   StockOutDiscrepancy,
-  ProofType,
 } from '../types/outboundType';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -282,173 +275,26 @@ function DetailCard({
   );
 }
 
-/** Section Upload bằng chứng */
-function ProofUploadSection({
-  stockOutId,
-  proofs,
-  onProofsChange,
-}: {
-  stockOutId: number;
-  proofs: LocalProofEntry[];
-  onProofsChange: (p: LocalProofEntry[]) => void;
-}) {
-  const fileInputId = useId();
-  const { toast } = useToast();
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-
-    // Reset input để có thể chọn lại cùng file
-    e.target.value = '';
-
-    for (const file of files) {
-      const localId = `${Date.now()}-${Math.random()}`;
-      const type: ProofType = file.type.startsWith('image/') ? 'PHOTO' : 'DOCUMENT';
-      const previewUrl = type === 'PHOTO' ? URL.createObjectURL(file) : '';
-
-      const newEntry: LocalProofEntry = {
-        localId,
-        file,
-        previewUrl,
-        type,
-        uploadStatus: 'uploading',
-      };
-
-      onProofsChange([...proofs, newEntry]);
-
-      try {
-        // Bước 1: lấy presigned URL từ BE
-        const { url, key } = await getProofUploadUrl(stockOutId, file.name, file.type);
-        // Bước 2: upload lên B2
-        await uploadFileToB2(url, file);
-        // Bước 3: xác nhận với BE
-        await confirmProofUpload(stockOutId, key, type);
-
-        onProofsChange((prev: LocalProofEntry[]) =>
-          prev.map((p) => (p.localId === localId ? { ...p, uploadStatus: 'done' } : p)),
-        );
-      } catch {
-        // BE chưa sẵn sàng — hiển thị pending state thay vì crash
-        onProofsChange((prev: LocalProofEntry[]) =>
-          prev.map((p) =>
-            p.localId === localId
-              ? {
-                  ...p,
-                  uploadStatus: 'error',
-                  errorMessage: 'Tính năng đang được phát triển, sẽ tích hợp sau.',
-                }
-              : p,
-          ),
-        );
-        toast({
-          title: 'Upload bằng chứng chưa khả dụng',
-          description: 'Tính năng này đang chờ tích hợp BE. File đã được lưu cục bộ.',
-          variant: 'destructive',
-        });
-      }
-    }
-  };
-
-  const removeProof = (localId: string) => {
-    onProofsChange(proofs.filter((p) => p.localId !== localId));
-  };
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="material-symbols-outlined text-blue-500 text-[18px]">photo_camera</span>
-        <h3 className="text-sm font-bold text-slate-800">Bằng chứng xuất kho</h3>
-        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-          Đang phát triển
-        </span>
-      </div>
-
-      {/* File list */}
-      {proofs.length > 0 && (
-        <div className="space-y-2">
-          {proofs.map((proof) => (
-            <motion.div
-              key={proof.localId}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl border border-slate-100"
-            >
-              {proof.previewUrl ? (
-                <img
-                  src={proof.previewUrl}
-                  alt="preview"
-                  className="w-10 h-10 rounded-lg object-cover shrink-0"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-slate-400 text-[18px]">description</span>
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-700 truncate">{proof.file.name}</p>
-                {proof.uploadStatus === 'uploading' && (
-                  <p className="text-[10px] text-blue-500 flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-                    Đang tải lên...
-                  </p>
-                )}
-                {proof.uploadStatus === 'done' && (
-                  <p className="text-[10px] text-emerald-600 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                    Đã tải lên
-                  </p>
-                )}
-                {proof.uploadStatus === 'error' && (
-                  <p className="text-[10px] text-amber-600">{proof.errorMessage}</p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => removeProof(proof.localId)}
-                className="p-1 text-slate-300 hover:text-red-400 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {/* Upload button */}
-      <label
-        htmlFor={fileInputId}
-        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-all cursor-pointer"
-        style={{ minHeight: 48 }}
-      >
-        <span className="material-symbols-outlined text-[20px]">upload</span>
-        Chọn ảnh / tài liệu
-      </label>
-      <input
-        id={fileInputId}
-        type="file"
-        multiple
-        accept="image/*,.pdf"
-        className="hidden"
-        onChange={handleFileSelect}
-      />
-      <p className="text-[10px] text-slate-400 text-center">
-        Hỗ trợ JPG, PNG, PDF • Upload sẽ được kích hoạt sau khi BE hoàn tất
-      </p>
-    </div>
-  );
-}
-
 /** Panel hiển thị lệch số lượng khi hoàn tất thất bại */
 function DiscrepancyPanel({
   discrepancies,
   errorMessage,
   onGoBack,
+  resolutionMeasure,
+  onResolutionMeasureChange,
+  onContinue,
+  continueDisabled,
 }: {
   discrepancies: StockOutDiscrepancy[];
   errorMessage: string;
   onGoBack: () => void;
+  resolutionMeasure: string;
+  onResolutionMeasureChange: (value: string) => void;
+  onContinue: () => void;
+  continueDisabled: boolean;
 }) {
+  const resolutionError = resolutionMeasure.trim().length === 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -488,7 +334,25 @@ function DiscrepancyPanel({
         ))}
       </div>
 
-      <div className="px-4 pb-4 flex gap-2">
+      <div className="px-4 pb-4 space-y-3">
+        <div>
+          <label htmlFor="discrepancy-resolution-measure" className="mb-1 block text-xs font-semibold text-red-700">
+            Biện pháp xử lý chênh lệch <span className="text-red-600">*</span>
+          </label>
+          <textarea
+            id="discrepancy-resolution-measure"
+            value={resolutionMeasure}
+            onChange={(event) => onResolutionMeasureChange(event.target.value)}
+            rows={3}
+            placeholder="Ví dụ: Tạm giữ phiếu, kiểm kho lại theo lô, báo quản lý kho xác nhận số thực tế..."
+            className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition ${resolutionError ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100'}`}
+          />
+          {resolutionError ? (
+            <p className="mt-1 text-[11px] text-red-600">Vui lòng nhập biện pháp xử lý để tiếp tục.</p>
+          ) : null}
+        </div>
+
+        <div className="flex gap-2">
         <button
           onClick={onGoBack}
           className="flex-1 py-3 bg-white border border-red-200 text-red-600 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors"
@@ -497,16 +361,14 @@ function DiscrepancyPanel({
           Điều chỉnh lại số lượng
         </button>
         <button
-          onClick={() => {
-            /* Báo cáo sự cố — pending BE */
-          }}
-          className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm hover:bg-red-700 transition-colors opacity-60 cursor-not-allowed"
-          disabled
-          title="Chức năng báo cáo đang được phát triển"
+          onClick={onContinue}
+          className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={continueDisabled}
           style={{ minHeight: 48 }}
         >
-          Báo cáo sự cố
+          Tiếp tục với chênh lệch
         </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -533,7 +395,7 @@ export function OutboundPickingScreen() {
     items: StockOutDiscrepancy[];
     message: string;
   }>({ visible: false, items: [], message: '' });
-  const [proofs, setProofs] = useState<LocalProofEntry[]>([]);
+  const [discrepancyResolutionMeasure, setDiscrepancyResolutionMeasure] = useState('');
 
   // Khởi tạo assignments từ dữ liệu đã có (lots từ BE khi load)
   const getDetailAssignments = useCallback(
@@ -558,6 +420,14 @@ export function OutboundPickingScreen() {
     if (discrepancyState.visible) {
       setDiscrepancyState({ visible: false, items: [], message: '' });
     }
+  };
+
+  const openDiscrepancyPanel = (items: StockOutDiscrepancy[], message: string) => {
+    setDiscrepancyState({
+      visible: true,
+      items,
+      message,
+    });
   };
 
   if (isLoading) {
@@ -659,15 +529,16 @@ export function OutboundPickingScreen() {
   };
 
   /** Hoàn tất phiếu xuất (PATCH /complete) */
-  const handleComplete = async () => {
+  const handleComplete = async (allowDiscrepancy: boolean = false) => {
     // Kiểm tra discrepancy cục bộ trước
     const discrepancies = computeDiscrepancies();
-    if (discrepancies.length > 0) {
-      setDiscrepancyState({
-        visible: true,
-        items: discrepancies,
-        message: 'Số lượng gán lô chưa khớp với yêu cầu xuất.',
-      });
+    if (discrepancies.length > 0 && !allowDiscrepancy) {
+      openDiscrepancyPanel(discrepancies, 'Số lượng gán lô chưa khớp với yêu cầu xuất.');
+      return;
+    }
+
+    if (discrepancies.length > 0 && discrepancyResolutionMeasure.trim().length === 0) {
+      openDiscrepancyPanel(discrepancies, 'Vui lòng nhập biện pháp xử lý chênh lệch để tiếp tục.');
       return;
     }
 
@@ -689,11 +560,7 @@ export function OutboundPickingScreen() {
       const message =
         err instanceof Error ? err.message : 'Không thể hoàn tất phiếu xuất.';
       const discrepanciesFromBe = computeDiscrepancies();
-      setDiscrepancyState({
-        visible: true,
-        items: discrepanciesFromBe,
-        message,
-      });
+      openDiscrepancyPanel(discrepanciesFromBe, message);
     }
   };
 
@@ -740,6 +607,12 @@ export function OutboundPickingScreen() {
               discrepancies={discrepancyState.items}
               errorMessage={discrepancyState.message}
               onGoBack={() => setDiscrepancyState({ visible: false, items: [], message: '' })}
+              resolutionMeasure={discrepancyResolutionMeasure}
+              onResolutionMeasureChange={setDiscrepancyResolutionMeasure}
+              onContinue={() => {
+                void handleComplete(true);
+              }}
+              continueDisabled={isCompleting || discrepancyResolutionMeasure.trim().length === 0}
             />
           )}
         </AnimatePresence>
@@ -765,13 +638,6 @@ export function OutboundPickingScreen() {
             </div>
           )}
         </div>
-
-        {/* Proof upload */}
-        <ProofUploadSection
-          stockOutId={numericId}
-          proofs={proofs}
-          onProofsChange={setProofs}
-        />
 
         {/* Save assignments button */}
         <button

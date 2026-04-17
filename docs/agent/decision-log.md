@@ -575,3 +575,29 @@
 **Context:** User observed no network request after selecting product in create sheet because cache/fallback could satisfy availability without new API call.
 **Decision:** Add force-network mode for outbound availability service and invoke it directly from product select `onValueChange`.
 **Rationale:** Ensures observable API call and real-time inventory refresh immediately after product selection.
+
+## DEC-091 - Outbound picking removes proof upload and enforces discrepancy measure
+
+**Date:** 2026-04-17
+**Context:** Picking flow no longer requires proof upload in this sprint scope; operators must provide actionable mitigation when quantity discrepancy occurs.
+**Decision:**
+
+1. Remove `ProofUploadSection` from `OutboundPickingScreen`.
+2. Keep discrepancy guard in complete flow.
+3. Add mandatory input `Biện pháp xử lý chênh lệch` in `DiscrepancyPanel`; only allow continue when non-empty.
+
+**Rationale:** Simplifies picking UX and enforces accountable discrepancy handling before continuing workflow.
+
+## DEC-092 - Delivery request review uses parallel snapshot + approval double-check
+
+**Date:** 2026-04-17
+**Context:** Review page needs realtime availability visibility, strict inventory protection at approval time, and stable UX under race conditions.
+**Decision:**
+
+1. Introduce `getStockOutReviewSnapshot(id)` that loads stock-out detail and inventories in parallel via `Promise.all`.
+2. Render per-line `Khả dụng realtime` and inline insufficiency warning in review table.
+3. Disable Approve in `PENDING` when any line exceeds available qty.
+4. Re-check inventory with force-network availability call immediately before `PATCH /approve` to guard race conditions.
+5. Require cancellation reason before allowing cancel mutation.
+
+**Rationale:** Enforces inventory protection and state transparency while preserving FE-only scope and existing BE contract.

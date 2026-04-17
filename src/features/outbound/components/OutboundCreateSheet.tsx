@@ -135,8 +135,8 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     try {
       const result = options?.forceNetwork
         ? await getOutboundProductInventoryAvailabilityWithOptions(Number(productId), {
-            forceNetwork: true,
-          })
+          forceNetwork: true,
+        })
         : await getOutboundProductInventoryAvailability(Number(productId));
 
       setInventoryMap((current) => ({
@@ -248,38 +248,6 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     clearErrors(`details.${index}.quantity`);
     return true;
   };
-
-  const hasBlockingRowError = useMemo(() => {
-    if (!details || details.length === 0) {
-      return true;
-    }
-
-    if (duplicateProductIds.size > 0) {
-      return true;
-    }
-
-    return details.some((line) => {
-      if (!line.productId || !line.quantity || Number(line.quantity) <= 0) {
-        return true;
-      }
-
-      const inventory = inventoryMap[line.productId];
-      if (!inventory) {
-        return true;
-      }
-
-      if (inventory?.loading) {
-        return true;
-      }
-
-      if (inventory?.error) {
-        return true;
-      }
-
-      const available = inventory?.availableQty ?? 0;
-      return Number(line.quantity) > available;
-    });
-  }, [details, duplicateProductIds, inventoryMap]);
 
   const highlightAndScrollToFirstError = () => {
     setErrorAttention(true);
@@ -641,7 +609,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving || hasBlockingRowError}
+                    disabled={isSaving}
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSaving ? (

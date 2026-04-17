@@ -4,8 +4,9 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/use-toast';
 import {
-  useStockOut,
+  useStockOutReview,
   useStockOutHistory,
   useCreateSalesStockOut,
   useCreateReturnStockOut,
@@ -13,7 +14,10 @@ import {
   useApproveStockOut,
   useCancelStockOut,
 } from '../hooks/useOutbound';
-import { getOutboundProductInventoryAvailability } from '../services/outboundService';
+import {
+  getOutboundProductInventoryAvailability,
+  getOutboundProductInventoryAvailabilityWithOptions,
+} from '../services/outboundService';
 import { createStockOutSchema, type CreateStockOutSchemaValues } from '../schemas/outboundSchema';
 import {
   OUTBOUND_STEPPER_STEPS,
@@ -184,10 +188,22 @@ function WorkflowStepper({ status }: { status: OutboundStatus }) {
 interface ActionPanelProps {
   order: StockOut;
   isManager: boolean;
+  approveDisabled: boolean;
+  approveDisabledReason?: string;
+  onApprovePrecheck: () => Promise<boolean>;
+  onActionDone: () => void;
 }
 
-function ActionPanel({ order, isManager }: ActionPanelProps) {
+function ActionPanel({
+  order,
+  isManager,
+  approveDisabled,
+  approveDisabledReason,
+  onApprovePrecheck,
+  onActionDone,
+}: ActionPanelProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [dialog, setDialog] = useState<'submit' | 'approve' | 'cancel' | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
@@ -200,16 +216,45 @@ function ActionPanel({ order, isManager }: ActionPanelProps) {
 
   const handleSubmit = async () => {
     await submitMutation.mutateAsync();
+    onActionDone();
     setDialog(null);
   };
 
   const handleApprove = async () => {
+    let canApproveNow = false;
+
+    try {
+      canApproveNow = await onApprovePrecheck();
+    } catch {
+      toast({
+        title: 'Không thể kiểm tra tồn kho',
+        description: 'Vui lòng thử lại sau vài giây.',
+        variant: 'destructive',
+      });
+    }
+
+    if (!canApproveNow) {
+      setDialog(null);
+      return;
+    }
+
     await approveMutation.mutateAsync();
+    onActionDone();
     setDialog(null);
   };
 
   const handleCancel = async () => {
-    await cancelMutation.mutateAsync({ reason: cancelReason || undefined });
+    if (cancelReason.trim().length === 0) {
+      toast({
+        title: 'Thiếu lý do hủy phiếu',
+        description: 'Vui lòng nhập lý do trước khi xác nhận hủy phiếu.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    await cancelMutation.mutateAsync({ reason: cancelReason.trim() || undefined });
+    onActionDone();
     setDialog(null);
     setCancelReason('');
   };
@@ -232,7 +277,9 @@ function ActionPanel({ order, isManager }: ActionPanelProps) {
         {order.status === 'PENDING' && isManager && (
           <button
             onClick={() => setDialog('approve')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all active:scale-95 text-sm"
+            disabled={approveDisabled || approveMutation.isPending}
+            title={approveDisabled ? approveDisabledReason : undefined}
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all active:scale-95 text-sm disabled:cursor-not-allowed disabled:opacity-55"
           >
             <span className="material-symbols-outlined text-[18px]">verified</span>
             Phê duyệt
@@ -421,7 +468,7 @@ function ActivityTimeline({ stockOutId }: ActivityTimelineProps) {
         ) : isError ? (
           <div className="flex flex-col items-center gap-2 py-6 text-sm text-slate-400">
             <span className="material-symbols-outlined text-2xl">error_outline</span>
-            <p>Không thể tải lịch sử thao tác.</p>
+            <p>Unable to load operation history</p>
             <button
               type="button"
               onClick={() => void refetch()}
@@ -506,10 +553,14 @@ export function OutboundDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { hasPermission } = useAuthStore();
+  const { toast } = useToast();
   const isManager = hasPermission('stock_outs:approve');
 
   const numericId = parseInt(id ?? '0', 10);
-  const { data: order, isLoading, isError, refetch } = useStockOut(numericId);
+  const { data: reviewData, isLoading, isError, refetch } = useStockOutReview(numericId);
+
+  const order = reviewData?.order;
+  const availableByProduct = reviewData?.availableByProduct ?? {};
 
   const formatDate = (s: string) =>
     new Date(s).toLocaleString('vi-VN', {
@@ -545,12 +596,89 @@ export function OutboundDetail() {
     );
   }
 
-  const totalRequired = order.details.reduce((s, d) => s + d.quantity, 0);
+  const toIntQuantity = (value: unknown) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.trunc(parsed);
+  };
+
+  const getUomLabel = (detail: StockOut['details'][number]) => {
+    const product = detail.product as unknown as {
+      uom_code?: string;
+      uom_name?: string;
+      unit_of_measure?: { code?: string; name?: string };
+      uom?: { code?: string; name?: string };
+    };
+
+    return (
+      product.unit_of_measure?.code
+      || product.unit_of_measure?.name
+      || product.uom?.code
+      || product.uom?.name
+      || product.uom_code
+      || product.uom_name
+      || '—'
+    );
+  };
+
+  const totalRequired = order.details.reduce((sum, detail) => sum + toIntQuantity(detail.quantity), 0);
   const totalPicked = order.details.reduce(
-    (s, d) => s + d.lots.reduce((ls, l) => ls + l.quantity, 0),
+    (s, d) => s + d.lots.reduce((ls, l) => ls + toIntQuantity(l.quantity), 0),
     0,
   );
   const showLots = order.status === 'PICKING' || order.status === 'COMPLETED';
+
+  const hasInsufficientInventory = order.details.some((detail) => {
+    const requestedQty = toIntQuantity(detail.quantity);
+    const availableQty = Math.max(0, Math.trunc(availableByProduct[detail.product_id] ?? 0));
+    return requestedQty > availableQty;
+  });
+
+  const approveDisabled = order.status === 'PENDING' && hasInsufficientInventory;
+
+  const approveDisabledReason = approveDisabled
+    ? 'Không thể phê duyệt vì có sản phẩm vượt tồn kho khả dụng tại thời điểm tải trang.'
+    : undefined;
+
+  const validateInventoryBeforeApprove = async (): Promise<boolean> => {
+    if (order.status !== 'PENDING') {
+      return false;
+    }
+
+    const checks = await Promise.all(
+      order.details.map(async (detail) => {
+        const availability = await getOutboundProductInventoryAvailabilityWithOptions(
+          detail.product_id,
+          { forceNetwork: true },
+        );
+        return {
+          detail,
+          availableQty: availability.availableQty,
+        };
+      }),
+    );
+
+    const insufficient = checks.find(({ detail, availableQty }) => {
+      const requestedQty = toIntQuantity(detail.quantity);
+      return requestedQty > Math.max(0, Math.trunc(availableQty));
+    });
+
+    if (!insufficient) {
+      return true;
+    }
+
+    const requestedQty = toIntQuantity(insufficient.detail.quantity);
+    const availableQty = Math.max(0, Math.trunc(insufficient.availableQty));
+
+    toast({
+      title: 'Không thể phê duyệt',
+      description: `Sản phẩm ${insufficient.detail.product?.name ?? `#${insufficient.detail.product_id}`} thiếu tồn kho: yêu cầu ${requestedQty}, khả dụng ${availableQty}.`,
+      variant: 'destructive',
+    });
+    await refetch();
+
+    return false;
+  };
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50">
@@ -627,7 +755,16 @@ export function OutboundDetail() {
               )}
             </div>
             <div className="shrink-0">
-              <ActionPanel order={order} isManager={isManager} />
+              <ActionPanel
+                order={order}
+                isManager={isManager}
+                approveDisabled={approveDisabled}
+                approveDisabledReason={approveDisabledReason}
+                onApprovePrecheck={validateInventoryBeforeApprove}
+                onActionDone={() => {
+                  void refetch();
+                }}
+              />
             </div>
           </div>
         </motion.div>
@@ -650,6 +787,16 @@ export function OutboundDetail() {
             <WorkflowStepper status={order.status} />
           )}
         </motion.div>
+
+        {order.status === 'PENDING' && hasInsufficientInventory ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            Một hoặc nhiều dòng sản phẩm đang thiếu tồn kho khả dụng. Nút phê duyệt đã bị khóa để bảo vệ tồn kho.
+          </motion.div>
+        ) : null}
 
         {/* Danh sách sản phẩm */}
         <motion.div
@@ -678,26 +825,30 @@ export function OutboundDetail() {
                 <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-3">Sản phẩm</th>
                   <th className="px-4 py-3 text-center">Số lượng yêu cầu</th>
-                  <th className="px-4 py-3 text-center">Đơn giá</th>
+                  <th className="px-4 py-3 text-center">Khả dụng realtime</th>
+                  <th className="px-4 py-3 text-center">Đơn vị tính</th>
                   {showLots && <th className="px-4 py-3">Lô đã lấy</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {order.details.length === 0 ? (
                   <tr>
-                    <td colSpan={showLots ? 4 : 3} className="py-12 text-center text-slate-400 text-sm">
+                    <td colSpan={showLots ? 5 : 4} className="py-12 text-center text-slate-400 text-sm">
                       <span className="material-symbols-outlined text-xl block mb-1">inventory</span>
                       Chưa có sản phẩm trong phiếu.
                     </td>
                   </tr>
                 ) : (
                   order.details.map((detail) => {
-                    const pickedQty = detail.lots.reduce((s, l) => s + l.quantity, 0);
-                    const isFulfilled = showLots && pickedQty >= detail.quantity;
-                    const isPartial = showLots && pickedQty > 0 && pickedQty < detail.quantity;
+                    const requestedQty = toIntQuantity(detail.quantity);
+                    const pickedQty = detail.lots.reduce((s, l) => s + toIntQuantity(l.quantity), 0);
+                    const isFulfilled = showLots && pickedQty >= requestedQty;
+                    const isPartial = showLots && pickedQty > 0 && pickedQty < requestedQty;
+                    const availableQty = Math.max(0, Math.trunc(availableByProduct[detail.product_id] ?? 0));
+                    const isInsufficient = requestedQty > availableQty;
 
                     return (
-                      <tr key={detail.id} className="hover:bg-slate-50/60 transition-colors">
+                      <tr key={detail.id} className={`hover:bg-slate-50/60 transition-colors ${isInsufficient ? 'bg-red-50/40' : ''}`}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
@@ -714,12 +865,22 @@ export function OutboundDetail() {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-center">
-                          <span className="text-sm font-bold text-slate-800">{detail.quantity}</span>
+                          <div className="inline-flex items-center gap-1.5">
+                            <span className={`text-sm font-bold ${isInsufficient ? 'text-red-700' : 'text-slate-800'}`}>{requestedQty}</span>
+                            {isInsufficient ? (
+                              <span className="material-symbols-outlined text-[14px] text-red-600" title="Out of stock at approval time">
+                                warning
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`text-sm font-semibold ${isInsufficient ? 'text-red-700' : 'text-slate-700'}`}>
+                            {availableQty}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-center text-sm text-slate-500">
-                          {detail.unit_price != null
-                            ? detail.unit_price.toLocaleString('vi-VN') + ' ₫'
-                            : '—'}
+                          {getUomLabel(detail)}
                         </td>
                         {showLots && (
                           <td className="px-4 py-4">
@@ -743,12 +904,12 @@ export function OutboundDetail() {
                                   {isFulfilled ? (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                                       <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                                      Đủ ({pickedQty}/{detail.quantity})
+                                      Đủ ({pickedQty}/{requestedQty})
                                     </span>
                                   ) : isPartial ? (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
                                       <span className="material-symbols-outlined text-[12px]">warning</span>
-                                      Thiếu ({pickedQty}/{detail.quantity})
+                                      Thiếu ({pickedQty}/{requestedQty})
                                     </span>
                                   ) : null}
                                 </div>
@@ -768,6 +929,7 @@ export function OutboundDetail() {
                     <td className="px-4 py-3 text-center text-sm font-extrabold text-blue-900">
                       {totalRequired}
                     </td>
+                    <td className="px-4 py-3" />
                     <td className="px-4 py-3" />
                     {showLots && (
                       <td className="px-4 py-3 text-xs font-semibold text-slate-500">

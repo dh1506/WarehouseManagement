@@ -10,6 +10,7 @@ import type {
 import {
   getStockOuts,
   getStockOutById,
+  getStockOutReviewSnapshot,
   getStockOutHistory,
   getOutboundProductInventoryAvailability,
   createSalesStockOut,
@@ -29,6 +30,7 @@ export const stockOutKeys = {
   list: (params: StockOutListParams) => [...stockOutKeys.lists(), params] as const,
   details: () => [...stockOutKeys.all, 'detail'] as const,
   detail: (id: number) => [...stockOutKeys.details(), id] as const,
+  reviewDetail: (id: number) => [...stockOutKeys.detail(id), 'review'] as const,
   history: (id: number) => [...stockOutKeys.details(), id, 'history'] as const,
   productInventory: (productId: number) => [...stockOutKeys.all, 'productInventory', productId] as const,
 };
@@ -51,6 +53,14 @@ export function useStockOut(id: number) {
   return useQuery({
     queryKey: stockOutKeys.detail(id),
     queryFn: () => getStockOutById(id),
+    enabled: id > 0,
+  });
+}
+
+export function useStockOutReview(id: number) {
+  return useQuery({
+    queryKey: stockOutKeys.reviewDetail(id),
+    queryFn: () => getStockOutReviewSnapshot(id),
     enabled: id > 0,
   });
 }
