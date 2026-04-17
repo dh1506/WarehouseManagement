@@ -8,6 +8,7 @@ import {
   deleteWarehouseZone,
   deleteWarehouse,
   deleteWarehouseLocation,
+  getBinInventories,
   getZoneBins,
   getWarehouseHubs,
   getWarehouseCategoryOptions,
@@ -21,6 +22,8 @@ import {
   updateWarehouse,
   updateWarehouseLocation,
 } from '@/services/warehouseService';
+import { createAdjustment } from '@/features/inventory/services/transactionService';
+import type { CreateAdjustmentPayload } from '@/features/inventory/types/transactionType';
 import type {
   BinCapacityFormValues,
   WarehouseHub,
@@ -42,6 +45,7 @@ export const WAREHOUSE_KEYS = {
   categoryOptions: ['warehouses', 'category-options'] as const,
   productOptions: (categoryId?: string) => ['warehouses', 'product-options', categoryId ?? 'all'] as const,
   zoneBins: (warehouseId: string, zoneId: string) => ['warehouses', 'zone-bins', warehouseId, zoneId] as const,
+  binInventories: (locationId: string) => ['warehouses', 'bin-inventories', locationId] as const,
 };
 
 export function useWarehouseCategoryOptions(enabled = true) {
@@ -320,6 +324,27 @@ export function useUpdateZoneBinCapacity() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.zoneBins(variables.warehouseId, variables.zoneId) });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+    },
+  });
+}
+
+export function useBinInventories(locationId: string) {
+  return useQuery({
+    queryKey: WAREHOUSE_KEYS.binInventories(locationId),
+    queryFn: () => getBinInventories(locationId),
+    enabled: Boolean(locationId),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateBinAdjustment(warehouseId: string, zoneId: string, locationId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateAdjustmentPayload) => createAdjustment(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.binInventories(locationId) });
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.zoneBins(warehouseId, zoneId) });
     },
   });
 }

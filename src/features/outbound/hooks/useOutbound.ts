@@ -11,6 +11,7 @@ import {
   getStockOuts,
   getStockOutById,
   getStockOutHistory,
+  getOutboundProductInventoryAvailability,
   createSalesStockOut,
   createReturnStockOut,
   submitStockOut,
@@ -29,6 +30,7 @@ export const stockOutKeys = {
   details: () => [...stockOutKeys.all, 'detail'] as const,
   detail: (id: number) => [...stockOutKeys.details(), id] as const,
   history: (id: number) => [...stockOutKeys.details(), id, 'history'] as const,
+  productInventory: (productId: number) => [...stockOutKeys.all, 'productInventory', productId] as const,
 };
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -59,6 +61,20 @@ export function useStockOutHistory(id: number) {
     queryKey: stockOutKeys.history(id),
     queryFn: () => getStockOutHistory(id),
     enabled: id > 0,
+  });
+}
+
+/**
+ * Lấy số lượng tồn kho khả dụng của một sản phẩm.
+ * Kết hợp hai nguồn: localStorage fallback (Zone Detail) + API /api/inventories.
+ * Chỉ kích hoạt khi productId > 0.
+ */
+export function useProductInventoryAvailability(productId: number) {
+  return useQuery({
+    queryKey: stockOutKeys.productInventory(productId),
+    queryFn: () => getOutboundProductInventoryAvailability(productId),
+    enabled: productId > 0,
+    staleTime: 2 * 60 * 1000, // 2 phút — đủ tươi cho quy trình tạo phiếu
   });
 }
 

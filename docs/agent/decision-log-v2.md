@@ -105,3 +105,25 @@
 **Decision:** Rework StockInWorkerView to use direct product-level quantity entry (ProductCard components) during counting. Zone map / bin-level entry was fully removed. All workflow actions (discrepancy, resolve, allocate, complete) wired to real API hooks. Lot allocation uses a Dialog with WarehouseLocationSelect instead of zone map.
 **Rationale:** The zone map is relevant for spatial allocation, not physical counting. Staff count goods at the product level, not bin level. This simplifies UX and aligns with the BE flow (Step 5.3: record received quantities per detail, not per bin).
 
+
+
+## DEC-016 - Two-layer inventory availability: localStorage fallback + API
+
+**Date:** 2026-04-17
+**Context:** Outbound LineItemEditor shows available_quantity = 0 because `syncBinInventoryFromCurrentLoad` silently fails (BE may reject direct inventory writes), and `/api/inventories` may not reflect latest Zone Detail saves.
+**Decision:** Store `currentLoad` in `wm:bin-assignment-scope` localStorage at Zone Detail save time. Outbound reads localStorage first (synchronous, no network), falls back to API if localStorage has no data. Prefer localStorage when > 0.
+**Rationale:** Zero network dependency for freshness. Always reflects the operator's last Zone Detail save. API still consulted as secondary source for cases where localStorage has no entry (e.g., fresh browser session).
+
+## DEC-017 - LineItemRow as internal sub-component of LineItemEditor
+
+**Date:** 2026-04-17
+**Context:** Each row in LineItemEditor needs its own independent inventory query (different product_id per row).
+**Decision:** Extract `LineItemRow` as a named function within the same file (not a separate file). Each instance calls `useProductInventoryAvailability(debouncedProductId)` independently.
+**Rationale:** Avoids prop-drilling inventory state across dynamic field array indices. TanStack Query deduplicates identical productId queries automatically. Same-file extraction avoids file bloat for an internal implementation detail.
+
+## DEC-018 - useRef to guard manual setError from clearing Zod resolver errors
+
+**Date:** 2026-04-17
+**Context:** RHF's `clearErrors` clears ALL errors for a field, not just 'manual' type. Calling it unconditionally could wipe Zod errors (e.g., "Số lượng phải lớn hơn 0") after a submit attempt.
+**Decision:** Track `hasManualErrorRef` per row. Only call `clearErrors` when we previously called `setError`. Zod resolver re-applies on next submit regardless.
+**Rationale:** Prevents UX flicker where schema errors disappear mid-form. Manual error and Zod errors are mutually exclusive in practice (Zod catches qty ≤ 0; manual catches qty > availableQty > 0).

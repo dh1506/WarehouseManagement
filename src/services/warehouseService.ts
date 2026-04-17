@@ -112,11 +112,22 @@ interface InventoryApiItem {
   quantity: number;
   reserved_quantity: number;
   available_quantity: number;
+  product_uom_id?: number;
   product?: {
     id: number;
     code: string;
     name: string;
   };
+  lot?: {
+    id: number;
+    lot_no: string;
+  } | null;
+  lot_id?: number | null;
+  uom?: {
+    id?: number;
+    uom?: { code: string; name: string };
+    name?: string;
+  } | null;
 }
 
 interface InventoryListApiData {
@@ -256,6 +267,8 @@ interface BinAssignmentValue {
   categoryId?: string;
   productId: string;
   productName: string;
+  /** Tải trọng hiện tại (số lượng) của bin — dùng làm fallback tồn kho cho module xuất kho */
+  currentLoad?: number;
 }
 
 interface ZoneCoordinate {
@@ -386,10 +399,15 @@ function getBinAssignmentFallbackMap(): Record<string, BinAssignmentValue> {
       ? value.categoryId.trim()
       : undefined;
 
+    const currentLoad = typeof value.currentLoad === 'number' && value.currentLoad >= 0
+      ? value.currentLoad
+      : undefined;
+
     result[locationId] = {
       categoryId,
       productId,
       productName,
+      currentLoad,
     };
   });
 
@@ -402,8 +420,25 @@ function setBinAssignmentFallback(locationId: string, value: BinAssignmentValue)
     categoryId: value.categoryId,
     productId: value.productId,
     productName: value.productName,
+    currentLoad: value.currentLoad,
   };
   writeStorageMap(BIN_ASSIGNMENT_SCOPE_KEY, next);
+}
+
+/**
+ * Tính tổng currentLoad của một sản phẩm từ tất cả bin đã lưu trong localStorage.
+ * Fallback synchronous — không phụ thuộc vào API khi /api/inventories chưa phản ánh
+ * đúng dữ liệu sau khi operator cập nhật bin trong Zone Detail.
+ */
+export function getProductAvailableQtyFromBinFallback(productId: string): number {
+  const map = getBinAssignmentFallbackMap();
+  let total = 0;
+  Object.values(map).forEach((assignment) => {
+    if (assignment.productId === productId && typeof assignment.currentLoad === 'number') {
+      total += Math.max(0, assignment.currentLoad);
+    }
+  });
+  return total;
 }
 
 function buildZoneCoordinatesByStructure(racks: number, levels: number, bins: number): ZoneCoordinate[] {
@@ -540,49 +575,6 @@ async function fetchAllInventories(params?: {
   return all;
 }
 
-async function syncBinInventoryFromCurrentLoad(params: {
-  locationId: string;
-  productId: string;
-  currentLoad: number;
-}): Promise<void> {
-  const { locationId, productId, currentLoad } = params;
-
-  const locationIdNumber = Number(locationId);
-  const productIdNumber = Number(productId);
-  if (Number.isNaN(locationIdNumber) || Number.isNaN(productIdNumber)) {
-    return;
-  }
-
-  if (Date.now() < inventoryApiUnavailableUntil) {
-    return;
-  }
-
-  const normalizedLoad = Math.max(0, Number(currentLoad) || 0);
-
-  try {
-    const locationInventories = await fetchAllInventories({ warehouseLocationId: locationId });
-    const matchedInventory = locationInventories.find((item) => String(item.product_id) === productId);
-
-    if (matchedInventory) {
-      await apiClient.put(`/api/inventories/${matchedInventory.id}`, {
-        quantity: normalizedLoad,
-        reserved_quantity: 0,
-        available_quantity: normalizedLoad,
-      });
-      return;
-    }
-
-    await apiClient.post('/api/inventories', {
-      product_id: productIdNumber,
-      warehouse_location_id: locationIdNumber,
-      quantity: normalizedLoad,
-      reserved_quantity: 0,
-      available_quantity: normalizedLoad,
-    });
-  } catch {
-    inventoryApiUnavailableUntil = Date.now() + 5 * 60 * 1000;
-  }
-}
 
 function buildLocationAllowedCategoryMap(
   rules: LocationAllowedCategoryApiItem[],
@@ -1576,7 +1568,6 @@ export async function updateZoneBinCapacity(
     `/api/warehouses/locations/${Number(locationId)}`,
     {
       max_weight: payload.capacity,
-      current_weight: payload.currentLoad,
       location_status: getLocationStatusFromLoad(payload.currentLoad, payload.capacity),
       is_active: true,
     },
@@ -1585,18 +1576,13 @@ export async function updateZoneBinCapacity(
   // Persist selected category scope on this location so re-open/re-select hydrates correct form values.
   await syncLocationCategoryScope([locationId], [payload.categoryId]);
 
-  // Keep inventories in sync with bin load so outbound availability reads up-to-date values.
-  await syncBinInventoryFromCurrentLoad({
-    locationId,
-    productId: payload.productId,
-    currentLoad: payload.currentLoad,
-  });
-
-  // FE fallback persistence for assigned SKU in case inventory endpoints are unavailable.
   setBinAssignmentFallback(locationId, {
     categoryId: payload.categoryId,
     productId: payload.productId,
     productName: selectedProduct.name,
+    // Lưu currentLoad vào localStorage để module xuất kho đọc tồn kho khả dụng
+    // mà không phụ thuộc hoàn toàn vào API /api/inventories (có thể chưa đồng bộ)
+    currentLoad: payload.currentLoad,
   });
 
   const location = mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
@@ -1646,4 +1632,31 @@ export async function getWarehouseProductOptions(categoryId?: string): Promise<W
     name: product.name,
     categoryIds: product.categories.map((category) => String(category.id)),
   }));
+}
+
+export async function getBinInventories(locationId: string): Promise<import('../features/warehouses/types/warehouseType').BinInventoryItem[]> {
+  const numericId = Number(locationId);
+  if (!locationId || Number.isNaN(numericId)) return [];
+
+  try {
+    const response = await apiClient.get<ApiResponse<InventoryListApiData>>('/api/inventories', {
+      params: { warehouse_location_id: numericId, page: 1, limit: 100 },
+    });
+    const payload = unwrapApiData<InventoryListApiData>(response);
+    const rows = payload.items ?? payload.inventories ?? [];
+
+    return rows.map((row) => ({
+      id: row.id,
+      product_id: row.product_id,
+      product_code: row.product?.code ?? String(row.product_id),
+      product_name: row.product?.name ?? '',
+      lot_id: row.lot_id ?? null,
+      lot_code: row.lot?.lot_no ?? null,
+      available_quantity: Number(row.available_quantity ?? 0),
+      uom_name: row.uom?.uom?.name ?? row.uom?.name ?? '',
+      product_uom_id: row.product_uom_id ?? 0,
+    }));
+  } catch {
+    return [];
+  }
 }

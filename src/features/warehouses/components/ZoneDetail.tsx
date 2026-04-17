@@ -7,12 +7,14 @@ import { StatePanel } from '@/components/StatePanel';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/use-toast';
 import {
+  useBinInventories,
   useUpdateZoneBinCapacity,
   useWarehouseCategoryOptions,
   useWarehouseHubs,
   useWarehouseProductOptions,
   useZoneBins,
 } from '../hooks/useWarehouses';
+import { BinInventoryPanel } from './BinInventoryPanel';
 import { binCapacityFormSchema, type BinCapacityFormData } from '../schemas/warehouseSchemas';
 import type { BinOccupancyLevel, Zone } from '../types/warehouseType';
 
@@ -261,6 +263,16 @@ export function ZoneDetail() {
   const categoryId = watch('categoryId');
   const productId = watch('productId');
 
+  const locationId = selectedBin?.id.replace('loc-', '').trim() ?? '';
+  const { data: binInventories = [], isLoading: isInventoryLoading } = useBinInventories(locationId);
+  const inventoryCurrentLoad = binInventories.reduce((sum, row) => sum + row.available_quantity, 0);
+
+  useEffect(() => {
+    if (!isInventoryLoading) {
+      setValue('currentLoad', inventoryCurrentLoad);
+    }
+  }, [inventoryCurrentLoad, isInventoryLoading, setValue]);
+
   const allowedCategories = useMemo(() => {
     const allowedIdSet = new Set(zone?.allowedCategoryIds ?? []);
     return (categoryOptionsQuery.data ?? []).filter((item) => allowedIdSet.has(item.id));
@@ -346,8 +358,7 @@ export function ZoneDetail() {
   }, [clearErrors, productId]);
 
   const capacity = watch('capacity');
-  const currentLoad = watch('currentLoad');
-  const occupancy = capacity > 0 ? Math.round((currentLoad / capacity) * 100) : 0;
+  const occupancy = capacity > 0 ? Math.round((inventoryCurrentLoad / capacity) * 100) : 0;
 
   const onSubmit = async (payload: BinCapacityFormData) => {
     if (!zone || !selectedBin || !canManage) return;
@@ -649,6 +660,13 @@ export function ZoneDetail() {
         </div>
 
         <div className="space-y-6 xl:col-span-4">
+          {selectedBin && locationId && (
+            <BinInventoryPanel
+              locationId={locationId}
+              warehouseId={warehouseId}
+              zoneId={zone.id}
+            />
+          )}
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
@@ -685,8 +703,21 @@ export function ZoneDetail() {
                 <div className="grid grid-cols-2 gap-3">
                   <input type="hidden" {...register('items', { valueAsNumber: true })} />
                   <input type="hidden" {...register('productCount', { valueAsNumber: true })} />
+                  <input type="hidden" {...register('currentLoad', { valueAsNumber: true })} />
                   <Field label="Capacity" error={errors.capacity?.message}><input type="number" min={1} step={1} {...register('capacity', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.capacity)} /></Field>
-                  <Field label="Current Load" error={errors.currentLoad?.message}><input type="number" min={0} step="any" {...register('currentLoad', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.currentLoad)} /></Field>
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Current Load
+                    </span>
+                    <div className={`${inputClass(false)} flex items-center justify-between bg-slate-50 cursor-not-allowed`}>
+                      {isInventoryLoading
+                        ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
+                        : <span className="text-slate-500">{inventoryCurrentLoad}</span>
+                      }
+                      <span className="material-symbols-outlined text-[13px] text-slate-300">lock</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Từ API tồn kho</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
@@ -747,11 +778,7 @@ export function ZoneDetail() {
                   <div className="h-2 overflow-hidden rounded-full bg-slate-200">
                     <div className={`h-full ${occupancy > 100 ? 'bg-red-600' : 'bg-blue-700'}`} style={{ width: `${Math.min(100, Math.max(0, occupancy))}%` }}></div>
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <button type="button" onClick={() => setValue('currentLoad', Math.max(0, currentLoad - 10))} disabled={!canManage || updateBinMutation.isPending} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60">-10</button>
-                    <button type="button" onClick={() => setValue('currentLoad', currentLoad + 10)} disabled={!canManage || updateBinMutation.isPending} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60">+10</button>
-                    <button type="button" onClick={() => setValue('currentLoad', capacity)} disabled={!canManage || updateBinMutation.isPending} className="rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Set Full</button>
-                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Sức chứa thực tế được cập nhật qua kiểm kê ô bên dưới.</p>
                 </div>
 
                 <button

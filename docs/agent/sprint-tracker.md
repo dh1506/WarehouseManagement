@@ -1,5 +1,58 @@
 # Sprint Tracker
 
+## Outbound LineItemEditor — Inventory Availability Display & Validation — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Add `currentLoad` to `BinAssignmentValue` interface | ✅ | `warehouseService.ts` — interface extended |
+| Pass `currentLoad: payload.currentLoad` in `setBinAssignmentFallback` call | ✅ | `updateZoneBinCapacity` in `warehouseService.ts` |
+| Export `getProductAvailableQtyFromBinFallback(productId)` | ✅ | Reads all bin entries from localStorage, sums currentLoad by productId |
+| Rewrite `getOutboundProductInventoryAvailability` — two-layer strategy | ✅ | Layer 1: localStorage (sync). Layer 2: API. Prefer fallback when > 0 |
+| Add `stockOutKeys.productInventory(productId)` | ✅ | `useOutbound.ts` |
+| Add `useProductInventoryAvailability(productId)` hook | ✅ | `useOutbound.ts` — staleTime 2 min, enabled when productId > 0 |
+| Extract `LineItemRow` sub-component | ✅ | Per-row `useWatch` + debounced fetch + `useRef`-guarded setError |
+| Add `InventoryAvailabilityBadge` UI | ✅ | Loading spinner / green "Tồn kho: X" / red "Hết hàng" |
+| Quantity over-limit → `setError` → disables submit via `formState.isValid` | ✅ | `details.${index}.quantity` manual error |
+
+**Root cause resolved:**
+- `BinAssignmentValue` was missing `currentLoad` → localStorage fallback returned 0 → displayed nothing
+- `getOutboundProductInventoryAvailability` was API-only → failed silently when BE hadn't synced
+
+**Files changed:**
+- `src/services/warehouseService.ts` — `BinAssignmentValue` + `getBinAssignmentFallbackMap` + `setBinAssignmentFallback` + `updateZoneBinCapacity` + new export `getProductAvailableQtyFromBinFallback`
+- `src/features/outbound/services/outboundService.ts` — import + full rewrite of availability function
+- `src/features/outbound/hooks/useOutbound.ts` — `productInventory` key + `useProductInventoryAvailability`
+- `src/features/outbound/components/LineItemEditor.tsx` — full rewrite with `LineItemRow` + `InventoryAvailabilityBadge`
+
+**Assumption:** Parent form submit button must bind `disabled={!formState.isValid || mutation.isPending}` for blocking to take effect. If not already done, that single change is required in the parent.
+
+---
+
+## Outbound Available Qty Always 0 After Warehouse Hub Update — 2026-04-16 (COMPLETED — simplified)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Diagnose `Available: 0` despite bin having currentLoad = 100 | ✅ | Three-layer failure: (1) `syncBinInventoryFromCurrentLoad` POST/PUT silently fails; (2) location API `current_weight` unreliable from BE; (3) `currentLoad` never stored in localStorage |
+| Store `currentLoad` in `wm:bin-assignment-scope` on bin save | ✅ | `setBinAssignmentFallback` now includes `currentLoad: payload.currentLoad` — `warehouseService.ts` |
+| Rewrite `getAvailabilityFromWarehouseHubFallback` | ✅ | Reads `currentLoad` directly from localStorage (synchronous, no API call) — `outboundService.ts` |
+| Priority fix: prefer fallback over stale inventory API | ✅ | `getOutboundProductInventoryAvailability` runs both in parallel, uses fallback when > 0 — `outboundService.ts` |
+| Backward compat: legacy API fallback for old entries | ✅ | `getAvailabilityFromLocationApiFallback` used only for localStorage entries without `currentLoad` field |
+
+**Root cause (complete chain):**
+1. User saves bin (currentLoad=100) → `PATCH /api/warehouses/locations/:id` succeeds ✅
+2. `syncBinInventoryFromCurrentLoad` → `POST /api/inventories` silently fails (BE may not allow direct inventory writes) ❌
+3. `setBinAssignmentFallback` wrote `{ productId, categoryId, productName }` to localStorage — **`currentLoad` was missing** ❌
+4. Fallback read `current_weight` from location API — BE may not persist this reliably → returns 0 ❌
+5. Both sources return 0 → Available: 0 in outbound sheet ❌
+
+**Fix:** `currentLoad` is now persisted in `wm:bin-assignment-scope` at save time. Fallback reads it directly — zero dependency on BE response fields or inventory write success.
+
+**Files changed:**
+- `src/services/warehouseService.ts` — `BinAssignmentValue` interface + `setBinAssignmentFallback` call
+- `src/features/outbound/services/outboundService.ts` — `BinAssignmentValue` interface + full fallback rewrite
+
+---
+
 ## Zone Detail Bin Re-select Persistence Fix — 2026-04-16 (COMPLETED)
 
 | Task                                    | Status | Notes                                                                                     |

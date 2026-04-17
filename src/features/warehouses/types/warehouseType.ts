@@ -190,3 +190,15 @@ export interface WarehouseLocationFormValues {
   productCount: number;
   status: WarehouseLocationStatus;
 }
+
+export interface BinInventoryItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  lot_id: number | null;
+  lot_code: string | null;
+  available_quantity: number;
+  uom_name: string;
+  product_uom_id: number;
+}

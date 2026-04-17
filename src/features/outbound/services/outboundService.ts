@@ -1,5 +1,6 @@
 import apiClient from '@/services/apiClient';
 import type { ApiResponse } from '@/types/api';
+import { getProductAvailableQtyFromBinFallback } from '@/services/warehouseService';
 import type {
   StockOut,
   StockOutHistoryItem,
@@ -13,8 +14,8 @@ import type {
 
 interface ProductInventoryRow {
   warehouse_location_id?: number;
-  available_quantity?: number | string;
-  availableQuantity?: number | string;
+  available_quantity?: number | string | null;
+  availableQuantity?: number | string | null;
   quantity?: number | string;
   reserved_quantity?: number | string;
   reservedQuantity?: number | string;
@@ -181,44 +182,64 @@ export async function getStockOutHistory(id: number): Promise<StockOutHistoryIte
 }
 
 /**
- * FE helper for create-sheet validation.
- * Reads available quantity by product and returns a preferred location id
- * (first row from inventory list) so FE can keep BE payload compatible.
+ * Đọc số lượng tồn kho khả dụng của sản phẩm.
+ *
+ * Chiến lược hai lớp (chạy song song):
+ *  1. localStorage fallback — đọc currentLoad từ `wm:bin-assignment-scope` (ghi bởi Zone Detail).
+ *     Đây là nguồn chính xác nhất ngay sau khi operator cập nhật bin, vì API có thể chậm đồng bộ.
+ *  2. API /api/inventories — nguồn chính thức, dùng khi fallback chưa có dữ liệu.
+ *
+ * Ưu tiên: fallback > 0 → dùng fallback; ngược lại → dùng API.
  */
 export async function getOutboundProductInventoryAvailability(productId: number): Promise<{
   availableQty: number;
   preferredLocationId: number | null;
 }> {
-  const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
-    params: {
-      product_id: productId,
-      page: 1,
-      limit: 100,
-    },
-  });
+  // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
+  const fallbackQty = getProductAvailableQtyFromBinFallback(String(productId));
 
-  const payload = unwrap<ProductInventoryPayload>(response);
-  const rows = payload.items ?? payload.inventories ?? [];
-
-  let availableQty = 0;
+  // Lớp 2: gọi API song song với lớp 1 (không chặn nhau)
+  let apiQty = 0;
   let preferredLocationId: number | null = null;
 
-  rows.forEach((row) => {
-    const explicitAvailable = Number(row.available_quantity ?? row.availableQuantity);
-    const quantity = Number(row.quantity);
-    const reserved = Number(row.reserved_quantity ?? row.reservedQuantity);
-    const nextAvailable = Number.isFinite(explicitAvailable)
-      ? explicitAvailable
-      : (Number.isFinite(quantity) ? quantity - (Number.isFinite(reserved) ? reserved : 0) : 0);
-    availableQty += nextAvailable;
+  try {
+    const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
+      params: { product_id: productId, page: 1, limit: 100 },
+    });
 
-    if (preferredLocationId == null && typeof row.warehouse_location_id === 'number' && row.warehouse_location_id > 0) {
-      preferredLocationId = row.warehouse_location_id;
-    }
-  });
+    const payload = unwrap<ProductInventoryPayload>(response);
+    const rows = payload.items ?? payload.inventories ?? [];
 
-  return {
-    availableQty,
-    preferredLocationId,
-  };
+    rows.forEach((row) => {
+      const explicitAvailable = Number(row.available_quantity ?? row.availableQuantity);
+      const quantity = Number(row.quantity);
+      const reserved = Number(row.reserved_quantity ?? row.reservedQuantity);
+
+      // Dùng available_quantity nếu có (>= 0), ngược lại tính quantity - reserved
+      const rowAvailable =
+        Number.isFinite(explicitAvailable) && explicitAvailable >= 0
+          ? explicitAvailable
+          : Number.isFinite(quantity)
+            ? quantity - (Number.isFinite(reserved) ? reserved : 0)
+            : 0;
+
+      apiQty += rowAvailable;
+
+      if (
+        preferredLocationId == null &&
+        typeof row.warehouse_location_id === 'number' &&
+        row.warehouse_location_id > 0
+      ) {
+        preferredLocationId = row.warehouse_location_id;
+      }
+    });
+  } catch {
+    // API chưa sẵn sàng hoặc timeout — fallback sẽ được dùng
+  }
+
+  // Ưu tiên fallback khi có dữ liệu (operator vừa lưu bin trong Zone Detail)
+  // vì API inventory có thể chưa phản ánh đúng sau syncBinInventoryFromCurrentLoad
+  const availableQty = fallbackQty > 0 ? fallbackQty : apiQty;
+
+  return { availableQty, preferredLocationId };
 }
