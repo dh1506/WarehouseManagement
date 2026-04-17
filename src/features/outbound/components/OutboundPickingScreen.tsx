@@ -1,9 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStockOut, useUpdatePickedLots, useCompleteStockOut } from '../hooks/useOutbound';
 import { useToast } from '@/hooks/use-toast';
-import { resolveProductLotCodeToId } from '../services/outboundService';
+import {
+  createStockOutDiscrepancy,
+  resolveProductLotCodeToId,
+  saveStockOutDiscrepancyResolution,
+  resolveStockOutDiscrepancy,
+} from '../services/outboundService';
 import type {
   StockOutDetail,
   PickedLotEntry,
@@ -16,6 +21,9 @@ interface LotAssignment {
   lotValue: string;
   quantity: number;
 }
+
+const DISCREPANCY_REASON_MIN_LENGTH = 5;
+const DISCREPANCY_REASON_MAX_LENGTH = 500;
 
 /** Gán lô: detailId → danh sách lô */
 type DetailAssignments = Record<number, LotAssignment[]>;
@@ -184,13 +192,12 @@ function DetailCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: idx * 0.04 }}
-      className={`rounded-2xl border-2 overflow-hidden ${
-        isFulfilled && !isOver
-          ? 'border-emerald-200 bg-emerald-50/30'
-          : isOver
-            ? 'border-amber-200 bg-amber-50/30'
-            : 'border-slate-200 bg-white'
-      }`}
+      className={`rounded-2xl border-2 overflow-hidden ${isFulfilled && !isOver
+        ? 'border-emerald-200 bg-emerald-50/30'
+        : isOver
+          ? 'border-amber-200 bg-amber-50/30'
+          : 'border-slate-200 bg-white'
+        }`}
     >
       {/* Product info */}
       <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
@@ -277,6 +284,7 @@ function DetailCard({
 
 /** Panel hiển thị lệch số lượng khi hoàn tất thất bại */
 function DiscrepancyPanel({
+  open,
   discrepancies,
   errorMessage,
   onGoBack,
@@ -285,6 +293,7 @@ function DiscrepancyPanel({
   onContinue,
   continueDisabled,
 }: {
+  open: boolean;
   discrepancies: StockOutDiscrepancy[];
   errorMessage: string;
   onGoBack: () => void;
@@ -293,84 +302,217 @@ function DiscrepancyPanel({
   onContinue: () => void;
   continueDisabled: boolean;
 }) {
-  const resolutionError = resolutionMeasure.trim().length === 0;
+  if (!open) {
+    return null;
+  }
+
+  const normalized = resolutionMeasure.replace(/\s+/g, ' ').trim();
+  const validationErrors: string[] = [];
+
+  if (normalized.length === 0) {
+    validationErrors.push('Vui lòng nhập lý do xử lý sự cố.');
+  }
+  if (normalized.length > 0 && normalized.length < DISCREPANCY_REASON_MIN_LENGTH) {
+    validationErrors.push(`Lý do phải có tối thiểu ${DISCREPANCY_REASON_MIN_LENGTH} ký tự.`);
+  }
+  if (normalized.length > DISCREPANCY_REASON_MAX_LENGTH) {
+    validationErrors.push(`Lý do không được vượt quá ${DISCREPANCY_REASON_MAX_LENGTH} ký tự.`);
+  }
+  if (normalized.length > 0 && !/[\p{L}\p{N}]/u.test(normalized)) {
+    validationErrors.push('Lý do phải chứa ít nhất 1 chữ hoặc số hợp lệ.');
+  }
+
+  const resolutionError = validationErrors.length > 0;
+  const remainingChars = DISCREPANCY_REASON_MAX_LENGTH - normalized.length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-red-50 rounded-2xl border-2 border-red-200 overflow-hidden"
-    >
-      <div className="px-5 py-4 bg-red-100 border-b border-red-200 flex items-center gap-3">
-        <span className="material-symbols-outlined text-red-600 text-base">warning</span>
-        <div>
-          <h3 className="text-sm font-bold text-red-800">Sự cố số lượng — Không thể hoàn tất</h3>
-          <p className="text-xs text-red-600">{errorMessage}</p>
-        </div>
-      </div>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-60 flex items-center justify-center p-4"
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/40"
+          onClick={onGoBack}
+          aria-label="Đóng xử lý sự cố"
+        />
 
-      <div className="p-4 space-y-2">
-        {discrepancies.map((d) => (
-          <div
-            key={d.stock_out_detail_id}
-            className="flex items-center justify-between gap-3 bg-white rounded-xl px-4 py-3 border border-red-100"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{d.product_name}</p>
-              <p className="text-[10px] text-slate-400 font-mono">{d.product_sku}</p>
+        <motion.div
+          initial={{ opacity: 0, y: 8, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.97 }}
+          className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl border-2 border-red-200 bg-red-50 shadow-2xl"
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-red-200 bg-red-100 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-base text-red-600">warning</span>
+              <div>
+                <h3 className="text-sm font-bold text-red-800">Xử lý sự cố số lượng</h3>
+                <p className="text-xs text-red-600">{errorMessage}</p>
+              </div>
             </div>
-            <div className="shrink-0 text-right text-xs">
-              <p className="text-slate-500">
-                Yêu cầu: <span className="font-bold text-slate-800">{d.required_quantity}</span>
+            <button
+              type="button"
+              onClick={onGoBack}
+              className="rounded-lg p-1 text-red-500 transition-colors hover:bg-red-200/70 hover:text-red-700"
+              aria-label="Đóng xử lý sự cố"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
+
+          <div className="max-h-[45vh] space-y-2 overflow-y-auto p-4">
+            {discrepancies.map((d) => (
+              <div
+                key={d.stock_out_detail_id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-white px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-800">{d.product_name}</p>
+                  <p className="font-mono text-[10px] text-slate-400">{d.product_sku}</p>
+                </div>
+                <div className="shrink-0 text-right text-xs">
+                  <p className="text-slate-500">
+                    Yêu cầu: <span className="font-bold text-slate-800">{d.required_quantity}</span>
+                  </p>
+                  <p className="text-slate-500">
+                    Đã gán: <span className="font-bold text-slate-800">{d.picked_quantity}</span>
+                  </p>
+                  <p className={`font-bold ${d.difference < 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                    {d.difference < 0 ? `Thiếu ${Math.abs(d.difference)}` : `Thừa ${d.difference}`}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3 px-4 pb-4">
+            <div>
+              <label htmlFor="discrepancy-resolution-measure" className="mb-1 block text-xs font-semibold text-red-700">
+                Lý do xử lý sự cố <span className="text-red-600">*</span>
+              </label>
+              <textarea
+                id="discrepancy-resolution-measure"
+                value={resolutionMeasure}
+                onChange={(event) => onResolutionMeasureChange(event.target.value)}
+                rows={4}
+                maxLength={DISCREPANCY_REASON_MAX_LENGTH + 20}
+                placeholder="Ví dụ: Chênh lệch do hàng rách bao bì, đã kiểm đếm lại tại bin A-04-12 và xác nhận với quản lý ca."
+                className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition ${resolutionError ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100'}`}
+              />
+
+              {resolutionError ? (
+                <div className="mt-1 space-y-0.5">
+                  {validationErrors.map((error) => (
+                    <p key={error} className="text-[11px] text-red-600">{error}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Lý do hợp lệ. Còn lại {remainingChars} ký tự.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={onGoBack}
+                className="flex-1 rounded-xl border border-red-200 bg-white py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50"
+                style={{ minHeight: 48 }}
+              >
+                Quay lại chỉnh số lượng
+              </button>
+              <button
+                onClick={onContinue}
+                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={continueDisabled || resolutionError}
+                style={{ minHeight: 48 }}
+              >
+                Xác nhận xử lý sự cố
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function CompleteConfirmDialog({
+  open,
+  orderCode,
+  onCancel,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean;
+  orderCode: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/40"
+          onClick={onCancel}
+          aria-label="Đóng xác nhận hoàn tất"
+        />
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+        >
+          <div className="mb-4 flex items-start gap-3">
+            <span className="material-symbols-outlined mt-0.5 text-emerald-600">task_alt</span>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Xác nhận hoàn tất phiếu</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Bạn có chắc muốn hoàn tất phiếu <span className="font-semibold">{orderCode}</span>?
               </p>
-              <p className="text-slate-500">
-                Đã gán: <span className="font-bold text-slate-800">{d.picked_quantity}</span>
-              </p>
-              <p className={`font-bold ${d.difference < 0 ? 'text-red-600' : 'text-amber-600'}`}>
-                {d.difference < 0 ? `Thiếu ${Math.abs(d.difference)}` : `Thừa ${d.difference}`}
+              <p className="mt-1 text-xs text-slate-500">
+                Hệ thống sẽ trừ tồn kho thực tế và đóng phiếu ở trạng thái COMPLETED.
               </p>
             </div>
           </div>
-        ))}
-      </div>
 
-      <div className="px-4 pb-4 space-y-3">
-        <div>
-          <label htmlFor="discrepancy-resolution-measure" className="mb-1 block text-xs font-semibold text-red-700">
-            Biện pháp xử lý chênh lệch <span className="text-red-600">*</span>
-          </label>
-          <textarea
-            id="discrepancy-resolution-measure"
-            value={resolutionMeasure}
-            onChange={(event) => onResolutionMeasureChange(event.target.value)}
-            rows={3}
-            placeholder="Ví dụ: Tạm giữ phiếu, kiểm kho lại theo lô, báo quản lý kho xác nhận số thực tế..."
-            className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition ${resolutionError ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100'}`}
-          />
-          {resolutionError ? (
-            <p className="mt-1 text-[11px] text-red-600">Vui lòng nhập biện pháp xử lý để tiếp tục.</p>
-          ) : null}
-        </div>
-
-        <div className="flex gap-2">
-        <button
-          onClick={onGoBack}
-          className="flex-1 py-3 bg-white border border-red-200 text-red-600 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors"
-          style={{ minHeight: 48 }}
-        >
-          Điều chỉnh lại số lượng
-        </button>
-        <button
-          onClick={onContinue}
-          className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          disabled={continueDisabled}
-          style={{ minHeight: 48 }}
-        >
-          Tiếp tục với chênh lệch
-        </button>
-        </div>
-      </div>
-    </motion.div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isPending}
+              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isPending}
+              className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {isPending ? 'Đang xử lý...' : 'Xác nhận hoàn tất'}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
@@ -396,6 +538,52 @@ export function OutboundPickingScreen() {
     message: string;
   }>({ visible: false, items: [], message: '' });
   const [discrepancyResolutionMeasure, setDiscrepancyResolutionMeasure] = useState('');
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  );
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+
+  const normalizeDiscrepancyReason = useCallback((value: string) => value.replace(/\s+/g, ' ').trim(), []);
+
+  const validateDiscrepancyReason = useCallback(
+    (value: string) => {
+      const normalized = normalizeDiscrepancyReason(value);
+      const errors: string[] = [];
+
+      if (!normalized) {
+        errors.push('Vui lòng nhập lý do xử lý sự cố.');
+      }
+      if (normalized.length > 0 && normalized.length < DISCREPANCY_REASON_MIN_LENGTH) {
+        errors.push(`Lý do phải có tối thiểu ${DISCREPANCY_REASON_MIN_LENGTH} ký tự.`);
+      }
+      if (normalized.length > DISCREPANCY_REASON_MAX_LENGTH) {
+        errors.push(`Lý do không được vượt quá ${DISCREPANCY_REASON_MAX_LENGTH} ký tự.`);
+      }
+      if (normalized.length > 0 && !/[\p{L}\p{N}]/u.test(normalized)) {
+        errors.push('Lý do phải chứa ít nhất 1 chữ hoặc số hợp lệ.');
+      }
+
+      return {
+        normalized,
+        valid: errors.length === 0,
+        errors,
+      };
+    },
+    [normalizeDiscrepancyReason],
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Khởi tạo assignments từ dữ liệu đã có (lots từ BE khi load)
   const getDetailAssignments = useCallback(
@@ -430,47 +618,55 @@ export function OutboundPickingScreen() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-white">
-        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-        <p className="text-sm text-slate-400 font-medium">Đang tải phiếu lấy hàng...</p>
-      </div>
-    );
-  }
+  const details = order?.details ?? [];
+  const outboundLocationId = order?.warehouse_location_id ?? 0;
 
-  // Access guard — chỉ APPROVED hoặc PICKING mới được vào
-  if (!order || (order.status !== 'APPROVED' && order.status !== 'PICKING')) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-white px-6">
-        <span className="material-symbols-outlined text-4xl text-amber-300">lock</span>
-        <h2 className="text-base font-bold text-slate-700 text-center">
-          Phiếu chưa sẵn sàng để lấy hàng
-        </h2>
-        <p className="text-sm text-slate-400 text-center max-w-xs">
-          Chỉ phiếu ở trạng thái <strong>Đã duyệt</strong> hoặc{' '}
-          <strong>Đang lấy hàng</strong> mới có thể thực hiện bước này.
-        </p>
-        <button
-          onClick={() => navigate(`/outbound/${rawId}`)}
-          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl text-sm"
-          style={{ minHeight: 48 }}
-        >
-          Về chi tiết phiếu
-        </button>
-      </div>
-    );
-  }
+  const lineStats = useMemo(() => {
+    return details.map((detail) => {
+      const lots = assignments[detail.id] ?? getDetailAssignments(detail);
+      const picked = lots.reduce((sum, lot) => sum + (lot.quantity || 0), 0);
+      const required = Number(detail.quantity) || 0;
 
-  const details = order.details;
+      return {
+        detail,
+        picked,
+        required,
+        isEnough: picked === required,
+        isOver: picked > required,
+      };
+    });
+  }, [assignments, details, getDetailAssignments]);
 
-  // Tính tiến độ
-  const totalRequired = details.reduce((s, d) => s + d.quantity, 0);
-  const totalPicked = details.reduce((s, d) => {
-    const lots = assignments[d.id] ?? getDetailAssignments(d);
-    return s + lots.reduce((ls, l) => ls + (l.quantity || 0), 0);
-  }, 0);
-  const progressPct = totalRequired > 0 ? Math.min(100, Math.round((totalPicked / totalRequired) * 100)) : 0;
+  // Tiến độ theo số dòng đã đủ (theo AC: 1/5 dòng = 20%)
+  const enoughCount = useMemo(
+    () => lineStats.filter((line) => line.isEnough).length,
+    [lineStats],
+  );
+
+  const hasOverAssigned = useMemo(
+    () => lineStats.some((line) => line.isOver),
+    [lineStats],
+  );
+
+  const totalRequired = useMemo(
+    () => lineStats.reduce((sum, line) => sum + line.required, 0),
+    [lineStats],
+  );
+
+  const totalPicked = useMemo(
+    () => lineStats.reduce((sum, line) => sum + line.picked, 0),
+    [lineStats],
+  );
+
+  const hasDiscrepancy = useMemo(
+    () => lineStats.some((line) => line.picked !== line.required),
+    [lineStats],
+  );
+
+  const progressPct = useMemo(() => {
+    if (details.length === 0) return 0;
+    return Math.round((enoughCount / details.length) * 100);
+  }, [details.length, enoughCount]);
 
   // Kiểm tra discrepancies cục bộ
   const computeDiscrepancies = (): StockOutDiscrepancy[] => {
@@ -527,14 +723,14 @@ export function OutboundPickingScreen() {
 
         if (numericLotId == null) {
           const normalizedLotCode = lot.lotValue.trim();
-          const cacheKey = `${detail.product_id}:${order.warehouse_location_id}:${normalizedLotCode.toLowerCase()}`;
+          const cacheKey = `${detail.product_id}:${outboundLocationId}:${normalizedLotCode.toLowerCase()}`;
 
           if (lotCodeCache.has(cacheKey)) {
             numericLotId = lotCodeCache.get(cacheKey) ?? null;
           } else {
             const resolvedLotId = await resolveProductLotCodeToId(
               detail.product_id,
-              order.warehouse_location_id,
+              outboundLocationId,
               normalizedLotCode,
             );
             lotCodeCache.set(cacheKey, resolvedLotId);
@@ -565,6 +761,15 @@ export function OutboundPickingScreen() {
 
   /** Lưu tất cả lot assignments (PUT /picked-lots) */
   const handleSaveAssignments = async () => {
+    if (!isOnline) {
+      toast({
+        title: 'Mất kết nối mạng',
+        description: 'Không thể lưu tạm khi đang offline. Vui lòng kiểm tra mạng và thử lại.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const { payload: lots, invalidLotValues } = await buildLotsPayload();
 
     if (invalidLotValues.length > 0) {
@@ -594,6 +799,24 @@ export function OutboundPickingScreen() {
 
   /** Hoàn tất phiếu xuất (PATCH /complete) */
   const handleComplete = async (allowDiscrepancy: boolean = false) => {
+    if (!isOnline) {
+      toast({
+        title: 'Mất kết nối mạng',
+        description: 'Không thể hoàn tất phiếu khi đang offline. Vui lòng kiểm tra mạng và thử lại.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (hasOverAssigned) {
+      toast({
+        title: 'Số lượng vượt yêu cầu',
+        description: 'Có dòng lô đang vượt số lượng yêu cầu. Vui lòng điều chỉnh trước khi hoàn tất.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Kiểm tra discrepancy cục bộ trước
     const discrepancies = computeDiscrepancies();
     if (discrepancies.length > 0 && !allowDiscrepancy) {
@@ -601,8 +824,10 @@ export function OutboundPickingScreen() {
       return;
     }
 
-    if (discrepancies.length > 0 && discrepancyResolutionMeasure.trim().length === 0) {
-      openDiscrepancyPanel(discrepancies, 'Vui lòng nhập biện pháp xử lý chênh lệch để tiếp tục.');
+    const reasonValidation = validateDiscrepancyReason(discrepancyResolutionMeasure);
+
+    if (discrepancies.length > 0 && !reasonValidation.valid) {
+      openDiscrepancyPanel(discrepancies, reasonValidation.errors[0] ?? 'Vui lòng nhập lý do xử lý sự cố hợp lệ để tiếp tục.');
       return;
     }
 
@@ -627,6 +852,26 @@ export function OutboundPickingScreen() {
     }
 
     try {
+      if (discrepancies.length > 0) {
+        setDiscrepancyResolutionMeasure(reasonValidation.normalized);
+
+        const createdDiscrepancy = await createStockOutDiscrepancy(numericId, {
+          reason: reasonValidation.normalized,
+        });
+
+        const resolvedDiscrepancy = await resolveStockOutDiscrepancy(numericId, createdDiscrepancy.id, {
+          action_taken: reasonValidation.normalized,
+        });
+
+        saveStockOutDiscrepancyResolution({
+          stockOutId: numericId,
+          discrepancyId: createdDiscrepancy.id,
+          reason: createdDiscrepancy.reason,
+          actionTaken: resolvedDiscrepancy.action_taken?.trim() || reasonValidation.normalized,
+          resolvedAt: new Date().toISOString(),
+        });
+      }
+
       await completeMutation.mutateAsync();
       navigate('/outbound');
     } catch (err: unknown) {
@@ -639,116 +884,203 @@ export function OutboundPickingScreen() {
   };
 
   const isCompleting = completeMutation.isPending;
-  const allFulfilled =
-    details.length > 0 &&
-    details.every((d) => {
-      const lots = assignments[d.id] ?? getDetailAssignments(d);
-      const picked = lots.reduce((s, l) => s + (l.quantity || 0), 0);
-      return picked >= d.quantity;
-    });
+  const allFulfilled = details.length > 0 && enoughCount === details.length;
+  const completeButtonLabel = hasDiscrepancy ? 'Xử lý sự cố' : 'Hoàn tất phiếu xuất';
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-white">
+        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+        <p className="text-sm text-slate-400 font-medium">Đang tải phiếu lấy hàng...</p>
+      </div>
+    );
+  }
+
+  // Access guard — chỉ APPROVED hoặc PICKING mới được vào
+  if (!order || (order.status !== 'APPROVED' && order.status !== 'PICKING')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-white px-6">
+        <span className="material-symbols-outlined text-4xl text-amber-300">lock</span>
+        <h2 className="text-base font-bold text-slate-700 text-center">
+          Phiếu chưa sẵn sàng để lấy hàng
+        </h2>
+        <p className="text-sm text-slate-400 text-center max-w-xs">
+          Chỉ phiếu ở trạng thái <strong>Đã duyệt</strong> hoặc{' '}
+          <strong>Đang lấy hàng</strong> mới có thể thực hiện bước này.
+        </p>
+        <button
+          onClick={() => navigate(`/outbound/${rawId}`)}
+          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl text-sm"
+          style={{ minHeight: 48 }}
+        >
+          Về chi tiết phiếu
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-36">
+    <div className="h-full overflow-y-auto bg-slate-50 pb-8">
       <PickingHeader
         code={order.code}
         onBack={() => navigate(`/outbound/${rawId}`)}
         onRefresh={() => refetch()}
       />
 
-      <div className="px-4 py-5 space-y-4 max-w-4xl mx-auto">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px] md:items-end">
+          <div>
+            <h1 className="font-headline text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
+              Tác nghiệp lấy hàng
+            </h1>
+            <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+              <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+              Mã chứng từ: <span className="font-semibold text-slate-800">{order.code}</span>
+            </p>
+          </div>
 
-        {/* Progress */}
-        <ProgressBar pct={progressPct} />
-
-        {/* Thống kê nhanh */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { label: 'Tổng SP', value: details.length, color: 'text-slate-700' },
-            { label: 'Đã đủ', value: details.filter((d) => { const lots = assignments[d.id] ?? getDetailAssignments(d); return lots.reduce((s, l) => s + (l.quantity || 0), 0) >= d.quantity; }).length, color: 'text-emerald-600' },
-            { label: 'Tổng lấy', value: totalPicked, color: 'text-blue-700' },
-          ].map((item) => (
-            <div key={item.label} className="bg-white rounded-xl border border-slate-100 p-3 text-center shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
-              <p className={`text-base font-extrabold ${item.color}`}>{item.value}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tiến độ đợt lấy hàng</span>
+              <span className="font-headline text-lg font-extrabold text-secondary">{progressPct}%</span>
             </div>
-          ))}
-        </div>
-
-        {/* Discrepancy panel */}
-        <AnimatePresence>
-          {discrepancyState.visible && (
-            <DiscrepancyPanel
-              discrepancies={discrepancyState.items}
-              errorMessage={discrepancyState.message}
-              onGoBack={() => setDiscrepancyState({ visible: false, items: [], message: '' })}
-              resolutionMeasure={discrepancyResolutionMeasure}
-              onResolutionMeasureChange={setDiscrepancyResolutionMeasure}
-              onContinue={() => {
-                void handleComplete(true);
-              }}
-              continueDisabled={isCompleting || discrepancyResolutionMeasure.trim().length === 0}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Detail cards */}
-        <div className="space-y-3">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
-            Danh sách gán lô hàng
-          </p>
-          {details.map((detail, i) => (
-            <DetailCard
-              key={detail.id}
-              detail={detail}
-              assignments={assignments[detail.id] ?? getDetailAssignments(detail)}
-              onAssignmentsChange={(lots) => handleAssignmentsChange(detail.id, lots)}
-              idx={i}
-            />
-          ))}
-          {details.length === 0 && (
-            <div className="text-center py-10 text-slate-400 text-sm">
-              <span className="material-symbols-outlined text-2xl block mb-1">inventory_2</span>
-              Phiếu này chưa có sản phẩm.
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-secondary transition-all duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
-          )}
-        </div>
+          </div>
+        </section>
 
-        {/* Save assignments button */}
-        <button
-          type="button"
-          onClick={handleSaveAssignments}
-          disabled={isSaving || updateLotsMutation.isPending}
-          className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-700 font-bold rounded-2xl text-sm transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm"
-          style={{ minHeight: 52 }}
-        >
-          {isSaving || updateLotsMutation.isPending ? (
-            <span className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          ) : (
-            <span className="material-symbols-outlined text-[20px]">save</span>
-          )}
-          Lưu gán lô tạm thời
-        </button>
+        <section className="rounded-xl bg-primary-container p-5 text-white shadow-sm md:p-7">
+          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-white/15 p-3">
+                <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  location_on
+                </span>
+              </div>
+              <div>
+                <h2 className="font-headline text-2xl font-extrabold tracking-tight md:text-4xl">
+                  Bin {order.location?.code ?? `LOC-${order.warehouse_location_id}`}
+                </h2>
+                <p className="mt-1 text-sm text-white/85">Vị trí gợi ý ưu tiên lấy hàng tiếp theo</p>
+              </div>
+            </div>
+            <span className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold">
+              Khu vực: {order.location?.name ?? `#${order.warehouse_location_id}`}
+            </span>
+          </div>
+        </section>
+
+        {!isOnline && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+            Đang offline. Các thao tác Lưu và Hoàn tất đã bị khóa để tránh mất dữ liệu.
+          </div>
+        )}
+
+        {hasOverAssigned && (
+          <div className="rounded-lg border border-tertiary-fixed-dim bg-tertiary-fixed p-4 text-sm text-tertiary shadow-sm">
+            Tổng số lượng thực tế đang vượt yêu cầu ở ít nhất một dòng. Vui lòng điều chỉnh trước khi hoàn tất.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="font-headline text-lg font-bold text-slate-900">Tổng quan đợt lấy hàng</h3>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Tổng SP', value: details.length, color: 'text-slate-800' },
+                  { label: 'Đã đủ', value: enoughCount, color: 'text-emerald-600' },
+                  { label: 'Tổng lấy', value: totalPicked, color: 'text-[#0052cc]' },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-lg bg-slate-50 p-3 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{item.label}</p>
+                    <p className={`mt-1 text-lg font-extrabold ${item.color}`}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                Yêu cầu tổng: <span className="font-bold text-slate-900">{totalRequired}</span>
+              </div>
+            </div>
+          </aside>
+
+          <section className="space-y-4 xl:col-span-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Danh sách gán lô hàng</p>
+              <div className="space-y-3">
+                {details.map((detail, i) => (
+                  <DetailCard
+                    key={detail.id}
+                    detail={detail}
+                    assignments={assignments[detail.id] ?? getDetailAssignments(detail)}
+                    onAssignmentsChange={(lots) => handleAssignmentsChange(detail.id, lots)}
+                    idx={i}
+                  />
+                ))}
+                {details.length === 0 && (
+                  <div className="py-10 text-center text-sm text-slate-400">
+                    <span className="material-symbols-outlined mb-1 block text-2xl">inventory_2</span>
+                    Phiếu này chưa có sản phẩm.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSaveAssignments}
+              disabled={isSaving || updateLotsMutation.isPending || !isOnline}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-60"
+              style={{ minHeight: 52 }}
+            >
+              {isSaving || updateLotsMutation.isPending ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
+              ) : (
+                <span className="material-symbols-outlined text-[20px]">save</span>
+              )}
+              Lưu gán lô tạm thời
+            </button>
+          </section>
+        </div>
       </div>
 
       {/* ── Sticky footer: Complete button ───────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-xl px-4 py-4 safe-area-bottom">
-        <div className="max-w-lg mx-auto space-y-2">
+      <div className="sticky bottom-0 z-20 border-t border-slate-100 bg-white/95 px-4 py-4 shadow-xl backdrop-blur safe-area-bottom">
+        <div className="mx-auto max-w-3xl space-y-2">
           {!allFulfilled && (
             <p className="text-center text-xs text-amber-600 font-medium flex items-center justify-center gap-1">
               <span className="material-symbols-outlined text-[14px]">warning</span>
               Một số sản phẩm chưa đủ số lượng. Kiểm tra lại trước khi hoàn tất.
             </p>
           )}
+          {hasOverAssigned && (
+            <p className="text-center text-xs text-red-600 font-medium flex items-center justify-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">error</span>
+              Có dòng đang vượt số lượng yêu cầu. Vui lòng giảm số lượng để tiếp tục.
+            </p>
+          )}
           <motion.button
             type="button"
-            onClick={handleComplete}
-            disabled={isCompleting || details.length === 0}
+            onClick={() => {
+              if (hasDiscrepancy) {
+                const discrepancies = computeDiscrepancies();
+                openDiscrepancyPanel(discrepancies, 'Phát hiện chênh lệch số lượng. Vui lòng nhập lý do trước khi xuất.');
+                return;
+              }
+              setCompleteConfirmOpen(true);
+            }}
+            disabled={isCompleting || details.length === 0 || hasOverAssigned || !isOnline}
             whileTap={{ scale: 0.97 }}
-            className={`w-full flex items-center justify-center gap-3 font-extrabold rounded-2xl text-base transition-all disabled:opacity-60 ${
-              allFulfilled
+            className={`w-full flex items-center justify-center gap-3 font-extrabold rounded-2xl text-base transition-all disabled:opacity-60 ${hasDiscrepancy
+              ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30'
+              : allFulfilled
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30'
                 : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/30'
-            }`}
+              }`}
             style={{ minHeight: 56 }}
           >
             {isCompleting ? (
@@ -756,12 +1088,17 @@ export function OutboundPickingScreen() {
                 <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 Đang hoàn tất...
               </>
+            ) : hasDiscrepancy ? (
+              <>
+                <span className="material-symbols-outlined text-[22px]">report</span>
+                {completeButtonLabel}
+              </>
             ) : allFulfilled ? (
               <>
                 <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                   check_circle
                 </span>
-                Hoàn tất phiếu xuất
+                {completeButtonLabel}
               </>
             ) : (
               <>
@@ -772,6 +1109,30 @@ export function OutboundPickingScreen() {
           </motion.button>
         </div>
       </div>
+
+      <DiscrepancyPanel
+        open={discrepancyState.visible}
+        discrepancies={discrepancyState.items}
+        errorMessage={discrepancyState.message}
+        onGoBack={() => setDiscrepancyState({ visible: false, items: [], message: '' })}
+        resolutionMeasure={discrepancyResolutionMeasure}
+        onResolutionMeasureChange={setDiscrepancyResolutionMeasure}
+        onContinue={() => {
+          void handleComplete(true);
+        }}
+        continueDisabled={isCompleting}
+      />
+
+      <CompleteConfirmDialog
+        open={completeConfirmOpen}
+        orderCode={order.code}
+        isPending={isCompleting}
+        onCancel={() => setCompleteConfirmOpen(false)}
+        onConfirm={() => {
+          setCompleteConfirmOpen(false);
+          void handleComplete(false);
+        }}
+      />
     </div>
   );
 }

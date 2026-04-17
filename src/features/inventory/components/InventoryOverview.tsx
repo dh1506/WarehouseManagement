@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
@@ -9,6 +9,43 @@ import { useInventoryOverview, useProductLocationInventory } from '../hooks/useI
 import type { InventoryDetailRow, InventorySkuRow } from '../types/inventoryType';
 
 type WidgetFilter = 'all' | 'lowStock' | 'expiringSoon' | 'blocked';
+
+function generatePages(current: number, total: number): Array<number | '...'> {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, idx) => idx + 1);
+  }
+
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+
+  if (current >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+
+  return [1, '...', current - 1, current, current + 1, '...', total];
+}
+
+function PaginationButton({
+  icon,
+  disabled,
+  onClick,
+}: {
+  icon: 'chevron_left' | 'chevron_right';
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+    </button>
+  );
+}
 
 // ── KPI Widget ────────────────────────────────────────────────────────────────
 
@@ -398,9 +435,18 @@ export function InventoryOverview() {
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const pagedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const startItem = filteredRows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(page * PAGE_SIZE, filteredRows.length);
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#f8f9fb] px-3 py-3 sm:px-4 lg:px-5">
-      <div className="flex w-full flex-1 flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f8f9fb] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex w-full min-h-0 flex-1 flex-col gap-4">
         <PageHeader
           title="Inventory Overview"
           description="Central ledger for SKU inventory health — on-hand, available, allocation, and lot tracking."
@@ -515,7 +561,7 @@ export function InventoryOverview() {
 
         {/* ── Zone 3: Master Data Grid ────────────────────────────────────── */}
         {query.isLoading && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+          <div className="flex min-h-0 flex-1 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
             <StatePanel
               title="Đang tải dữ liệu tồn kho"
               description="Hệ thống đang đồng bộ sản phẩm và số liệu tồn kho."
@@ -525,7 +571,7 @@ export function InventoryOverview() {
         )}
 
         {query.isError && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+          <div className="flex min-h-0 flex-1 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
             <StatePanel
               title="Không tải được tồn kho"
               description="Kiểm tra kết nối API và thử lại."
@@ -537,7 +583,7 @@ export function InventoryOverview() {
         )}
 
         {data && !query.isLoading && (
-          <div className={`rounded-3xl border border-slate-200 bg-white shadow-sm transition-opacity ${query.isFetching ? 'opacity-70' : 'opacity-100'}`}>
+          <div className={`flex min-h-0 flex-1 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-opacity ${query.isFetching ? 'opacity-70' : 'opacity-100'}`}>
             {filteredRows.length === 0 ? (
               <div className="p-10">
                 <StatePanel
@@ -548,10 +594,10 @@ export function InventoryOverview() {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="min-h-0 flex-1 overflow-auto">
+                  <table className="w-full min-w-245">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/80">
+                      <tr className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur">
                         <th className="py-3 pl-4 pr-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           SKU Code
                         </th>
@@ -589,32 +635,43 @@ export function InventoryOverview() {
                   </table>
                 </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+                {/* Sticky pagination */}
+                <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-xs text-slate-500">
-                      Trang {page} / {totalPages} &nbsp;·&nbsp; {filteredRows.length} sản phẩm
+                      Hiển thị <span className="font-semibold text-slate-700">{startItem}-{endItem}</span> / <span className="font-semibold text-slate-700">{filteredRows.length}</span> sản phẩm
                     </span>
-                    <div className="flex gap-1.5">
-                      <button
-                        type="button"
+                    <div className="flex items-center gap-1">
+                      <PaginationButton
+                        icon="chevron_left"
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        ← Trước
-                      </button>
-                      <button
-                        type="button"
+                        disabled={page <= 1}
+                      />
+                      {generatePages(page, totalPages).map((p, i) =>
+                        p === '...' ? (
+                          <span key={`ellipsis-${i}`} className="px-1 text-xs text-slate-400">...</span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setPage(p as number)}
+                            className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-all ${page === p
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                              }`}
+                          >
+                            {p}
+                          </button>
+                        ),
+                      )}
+                      <PaginationButton
+                        icon="chevron_right"
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Sau →
-                      </button>
+                        disabled={page >= totalPages}
+                      />
                     </div>
                   </div>
-                )}
+                </div>
               </>
             )}
           </div>

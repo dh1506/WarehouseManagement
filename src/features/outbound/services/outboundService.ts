@@ -15,6 +15,7 @@ import type {
   UpdatePickedLotsPayload,
   CancelStockOutPayload,
   ProofType,
+  StockOutDiscrepancyRecord,
 } from '../types/outboundType';
 
 const PRODUCT_AVAILABILITY_CACHE_TTL_MS = 20_000;
@@ -53,6 +54,65 @@ interface ReviewInventoryPage {
 export interface StockOutReviewSnapshot {
   order: StockOut;
   availableByProduct: Record<number, number>;
+}
+
+export interface StoredStockOutDiscrepancyResolution {
+  stockOutId: number;
+  discrepancyId: number;
+  reason: string;
+  actionTaken: string;
+  resolvedAt: string;
+}
+
+const STOCK_OUT_DISCREPANCY_STORAGE_KEY = 'wm:stock-out-discrepancy-resolution:v1';
+
+function readDiscrepancyResolutionStore(): Record<string, StoredStockOutDiscrepancyResolution> {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STOCK_OUT_DISCREPANCY_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
+    }
+
+    return parsed as Record<string, StoredStockOutDiscrepancyResolution>;
+  } catch {
+    return {};
+  }
+}
+
+function writeDiscrepancyResolutionStore(store: Record<string, StoredStockOutDiscrepancyResolution>): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(STOCK_OUT_DISCREPANCY_STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    // Silent fail: localStorage may be unavailable in private mode/quota exceeded.
+  }
+}
+
+export function saveStockOutDiscrepancyResolution(
+  data: StoredStockOutDiscrepancyResolution,
+): void {
+  const store = readDiscrepancyResolutionStore();
+  store[String(data.stockOutId)] = data;
+  writeDiscrepancyResolutionStore(store);
+}
+
+export function getStoredStockOutDiscrepancyResolution(
+  stockOutId: number,
+): StoredStockOutDiscrepancyResolution | null {
+  const store = readDiscrepancyResolutionStore();
+  return store[String(stockOutId)] ?? null;
 }
 
 export async function resolveProductLotCodeToId(
@@ -190,9 +250,7 @@ export async function getStockOutReviewSnapshot(id: number): Promise<StockOutRev
 
   inventoryRows.forEach((row) => {
     const rowProductId = Number(row.product_id);
-    const rowLocationId = Number(row.warehouse_location_id);
-
-    if (!lineProductIds.has(rowProductId) || rowLocationId !== Number(order.warehouse_location_id)) {
+    if (!lineProductIds.has(rowProductId)) {
       return;
     }
 
@@ -267,6 +325,29 @@ export async function updatePickedLots(
 export async function completeStockOut(id: number): Promise<StockOut> {
   const response = await apiClient.patch<ApiResponse<StockOut>>(`/api/stock-outs/${id}/complete`);
   return unwrap<StockOut>(response);
+}
+
+export async function createStockOutDiscrepancy(
+  id: number,
+  payload: { reason: string },
+): Promise<StockOutDiscrepancyRecord> {
+  const response = await apiClient.post<ApiResponse<StockOutDiscrepancyRecord>>(
+    `/api/stock-outs/${id}/discrepancies`,
+    payload,
+  );
+  return unwrap<StockOutDiscrepancyRecord>(response);
+}
+
+export async function resolveStockOutDiscrepancy(
+  id: number,
+  discrepancyId: number,
+  payload: { action_taken: string },
+): Promise<StockOutDiscrepancyRecord> {
+  const response = await apiClient.patch<ApiResponse<StockOutDiscrepancyRecord>>(
+    `/api/stock-outs/${id}/discrepancies/${discrepancyId}/resolve`,
+    payload,
+  );
+  return unwrap<StockOutDiscrepancyRecord>(response);
 }
 
 // ─── Hủy phiếu xuất ──────────────────────────────────────────────────────────

@@ -201,6 +201,14 @@ export interface StockOutDiscrepancy {
   difference: number;
 }
 
+export interface StockOutDiscrepancyRecord {
+  id: number;
+  stock_out_id: number;
+  status: 'PENDING' | 'RESOLVED';
+  reason: string;
+  action_taken?: string | null;
+}
+
 // ─── Audit Log / History ──────────────────────────────────────────────────────
 
 /** Một bản ghi trong lịch sử thao tác của phiếu xuất (từ bảng audit_logs) */

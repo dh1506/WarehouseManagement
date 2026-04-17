@@ -245,7 +245,7 @@ export function useUpdatePickedLots(id: number) {
     mutationFn: (payload: UpdatePickedLotsPayload) => updatePickedLots(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockOutKeys.detail(id) });
-      toast({ title: 'Cập nhật lô hàng thành công' });
+      toast({ title: 'Progress saved successfully' });
     },
     onError: (error: Error) => {
       toast({

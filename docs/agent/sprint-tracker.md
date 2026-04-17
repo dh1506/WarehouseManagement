@@ -53,51 +53,55 @@
 
 ## Outbound Save Button Stuck Disabled Despite Valid Qty — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Remove hidden pre-submit disable gate on Save button | ✅ | Save button now disabled only while mutation is pending |
-| Keep business validation at submit-time with field errors/toast | ✅ | Existing `onSubmit` validation remains source of truth |
+| Task                                                            | Status | Notes                                                   |
+| --------------------------------------------------------------- | ------ | ------------------------------------------------------- |
+| Remove hidden pre-submit disable gate on Save button            | ✅     | Save button now disabled only while mutation is pending |
+| Keep business validation at submit-time with field errors/toast | ✅     | Existing `onSubmit` validation remains source of truth  |
 
 **File changed:**
+
 - `src/features/outbound/components/OutboundCreateSheet.tsx`
 
 ## Outbound Picking: Remove Proof + Mandatory Discrepancy Measure — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Remove proof upload section from picking UI | ✅ | `ProofUploadSection` removed from `OutboundPickingScreen.tsx` |
-| Require discrepancy mitigation before continue | ✅ | `DiscrepancyPanel` adds required textarea `Biện pháp xử lý chênh lệch` |
-| Block continue until mitigation is entered | ✅ | Continue button disabled when mitigation is empty |
+| Task                                           | Status | Notes                                                                  |
+| ---------------------------------------------- | ------ | ---------------------------------------------------------------------- |
+| Remove proof upload section from picking UI    | ✅     | `ProofUploadSection` removed from `OutboundPickingScreen.tsx`          |
+| Require discrepancy mitigation before continue | ✅     | `DiscrepancyPanel` adds required textarea `Biện pháp xử lý chênh lệch` |
+| Block continue until mitigation is entered     | ✅     | Continue button disabled when mitigation is empty                      |
 
 **File changed:**
+
 - `src/features/outbound/components/OutboundPickingScreen.tsx`
 
 ## Delivery Request Review Page Hardening — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Parallel load order + inventory for review page | ✅ | Added `getStockOutReviewSnapshot` with `Promise.all` |
-| Realtime Available Qty + inline insufficiency warning | ✅ | Added `Khả dụng realtime` column and red warning style |
-| Replace Unit Price with Unit of Measurement | ✅ | Review table now shows UoM column |
-| Block approve when insufficient stock | ✅ | Approve disabled in PENDING if any line requested > available |
-| Race-condition guard at approve click | ✅ | Force-network recheck before `PATCH /approve` |
-| Integer-safe total requested quantity | ✅ | Total uses numeric truncation-safe reducer |
-| Cancel reason required | ✅ | Cancel confirm blocks submit without reason |
+| Task                                                  | Status | Notes                                                         |
+| ----------------------------------------------------- | ------ | ------------------------------------------------------------- |
+| Parallel load order + inventory for review page       | ✅     | Added `getStockOutReviewSnapshot` with `Promise.all`          |
+| Realtime Available Qty + inline insufficiency warning | ✅     | Added `Khả dụng realtime` column and red warning style        |
+| Replace Unit Price with Unit of Measurement           | ✅     | Review table now shows UoM column                             |
+| Block approve when insufficient stock                 | ✅     | Approve disabled in PENDING if any line requested > available |
+| Race-condition guard at approve click                 | ✅     | Force-network recheck before `PATCH /approve`                 |
+| Integer-safe total requested quantity                 | ✅     | Total uses numeric truncation-safe reducer                    |
+| Cancel reason required                                | ✅     | Cancel confirm blocks submit without reason                   |
 
 **Files changed:**
+
 - `src/features/outbound/services/outboundService.ts`
 - `src/features/outbound/hooks/useOutbound.ts`
 - `src/features/outbound/components/OutboundDetail.tsx`
 
 ## Outbound Picking Lot Code Auto-Mapping — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Keep full lot code input (`LOT-...`) | ✅ | Lot input remains text, no prefix truncation |
-| Auto-map lot code -> `product_lot_id` | ✅ | Resolve via `/api/inventories` lots data by product + location |
-| Save/complete with mapped numeric lot id | ✅ | Payload still follows BE contract `product_lot_id: number` |
+| Task                                     | Status | Notes                                                          |
+| ---------------------------------------- | ------ | -------------------------------------------------------------- |
+| Keep full lot code input (`LOT-...`)     | ✅     | Lot input remains text, no prefix truncation                   |
+| Auto-map lot code -> `product_lot_id`    | ✅     | Resolve via `/api/inventories` lots data by product + location |
+| Save/complete with mapped numeric lot id | ✅     | Payload still follows BE contract `product_lot_id: number`     |
 
 **Files changed:**
+
 - `src/features/outbound/services/outboundService.ts`
 - `src/features/outbound/components/OutboundPickingScreen.tsx`
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,7 @@ import {
 } from '../hooks/useOutbound';
 import {
   getOutboundProductInventoryAvailability,
-  getOutboundProductInventoryAvailabilityAtLocation,
+  getStoredStockOutDiscrepancyResolution,
   getOutboundProductInventoryAvailabilityWithOptions,
 } from '../services/outboundService';
 import { createStockOutSchema, type CreateStockOutSchemaValues } from '../schemas/outboundSchema';
@@ -164,10 +164,10 @@ function WorkflowStepper({ status }: { status: OutboundStatus }) {
               )}
               <span
                 className={`mt-2.5 text-xs font-semibold text-center max-w-15 leading-tight ${isCurrent
-                    ? 'text-blue-700'
-                    : isPassed
-                      ? 'text-blue-600'
-                      : 'text-slate-400'
+                  ? 'text-blue-700'
+                  : isPassed
+                    ? 'text-blue-600'
+                    : 'text-slate-400'
                   }`}
               >
                 {step.label}
@@ -455,6 +455,10 @@ export function OutboundDetail() {
     0,
   );
   const showLots = order.status === 'PICKING' || order.status === 'COMPLETED';
+  const storedDiscrepancyResolution = useMemo(
+    () => getStoredStockOutDiscrepancyResolution(order.id),
+    [order.id],
+  );
 
   const hasInsufficientInventory = order.details.some((detail) => {
     const requestedQty = toIntQuantity(detail.quantity);
@@ -475,9 +479,9 @@ export function OutboundDetail() {
 
     const checks = await Promise.all(
       order.details.map(async (detail) => {
-        const availability = await getOutboundProductInventoryAvailabilityAtLocation(
+        const availability = await getOutboundProductInventoryAvailabilityWithOptions(
           detail.product_id,
-          order.warehouse_location_id,
+          { forceNetwork: true },
         );
         return {
           detail,
@@ -622,7 +626,29 @@ export function OutboundDetail() {
             animate={{ opacity: 1, y: 0 }}
             className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
-            Một hoặc nhiều dòng sản phẩm đang thiếu tồn kho khả dụng tại vị trí xuất. Nút phê duyệt đã bị khóa theo quy tắc BE.
+            Một hoặc nhiều dòng sản phẩm đang thiếu tồn kho khả dụng. Nút phê duyệt đã bị khóa để bảo vệ tồn kho.
+          </motion.div>
+        ) : null}
+
+        {storedDiscrepancyResolution ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4"
+          >
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-[18px] text-amber-700">report</span>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-amber-800">Biên bản xử lý chênh lệch</p>
+                <p className="mt-1 text-xs text-amber-700">
+                  Mã biên bản #{storedDiscrepancyResolution.discrepancyId} - {formatDate(storedDiscrepancyResolution.resolvedAt)}
+                </p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-amber-700">Lý do</p>
+                <p className="text-sm text-amber-900">{storedDiscrepancyResolution.reason}</p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-amber-700">Phương án xử lý</p>
+                <p className="text-sm text-amber-900">{storedDiscrepancyResolution.actionTaken}</p>
+              </div>
+            </div>
           </motion.div>
         ) : null}
 
@@ -653,7 +679,7 @@ export function OutboundDetail() {
                 <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-3">Sản phẩm</th>
                   <th className="px-4 py-3 text-center">Số lượng yêu cầu</th>
-                  <th className="px-4 py-3 text-center">Khả dụng tại vị trí xuất</th>
+                  <th className="px-4 py-3 text-center">Khả dụng realtime</th>
                   <th className="px-4 py-3 text-center">Đơn vị tính</th>
                   {showLots && <th className="px-4 py-3">Lô đã lấy</th>}
                 </tr>
