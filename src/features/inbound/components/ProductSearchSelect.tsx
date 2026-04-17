@@ -26,6 +26,7 @@ export interface ProductOption {
 }
 
 interface ProductSearchSelectProps {
+  id?: string;
   value: string;
   onValueChange: (option: ProductOption) => void;
   placeholder?: string;
@@ -36,6 +37,7 @@ interface ProductSearchSelectProps {
 }
 
 export function ProductSearchSelect({
+  id,
   value,
   onValueChange,
   placeholder = 'Search product…',
@@ -83,6 +85,7 @@ export function ProductSearchSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           disabled={disabled}
           className={cn(

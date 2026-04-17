@@ -1,6 +1,7 @@
 import apiClient from '@/services/apiClient';
 import type { ApiResponse } from '@/types/api';
 import { getProductAvailableQtyFromBinFallback } from '@/services/warehouseService';
+import { getProductAvailableFromInventory } from '@/services/inventoryOverviewService';
 import type {
   StockOut,
   StockOutHistoryItem,
@@ -12,65 +13,17 @@ import type {
   ProofType,
 } from '../types/outboundType';
 
-interface ProductInventoryRow {
-  product_id?: number;
-  warehouse_location_id?: number;
-  available_quantity?: number | string | null;
-  availableQuantity?: number | string | null;
-  quantity?: number | string;
-  reserved_quantity?: number | string;
-  reservedQuantity?: number | string;
-}
+const PRODUCT_AVAILABILITY_CACHE_TTL_MS = 20_000;
 
-interface ProductInventoryPayload {
-  items?: ProductInventoryRow[];
-  inventories?: ProductInventoryRow[];
-  pagination?: {
-    total_pages?: number;
-    totalPages?: number;
-  };
-}
+const productAvailabilityCache = new Map<
+  number,
+  { fetchedAt: number; data: { availableQty: number; preferredLocationId: number | null } }
+>();
 
-function getInventoryRows(payload: ProductInventoryPayload): ProductInventoryRow[] {
-  return payload.items ?? payload.inventories ?? [];
-}
-
-function getInventoryTotalPages(payload: ProductInventoryPayload): number {
-  const rawPages = payload.pagination?.total_pages ?? payload.pagination?.totalPages ?? 1;
-  return Number.isFinite(rawPages) && rawPages > 0 ? rawPages : 1;
-}
-
-async function fetchInventoryRowsByPage(params: {
-  productId?: number;
-}): Promise<ProductInventoryRow[]> {
-  const firstResponse = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
-    params: {
-      page: 1,
-      limit: 100,
-      product_id: params.productId,
-    },
-  });
-
-  const firstPayload = unwrap<ProductInventoryPayload>(firstResponse);
-  const totalPages = getInventoryTotalPages(firstPayload);
-  const rows: ProductInventoryRow[] = [...getInventoryRows(firstPayload)];
-
-  if (totalPages > 1) {
-    for (let page = 2; page <= totalPages; page += 1) {
-      const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
-        params: {
-          page,
-          limit: 100,
-          product_id: params.productId,
-        },
-      });
-      const payload = unwrap<ProductInventoryPayload>(response);
-      rows.push(...getInventoryRows(payload));
-    }
-  }
-
-  return rows;
-}
+const pendingProductAvailability = new Map<
+  number,
+  Promise<{ availableQty: number; preferredLocationId: number | null }>
+>();
 
 // ─── Helper unwrap ────────────────────────────────────────────────────────────
 
@@ -241,62 +194,92 @@ export async function getOutboundProductInventoryAvailability(productId: number)
   availableQty: number;
   preferredLocationId: number | null;
 }> {
-  // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
-  const fallbackQty = getProductAvailableQtyFromBinFallback(String(productId));
+  return getOutboundProductInventoryAvailabilityWithOptions(productId);
+}
 
-  // Lớp 2: gọi API inventory theo toàn bộ pagination để đồng bộ với màn Inventory Overview.
-  let apiQty = 0;
-  let preferredLocationId: number | null = null;
-  let apiSucceeded = false;
+interface GetOutboundAvailabilityOptions {
+  forceNetwork?: boolean;
+}
 
-  try {
-    let rows = await fetchInventoryRowsByPage({ productId });
+export async function getOutboundProductInventoryAvailabilityWithOptions(
+  productId: number,
+  options?: GetOutboundAvailabilityOptions,
+): Promise<{
+  availableQty: number;
+  preferredLocationId: number | null;
+}> {
+  const forceNetwork = options?.forceNetwork === true;
 
-    // Một số môi trường BE có thể bỏ qua filter product_id.
-    // Fallback sang scan toàn bộ inventory và lọc client-side để đồng nhất với màn Inventory Overview.
-    if (rows.length === 0) {
-      const allRows = await fetchInventoryRowsByPage({});
-      rows = allRows.filter((row) => Number(row.product_id) === productId);
-    }
-
-    rows.forEach((row) => {
-      const explicitAvailable = Number(row.available_quantity ?? row.availableQuantity);
-      const quantity = Number(row.quantity);
-      const reserved = Number(row.reserved_quantity ?? row.reservedQuantity);
-
-      // Dùng available_quantity nếu có (>= 0), ngược lại tính quantity - reserved
-      const rowAvailable =
-        Number.isFinite(explicitAvailable) && explicitAvailable >= 0
-          ? explicitAvailable
-          : Number.isFinite(quantity)
-            ? quantity - (Number.isFinite(reserved) ? reserved : 0)
-            : 0;
-
-      apiQty += Math.max(0, rowAvailable);
-
-      if (
-        preferredLocationId == null &&
-        typeof row.warehouse_location_id === 'number' &&
-        row.warehouse_location_id > 0
-      ) {
-        preferredLocationId = row.warehouse_location_id;
-      }
-    });
-
-    apiSucceeded = true;
-  } catch {
-    if (fallbackQty <= 0) {
-      throw new Error('Cannot load inventory availability for this product at the moment.');
-    }
+  const cached = productAvailabilityCache.get(productId);
+  if (!forceNetwork && cached && Date.now() - cached.fetchedAt < PRODUCT_AVAILABILITY_CACHE_TTL_MS) {
+    return cached.data;
   }
+
+  const pending = pendingProductAvailability.get(productId);
+  if (!forceNetwork && pending) {
+    return pending;
+  }
+
+  const task = (async () => {
+  // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
+    const fallbackQty = getProductAvailableQtyFromBinFallback(String(productId));
+
+  // Fast-path: nếu fallback đã có dữ liệu dương, ưu tiên trả ngay để UI phản hồi tức thì.
+    if (!forceNetwork && fallbackQty > 0) {
+      const fastResult = {
+        availableQty: fallbackQty,
+        preferredLocationId: null,
+      };
+      productAvailabilityCache.set(productId, {
+        fetchedAt: Date.now(),
+        data: fastResult,
+      });
+      return fastResult;
+    }
+
+  // Lớp 2: dùng cùng logic với Inventory Overview: quét full inventory rows rồi cộng available_quantity theo product_id.
+    let apiQty = 0;
+    let preferredLocationId: number | null = null;
+    let apiSucceeded = false;
+
+    try {
+      const fromInventory = await getProductAvailableFromInventory(productId);
+      apiQty = fromInventory.availableQty;
+      preferredLocationId = fromInventory.preferredLocationId;
+
+      apiSucceeded = true;
+    } catch {
+      if (fallbackQty <= 0) {
+        throw new Error('Cannot load inventory availability for this product at the moment.');
+      }
+    }
 
   // Ưu tiên fallback khi có dữ liệu (operator vừa lưu bin trong Zone Detail)
-  // vì API inventory có thể chưa phản ánh đúng sau syncBinInventoryFromCurrentLoad
-  const availableQty = fallbackQty > 0 ? fallbackQty : apiQty;
+  // vì API inventory có thể chưa phản ánh đúng ngay sau thao tác cập nhật bin.
+    const availableQty = fallbackQty > 0 ? fallbackQty : apiQty;
 
-  if (!apiSucceeded && fallbackQty <= 0) {
-    throw new Error('Inventory availability is unavailable. Please retry.');
+    if (!apiSucceeded && fallbackQty <= 0) {
+      throw new Error('Inventory availability is unavailable. Please retry.');
+    }
+
+    const result = { availableQty, preferredLocationId };
+    productAvailabilityCache.set(productId, {
+      fetchedAt: Date.now(),
+      data: result,
+    });
+
+    return result;
+  })();
+
+  if (!forceNetwork) {
+    pendingProductAvailability.set(productId, task);
   }
 
-  return { availableQty, preferredLocationId };
+  try {
+    return await task;
+  } finally {
+    if (!forceNetwork) {
+      pendingProductAvailability.delete(productId);
+    }
+  }
 }

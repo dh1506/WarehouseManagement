@@ -116,8 +116,8 @@ export function useCreateSalesStockOut() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: stockOutKeys.lists() });
       toast({
-        title: 'Draft outbound ticket created successfully.',
-        description: `Ticket ${data.code} is now in DRAFT status.`,
+        title: 'Tạo phiếu xuất thành công',
+        description: `Phiếu ${data.code} đã được tạo ở trạng thái DRAFT.`,
       });
     },
     onError: (error: Error) => {

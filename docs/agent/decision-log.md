@@ -542,3 +542,36 @@
 3. In outbound service, add fallback path: if product-filtered inventories return empty, fetch full inventory pages and filter by `product_id` client-side.
 
 **Rationale:** Eliminates false warning states and hardens against backend filter inconsistencies.
+
+## DEC-087 - Outbound available must reuse inventory-overview aggregation model
+
+**Date:** 2026-04-17
+**Context:** User requested outbound create form to follow the same available calculation behavior as Inventory page.
+**Decision:** In outbound service, compute `availableQty` by aggregating full paginated `/api/inventories` dataset and summing `available_quantity` for matching `product_id`, with a 30s in-memory cache to keep form responsiveness acceptable.
+**Rationale:** Keeps displayed available quantity consistent between Inventory Overview and Outbound Create flows.
+
+## DEC-088 - Outbound create uses product-id first fetch with resilient fallback
+
+**Date:** 2026-04-17
+**Context:** User reported Available loading too long in create sheet while Inventory page appears faster.
+**Decision:**
+
+1. Use `product_id` paginated fetch as primary path for outbound availability to reduce latency.
+2. Keep resilient fallback to full inventory aggregation + client-side product filter only when primary path returns empty (backend inconsistency safeguard).
+3. Add short-lived product-level cache and in-flight promise dedupe to avoid repeated parallel requests from multiple rows.
+
+**Rationale:** Maintains consistency with Inventory numbers while significantly improving form responsiveness.
+
+## DEC-089 - Shared inventory helper as source of truth for available qty
+
+**Date:** 2026-04-17
+**Context:** User requested outbound create flow to directly use the available quantity logic from Inventory module.
+**Decision:** Create and reuse a shared helper `getProductAvailableFromInventory(productId)` in `inventoryOverviewService.ts`, then make outbound availability service call this helper.
+**Rationale:** Removes duplicated aggregation logic and guarantees consistency between Inventory and Outbound create screens.
+
+## DEC-090 - Product select in outbound sheet must force fresh inventories API call
+
+**Date:** 2026-04-17
+**Context:** User observed no network request after selecting product in create sheet because cache/fallback could satisfy availability without new API call.
+**Decision:** Add force-network mode for outbound availability service and invoke it directly from product select `onValueChange`.
+**Rationale:** Ensures observable API call and real-time inventory refresh immediately after product selection.

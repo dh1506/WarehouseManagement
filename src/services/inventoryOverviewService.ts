@@ -37,6 +37,11 @@ interface RawInventoryPage {
   pagination: { total: number; page: number; limit: number; total_pages?: number; totalPages?: number };
 }
 
+export interface ProductInventoryAvailability {
+  availableQty: number;
+  preferredLocationId: number | null;
+}
+
 interface RawProductApiItem {
   id?: number;
   code?: string;
@@ -59,6 +64,37 @@ function unwrap<T>(response: unknown): T {
     return (r.data as { data: T }).data;
   }
   return (r?.data as T) ?? (response as T);
+}
+
+/**
+ * Reusable inventory availability reader used by outbound create flow.
+ * Uses the same /api/inventories source as Inventory Overview.
+ */
+export async function getProductAvailableFromInventory(
+  productId: number,
+): Promise<ProductInventoryAvailability> {
+  const rows = await collectPaginatedItems<RawInventoryPage, RawInventoryRow>({
+    fetchPage: async (page, limit) => {
+      const res = await apiClient.get<ApiResponse<RawInventoryPage>>('/api/inventories', {
+        params: { page, limit, product_id: productId },
+      });
+      return unwrap<RawInventoryPage>(res);
+    },
+    getItems: (payload) => payload.items ?? payload.inventories ?? [],
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+  });
+
+  let availableQty = 0;
+  let preferredLocationId: number | null = null;
+
+  rows.forEach((row) => {
+    availableQty += Number(row.available_quantity) || 0;
+    if (preferredLocationId == null && Number.isFinite(row.warehouse_location_id)) {
+      preferredLocationId = row.warehouse_location_id;
+    }
+  });
+
+  return { availableQty, preferredLocationId };
 }
 
 const NEAR_EXPIRY_DAYS = 30;

@@ -17,7 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useProductCategoryOptions } from '@/features/products/hooks/useProducts';
 import { ProductSearchSelect, type ProductOption } from '@/features/inbound/components/ProductSearchSelect';
 import { useCreateReturnStockOut, useCreateSalesStockOut } from '../hooks/useOutbound';
-import { getOutboundProductInventoryAvailability } from '../services/outboundService';
+import {
+  getOutboundProductInventoryAvailability,
+  getOutboundProductInventoryAvailabilityWithOptions,
+} from '../services/outboundService';
 
 const lineSchema = z.object({
   categoryId: z.string().optional().default(''),
@@ -33,6 +36,8 @@ const createSheetSchema = z.object({
 });
 
 type CreateSheetValues = z.infer<typeof createSheetSchema>;
+type CreateSheetFormInput = z.input<typeof createSheetSchema>;
+type CreateSheetFormOutput = z.output<typeof createSheetSchema>;
 
 interface OutboundCreateSheetProps {
   open: boolean;
@@ -51,7 +56,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   const createSalesMutation = useCreateSalesStockOut();
   const createReturnMutation = useCreateReturnStockOut();
 
-  const methods = useForm<CreateSheetValues>({
+  const methods = useForm<CreateSheetFormInput, unknown, CreateSheetFormOutput>({
     resolver: zodResolver(createSheetSchema),
     defaultValues: {
       type: 'SALES',
@@ -114,6 +119,47 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     );
   }, [selectedProductIds]);
 
+  const fetchInventoryForProduct = async (
+    productId: string,
+    options?: { forceNetwork?: boolean },
+  ) => {
+    setInventoryMap((current) => ({
+      ...current,
+      [productId]: {
+        availableQty: current[productId]?.availableQty ?? -1,
+        preferredLocationId: current[productId]?.preferredLocationId ?? null,
+        loading: true,
+      },
+    }));
+
+    try {
+      const result = options?.forceNetwork
+        ? await getOutboundProductInventoryAvailabilityWithOptions(Number(productId), {
+            forceNetwork: true,
+          })
+        : await getOutboundProductInventoryAvailability(Number(productId));
+
+      setInventoryMap((current) => ({
+        ...current,
+        [productId]: {
+          availableQty: result.availableQty,
+          preferredLocationId: result.preferredLocationId,
+          loading: false,
+        },
+      }));
+    } catch (error) {
+      setInventoryMap((current) => ({
+        ...current,
+        [productId]: {
+          availableQty: 0,
+          preferredLocationId: null,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Cannot fetch inventory',
+        },
+      }));
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
     if (fields.length > 0) return;
@@ -122,8 +168,6 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   }, [append, fields.length, open]);
 
   useEffect(() => {
-    let cancelled = false;
-
     const fetchMissingInventory = async () => {
       const missingProductIds = Array.from(new Set(selectedProductIds)).filter((productId) => {
         const current = inventoryMap[productId];
@@ -132,38 +176,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
       await Promise.all(
         missingProductIds.map(async (productId) => {
-          setInventoryMap((current) => ({
-            ...current,
-            [productId]: {
-              availableQty: current[productId]?.availableQty ?? -1,
-              preferredLocationId: current[productId]?.preferredLocationId ?? null,
-              loading: true,
-            },
-          }));
-
-          try {
-            const result = await getOutboundProductInventoryAvailability(Number(productId));
-            if (cancelled) return;
-            setInventoryMap((current) => ({
-              ...current,
-              [productId]: {
-                availableQty: result.availableQty,
-                preferredLocationId: result.preferredLocationId,
-                loading: false,
-              },
-            }));
-          } catch (error) {
-            if (cancelled) return;
-            setInventoryMap((current) => ({
-              ...current,
-              [productId]: {
-                availableQty: 0,
-                preferredLocationId: null,
-                loading: false,
-                error: error instanceof Error ? error.message : 'Cannot fetch inventory',
-              },
-            }));
-          }
+          await fetchInventoryForProduct(productId);
         }),
       );
     };
@@ -171,10 +184,6 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     if (selectedProductIds.length > 0) {
       void fetchMissingInventory();
     }
-
-    return () => {
-      cancelled = true;
-    };
   }, [inventoryMap, selectedProductIds]);
 
   useEffect(() => {
@@ -192,14 +201,14 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     });
   }, [clearErrors, details, duplicateProductIds, errors.details, setError]);
 
-  const validateLineQuantity = (line: CreateSheetValues['details'][number], index: number) => {
+  const validateLineQuantity = (line: CreateSheetFormInput['details'][number], index: number) => {
     const inventory = line.productId ? inventoryMap[line.productId] : undefined;
     const available = inventory?.availableQty ?? 0;
 
     if (line.productId && !inventory) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
-        message: 'Inventory is loading. Please wait a moment.',
+        message: 'Đang tải tồn kho. Vui lòng chờ trong giây lát.',
       });
       return false;
     }
@@ -207,7 +216,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     if (inventory?.loading) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
-        message: 'Inventory is loading. Please wait a moment.',
+        message: 'Đang tải tồn kho. Vui lòng chờ trong giây lát.',
       });
       return false;
     }
@@ -215,7 +224,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     if (inventory?.error) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
-        message: 'Cannot validate quantity while inventory is unavailable.',
+        message: 'Không thể kiểm tra số lượng vì dữ liệu tồn kho tạm thời không khả dụng.',
       });
       return false;
     }
@@ -223,7 +232,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     if (!line.quantity || Number(line.quantity) <= 0) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
-        message: 'Quantity must be > 0',
+        message: 'Số lượng xuất phải lớn hơn 0',
       });
       return false;
     }
@@ -231,7 +240,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     if (Number(line.quantity) > available) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
-        message: `Exceeded available inventory (${available})`,
+        message: `Số lượng xuất không được vượt quá tồn kho khả dụng (${available})`,
       });
       return false;
     }
@@ -422,10 +431,11 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   <h3 className="mb-4 text-sm font-bold text-slate-800">General Information</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">
+                      <label htmlFor="outbound-ticket-type" className="mb-1.5 block text-xs font-semibold text-slate-500">
                         Ticket Type <span className="text-red-500">*</span>
                       </label>
                       <select
+                        id="outbound-ticket-type"
                         {...register('type')}
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
                       >
@@ -435,8 +445,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     </div>
 
                     <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">Reference Number</label>
+                      <label htmlFor="outbound-reference-number" className="mb-1.5 block text-xs font-semibold text-slate-500">Reference Number</label>
                       <input
+                        id="outbound-reference-number"
                         {...register('reference_number')}
                         maxLength={50}
                         className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.reference_number ? 'border-red-400 outbound-sheet-error' : 'border-slate-200'}`}
@@ -448,8 +459,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     </div>
 
                     <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">Notes</label>
+                      <label htmlFor="outbound-notes" className="mb-1.5 block text-xs font-semibold text-slate-500">Notes</label>
                       <textarea
+                        id="outbound-notes"
                         {...register('description')}
                         maxLength={255}
                         rows={3}
@@ -490,6 +502,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     {fields.map((field, index) => {
                       const line = details?.[index];
                       const lineProductId = line?.productId ?? '';
+                      const categoryFieldId = `outbound-row-${index}-category`;
+                      const productFieldId = `outbound-row-${index}-product`;
+                      const quantityFieldId = `outbound-row-${index}-quantity`;
                       const lineQuantity = Number(line?.quantity ?? 0);
                       const inventory = lineProductId ? inventoryMap[lineProductId] : undefined;
                       const availableQty = inventory?.availableQty ?? 0;
@@ -519,8 +534,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                             <div>
-                              <label className="mb-1 block text-[11px] font-semibold text-slate-500">Category</label>
+                              <label htmlFor={categoryFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">Category</label>
                               <select
+                                id={categoryFieldId}
                                 value={line?.categoryId ?? ''}
                                 onChange={(event) => {
                                   const categoryId = event.target.value;
@@ -538,15 +554,17 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
+                              <label htmlFor={productFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">
                                 Product <span className="text-red-500">*</span>
                               </label>
                               <div className={lineErrors?.productId ? 'outbound-sheet-error rounded-md' : ''}>
                                 <ProductSearchSelect
+                                  id={productFieldId}
                                   value={lineProductId}
                                   onValueChange={(option: ProductOption) => {
                                     setValue(`details.${index}.productId`, option.id, { shouldDirty: true, shouldValidate: true });
                                     clearErrors(`details.${index}.productId`);
+                                    void fetchInventoryForProduct(option.id, { forceNetwork: true });
                                   }}
                                   categoryId={line?.categoryId || undefined}
                                   excludeIds={excludeProductIds}
@@ -559,25 +577,26 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-[11px] font-semibold text-slate-500">Available</label>
+                              <p className="mb-1 block text-[11px] font-semibold text-slate-500">Available</p>
                               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-semibold text-slate-700">
                                 {lineProductId
                                   ? (!inventory
                                     ? 'Loading...'
                                     : inventory?.loading
-                                    ? 'Loading...'
-                                    : inventory?.error
-                                      ? 'Unavailable'
-                                      : availableQty.toLocaleString('en-US'))
+                                      ? 'Loading...'
+                                      : inventory?.error
+                                        ? 'Unavailable'
+                                        : availableQty.toLocaleString('en-US'))
                                   : '—'}
                               </div>
                             </div>
 
                             <div>
-                              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
+                              <label htmlFor={quantityFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">
                                 Outbound Qty <span className="text-red-500">*</span>
                               </label>
                               <input
+                                id={quantityFieldId}
                                 type="number"
                                 min={0}
                                 step="any"
@@ -593,7 +612,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                               ) : null}
                               {!lineErrors?.quantity && quantityExceeded ? (
                                 <p className="mt-1 text-[11px] text-red-500">
-                                  Exceeded available inventory ({availableQty})
+                                  Số lượng xuất không được vượt quá tồn kho khả dụng ({availableQty})
                                 </p>
                               ) : null}
                             </div>
@@ -601,7 +620,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
                           {inventory?.error ? (
                             <p className="text-[11px] text-amber-700">
-                              Cannot load inventory right now. Please reselect the product or retry.
+                              Không thể tải tồn kho lúc này. Vui lòng chọn lại sản phẩm hoặc thử lại.
                             </p>
                           ) : null}
                         </div>
@@ -628,7 +647,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     {isSaving ? (
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        Saving...
+                        Đang lưu...
                       </>
                     ) : (
                       'Save Outbound Ticket'

@@ -1,14 +1,63 @@
 # Sprint Tracker
 
-## Outbound Create Sheet Still Showing Exceeded (0) — 2026-04-17 (COMPLETED)
+## Outbound Product Select Must Trigger Inventories API — 2026-04-17 (COMPLETED)
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Fix unresolved-inventory UI state | ✅ | When product is selected but row inventory has not arrived yet, UI now shows `Loading...` instead of `0` |
-| Prevent false over-limit warning before inventory resolved | ✅ | `quantityExceeded` now requires an existing inventory record and non-error state |
-| Add service fallback for broken product_id filter | ✅ | If `/api/inventories?product_id=...` returns empty, service scans full inventory and filters client-side by `product_id` |
+| Add force-network option for outbound availability | ✅ | New `getOutboundProductInventoryAvailabilityWithOptions(..., { forceNetwork: true })` |
+| Trigger inventory API call right after product selection | ✅ | In `OutboundCreateSheet`, `onValueChange` now explicitly requests fresh inventory data from API |
 
 **Files changed:**
+- `src/features/outbound/services/outboundService.ts`
+- `src/features/outbound/components/OutboundCreateSheet.tsx`
+
+## Outbound Create Reuses Inventory Available Helper — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Add reusable inventory helper for product available qty | ✅ | New `getProductAvailableFromInventory(productId)` in inventory service |
+| Wire outbound availability to shared inventory helper | ✅ | Outbound create now consumes Inventory service helper instead of duplicated aggregation logic |
+
+**Files changed:**
+- `src/services/inventoryOverviewService.ts`
+- `src/features/outbound/services/outboundService.ts`
+
+## Outbound Create Sheet — Product-ID Inventory Fast Path + AC UX Alignment — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Optimize available fetch speed by product_id | ✅ | Outbound availability now queries `/api/inventories` with `product_id` pagination first |
+| Keep consistency with Inventory Overview logic | ✅ | If product-filtered query returns empty, fallback to full inventory scan and client-side filter by `product_id` |
+| Add short-lived cache + in-flight dedupe | ✅ | Product availability cache (20s) + pending promise map to avoid duplicate requests across rows |
+| Align validation/toast/save-loading text with AC | ✅ | Vietnamese validation strings, success toast `Tạo phiếu xuất thành công`, button state `Đang lưu...` |
+
+**Files changed:**
+- `src/features/outbound/services/outboundService.ts`
+- `src/features/outbound/components/OutboundCreateSheet.tsx`
+- `src/features/outbound/hooks/useOutbound.ts`
+
+## Outbound Create Uses Inventory Overview Available Logic — 2026-04-17 (COMPLETED)
+
+| Task                                                                          | Status | Notes                                                                                |
+| ----------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------ |
+| Switch outbound available calculation to inventory-overview style aggregation | ✅     | Sum `available_quantity` from full paginated inventory rows filtered by `product_id` |
+| Add short-lived inventory rows cache for create flow                          | ✅     | Cache full inventory rows for 30s to reduce repeat loading latency                   |
+| Keep business validation unchanged                                            | ✅     | Outbound qty still blocked for `<= 0` and `> available`                              |
+
+**File changed:**
+
+- `src/features/outbound/services/outboundService.ts`
+
+## Outbound Create Sheet Still Showing Exceeded (0) — 2026-04-17 (COMPLETED)
+
+| Task                                                       | Status | Notes                                                                                                                    |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Fix unresolved-inventory UI state                          | ✅     | When product is selected but row inventory has not arrived yet, UI now shows `Loading...` instead of `0`                 |
+| Prevent false over-limit warning before inventory resolved | ✅     | `quantityExceeded` now requires an existing inventory record and non-error state                                         |
+| Add service fallback for broken product_id filter          | ✅     | If `/api/inventories?product_id=...` returns empty, service scans full inventory and filters client-side by `product_id` |
+
+**Files changed:**
+
 - `src/features/outbound/components/OutboundCreateSheet.tsx`
 - `src/features/outbound/services/outboundService.ts`
 
