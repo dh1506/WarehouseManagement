@@ -601,3 +601,15 @@
 5. Require cancellation reason before allowing cancel mutation.
 
 **Rationale:** Enforces inventory protection and state transparency while preserving FE-only scope and existing BE contract.
+
+## DEC-093 - Outbound picking accepts lot code and resolves to numeric lot id
+
+**Date:** 2026-04-17
+**Context:** Operator inputs lot code in business format (`LOT-GDS-...`) while BE `updatePickedLots` contract requires `product_lot_id` numeric.
+**Decision:**
+
+1. Keep lot input as text on picking UI.
+2. Resolve lot code to `product_lot_id` via `/api/inventories` (product + warehouse_location scope) before save/complete.
+3. Preserve BE payload contract unchanged.
+
+**Rationale:** Matches operator workflow while staying fully compatible with existing BE validation schema.

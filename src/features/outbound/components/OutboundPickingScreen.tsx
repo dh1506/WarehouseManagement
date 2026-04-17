@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStockOut, useUpdatePickedLots, useCompleteStockOut } from '../hooks/useOutbound';
 import { useToast } from '@/hooks/use-toast';
+import { resolveProductLotCodeToId } from '../services/outboundService';
 import type {
   StockOutDetail,
   PickedLotEntry,
@@ -12,7 +13,7 @@ import type {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LotAssignment {
-  product_lot_id: number;
+  lotValue: string;
   quantity: number;
 }
 
@@ -94,7 +95,7 @@ function LotRow({
   lotIdx: number;
   assignment: LotAssignment;
   detail: StockOutDetail;
-  onChange: (field: keyof LotAssignment, value: number) => void;
+  onChange: (field: keyof LotAssignment, value: string | number) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
@@ -104,19 +105,18 @@ function LotRow({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -8 }}
       transition={{ duration: 0.15 }}
-      className="flex items-center gap-2 group"
+      className="grid grid-cols-[28px_minmax(0,1fr)_110px_auto] items-center gap-2 rounded-xl bg-white/80 p-2 ring-1 ring-slate-100"
     >
       <span className="text-[10px] font-bold text-slate-400 w-5 shrink-0">L{lotIdx + 1}</span>
 
       {/* Lot ID */}
       <div className="flex-1 min-w-0">
         <input
-          type="number"
-          min={1}
-          value={assignment.product_lot_id || ''}
-          onChange={(e) => onChange('product_lot_id', parseInt(e.target.value, 10) || 0)}
-          placeholder="Mã lô (ID)"
-          className="w-full px-3 py-3 text-base font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-colors placeholder:text-slate-300 placeholder:font-normal"
+          type="text"
+          value={assignment.lotValue}
+          onChange={(e) => onChange('lotValue', e.target.value)}
+          placeholder="VD: LOT-GDS-013-00011-001 hoặc ID số"
+          className="w-full px-3 py-3 text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-colors placeholder:text-slate-300 placeholder:font-normal"
           style={{ minHeight: 48 }}
         />
       </div>
@@ -167,10 +167,10 @@ function DetailCard({
   const isOver = pickedQty > required;
 
   const addLotRow = () => {
-    onAssignmentsChange([...assignments, { product_lot_id: 0, quantity: 0 }]);
+    onAssignmentsChange([...assignments, { lotValue: '', quantity: 0 }]);
   };
 
-  const updateRow = (i: number, field: keyof LotAssignment, value: number) => {
+  const updateRow = (i: number, field: keyof LotAssignment, value: string | number) => {
     const next = assignments.map((a, idx2) => (idx2 === i ? { ...a, [field]: value } : a));
     onAssignmentsChange(next);
   };
@@ -230,7 +230,7 @@ function DetailCard({
       </div>
 
       {/* Lot rows */}
-      <div className="px-4 py-3 space-y-2">
+      <div className="px-4 py-3 space-y-2.5">
         <div className="flex items-center justify-between mb-1">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             Mã lô ← Số lượng
@@ -265,7 +265,7 @@ function DetailCard({
         <button
           type="button"
           onClick={addLotRow}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-xl border border-dashed border-blue-200 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-xl border border-dashed border-blue-200 transition-colors"
         >
           <span className="material-symbols-outlined text-[15px]">add</span>
           Thêm lô khác (tách lô)
@@ -404,12 +404,12 @@ export function OutboundPickingScreen() {
       // Nếu BE đã có lots, map vào local state
       if (detail.lots.length > 0) {
         return detail.lots.map((l) => ({
-          product_lot_id: l.product_lot_id,
+          lotValue: l.product_lot?.lot_number?.trim() || String(l.product_lot_id),
           quantity: l.quantity,
         }));
       }
       // Default: 1 hàng trống
-      return [{ product_lot_id: 0, quantity: 0 }];
+      return [{ lotValue: '', quantity: 0 }];
     },
     [assignments],
   );
@@ -492,26 +492,90 @@ export function OutboundPickingScreen() {
   };
 
   // Xây dựng payload lots
-  const buildLotsPayload = (): PickedLotEntry[] => {
+  const buildLotsPayload = async (): Promise<{
+    payload: PickedLotEntry[];
+    invalidLotValues: string[];
+  }> => {
     const result: PickedLotEntry[] = [];
+    const invalidLotValues: string[] = [];
+    const lotCodeCache = new Map<string, number | null>();
+
+    const toNumericLotId = (lotValue: string): number | null => {
+      const normalized = lotValue.trim();
+      if (!normalized) {
+        return null;
+      }
+
+      if (/^\d+$/.test(normalized)) {
+        const parsed = Number(normalized);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+
+      return null;
+    };
+
     for (const detail of details) {
       const lots = assignments[detail.id] ?? getDetailAssignments(detail);
       for (const lot of lots) {
-        if (lot.product_lot_id > 0 && lot.quantity > 0) {
+        if (!lot.lotValue.trim() && lot.quantity <= 0) {
+          continue;
+        }
+
+        let numericLotId = toNumericLotId(lot.lotValue);
+
+        if (numericLotId == null) {
+          const normalizedLotCode = lot.lotValue.trim();
+          const cacheKey = `${detail.product_id}:${order.warehouse_location_id}:${normalizedLotCode.toLowerCase()}`;
+
+          if (lotCodeCache.has(cacheKey)) {
+            numericLotId = lotCodeCache.get(cacheKey) ?? null;
+          } else {
+            const resolvedLotId = await resolveProductLotCodeToId(
+              detail.product_id,
+              order.warehouse_location_id,
+              normalizedLotCode,
+            );
+            lotCodeCache.set(cacheKey, resolvedLotId);
+            numericLotId = resolvedLotId;
+          }
+
+          if (numericLotId == null) {
+            invalidLotValues.push(normalizedLotCode);
+            continue;
+          }
+        }
+
+        if (lot.quantity > 0) {
           result.push({
             stock_out_detail_id: detail.id,
-            product_lot_id: lot.product_lot_id,
+            product_lot_id: numericLotId,
             quantity: lot.quantity,
           });
         }
       }
     }
-    return result;
+
+    return {
+      payload: result,
+      invalidLotValues,
+    };
   };
 
   /** Lưu tất cả lot assignments (PUT /picked-lots) */
   const handleSaveAssignments = async () => {
-    const lots = buildLotsPayload();
+    const { payload: lots, invalidLotValues } = await buildLotsPayload();
+
+    if (invalidLotValues.length > 0) {
+      toast({
+        title: 'Không tìm thấy mã lô',
+        description: `Không map được mã lô sang ID trong kho hiện tại: ${invalidLotValues[0]}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (lots.length === 0) {
       toast({
         title: 'Chưa có lô nào được gán',
@@ -543,7 +607,17 @@ export function OutboundPickingScreen() {
     }
 
     // Lưu lots trước khi complete
-    const lots = buildLotsPayload();
+    const { payload: lots, invalidLotValues } = await buildLotsPayload();
+
+    if (invalidLotValues.length > 0) {
+      toast({
+        title: 'Không tìm thấy mã lô',
+        description: `Không map được mã lô sang ID trong kho hiện tại: ${invalidLotValues[0]}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (lots.length > 0) {
       try {
         await updateLotsMutation.mutateAsync({ lots });
@@ -581,19 +655,19 @@ export function OutboundPickingScreen() {
         onRefresh={() => refetch()}
       />
 
-      <div className="px-4 py-5 space-y-4 max-w-lg mx-auto">
+      <div className="px-4 py-5 space-y-4 max-w-4xl mx-auto">
 
         {/* Progress */}
         <ProgressBar pct={progressPct} />
 
         {/* Thống kê nhanh */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             { label: 'Tổng SP', value: details.length, color: 'text-slate-700' },
             { label: 'Đã đủ', value: details.filter((d) => { const lots = assignments[d.id] ?? getDetailAssignments(d); return lots.reduce((s, l) => s + (l.quantity || 0), 0) >= d.quantity; }).length, color: 'text-emerald-600' },
             { label: 'Tổng lấy', value: totalPicked, color: 'text-blue-700' },
           ].map((item) => (
-            <div key={item.label} className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+            <div key={item.label} className="bg-white rounded-xl border border-slate-100 p-3 text-center shadow-sm">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
               <p className={`text-base font-extrabold ${item.color}`}>{item.value}</p>
             </div>
@@ -644,7 +718,7 @@ export function OutboundPickingScreen() {
           type="button"
           onClick={handleSaveAssignments}
           disabled={isSaving || updateLotsMutation.isPending}
-          className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-700 font-bold rounded-2xl text-sm transition-all active:scale-[0.98] disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-700 font-bold rounded-2xl text-sm transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm"
           style={{ minHeight: 52 }}
         >
           {isSaving || updateLotsMutation.isPending ? (

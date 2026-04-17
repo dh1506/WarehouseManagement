@@ -22,6 +22,21 @@ import {
   cancelStockOut,
 } from '../services/outboundService';
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (error && typeof error === 'object') {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
+      return maybeMessage;
+    }
+  }
+
+  return 'Có lỗi xảy ra, vui lòng thử lại sau.';
+}
+
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
 export const stockOutKeys = {
@@ -71,6 +86,7 @@ export function useStockOutHistory(id: number) {
     queryKey: stockOutKeys.history(id),
     queryFn: () => getStockOutHistory(id),
     enabled: id > 0,
+    retry: false,
   });
 }
 
@@ -201,10 +217,20 @@ export function useApproveStockOut(id: number) {
         description: `Phiếu ${data.code} đã được duyệt, sẵn sàng lấy hàng.`,
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      const message = getErrorMessage(error).toLowerCase();
+      const isInsufficientInventory =
+        message.includes('insufficient')
+        || message.includes('khong du')
+        || message.includes('không đủ')
+        || message.includes('ton kho')
+        || message.includes('tồn kho');
+
       toast({
         title: 'Không thể phê duyệt',
-        description: error.message,
+        description: isInsufficientInventory
+          ? 'Sản phẩm không đủ số lượng tồn kho để phê duyệt phiếu này.'
+          : getErrorMessage(error),
         variant: 'destructive',
       });
     },

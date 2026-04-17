@@ -89,6 +89,18 @@
 - `src/features/outbound/hooks/useOutbound.ts`
 - `src/features/outbound/components/OutboundDetail.tsx`
 
+## Outbound Picking Lot Code Auto-Mapping — 2026-04-17 (COMPLETED)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Keep full lot code input (`LOT-...`) | ✅ | Lot input remains text, no prefix truncation |
+| Auto-map lot code -> `product_lot_id` | ✅ | Resolve via `/api/inventories` lots data by product + location |
+| Save/complete with mapped numeric lot id | ✅ | Payload still follows BE contract `product_lot_id: number` |
+
+**Files changed:**
+- `src/features/outbound/services/outboundService.ts`
+- `src/features/outbound/components/OutboundPickingScreen.tsx`
+
 ## Outbound Create Sheet Still Showing Exceeded (0) — 2026-04-17 (COMPLETED)
 
 | Task                                                       | Status | Notes                                                                                                                    |

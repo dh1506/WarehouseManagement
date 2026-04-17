@@ -7,7 +7,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import {
   useStockOutReview,
-  useStockOutHistory,
   useCreateSalesStockOut,
   useCreateReturnStockOut,
   useSubmitStockOut,
@@ -16,17 +15,15 @@ import {
 } from '../hooks/useOutbound';
 import {
   getOutboundProductInventoryAvailability,
+  getOutboundProductInventoryAvailabilityAtLocation,
   getOutboundProductInventoryAvailabilityWithOptions,
 } from '../services/outboundService';
 import { createStockOutSchema, type CreateStockOutSchemaValues } from '../schemas/outboundSchema';
 import {
   OUTBOUND_STEPPER_STEPS,
   OUTBOUND_STATUS_ORDER,
-  OUTBOUND_STATUS_LABELS,
-  OUTBOUND_TYPE_LABELS,
   type StockOut,
   type OutboundStatus,
-  type StockOutHistoryItem,
 } from '../types/outboundType';
 import { OutboundStatusBadge, OutboundTypeBadge } from './OutboundStatusBadge';
 import { LineItemEditor } from './LineItemEditor';
@@ -238,9 +235,14 @@ function ActionPanel({
       return;
     }
 
-    await approveMutation.mutateAsync();
-    onActionDone();
-    setDialog(null);
+    try {
+      await approveMutation.mutateAsync();
+      onActionDone();
+      setDialog(null);
+    } catch {
+      // Toast đã được xử lý tập trung trong hook mutation.
+      setDialog(null);
+    }
   };
 
   const handleCancel = async () => {
@@ -373,180 +375,6 @@ function ActionPanel({
   );
 }
 
-// ─── Activity Timeline ────────────────────────────────────────────────────────
-
-const STATUS_HISTORY_LABELS: Record<string, string> = {
-  DRAFT: 'Nháp',
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
-  PICKING: 'Đang lấy hàng',
-  DISCREPANCY: 'Chênh lệch',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-};
-
-const STATUS_HISTORY_STYLES: Record<string, { dot: string; text: string; bg: string }> = {
-  DRAFT: { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100' },
-  PENDING: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-  APPROVED: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-  PICKING: { dot: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
-  DISCREPANCY: { dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' },
-  COMPLETED: { dot: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50' },
-  CANCELLED: { dot: 'bg-red-500', text: 'text-red-600', bg: 'bg-red-50' },
-};
-
-function HistoryStatusBadge({ status }: { status: string }) {
-  const style = STATUS_HISTORY_STYLES[status] ?? { dot: 'bg-slate-300', text: 'text-slate-500', bg: 'bg-slate-50' };
-  const label = STATUS_HISTORY_LABELS[status] ?? status;
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold border border-current/10 ${style.text} ${style.bg}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-      {label}
-    </span>
-  );
-}
-
-function getTimelineIcon(item: StockOutHistoryItem): { icon: string; bg: string; color: string } {
-  const newStatus = (item.new_data as { status?: string } | null)?.status ?? '';
-  switch (newStatus) {
-    case 'DRAFT': return { icon: 'add_circle', bg: 'bg-blue-50', color: 'text-blue-500' };
-    case 'PENDING': return { icon: 'send', bg: 'bg-amber-50', color: 'text-amber-500' };
-    case 'APPROVED': return { icon: 'verified', bg: 'bg-emerald-50', color: 'text-emerald-600' };
-    case 'PICKING': return { icon: 'hail', bg: 'bg-blue-50', color: 'text-blue-600' };
-    case 'DISCREPANCY': return { icon: 'warning', bg: 'bg-orange-50', color: 'text-orange-500' };
-    case 'COMPLETED': return { icon: 'check_circle', bg: 'bg-emerald-50', color: 'text-emerald-700' };
-    case 'CANCELLED': return { icon: 'cancel', bg: 'bg-red-50', color: 'text-red-500' };
-    default: return { icon: 'history', bg: 'bg-slate-50', color: 'text-slate-400' };
-  }
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-  if (minutes < 1) return 'Vừa xong';
-  if (minutes < 60) return `${minutes} phút trước`;
-  if (hours < 24) return `${hours} giờ trước`;
-  if (days < 7) return `${days} ngày trước`;
-  return new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-interface ActivityTimelineProps {
-  stockOutId: number;
-}
-
-function ActivityTimeline({ stockOutId }: ActivityTimelineProps) {
-  const { data: history, isLoading, isError, refetch } = useStockOutHistory(stockOutId);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden"
-    >
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
-        <span className="material-symbols-outlined text-blue-600 text-[18px]">history</span>
-        <h2 className="font-bold text-slate-800">Lịch sử thao tác</h2>
-      </div>
-
-      <div className="p-6">
-        {isLoading ? (
-          // Skeleton 3 dòng
-          <div className="space-y-5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-3 animate-pulse">
-                <div className="w-8 h-8 rounded-full bg-slate-100 shrink-0" />
-                <div className="flex-1 space-y-2 pt-1">
-                  <div className="h-3 bg-slate-100 rounded w-2/5" />
-                  <div className="h-3 bg-slate-100 rounded w-3/5" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="flex flex-col items-center gap-2 py-6 text-sm text-slate-400">
-            <span className="material-symbols-outlined text-2xl">error_outline</span>
-            <p>Unable to load operation history</p>
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              className="text-xs font-semibold text-blue-600 hover:underline"
-            >
-              Thử lại
-            </button>
-          </div>
-        ) : !history || history.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-6 text-sm text-slate-400">
-            <span className="material-symbols-outlined text-2xl">manage_history</span>
-            <p>Chưa có lịch sử thao tác.</p>
-          </div>
-        ) : (
-          <ol className="space-y-0">
-            {history.map((item, idx) => {
-              const { icon, bg, color } = getTimelineIcon(item);
-              const oldStatus = (item.old_data as { status?: string } | null)?.status;
-              const newStatus = (item.new_data as { status?: string } | null)?.status;
-              const isLast = idx === history.length - 1;
-
-              return (
-                <li key={item.id} className="flex gap-3">
-                  {/* Cột trái — icon + đường kẻ dọc */}
-                  <div className="flex flex-col items-center shrink-0">
-                    <div className={`w-8 h-8 rounded-full ${bg} flex items-center justify-center`}>
-                      <span className={`material-symbols-outlined text-[16px] ${color}`}>{icon}</span>
-                    </div>
-                    {!isLast && <div className="w-px flex-1 bg-slate-100 my-1" />}
-                  </div>
-
-                  {/* Nội dung */}
-                  <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-5'}`}>
-                    {/* Tên người dùng + thời gian */}
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <span className="text-sm font-semibold text-slate-800">
-                        {item.creator.full_name}
-                      </span>
-                      <span className="text-slate-300 text-xs">·</span>
-                      <span
-                        className="text-xs text-slate-400"
-                        title={new Date(item.created_at).toLocaleString('vi-VN')}
-                      >
-                        {formatRelativeTime(item.created_at)}
-                      </span>
-                    </div>
-
-                    {/* Chuyển trạng thái */}
-                    {oldStatus && newStatus && (
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <HistoryStatusBadge status={oldStatus} />
-                        <span className="material-symbols-outlined text-[13px] text-slate-300">
-                          arrow_forward
-                        </span>
-                        <HistoryStatusBadge status={newStatus} />
-                      </div>
-                    )}
-                    {!oldStatus && newStatus && (
-                      <div className="mb-1">
-                        <HistoryStatusBadge status={newStatus} />
-                      </div>
-                    )}
-
-                    {/* Ghi chú */}
-                    {item.note && (
-                      <p className="text-xs text-slate-500">{item.note}</p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
 // ─── Detail View ──────────────────────────────────────────────────────────────
 
 export function OutboundDetail() {
@@ -647,9 +475,9 @@ export function OutboundDetail() {
 
     const checks = await Promise.all(
       order.details.map(async (detail) => {
-        const availability = await getOutboundProductInventoryAvailabilityWithOptions(
+        const availability = await getOutboundProductInventoryAvailabilityAtLocation(
           detail.product_id,
-          { forceNetwork: true },
+          order.warehouse_location_id,
         );
         return {
           detail,
@@ -794,7 +622,7 @@ export function OutboundDetail() {
             animate={{ opacity: 1, y: 0 }}
             className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
-            Một hoặc nhiều dòng sản phẩm đang thiếu tồn kho khả dụng. Nút phê duyệt đã bị khóa để bảo vệ tồn kho.
+            Một hoặc nhiều dòng sản phẩm đang thiếu tồn kho khả dụng tại vị trí xuất. Nút phê duyệt đã bị khóa theo quy tắc BE.
           </motion.div>
         ) : null}
 
@@ -825,7 +653,7 @@ export function OutboundDetail() {
                 <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-3">Sản phẩm</th>
                   <th className="px-4 py-3 text-center">Số lượng yêu cầu</th>
-                  <th className="px-4 py-3 text-center">Khả dụng realtime</th>
+                  <th className="px-4 py-3 text-center">Khả dụng tại vị trí xuất</th>
                   <th className="px-4 py-3 text-center">Đơn vị tính</th>
                   {showLots && <th className="px-4 py-3">Lô đã lấy</th>}
                 </tr>
@@ -942,9 +770,6 @@ export function OutboundDetail() {
             </table>
           </div>
         </motion.div>
-
-        {/* Lịch sử thao tác */}
-        <ActivityTimeline stockOutId={numericId} />
 
       </div>
     </div>

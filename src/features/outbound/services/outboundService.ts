@@ -33,6 +33,10 @@ interface ReviewInventoryRow {
   product_id: number;
   warehouse_location_id: number;
   available_quantity: number | string;
+  lots?: Array<{
+    id: number;
+    lot_no: string;
+  }>;
 }
 
 interface ReviewInventoryPage {
@@ -49,6 +53,79 @@ interface ReviewInventoryPage {
 export interface StockOutReviewSnapshot {
   order: StockOut;
   availableByProduct: Record<number, number>;
+}
+
+export async function resolveProductLotCodeToId(
+  productId: number,
+  warehouseLocationId: number,
+  lotCode: string,
+): Promise<number | null> {
+  const normalizedLotCode = lotCode.trim().toLowerCase();
+  if (!normalizedLotCode) {
+    return null;
+  }
+
+  const rows = await collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
+    fetchPage: async (page, limit) => {
+      const response = await apiClient.get<ApiResponse<ReviewInventoryPage>>('/api/inventories', {
+        params: {
+          page,
+          limit,
+          product_id: productId,
+          warehouse_location_id: warehouseLocationId,
+        },
+      });
+      return unwrap<ReviewInventoryPage>(response);
+    },
+    getItems: (payload) => payload.items ?? payload.inventories ?? [],
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+  });
+
+  for (const row of rows) {
+    const lots = row.lots ?? [];
+    for (const lot of lots) {
+      const lotNo = String(lot.lot_no ?? '').trim().toLowerCase();
+      if (lotNo && lotNo === normalizedLotCode) {
+        return Number(lot.id);
+      }
+    }
+  }
+
+  return null;
+}
+
+export async function getOutboundProductInventoryAvailabilityAtLocation(
+  productId: number,
+  warehouseLocationId: number,
+): Promise<{
+  availableQty: number;
+  preferredLocationId: number | null;
+}> {
+  const rows = await collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
+    fetchPage: async (page, limit) => {
+      const response = await apiClient.get<ApiResponse<ReviewInventoryPage>>('/api/inventories', {
+        params: {
+          page,
+          limit,
+          product_id: productId,
+          warehouse_location_id: warehouseLocationId,
+        },
+      });
+      return unwrap<ReviewInventoryPage>(response);
+    },
+    getItems: (payload) => payload.items ?? payload.inventories ?? [],
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+  });
+
+  let availableQty = 0;
+  rows.forEach((row) => {
+    availableQty += Number(row.available_quantity) || 0;
+  });
+
+  return {
+    availableQty,
+    preferredLocationId: rows.length > 0 ? warehouseLocationId : null,
+  };
 }
 
 // ─── Helper unwrap ────────────────────────────────────────────────────────────
@@ -112,15 +189,15 @@ export async function getStockOutReviewSnapshot(id: number): Promise<StockOutRev
   });
 
   inventoryRows.forEach((row) => {
-    if (
-      row.warehouse_location_id !== order.warehouse_location_id
-      || !lineProductIds.has(row.product_id)
-    ) {
+    const rowProductId = Number(row.product_id);
+    const rowLocationId = Number(row.warehouse_location_id);
+
+    if (!lineProductIds.has(rowProductId) || rowLocationId !== Number(order.warehouse_location_id)) {
       return;
     }
 
-    availableByProduct[row.product_id] =
-      (availableByProduct[row.product_id] ?? 0) + (Number(row.available_quantity) || 0);
+    availableByProduct[rowProductId] =
+      (availableByProduct[rowProductId] ?? 0) + (Number(row.available_quantity) || 0);
   });
 
   return {
@@ -246,10 +323,10 @@ export async function confirmProofUpload(
 // Lấy danh sách audit log của một phiếu xuất, sắp xếp theo thời gian tăng dần
 
 export async function getStockOutHistory(id: number): Promise<StockOutHistoryItem[]> {
-  const response = await apiClient.get<ApiResponse<StockOutHistoryItem[]>>(
-    `/api/stock-outs/${id}/history`,
-  );
-  return unwrap<StockOutHistoryItem[]>(response);
+  // BE hiện tại chưa expose endpoint history cho stock-out.
+  // Trả rỗng để tránh 404 và giữ trang review ổn định.
+  void id;
+  return [];
 }
 
 /**
