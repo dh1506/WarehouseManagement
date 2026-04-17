@@ -162,13 +162,12 @@ function WorkflowStepper({ status }: { status: OutboundStatus }) {
                 </div>
               )}
               <span
-                className={`mt-2.5 text-xs font-semibold text-center max-w-15 leading-tight ${
-                  isCurrent
+                className={`mt-2.5 text-xs font-semibold text-center max-w-15 leading-tight ${isCurrent
                     ? 'text-blue-700'
                     : isPassed
                       ? 'text-blue-600'
                       : 'text-slate-400'
-                }`}
+                  }`}
               >
                 {step.label}
               </span>
@@ -340,13 +339,13 @@ const STATUS_HISTORY_LABELS: Record<string, string> = {
 };
 
 const STATUS_HISTORY_STYLES: Record<string, { dot: string; text: string; bg: string }> = {
-  DRAFT:       { dot: 'bg-slate-400',   text: 'text-slate-600',  bg: 'bg-slate-100' },
-  PENDING:     { dot: 'bg-amber-500',   text: 'text-amber-700',  bg: 'bg-amber-50' },
-  APPROVED:    { dot: 'bg-emerald-500', text: 'text-emerald-700',bg: 'bg-emerald-50' },
-  PICKING:     { dot: 'bg-blue-500',    text: 'text-blue-700',   bg: 'bg-blue-50' },
-  DISCREPANCY: { dot: 'bg-orange-500',  text: 'text-orange-700', bg: 'bg-orange-50' },
-  COMPLETED:   { dot: 'bg-purple-500',  text: 'text-purple-700', bg: 'bg-purple-50' },
-  CANCELLED:   { dot: 'bg-red-500',     text: 'text-red-600',    bg: 'bg-red-50' },
+  DRAFT: { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100' },
+  PENDING: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
+  APPROVED: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+  PICKING: { dot: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
+  DISCREPANCY: { dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' },
+  COMPLETED: { dot: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50' },
+  CANCELLED: { dot: 'bg-red-500', text: 'text-red-600', bg: 'bg-red-50' },
 };
 
 function HistoryStatusBadge({ status }: { status: string }) {
@@ -363,26 +362,26 @@ function HistoryStatusBadge({ status }: { status: string }) {
 function getTimelineIcon(item: StockOutHistoryItem): { icon: string; bg: string; color: string } {
   const newStatus = (item.new_data as { status?: string } | null)?.status ?? '';
   switch (newStatus) {
-    case 'DRAFT':       return { icon: 'add_circle',    bg: 'bg-blue-50',   color: 'text-blue-500' };
-    case 'PENDING':     return { icon: 'send',          bg: 'bg-amber-50',  color: 'text-amber-500' };
-    case 'APPROVED':    return { icon: 'verified',      bg: 'bg-emerald-50',color: 'text-emerald-600' };
-    case 'PICKING':     return { icon: 'hail',          bg: 'bg-blue-50',   color: 'text-blue-600' };
-    case 'DISCREPANCY': return { icon: 'warning',       bg: 'bg-orange-50', color: 'text-orange-500' };
-    case 'COMPLETED':   return { icon: 'check_circle',  bg: 'bg-emerald-50',color: 'text-emerald-700' };
-    case 'CANCELLED':   return { icon: 'cancel',        bg: 'bg-red-50',    color: 'text-red-500' };
-    default:            return { icon: 'history',       bg: 'bg-slate-50',  color: 'text-slate-400' };
+    case 'DRAFT': return { icon: 'add_circle', bg: 'bg-blue-50', color: 'text-blue-500' };
+    case 'PENDING': return { icon: 'send', bg: 'bg-amber-50', color: 'text-amber-500' };
+    case 'APPROVED': return { icon: 'verified', bg: 'bg-emerald-50', color: 'text-emerald-600' };
+    case 'PICKING': return { icon: 'hail', bg: 'bg-blue-50', color: 'text-blue-600' };
+    case 'DISCREPANCY': return { icon: 'warning', bg: 'bg-orange-50', color: 'text-orange-500' };
+    case 'COMPLETED': return { icon: 'check_circle', bg: 'bg-emerald-50', color: 'text-emerald-700' };
+    case 'CANCELLED': return { icon: 'cancel', bg: 'bg-red-50', color: 'text-red-500' };
+    default: return { icon: 'history', bg: 'bg-slate-50', color: 'text-slate-400' };
   }
 }
 
 function formatRelativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60_000);
-  const hours   = Math.floor(diff / 3_600_000);
-  const days    = Math.floor(diff / 86_400_000);
-  if (minutes < 1)  return 'Vừa xong';
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (minutes < 1) return 'Vừa xong';
   if (minutes < 60) return `${minutes} phút trước`;
-  if (hours   < 24) return `${hours} giờ trước`;
-  if (days    <  7) return `${days} ngày trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  if (days < 7) return `${days} ngày trước`;
   return new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
@@ -440,9 +439,9 @@ function ActivityTimeline({ stockOutId }: ActivityTimelineProps) {
           <ol className="space-y-0">
             {history.map((item, idx) => {
               const { icon, bg, color } = getTimelineIcon(item);
-              const oldStatus = (item.old_data  as { status?: string } | null)?.status;
-              const newStatus = (item.new_data  as { status?: string } | null)?.status;
-              const isLast    = idx === history.length - 1;
+              const oldStatus = (item.old_data as { status?: string } | null)?.status;
+              const newStatus = (item.new_data as { status?: string } | null)?.status;
+              const isLast = idx === history.length - 1;
 
               return (
                 <li key={item.id} className="flex gap-3">

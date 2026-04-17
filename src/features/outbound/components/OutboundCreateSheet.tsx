@@ -196,6 +196,14 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     const inventory = line.productId ? inventoryMap[line.productId] : undefined;
     const available = inventory?.availableQty ?? 0;
 
+    if (line.productId && !inventory) {
+      setError(`details.${index}.quantity`, {
+        type: 'manual',
+        message: 'Inventory is loading. Please wait a moment.',
+      });
+      return false;
+    }
+
     if (inventory?.loading) {
       setError(`details.${index}.quantity`, {
         type: 'manual',
@@ -247,6 +255,10 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       }
 
       const inventory = inventoryMap[line.productId];
+      if (!inventory) {
+        return true;
+      }
+
       if (inventory?.loading) {
         return true;
       }
@@ -483,6 +495,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                       const availableQty = inventory?.availableQty ?? 0;
                       const quantityExceeded =
                         lineProductId.length > 0
+                        && Boolean(inventory)
                         && !inventory?.loading
                         && !inventory?.error
                         && lineQuantity > availableQty;
@@ -549,7 +562,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                               <label className="mb-1 block text-[11px] font-semibold text-slate-500">Available</label>
                               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-semibold text-slate-700">
                                 {lineProductId
-                                  ? (inventory?.loading
+                                  ? (!inventory
+                                    ? 'Loading...'
+                                    : inventory?.loading
                                     ? 'Loading...'
                                     : inventory?.error
                                       ? 'Unavailable'

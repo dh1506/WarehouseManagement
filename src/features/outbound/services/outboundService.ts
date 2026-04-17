@@ -13,6 +13,7 @@ import type {
 } from '../types/outboundType';
 
 interface ProductInventoryRow {
+  product_id?: number;
   warehouse_location_id?: number;
   available_quantity?: number | string | null;
   availableQuantity?: number | string | null;
@@ -37,6 +38,38 @@ function getInventoryRows(payload: ProductInventoryPayload): ProductInventoryRow
 function getInventoryTotalPages(payload: ProductInventoryPayload): number {
   const rawPages = payload.pagination?.total_pages ?? payload.pagination?.totalPages ?? 1;
   return Number.isFinite(rawPages) && rawPages > 0 ? rawPages : 1;
+}
+
+async function fetchInventoryRowsByPage(params: {
+  productId?: number;
+}): Promise<ProductInventoryRow[]> {
+  const firstResponse = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
+    params: {
+      page: 1,
+      limit: 100,
+      product_id: params.productId,
+    },
+  });
+
+  const firstPayload = unwrap<ProductInventoryPayload>(firstResponse);
+  const totalPages = getInventoryTotalPages(firstPayload);
+  const rows: ProductInventoryRow[] = [...getInventoryRows(firstPayload)];
+
+  if (totalPages > 1) {
+    for (let page = 2; page <= totalPages; page += 1) {
+      const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
+        params: {
+          page,
+          limit: 100,
+          product_id: params.productId,
+        },
+      });
+      const payload = unwrap<ProductInventoryPayload>(response);
+      rows.push(...getInventoryRows(payload));
+    }
+  }
+
+  return rows;
 }
 
 // ─── Helper unwrap ────────────────────────────────────────────────────────────
@@ -217,22 +250,13 @@ export async function getOutboundProductInventoryAvailability(productId: number)
   let apiSucceeded = false;
 
   try {
-    const firstResponse = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
-      params: { product_id: productId, page: 1, limit: 100 },
-    });
+    let rows = await fetchInventoryRowsByPage({ productId });
 
-    const firstPayload = unwrap<ProductInventoryPayload>(firstResponse);
-    const totalPages = getInventoryTotalPages(firstPayload);
-    const rows: ProductInventoryRow[] = [...getInventoryRows(firstPayload)];
-
-    if (totalPages > 1) {
-      for (let page = 2; page <= totalPages; page += 1) {
-        const response = await apiClient.get<ApiResponse<ProductInventoryPayload>>('/api/inventories', {
-          params: { product_id: productId, page, limit: 100 },
-        });
-        const payload = unwrap<ProductInventoryPayload>(response);
-        rows.push(...getInventoryRows(payload));
-      }
+    // Một số môi trường BE có thể bỏ qua filter product_id.
+    // Fallback sang scan toàn bộ inventory và lọc client-side để đồng nhất với màn Inventory Overview.
+    if (rows.length === 0) {
+      const allRows = await fetchInventoryRowsByPage({});
+      rows = allRows.filter((row) => Number(row.product_id) === productId);
     }
 
     rows.forEach((row) => {

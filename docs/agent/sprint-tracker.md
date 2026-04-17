@@ -1,75 +1,95 @@
 # Sprint Tracker
 
-## Outbound Create Sheet Available=0 Mismatch vs Inventory Overview — 2026-04-17 (COMPLETED)
+## Outbound Create Sheet Still Showing Exceeded (0) — 2026-04-17 (COMPLETED)
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Align outbound inventory fetch with Inventory Overview aggregation | ✅ | `getOutboundProductInventoryAvailability` now reads all inventory pages (`page 1..N`) instead of only first page |
-| Remove silent API-fail fallback to misleading `available=0` | ✅ | If inventory API fails and no fallback data exists, service throws explicit error |
-| Prevent false `Exceeded available inventory (0)` message on fetch failure | ✅ | Create sheet now treats `inventory.error` as unavailable state and blocks save with dedicated message |
-| Keep blocking behavior for invalid outbound qty | ✅ | Still blocks `qty <= 0` and `qty > available` |
+| Fix unresolved-inventory UI state | ✅ | When product is selected but row inventory has not arrived yet, UI now shows `Loading...` instead of `0` |
+| Prevent false over-limit warning before inventory resolved | ✅ | `quantityExceeded` now requires an existing inventory record and non-error state |
+| Add service fallback for broken product_id filter | ✅ | If `/api/inventories?product_id=...` returns empty, service scans full inventory and filters client-side by `product_id` |
 
 **Files changed:**
+- `src/features/outbound/components/OutboundCreateSheet.tsx`
+- `src/features/outbound/services/outboundService.ts`
+
+## Outbound Create Sheet Available=0 Mismatch vs Inventory Overview — 2026-04-17 (COMPLETED)
+
+| Task                                                                      | Status | Notes                                                                                                            |
+| ------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
+| Align outbound inventory fetch with Inventory Overview aggregation        | ✅     | `getOutboundProductInventoryAvailability` now reads all inventory pages (`page 1..N`) instead of only first page |
+| Remove silent API-fail fallback to misleading `available=0`               | ✅     | If inventory API fails and no fallback data exists, service throws explicit error                                |
+| Prevent false `Exceeded available inventory (0)` message on fetch failure | ✅     | Create sheet now treats `inventory.error` as unavailable state and blocks save with dedicated message            |
+| Keep blocking behavior for invalid outbound qty                           | ✅     | Still blocks `qty <= 0` and `qty > available`                                                                    |
+
+**Files changed:**
+
 - `src/features/outbound/services/outboundService.ts`
 - `src/features/outbound/components/OutboundCreateSheet.tsx`
 
 **Root cause addressed:**
+
 - Inventory screen aggregates all rows/pages, while outbound create flow previously queried only first inventory page and swallowed API errors to `0`, causing false validation failures.
 
 ## Outbound Create Form (Detail Page) — Inventory Guard At Submit — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add submit-time inventory validation per line item | ✅ | On submit, FE now re-checks each selected product against `getOutboundProductInventoryAvailability` |
-| Block negative/zero outbound qty at submit layer | ✅ | Adds manual error `Số lượng xuất phải lớn hơn 0` for invalid qty |
-| Block over-available outbound qty at submit layer | ✅ | Adds manual error `Số lượng xuất vượt quá tồn kho khả dụng (X)` |
-| Focus first invalid field | ✅ | Uses `setFocus` to guide operator to first invalid line |
+| Task                                               | Status | Notes                                                                                               |
+| -------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------- |
+| Add submit-time inventory validation per line item | ✅     | On submit, FE now re-checks each selected product against `getOutboundProductInventoryAvailability` |
+| Block negative/zero outbound qty at submit layer   | ✅     | Adds manual error `Số lượng xuất phải lớn hơn 0` for invalid qty                                    |
+| Block over-available outbound qty at submit layer  | ✅     | Adds manual error `Số lượng xuất vượt quá tồn kho khả dụng (X)`                                     |
+| Focus first invalid field                          | ✅     | Uses `setFocus` to guide operator to first invalid line                                             |
 
 **File changed:**
+
 - `src/features/outbound/components/OutboundDetail.tsx`
 
 **Why this was needed:**
+
 - `LineItemEditor` already had realtime guard per row, but submit-time revalidation hardens safety and prevents edge-case bypass when inventory checks are still stabilizing.
 
 ## Outbound Create Sheet AC Alignment — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Ensure one empty row exists on open/reset | ✅ | `OutboundCreateSheet` now auto-appends an empty row when opened and resets with one row |
-| Keep close/cancel/overlay safe-close confirmation behavior | ✅ | Dialog copy aligned to unsaved-data warning requirement |
-| Strengthen block-submit UX for invalid forms | ✅ | Added invalid submit callback to scroll/focus first error and trigger visual attention animation |
-| Align quantity over-limit wording with AC | ✅ | Message now: `Exceeded available inventory (X)` |
-| Align save loading label with AC | ✅ | Button label now `Saving...` while mutation is pending |
-| Preserve list auto-refresh and success toast flow | ✅ | Existing invalidate pattern kept; sales success toast aligned to draft-created message |
+| Task                                                       | Status | Notes                                                                                            |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
+| Ensure one empty row exists on open/reset                  | ✅     | `OutboundCreateSheet` now auto-appends an empty row when opened and resets with one row          |
+| Keep close/cancel/overlay safe-close confirmation behavior | ✅     | Dialog copy aligned to unsaved-data warning requirement                                          |
+| Strengthen block-submit UX for invalid forms               | ✅     | Added invalid submit callback to scroll/focus first error and trigger visual attention animation |
+| Align quantity over-limit wording with AC                  | ✅     | Message now: `Exceeded available inventory (X)`                                                  |
+| Align save loading label with AC                           | ✅     | Button label now `Saving...` while mutation is pending                                           |
+| Preserve list auto-refresh and success toast flow          | ✅     | Existing invalidate pattern kept; sales success toast aligned to draft-created message           |
 
 **Files changed:**
+
 - `src/features/outbound/components/OutboundCreateSheet.tsx`
 - `src/features/outbound/hooks/useOutbound.ts`
 - `src/index.css`
 
 **Notes:**
+
 - No backend changes.
 - Architecture boundaries preserved: UI in feature component, API in service, query/mutation in hook.
 
 ## Outbound LineItemEditor — Inventory Availability Display & Validation — 2026-04-17 (COMPLETED)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add `currentLoad` to `BinAssignmentValue` interface | ✅ | `warehouseService.ts` — interface extended |
-| Pass `currentLoad: payload.currentLoad` in `setBinAssignmentFallback` call | ✅ | `updateZoneBinCapacity` in `warehouseService.ts` |
-| Export `getProductAvailableQtyFromBinFallback(productId)` | ✅ | Reads all bin entries from localStorage, sums currentLoad by productId |
-| Rewrite `getOutboundProductInventoryAvailability` — two-layer strategy | ✅ | Layer 1: localStorage (sync). Layer 2: API. Prefer fallback when > 0 |
-| Add `stockOutKeys.productInventory(productId)` | ✅ | `useOutbound.ts` |
-| Add `useProductInventoryAvailability(productId)` hook | ✅ | `useOutbound.ts` — staleTime 2 min, enabled when productId > 0 |
-| Extract `LineItemRow` sub-component | ✅ | Per-row `useWatch` + debounced fetch + `useRef`-guarded setError |
-| Add `InventoryAvailabilityBadge` UI | ✅ | Loading spinner / green "Tồn kho: X" / red "Hết hàng" |
-| Quantity over-limit → `setError` → disables submit via `formState.isValid` | ✅ | `details.${index}.quantity` manual error |
+| Task                                                                       | Status | Notes                                                                  |
+| -------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------- |
+| Add `currentLoad` to `BinAssignmentValue` interface                        | ✅     | `warehouseService.ts` — interface extended                             |
+| Pass `currentLoad: payload.currentLoad` in `setBinAssignmentFallback` call | ✅     | `updateZoneBinCapacity` in `warehouseService.ts`                       |
+| Export `getProductAvailableQtyFromBinFallback(productId)`                  | ✅     | Reads all bin entries from localStorage, sums currentLoad by productId |
+| Rewrite `getOutboundProductInventoryAvailability` — two-layer strategy     | ✅     | Layer 1: localStorage (sync). Layer 2: API. Prefer fallback when > 0   |
+| Add `stockOutKeys.productInventory(productId)`                             | ✅     | `useOutbound.ts`                                                       |
+| Add `useProductInventoryAvailability(productId)` hook                      | ✅     | `useOutbound.ts` — staleTime 2 min, enabled when productId > 0         |
+| Extract `LineItemRow` sub-component                                        | ✅     | Per-row `useWatch` + debounced fetch + `useRef`-guarded setError       |
+| Add `InventoryAvailabilityBadge` UI                                        | ✅     | Loading spinner / green "Tồn kho: X" / red "Hết hàng"                  |
+| Quantity over-limit → `setError` → disables submit via `formState.isValid` | ✅     | `details.${index}.quantity` manual error                               |
 
 **Root cause resolved:**
+
 - `BinAssignmentValue` was missing `currentLoad` → localStorage fallback returned 0 → displayed nothing
 - `getOutboundProductInventoryAvailability` was API-only → failed silently when BE hadn't synced
 
 **Files changed:**
+
 - `src/services/warehouseService.ts` — `BinAssignmentValue` + `getBinAssignmentFallbackMap` + `setBinAssignmentFallback` + `updateZoneBinCapacity` + new export `getProductAvailableQtyFromBinFallback`
 - `src/features/outbound/services/outboundService.ts` — import + full rewrite of availability function
 - `src/features/outbound/hooks/useOutbound.ts` — `productInventory` key + `useProductInventoryAvailability`
@@ -81,15 +101,16 @@
 
 ## Outbound Available Qty Always 0 After Warehouse Hub Update — 2026-04-16 (COMPLETED — simplified)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Diagnose `Available: 0` despite bin having currentLoad = 100 | ✅ | Three-layer failure: (1) `syncBinInventoryFromCurrentLoad` POST/PUT silently fails; (2) location API `current_weight` unreliable from BE; (3) `currentLoad` never stored in localStorage |
-| Store `currentLoad` in `wm:bin-assignment-scope` on bin save | ✅ | `setBinAssignmentFallback` now includes `currentLoad: payload.currentLoad` — `warehouseService.ts` |
-| Rewrite `getAvailabilityFromWarehouseHubFallback` | ✅ | Reads `currentLoad` directly from localStorage (synchronous, no API call) — `outboundService.ts` |
-| Priority fix: prefer fallback over stale inventory API | ✅ | `getOutboundProductInventoryAvailability` runs both in parallel, uses fallback when > 0 — `outboundService.ts` |
-| Backward compat: legacy API fallback for old entries | ✅ | `getAvailabilityFromLocationApiFallback` used only for localStorage entries without `currentLoad` field |
+| Task                                                         | Status | Notes                                                                                                                                                                                    |
+| ------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Diagnose `Available: 0` despite bin having currentLoad = 100 | ✅     | Three-layer failure: (1) `syncBinInventoryFromCurrentLoad` POST/PUT silently fails; (2) location API `current_weight` unreliable from BE; (3) `currentLoad` never stored in localStorage |
+| Store `currentLoad` in `wm:bin-assignment-scope` on bin save | ✅     | `setBinAssignmentFallback` now includes `currentLoad: payload.currentLoad` — `warehouseService.ts`                                                                                       |
+| Rewrite `getAvailabilityFromWarehouseHubFallback`            | ✅     | Reads `currentLoad` directly from localStorage (synchronous, no API call) — `outboundService.ts`                                                                                         |
+| Priority fix: prefer fallback over stale inventory API       | ✅     | `getOutboundProductInventoryAvailability` runs both in parallel, uses fallback when > 0 — `outboundService.ts`                                                                           |
+| Backward compat: legacy API fallback for old entries         | ✅     | `getAvailabilityFromLocationApiFallback` used only for localStorage entries without `currentLoad` field                                                                                  |
 
 **Root cause (complete chain):**
+
 1. User saves bin (currentLoad=100) → `PATCH /api/warehouses/locations/:id` succeeds ✅
 2. `syncBinInventoryFromCurrentLoad` → `POST /api/inventories` silently fails (BE may not allow direct inventory writes) ❌
 3. `setBinAssignmentFallback` wrote `{ productId, categoryId, productName }` to localStorage — **`currentLoad` was missing** ❌
@@ -99,6 +120,7 @@
 **Fix:** `currentLoad` is now persisted in `wm:bin-assignment-scope` at save time. Fallback reads it directly — zero dependency on BE response fields or inventory write success.
 
 **Files changed:**
+
 - `src/services/warehouseService.ts` — `BinAssignmentValue` interface + `setBinAssignmentFallback` call
 - `src/features/outbound/services/outboundService.ts` — `BinAssignmentValue` interface + full fallback rewrite
 

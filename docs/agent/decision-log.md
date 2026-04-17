@@ -530,3 +530,15 @@
 3. Update create-sheet UI to render inventory as unavailable on fetch error and block submit with explicit validation message.
 
 **Rationale:** Avoids false-negative validation and keeps outbound quantity checks trustworthy and consistent with inventory dashboard numbers.
+
+## DEC-086 - Outbound create sheet must treat missing inventory snapshot as pending, not zero
+
+**Date:** 2026-04-17
+**Context:** UI could render `Exceeded available inventory (0)` when inventory row had not been resolved yet for the selected product.
+**Decision:**
+
+1. In create sheet, unresolved inventory (`inventoryMap[productId]` missing) is treated as loading/pending state.
+2. `quantityExceeded` UI check only runs when inventory snapshot exists and has no loading/error flag.
+3. In outbound service, add fallback path: if product-filtered inventories return empty, fetch full inventory pages and filter by `product_id` client-side.
+
+**Rationale:** Eliminates false warning states and hardens against backend filter inconsistencies.
