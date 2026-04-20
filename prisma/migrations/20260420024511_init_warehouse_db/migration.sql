@@ -261,6 +261,133 @@ CREATE TABLE `brands_products` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `stock_counts` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_count_code` VARCHAR(191) NOT NULL,
+    `type` ENUM('PERIODIC', 'AD_HOC') NOT NULL DEFAULT 'PERIODIC',
+    `scope_type` ENUM('FULL', 'ZONE', 'PRODUCT', 'LOT') NOT NULL DEFAULT 'FULL',
+    `description` TEXT NULL,
+    `status` ENUM('DRAFT', 'COUNTING', 'COMPLETED', 'APPROVED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    `created_by` INTEGER NOT NULL,
+    `approved_by` INTEGER NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `stock_counts_stock_count_code_key`(`stock_count_code`),
+    INDEX `stock_counts_created_by_idx`(`created_by`),
+    INDEX `stock_counts_approved_by_idx`(`approved_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_count_details` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_count_id` INTEGER NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `lot_id` INTEGER NULL,
+    `system_quantity` DECIMAL(15, 3) NOT NULL,
+    `counted_quantity` DECIMAL(15, 3) NULL,
+    `variance_quantity` DECIMAL(15, 3) NULL,
+    `unit_price` DECIMAL(15, 2) NULL,
+    `variance_reason` TEXT NULL,
+    `is_confirmed` BOOLEAN NOT NULL DEFAULT false,
+    `counted_by` INTEGER NULL,
+    `counted_at` DATETIME(3) NULL,
+
+    INDEX `stock_count_details_stock_count_id_idx`(`stock_count_id`),
+    INDEX `stock_count_details_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `stock_count_details_product_id_idx`(`product_id`),
+    INDEX `stock_count_details_lot_id_idx`(`lot_id`),
+    INDEX `stock_count_details_counted_by_idx`(`counted_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_count_adjustments` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_count_id` INTEGER NOT NULL,
+    `stock_count_detail_id` INTEGER NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `lot_id` INTEGER NULL,
+    `adjustment_type` ENUM('INCREASE', 'DECREASE') NOT NULL,
+    `adjustment_quantity` DECIMAL(15, 3) NOT NULL,
+    `note` TEXT NULL,
+    `created_by` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `stock_count_adjustments_stock_count_id_idx`(`stock_count_id`),
+    INDEX `stock_count_adjustments_stock_count_detail_id_idx`(`stock_count_detail_id`),
+    INDEX `stock_count_adjustments_created_by_idx`(`created_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `disposal_reasons` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `disposal_reasons_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_disposals` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `disposal_code` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `status` ENUM('DRAFT', 'PENDING', 'APPROVED', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    `created_by` INTEGER NOT NULL,
+    `approved_by` INTEGER NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `stock_disposals_disposal_code_key`(`disposal_code`),
+    INDEX `stock_disposals_created_by_idx`(`created_by`),
+    INDEX `stock_disposals_approved_by_idx`(`approved_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_disposal_history` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_disposal_id` INTEGER NOT NULL,
+    `status` ENUM('DRAFT', 'PENDING', 'APPROVED', 'COMPLETED', 'CANCELLED') NOT NULL,
+    `note` TEXT NULL,
+    `created_by` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `stock_disposal_history_stock_disposal_id_idx`(`stock_disposal_id`),
+    INDEX `stock_disposal_history_created_by_idx`(`created_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stock_disposal_details` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stock_disposal_id` INTEGER NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `lot_id` INTEGER NULL,
+    `reason_id` INTEGER NOT NULL,
+    `quantity` DECIMAL(15, 3) NOT NULL,
+    `unit_price` DECIMAL(15, 2) NULL,
+    `reason_note` TEXT NULL,
+
+    INDEX `stock_disposal_details_stock_disposal_id_idx`(`stock_disposal_id`),
+    INDEX `stock_disposal_details_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `stock_disposal_details_product_id_idx`(`product_id`),
+    INDEX `stock_disposal_details_lot_id_idx`(`lot_id`),
+    INDEX `stock_disposal_details_reason_id_idx`(`reason_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `stock_ins` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `warehouse_location_id` INTEGER NOT NULL,
@@ -561,6 +688,69 @@ ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_brand_id_fkey` FOR
 
 -- AddForeignKey
 ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_counts` ADD CONSTRAINT `stock_counts_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_counts` ADD CONSTRAINT `stock_counts_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_stock_count_id_fkey` FOREIGN KEY (`stock_count_id`) REFERENCES `stock_counts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_counted_by_fkey` FOREIGN KEY (`counted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_stock_count_id_fkey` FOREIGN KEY (`stock_count_id`) REFERENCES `stock_counts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposals` ADD CONSTRAINT `stock_disposals_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposals` ADD CONSTRAINT `stock_disposals_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_history` ADD CONSTRAINT `stock_disposal_history_stock_disposal_id_fkey` FOREIGN KEY (`stock_disposal_id`) REFERENCES `stock_disposals`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_history` ADD CONSTRAINT `stock_disposal_history_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_stock_disposal_id_fkey` FOREIGN KEY (`stock_disposal_id`) REFERENCES `stock_disposals`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_reason_id_fkey` FOREIGN KEY (`reason_id`) REFERENCES `disposal_reasons`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

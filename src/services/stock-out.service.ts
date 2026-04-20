@@ -3,6 +3,7 @@ import { AppError } from '../utils/app-error';
 import { generateStockOutCode } from '../utils/generate-code.util';
 import { StockOutStatus, StockOutType, TransactionType, Prisma } from '../generated';
 import { checkIsClosed, validateAvailableStock } from './inventory.service';
+import { checkStockCountLock } from './stock-count.service';
 import type { CreateDiscrepancyInput, ResolveDiscrepancyInput } from '../schemas/stock-out.schema';
 
 export interface CreateStockOutData {
@@ -161,6 +162,11 @@ export const approveStockOut = async (id: number, approvedBy: number) => {
 
     // Kiểm tra khóa sổ
     await checkIsClosed(new Date());
+
+    // Kiểm tra khóa giao dịch bởi kiểm kê
+    for (const detail of stockOut.details) {
+      await checkStockCountLock(stockOut.warehouse_location_id, detail.product_id);
+    }
 
     for (const detail of stockOut.details) {
       // Kiểm tra tồn kho khả dụng
@@ -398,6 +404,11 @@ export const completeStockOut = async (id: number, userId: number) => {
 
     // Kiểm tra khóa sổ
     await checkIsClosed(new Date());
+
+    // Kiểm tra khóa giao dịch bởi kiểm kê
+    for (const detail of stockOut.details) {
+      await checkStockCountLock(stockOut.warehouse_location_id, detail.product_id);
+    }
 
     for (const detail of stockOut.details) {
       const totalPicked = detail.lots.reduce((sum, l) => sum + Number(l.quantity), 0);

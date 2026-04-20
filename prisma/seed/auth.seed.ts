@@ -332,6 +332,82 @@ export async function seedAuth(prisma: PrismaClient) {
       module: "inventory_transactions",
       action: "create",
     },
+
+    // STOCK COUNTS (KIỂM KÊ KHO)
+    {
+      name: "stock_counts:read",
+      description: "Xem kiểm kê kho",
+      module: "stock_counts",
+      action: "read",
+    },
+    {
+      name: "stock_counts:create",
+      description: "Tạo đợt kiểm kê",
+      module: "stock_counts",
+      action: "create",
+    },
+    {
+      name: "stock_counts:update",
+      description: "Cập nhật kiểm kê",
+      module: "stock_counts",
+      action: "update",
+    },
+    {
+      name: "stock_counts:approve",
+      description: "Phê duyệt kết quả kiểm kê",
+      module: "stock_counts",
+      action: "approve",
+    },
+    {
+      name: "stock_counts:cancel",
+      description: "Hủy đợt kiểm kê",
+      module: "stock_counts",
+      action: "cancel",
+    },
+    {
+      name: "stock_counts:export",
+      description: "Xuất biên bản kiểm kê",
+      module: "stock_counts",
+      action: "export",
+    },
+
+    // STOCK DISPOSALS (HỦY HÀNG)
+    {
+      name: "stock_disposals:read",
+      description: "Xem phiếu hủy hàng",
+      module: "stock_disposals",
+      action: "read",
+    },
+    {
+      name: "stock_disposals:create",
+      description: "Tạo mới phiếu hủy hàng",
+      module: "stock_disposals",
+      action: "create",
+    },
+    {
+      name: "stock_disposals:update",
+      description: "Cập nhật phiếu hủy hàng",
+      module: "stock_disposals",
+      action: "update",
+    },
+    {
+      name: "stock_disposals:approve",
+      description: "Phê duyệt/Hoàn tất phiếu hủy",
+      module: "stock_disposals",
+      action: "approve",
+    },
+    {
+      name: "stock_disposals:cancel",
+      description: "Hủy bỏ phiếu hủy hàng",
+      module: "stock_disposals",
+      action: "cancel",
+    },
+    {
+      name: "stock_disposals:analytics",
+      description: "Xem báo cáo phân tích hủy hàng",
+      module: "stock_disposals",
+      action: "analytics",
+    },
   ];
 
   for (const p of permissions) {

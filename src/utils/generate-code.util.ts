@@ -78,3 +78,21 @@ export const generateStockOutCode = (sequenceId: number): string => {
   const seqPart = sequenceId.toString().padStart(4, '0');
   return `OUT-${dateStr}-${seqPart}`;
 };
+
+/**
+ * Sinh mã code cho phiếu kiểm kê kho (Ví dụ: KK-20260420-0001)
+ */
+export const generateStockCountCode = (sequenceId: number): string => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = sequenceId.toString().padStart(4, '0');
+  return `KK-${dateStr}-${seqPart}`;
+};
+
+/**
+ * Sinh mã code cho phiếu hủy hàng (Ví dụ: HUY-20260420-0001)
+ */
+export const generateStockDisposalCode = (sequenceId: number): string => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = sequenceId.toString().padStart(4, '0');
+  return `HUY-${dateStr}-${seqPart}`;
+};

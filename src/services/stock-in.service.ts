@@ -2,6 +2,7 @@ import { prisma } from "../config/db.config";
 import { AppError } from "../utils/app-error";
 import { generateStockInCode } from "../utils/generate-code.util";
 import { checkIsClosed } from "./inventory.service";
+import { checkStockCountLock } from "./stock-count.service";
 import type {
   CreateStockInInput,
   RecordReceiptInput,
@@ -467,6 +468,11 @@ export const completeStockIn = async (id: number, userId: number) => {
 
   // 3. Kiểm tra khóa sổ
   await checkIsClosed(new Date());
+
+  // 3.1. Kiểm tra khóa giao dịch bởi kiểm kê
+  for (const detail of stockIn.details) {
+    await checkStockCountLock(stockIn.warehouse_location_id, detail.product_id);
+  }
 
   // 4. Hoàn tất & Ghi nhận tồn kho
   return prisma.$transaction(async (tx) => {

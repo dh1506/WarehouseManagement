@@ -2,6 +2,7 @@ import { prisma } from "../config/db.config";
 import { AppError } from "../utils/app-error";
 import { generateAdjustmentCode } from "../utils/generate-code.util";
 import { Prisma } from "../generated";
+import { checkStockCountLock } from "./stock-count.service";
 import ExcelJS from "exceljs";
 import PdfPrinter from "pdfmake";
 import path from "path";
@@ -262,6 +263,9 @@ export const createAdjustment = async (
       throw new AppError("Lô hàng không thuộc sản phẩm này", 400);
     }
   }
+
+  // Kiểm tra khóa giao dịch bởi kiểm kê
+  await checkStockCountLock(warehouse_location_id, product_id);
 
   return prisma.$transaction(async (tx) => {
     // Tìm inventory hiện tại
