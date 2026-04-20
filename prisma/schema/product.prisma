@@ -70,6 +70,9 @@ model Product {
   base_uom               UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
   stock_in_details       StockInDetail[]
   stock_out_details      StockOutDetail[]
+  stock_count_details    StockCountDetail[]
+  stock_count_adjustments StockCountAdjustment[]
+  stock_disposal_details StockDisposalDetail[]
 
   @@index([base_uom_id], map: "products_base_uom_id_fkey")
   @@map("products")

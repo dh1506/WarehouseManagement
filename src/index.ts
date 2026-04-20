@@ -18,6 +18,8 @@ import locationAllowedCategoryRoutes from "./routes/location-allowed-category.ro
 import stockInRoutes from "./routes/stock-in.route";
 import stockOutRoutes from "./routes/stock-out.route";
 import inventoryTransactionRoutes from "./routes/inventory-transaction.route";
+import stockCountRoutes from "./routes/stock-count.route";
+import stockDisposalRoutes from "./routes/stock-disposal.route";
 import { globalErrorHandler } from "./middlewares/error.middleware";
 
 dotenv.config();
@@ -52,6 +54,8 @@ app.use("/api/location-allowed-categories", locationAllowedCategoryRoutes);
 app.use("/api/stock-ins", stockInRoutes);
 app.use("/api/stock-outs", stockOutRoutes);
 app.use("/api/inventory-transactions", inventoryTransactionRoutes);
+app.use("/api/stock-counts", stockCountRoutes);
+app.use("/api/stock-disposals", stockDisposalRoutes);
 
 // Error Middleware
 app.use(globalErrorHandler);

@@ -36,6 +36,9 @@ model WarehouseLocation {
   allowed_categories     LocationAllowedCategory[]
   stock_ins              StockIn[]
   stock_outs             StockOut[]
+  stock_count_details    StockCountDetail[]
+  stock_count_adjustments StockCountAdjustment[]
+  stock_disposal_details StockDisposalDetail[]
   warehouse              Warehouse                 @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")
