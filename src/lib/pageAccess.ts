@@ -91,6 +91,13 @@ export const PAGE_PERMISSION_MAP: PagePermissionConfig[] = [
     description: 'Approval workflow configuration',
     modules: ['roles'],
   },
+  {
+    id: 'stock-count',
+    label: 'Stock Count',
+    icon: 'fact_check',
+    description: 'Inventory cycle count management',
+    modules: ['stock_counts'],
+  },
 ];
 
 export interface SidebarPageAccessConfig {
@@ -126,6 +133,12 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
     label: 'Approval Configuration',
     path: '/admin/approval-configuration',
     modules: ['roles'],
+  },
+  {
+    id: 'stock-count',
+    label: 'Stock Count',
+    path: '/stock-count',
+    modules: ['stock_counts'],
   },
 ];
 

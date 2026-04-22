@@ -389,6 +389,10 @@ export function OutboundDetail() {
 
   const order = reviewData?.order;
   const availableByProduct = reviewData?.availableByProduct ?? {};
+  const storedDiscrepancyResolution = useMemo(
+    () => (order ? getStoredStockOutDiscrepancyResolution(order.id) : null),
+    [order?.id],
+  );
 
   const formatDate = (s: string) =>
     new Date(s).toLocaleString('vi-VN', {
@@ -455,10 +459,6 @@ export function OutboundDetail() {
     0,
   );
   const showLots = order.status === 'PICKING' || order.status === 'COMPLETED';
-  const storedDiscrepancyResolution = useMemo(
-    () => getStoredStockOutDiscrepancyResolution(order.id),
-    [order.id],
-  );
 
   const hasInsufficientInventory = order.details.some((detail) => {
     const requestedQty = toIntQuantity(detail.quantity);

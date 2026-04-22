@@ -29,6 +29,8 @@ import { TransactionHistoryPage } from './pages/operations/TransactionHistoryPag
 import { OutboundListPage } from './pages/operations/OutboundListPage';
 import { OutboundDetailPage } from './pages/operations/OutboundDetailPage';
 import { OutboundPickingPage } from './pages/operations/OutboundPickingPage';
+import { StockCountListPage } from './pages/operations/StockCountListPage';
+import { StockCountDetailPage } from './pages/operations/StockCountDetailPage';
 import { Toaster } from './components/ui/toaster';
 import { AntdDashboard } from './pages/AntdDashboard';
 import { DashboardPage } from './pages/operations/DashboardPage';
@@ -141,6 +143,8 @@ function App() {
             <Route path="/outbound" element={<PageAccessRoute path="/outbound"><OutboundListPage /></PageAccessRoute>} />
             <Route path="/outbound/:id" element={<PageAccessRoute path="/outbound"><OutboundDetailPage /></PageAccessRoute>} />
             <Route path="/outbound/:id/picking" element={<PageAccessRoute path="/outbound"><OutboundPickingPage /></PageAccessRoute>} />
+            <Route path="/stock-count" element={<PageAccessRoute path="/stock-count"><StockCountListPage /></PageAccessRoute>} />
+            <Route path="/stock-count/:id" element={<PageAccessRoute path="/stock-count"><StockCountDetailPage /></PageAccessRoute>} />
           </Route>
 
           {/* 404 — mọi route không khớp */}
