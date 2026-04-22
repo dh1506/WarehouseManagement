@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import {
@@ -8,12 +9,14 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface CancelStockCountDialogProps {
   open: boolean;
   stockCountCode: string;
   isPending: boolean;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => void;
   onClose: () => void;
 }
 
@@ -24,8 +27,23 @@ export function CancelStockCountDialog({
   onConfirm,
   onClose,
 }: CancelStockCountDialogProps) {
+  const [reason, setReason] = useState('');
+
+  const handleClose = () => {
+    setReason('');
+    onClose();
+  };
+
+  const handleConfirm = () => {
+    if (reason.trim().length < 5) return;
+    onConfirm(reason.trim());
+  };
+
+  const charCount = reason.trim().length;
+  const isValid = charCount >= 5;
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-start gap-3">
@@ -45,24 +63,57 @@ export function CancelStockCountDialog({
           </div>
         </DialogHeader>
 
-        <AnimatePresence>
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="mt-2 rounded-lg bg-rose-50 border border-rose-100 px-4 py-3"
-          >
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="space-y-3"
+        >
+          <div className="rounded-lg bg-rose-50 border border-rose-100 px-4 py-3">
             <p className="text-xs text-rose-700 leading-relaxed">
               Cancelling will unlock any inventory locations currently held by this
-              audit. The cancellation event will be visible in the Audit Log.
+              audit. The cancellation reason will be saved as an entry in the audit
+              detail log.
             </p>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="cancel-reason" className="text-sm font-medium text-slate-700">
+              Cancellation Reason <span className="text-rose-500">*</span>
+            </Label>
+            <Textarea
+              id="cancel-reason"
+              placeholder="Describe why this audit is being cancelled…"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              className="resize-none text-sm"
+            />
+            <div className="flex items-center justify-between">
+              <AnimatePresence>
+                {reason.length > 0 && !isValid && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-rose-500"
+                  >
+                    Minimum 5 characters required
+                  </motion.p>
+                )}
+              </AnimatePresence>
+              <p className="ml-auto text-xs text-slate-400 tabular-nums">
+                {charCount}/500
+              </p>
+            </div>
+          </div>
+        </motion.div>
 
         <div className="flex justify-end gap-3 pt-2">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isPending}
             className="text-slate-600"
           >
@@ -70,8 +121,8 @@ export function CancelStockCountDialog({
           </Button>
           <Button
             variant="destructive"
-            onClick={onConfirm}
-            disabled={isPending}
+            onClick={handleConfirm}
+            disabled={isPending || !isValid}
             className="gap-2"
           >
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}

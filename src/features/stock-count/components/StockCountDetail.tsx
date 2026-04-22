@@ -45,7 +45,7 @@ const STATUS_BADGE: Record<StockCountStatus, { bg: string; text: string; ring: s
 };
 
 function StatusBadge({ status }: { status: StockCountStatus }) {
-  const cfg = STATUS_BADGE[status];
+  const cfg = STATUS_BADGE[status] ?? STATUS_BADGE['DRAFT'];
   return (
     <span
       className={cn(
@@ -123,11 +123,11 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
     });
   };
 
-  const handleCancel = () => {
-    cancelMutation.mutate(stockCount.id, {
+  const handleCancel = (reason: string) => {
+    cancelMutation.mutate({ id: stockCount.id, reason }, {
       onSuccess: () => {
         setCancelOpen(false);
-        toast({ title: 'Audit cancelled', description: 'Ticket has been cancelled and recorded in audit log.' });
+        toast({ title: 'Audit cancelled', description: 'Ticket has been cancelled and the reason has been recorded in the audit log.' });
       },
       onError: (err) => {
         setCancelOpen(false);

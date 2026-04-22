@@ -98,6 +98,13 @@ export const PAGE_PERMISSION_MAP: PagePermissionConfig[] = [
     description: 'Inventory cycle count management',
     modules: ['stock_counts'],
   },
+  {
+    id: 'stock-disposal',
+    label: 'Stock Disposal',
+    icon: 'delete_sweep',
+    description: 'Disposal ticket management for damaged and expired goods',
+    modules: ['stock_disposals'],
+  },
 ];
 
 export interface SidebarPageAccessConfig {
@@ -139,6 +146,12 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
     label: 'Stock Count',
     path: '/stock-count',
     modules: ['stock_counts'],
+  },
+  {
+    id: 'stock-disposal',
+    label: 'Stock Disposal',
+    path: '/stock-disposal',
+    modules: ['stock_disposals'],
   },
 ];
 

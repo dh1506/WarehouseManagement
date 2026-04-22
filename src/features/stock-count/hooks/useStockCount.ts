@@ -122,10 +122,15 @@ export function useApproveStockCount() {
 }
 
 // ── Cancel (DRAFT/COUNTING → CANCELLED) ──────────────────────────────────────
+interface CancelStockCountPayload {
+  id: number;
+  reason: string;
+}
+
 export function useCancelStockCount() {
   const queryClient = useQueryClient();
-  return useMutation<StockCount, Error, number>({
-    mutationFn: cancelStockCount,
+  return useMutation<StockCount, Error, CancelStockCountPayload>({
+    mutationFn: ({ id, reason }) => cancelStockCount(id, reason),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: STOCK_COUNT_KEYS.all });
       queryClient.setQueryData(STOCK_COUNT_KEYS.detail(data.id), data);

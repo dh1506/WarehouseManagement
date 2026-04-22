@@ -236,6 +236,12 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                     Variance
                   </th>
                 )}
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">
+                  Counter
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden xl:table-cell">
+                  Counted At
+                </th>
                 <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   Status
                 </th>
@@ -380,6 +386,33 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                           <VarianceBadge variance={displayVariance} />
                         </td>
                       )}
+
+                      {/* Counter */}
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        {detail.counter ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600">
+                              {detail.counter.full_name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-xs text-slate-600 truncate max-w-[100px]">
+                              {detail.counter.full_name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Counted At */}
+                      <td className="px-4 py-3 hidden xl:table-cell">
+                        {detail.counted_at ? (
+                          <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+                            {formatDate(detail.counted_at)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
 
                       {/* Status */}
                       <td className="px-4 py-3 text-center">

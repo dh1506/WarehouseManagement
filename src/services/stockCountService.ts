@@ -87,8 +87,8 @@ export async function approveStockCount(id: number): Promise<StockCount> {
 }
 
 // ── PATCH /api/stock-counts/:id/cancel ──────────────────────────────────────
-export async function cancelStockCount(id: number): Promise<StockCount> {
-  const response = await apiClient.patch(`/api/stock-counts/${id}/cancel`);
+export async function cancelStockCount(id: number, reason: string): Promise<StockCount> {
+  const response = await apiClient.patch(`/api/stock-counts/${id}/cancel`, { reason });
   return unwrap<StockCount>(response);
 }
 

@@ -1,70 +1,64 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermission } from '@/hooks/usePermission';
-import { useStockCounts } from '../hooks/useStockCount';
-import { CreateStockCountSheet } from './CreateStockCountSheet';
+import { useStockDisposals } from '../hooks/useStockDisposal';
 import { PageHeader } from '@/components/PageHeader';
 import type {
-  StockCount,
-  StockCountStatus,
-  StockCountType,
-  StockCountScopeType,
-  StockCountQueryParams,
-} from '../types/stockCountType';
+  StockDisposal,
+  StockDisposalStatus,
+  StockDisposalQueryParams,
+} from '../types/stockDisposalType';
 import {
-  STOCK_COUNT_STATUS_LABELS,
-  STOCK_COUNT_SCOPE_LABELS,
-} from '../types/stockCountType';
+  STOCK_DISPOSAL_STATUS_LABELS,
+  STOCK_DISPOSAL_STATUS_STYLES,
+} from '../types/stockDisposalType';
+import { CreateStockDisposalSheet } from './CreateStockDisposalSheet';
 
 const DEFAULT_PAGE_SIZE = 10;
 
-// ── Status badge ──────────────────────────────────────────────────────────────
-const STATUS_STYLES: Record<StockCountStatus, { bg: string; text: string; ring: string }> = {
-  DRAFT:     { bg: 'bg-slate-100',  text: 'text-slate-600',   ring: 'ring-slate-200' },
-  COUNTING:  { bg: 'bg-blue-50',    text: 'text-blue-700',    ring: 'ring-blue-200' },
-  COMPLETED: { bg: 'bg-violet-50',  text: 'text-violet-700',  ring: 'ring-violet-200' },
-  APPROVED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200' },
-  CANCELLED: { bg: 'bg-rose-50',    text: 'text-rose-700',    ring: 'ring-rose-200' },
-};
-
-const PROGRESS_COLORS: Record<StockCountStatus, string> = {
-  DRAFT:     'bg-slate-300',
-  COUNTING:  'bg-blue-500',
-  COMPLETED: 'bg-violet-500',
-  APPROVED:  'bg-emerald-500',
-  CANCELLED: 'bg-rose-400',
-};
-
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
-function getProgress(sc: StockCount): number {
-  const total = sc.details.length;
-  if (total === 0) return 0;
-  const counted = sc.details.filter((d) => d.counted_quantity !== null).length;
-  return Math.round((counted / total) * 100);
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 }
 
-// ── KPI strip ─────────────────────────────────────────────────────────────────
-function KpiStrip({ data }: { data: StockCount[] | undefined }) {
+function computeTotalValue(disposal: StockDisposal): number {
+  return disposal.details.reduce((sum, d) => {
+    const qty = Number(d.quantity) || 0;
+    const price = Number(d.unit_price) || 0;
+    return sum + qty * price;
+  }, 0);
+}
+
+function computeTotalQty(disposal: StockDisposal): number {
+  return disposal.details.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0);
+}
+
+// ── KPI Stats Strip ──────────────────────────────────────────────────────────
+function KpiStrip({ data }: { data: StockDisposal[] | undefined }) {
   if (!data) return null;
 
   const stats = {
     total: data.length,
-    counting: data.filter((s) => s.status === 'COUNTING').length,
-    completed: data.filter((s) => s.status === 'COMPLETED').length,
+    pending: data.filter((s) => s.status === 'PENDING').length,
     approved: data.filter((s) => s.status === 'APPROVED').length,
+    completed: data.filter((s) => s.status === 'COMPLETED').length,
   };
 
   const cards = [
-    { label: 'Total Audits', value: stats.total, icon: 'fact_check', iconBg: 'bg-slate-100 text-slate-600' },
-    { label: 'In Progress', value: stats.counting, icon: 'pending_actions', iconBg: 'bg-blue-50 text-blue-600' },
-    { label: 'Pending Approval', value: stats.completed, icon: 'rule', iconBg: 'bg-violet-50 text-violet-600' },
-    { label: 'Approved', value: stats.approved, icon: 'verified', iconBg: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Total Tickets', value: stats.total, icon: 'receipt_long', iconBg: 'bg-slate-100 text-slate-600' },
+    { label: 'Pending Approval', value: stats.pending, icon: 'pending_actions', iconBg: 'bg-amber-50 text-amber-600' },
+    { label: 'Approved', value: stats.approved, icon: 'verified', iconBg: 'bg-blue-50 text-blue-600' },
+    { label: 'Completed', value: stats.completed, icon: 'check_circle', iconBg: 'bg-emerald-50 text-emerald-600' },
   ];
 
   return (
@@ -93,48 +87,40 @@ function KpiStrip({ data }: { data: StockCount[] | undefined }) {
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export function StockCountList() {
+// ── Main List Component ──────────────────────────────────────────────────────
+export function StockDisposalList() {
   const navigate = useNavigate();
-  const canCreate = usePermission('stock_counts:create');
+  const canCreate = usePermission('stock_disposals:create');
+  const prefersReducedMotion = useReducedMotion();
 
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<StockCountStatus | ''>('');
-  const [type, setType] = useState<StockCountType | ''>('');
-  const [scopeType, setScopeType] = useState<StockCountScopeType | ''>('');
+  const [status, setStatus] = useState<StockDisposalStatus | ''>('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  const queryParams: StockCountQueryParams = useMemo(
+  const queryParams: StockDisposalQueryParams = useMemo(
     () => ({
       page,
       limit: DEFAULT_PAGE_SIZE,
       search: search || undefined,
       status: status || undefined,
-      type: type || undefined,
-      scope_type: scopeType || undefined,
     }),
-    [page, search, status, type, scopeType],
+    [page, search, status],
   );
 
-  const { data, isLoading, isError, error } = useStockCounts(queryParams);
+  const { data, isLoading, isError, error } = useStockDisposals(queryParams);
 
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(1); }, []);
-  const handleStatusChange = useCallback((v: StockCountStatus | '') => { setStatus(v); setPage(1); }, []);
-  const handleTypeChange = useCallback((v: StockCountType | '') => { setType(v); setPage(1); }, []);
-  const handleScopeChange = useCallback((v: StockCountScopeType | '') => { setScopeType(v); setPage(1); }, []);
+  const handleStatusChange = useCallback((v: StockDisposalStatus | '') => { setStatus(v); setPage(1); }, []);
 
   const clearFilters = () => {
     setSearch('');
     setStatus('');
-    setType('');
-    setScopeType('');
     setPage(1);
   };
 
-  const hasActiveFilters = search || status || type || scopeType;
-
+  const hasActiveFilters = search || status;
   const totalItems = data?.pagination.total ?? 0;
   const totalPages = data?.pagination.totalPages ?? 0;
   const startItem = totalItems > 0 ? (page - 1) * DEFAULT_PAGE_SIZE + 1 : 0;
@@ -143,20 +129,20 @@ export function StockCountList() {
   return (
     <motion.div
       className="flex flex-col h-full overflow-hidden"
-      initial={{ opacity: 0 }}
+      initial={prefersReducedMotion ? undefined : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
     >
       {/* ── Fixed top section ───────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
+        initial={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: 'easeOut' }}
         className="shrink-0 space-y-4 px-4 pt-4 pb-3 md:px-6 md:pt-6"
       >
         <PageHeader
-          title="Stock Count Audits"
-          description="Manage and track inventory cycle counts."
+          title="Stock Disposal"
+          description="Manage disposal tickets for damaged, expired, and defective goods."
           actions={
             canCreate ? (
               <motion.button
@@ -166,14 +152,14 @@ export function StockCountList() {
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create New Ticket</span>
+                <span className="hidden sm:inline">New Disposal Ticket</span>
                 <span className="sm:hidden">New</span>
               </motion.button>
             ) : null
           }
         />
 
-        <KpiStrip data={data?.stockCounts} />
+        <KpiStrip data={data?.items} />
 
         {/* ── Filter bar ──────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -205,77 +191,47 @@ export function StockCountList() {
             Filters
             {hasActiveFilters && (
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-                {[search, status, type, scopeType].filter(Boolean).length}
+                {[search, status].filter(Boolean).length}
               </span>
             )}
           </motion.button>
 
           {/* Filters (always visible on desktop, collapsible on mobile) */}
-          <AnimatePresence>
-            {(showFilters || true) && (
-              <motion.div
-                initial={false}
-                className={cn(
-                  'flex flex-wrap gap-2 items-center',
-                  !showFilters && 'hidden sm:flex',
-                )}
-              >
-                {/* Status filter */}
-                <select
-                  value={status}
-                  onChange={(e) => handleStatusChange(e.target.value as StockCountStatus | '')}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
-                >
-                  <option value="">All Statuses</option>
-                  {(Object.keys(STOCK_COUNT_STATUS_LABELS) as StockCountStatus[]).map((s) => (
-                    <option key={s} value={s}>{STOCK_COUNT_STATUS_LABELS[s]}</option>
-                  ))}
-                </select>
-
-                {/* Type filter */}
-                <select
-                  value={type}
-                  onChange={(e) => handleTypeChange(e.target.value as StockCountType | '')}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
-                >
-                  <option value="">All Types</option>
-                  <option value="PERIODIC">Periodic</option>
-                  <option value="AD_HOC">Ad Hoc</option>
-                </select>
-
-                {/* Scope filter */}
-                <select
-                  value={scopeType}
-                  onChange={(e) => handleScopeChange(e.target.value as StockCountScopeType | '')}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
-                >
-                  <option value="">All Scopes</option>
-                  {(Object.keys(STOCK_COUNT_SCOPE_LABELS) as StockCountScopeType[]).map((s) => (
-                    <option key={s} value={s}>{STOCK_COUNT_SCOPE_LABELS[s]}</option>
-                  ))}
-                </select>
-
-                {/* Clear filters */}
-                <AnimatePresence>
-                  {hasActiveFilters && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.12 }}
-                      whileHover={{ scale: 1.06 }}
-                      whileTap={{ scale: 0.94 }}
-                      onClick={clearFilters}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Clear
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+          <div
+            className={cn(
+              'flex flex-wrap gap-2 items-center',
+              !showFilters && 'hidden sm:flex',
             )}
-          </AnimatePresence>
+          >
+            <select
+              value={status}
+              onChange={(e) => handleStatusChange(e.target.value as StockDisposalStatus | '')}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+            >
+              <option value="">All Statuses</option>
+              {(Object.keys(STOCK_DISPOSAL_STATUS_LABELS) as StockDisposalStatus[]).map((s) => (
+                <option key={s} value={s}>{STOCK_DISPOSAL_STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+
+            <AnimatePresence>
+              {hasActiveFilters && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.12 }}
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Clear
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </motion.div>
 
@@ -283,20 +239,23 @@ export function StockCountList() {
       <div className="flex-1 min-h-0 px-4 pb-4 md:px-6 md:pb-6">
         <div className="flex flex-col h-full rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto">
-            <table className="w-full min-w-[640px] border-collapse">
+            <table className="w-full min-w-175 border-collapse">
               <thead className="sticky top-0 z-10 bg-white border-b border-slate-100">
                 <tr>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     Ticket Code
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Type / Scope
+                    Description
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">
-                    Created by
+                    Created By
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Progress
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">
+                    Items / Qty
+                  </th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">
+                    Value
                   </th>
                   <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     Status
@@ -306,51 +265,52 @@ export function StockCountList() {
                   </th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
                   Array.from({ length: DEFAULT_PAGE_SIZE }).map((_, i) => (
                     <tr key={`sk-${i}`} className="animate-pulse">
-                      <td className="px-4 py-3"><div className="h-3.5 w-28 rounded bg-slate-200" /></td>
-                      <td className="px-4 py-3"><div className="h-3.5 w-24 rounded bg-slate-200" /></td>
-                      <td className="px-4 py-3 hidden md:table-cell"><div className="h-3.5 w-20 rounded bg-slate-200" /></td>
-                      <td className="px-4 py-3"><div className="h-2 w-32 rounded-full bg-slate-200" /></td>
-                      <td className="px-4 py-3 text-center"><div className="mx-auto h-5 w-20 rounded-full bg-slate-200" /></td>
-                      <td className="px-4 py-3 hidden lg:table-cell"><div className="h-3.5 w-20 rounded bg-slate-200" /></td>
+                      <td className="px-4 py-3.5"><div className="h-3.5 w-28 rounded bg-slate-200" /></td>
+                      <td className="px-4 py-3.5"><div className="h-3.5 w-36 rounded bg-slate-200" /></td>
+                      <td className="px-4 py-3.5 hidden md:table-cell"><div className="h-3.5 w-20 rounded bg-slate-200" /></td>
+                      <td className="px-4 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-16 rounded bg-slate-200 ml-auto" /></td>
+                      <td className="px-4 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-24 rounded bg-slate-200 ml-auto" /></td>
+                      <td className="px-4 py-3.5 text-center"><div className="mx-auto h-5 w-20 rounded-full bg-slate-200" /></td>
+                      <td className="px-4 py-3.5 hidden lg:table-cell"><div className="h-3.5 w-20 rounded bg-slate-200" /></td>
                     </tr>
                   ))
                 ) : isError ? (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center">
+                    <td colSpan={7} className="py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <span className="material-symbols-outlined text-[40px] text-rose-300">error</span>
-                        <p className="text-sm font-medium text-slate-600">Failed to load audit tickets</p>
+                        <p className="text-sm font-medium text-slate-600">Failed to load disposal tickets</p>
                         <p className="text-xs text-rose-500 max-w-xs">
                           {(error as { message?: string })?.message ?? 'An unexpected error occurred.'}
                         </p>
                       </div>
                     </td>
                   </tr>
-                ) : !data?.stockCounts.length ? (
+                ) : !data?.items.length ? (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center">
+                    <td colSpan={7} className="py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
-                        <span className="material-symbols-outlined text-[44px] text-slate-300">fact_check</span>
-                        <p className="text-sm font-medium text-slate-500">No audit tickets found</p>
+                        <span className="material-symbols-outlined text-[44px] text-slate-300">delete_sweep</span>
+                        <p className="text-sm font-medium text-slate-500">No disposal tickets found</p>
                         <p className="text-xs text-slate-400">
-                          {hasActiveFilters ? 'Try adjusting your filters' : 'Create your first audit ticket to get started'}
+                          {hasActiveFilters ? 'Try adjusting your filters' : 'Create your first disposal ticket to get started'}
                         </p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   <AnimatePresence initial={false}>
-                    {data.stockCounts.map((sc, i) => (
-                      <StockCountRow
-                        key={sc.id}
-                        stockCount={sc}
+                    {data.items.map((item, i) => (
+                      <DisposalRow
+                        key={item.id}
+                        disposal={item}
                         index={i}
-                        onNavigate={(id) => navigate(`/stock-count/${id}`)}
+                        onNavigate={(id) => navigate(`/stock-disposal/${id}`)}
+                        reducedMotion={Boolean(prefersReducedMotion)}
                       />
                     ))}
                   </AnimatePresence>
@@ -414,99 +374,89 @@ export function StockCountList() {
         </div>
       </div>
 
-      <CreateStockCountSheet open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateStockDisposalSheet open={createOpen} onClose={() => setCreateOpen(false)} />
     </motion.div>
   );
 }
 
-// ── Table row ─────────────────────────────────────────────────────────────────
-function StockCountRow({
-  stockCount: sc,
+// ── Table Row ─────────────────────────────────────────────────────────────────
+function DisposalRow({
+  disposal,
   index,
   onNavigate,
+  reducedMotion,
 }: {
-  stockCount: StockCount;
+  disposal: StockDisposal;
   index: number;
   onNavigate: (id: number) => void;
+  reducedMotion: boolean;
 }) {
-  const progress = getProgress(sc);
-  const styleCfg = STATUS_STYLES[sc.status] ?? STATUS_STYLES['DRAFT'];
-  const progressColor = PROGRESS_COLORS[sc.status] ?? PROGRESS_COLORS['DRAFT'];
+  const styleCfg = STOCK_DISPOSAL_STATUS_STYLES[disposal.status];
+  const totalValue = computeTotalValue(disposal);
+  const totalQty = computeTotalQty(disposal);
 
   return (
     <motion.tr
       layout
-      initial={{ opacity: 0, y: 5 }}
+      initial={reducedMotion ? undefined : { opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -10 }}
-      transition={{ duration: 0.16, delay: Math.min(index * 0.025, 0.18), ease: 'easeOut' }}
+      exit={reducedMotion ? undefined : { opacity: 0, x: -10 }}
+      transition={{ duration: reducedMotion ? 0 : 0.14, delay: reducedMotion ? 0 : Math.min(index * 0.02, 0.12), ease: 'easeOut' }}
       className={cn(
         'group cursor-pointer transition-colors hover:bg-slate-50/70',
-        sc.status === 'CANCELLED' && 'opacity-55',
+        disposal.status === 'CANCELLED' && 'opacity-55',
       )}
-      onClick={() => onNavigate(sc.id)}
+      onClick={() => onNavigate(disposal.id)}
     >
-      {/* Ticket code */}
-      <td className="px-4 py-3">
+      <td className="px-4 py-3.5">
         <p className="text-sm font-semibold text-blue-600 group-hover:underline font-mono">
-          {sc.code}
+          {disposal.code}
         </p>
-        <p className="text-[11px] text-slate-400 mt-0.5">#{sc.id}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">#{disposal.id}</p>
       </td>
 
-      {/* Type + Scope */}
-      <td className="px-4 py-3">
-        <p className="text-sm font-medium text-slate-700">
-          {STOCK_COUNT_SCOPE_LABELS[sc.scope_type] ?? sc.scope_type}
+      <td className="px-4 py-3.5">
+        <p className="text-sm font-medium text-slate-700 truncate max-w-50">
+          {disposal.description || '—'}
         </p>
         <p className="text-[11px] text-slate-400 mt-0.5">
-          {sc.type === 'PERIODIC' ? 'Periodic' : 'Ad Hoc'}
-          {sc.description && ` · ${sc.description.slice(0, 30)}${sc.description.length > 30 ? '…' : ''}`}
+          {disposal.details.length} item{disposal.details.length !== 1 ? 's' : ''}
         </p>
       </td>
 
-      {/* Created by */}
-      <td className="px-4 py-3 hidden md:table-cell">
+      <td className="px-4 py-3.5 hidden md:table-cell">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 shrink-0">
-            {sc.creator.full_name.charAt(0).toUpperCase()}
+            {disposal.creator.full_name.charAt(0).toUpperCase()}
           </div>
-          <span className="text-xs text-slate-600 truncate max-w-[120px]">{sc.creator.full_name}</span>
+          <span className="text-xs text-slate-600 truncate max-w-30">{disposal.creator.full_name}</span>
         </div>
       </td>
 
-      {/* Progress */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-24 h-1.5 rounded-full bg-slate-100 overflow-hidden shrink-0">
-            <motion.div
-              className={cn('h-full rounded-full', progressColor)}
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: index * 0.02 }}
-            />
-          </div>
-          <span className="text-xs font-medium text-slate-600 tabular-nums shrink-0">
-            {progress}%
-          </span>
-        </div>
+      <td className="px-4 py-3.5 text-right hidden lg:table-cell">
+        <span className="text-sm font-medium text-slate-700 tabular-nums">{totalQty}</span>
       </td>
 
-      {/* Status */}
-      <td className="px-4 py-3 text-center">
-        <span
-          className={cn(
-            'inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset',
-            styleCfg.bg, styleCfg.text, styleCfg.ring,
-          )}
-        >
-          {STOCK_COUNT_STATUS_LABELS[sc.status]}
+      <td className="px-4 py-3.5 text-right hidden lg:table-cell">
+        <span className="text-sm font-semibold text-slate-800 tabular-nums">
+          {totalValue > 0 ? formatCurrency(totalValue) : '—'}
         </span>
       </td>
 
-      {/* Created date */}
-      <td className="px-4 py-3 hidden lg:table-cell">
-        <span className="text-xs text-slate-500 tabular-nums">{formatDate(sc.created_at)}</span>
+      <td className="px-4 py-3.5 text-center">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset',
+            styleCfg.bg, styleCfg.text, styleCfg.ring,
+          )}
+        >
+          <span className={cn('h-1.5 w-1.5 rounded-full', styleCfg.dot)} />
+          {STOCK_DISPOSAL_STATUS_LABELS[disposal.status]}
+        </span>
+      </td>
+
+      <td className="px-4 py-3.5 hidden lg:table-cell">
+        <span className="text-xs text-slate-500 tabular-nums">{formatDate(disposal.created_at)}</span>
       </td>
     </motion.tr>
   );

@@ -36,6 +36,8 @@ import { AntdDashboard } from './pages/AntdDashboard';
 import { DashboardPage } from './pages/operations/DashboardPage';
 import { ReportsPage } from './pages/operations/ReportsPage';
 import { SalesDataPage } from './pages/operations/SalesDataPage';
+import { StockDisposalListPage } from './pages/operations/StockDisposalListPage';
+import { StockDisposalDetailPage } from './pages/operations/StockDisposalDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -145,6 +147,8 @@ function App() {
             <Route path="/outbound/:id/picking" element={<PageAccessRoute path="/outbound"><OutboundPickingPage /></PageAccessRoute>} />
             <Route path="/stock-count" element={<PageAccessRoute path="/stock-count"><StockCountListPage /></PageAccessRoute>} />
             <Route path="/stock-count/:id" element={<PageAccessRoute path="/stock-count"><StockCountDetailPage /></PageAccessRoute>} />
+            <Route path="/stock-disposal" element={<PageAccessRoute path="/stock-disposal"><StockDisposalListPage /></PageAccessRoute>} />
+            <Route path="/stock-disposal/:id" element={<PageAccessRoute path="/stock-disposal"><StockDisposalDetailPage /></PageAccessRoute>} />
           </Route>
 
           {/* 404 — mọi route không khớp */}

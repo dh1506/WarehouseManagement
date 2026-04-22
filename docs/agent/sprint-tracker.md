@@ -34,3 +34,25 @@
 3. Add lot_id search to create form when BE endpoint available (KI-7)
 4. Backend: add `assigned_to` field to StockCount (KI-1)
 5. Backend: expose full-inventory endpoint for FULL scope auto-population (KI-3)
+
+---
+
+## Sprint: Stock Disposal (Hủy hàng) — 2026-04-22
+
+### Status: IMPLEMENTED (FE) ✅
+
+## Completed Tasks
+
+- [x] Confirmed contract from BE `routes/schemas/services` for stock disposal
+- [x] Aligned FE state flow to BE statuses: `DRAFT -> PENDING -> APPROVED -> COMPLETED | CANCELLED`
+- [x] Service updates: availability + lot helper queries from `/api/inventories`
+- [x] Hook updates: `useDisposalAvailableQuantity`, `useDisposalLotOptions`
+- [x] Create form rebuilt: reusable product/location selectors, reason + lot selection, submit-time quantity guard
+- [x] List animation tuning: reduced-motion support and lighter transitions
+- [x] Detail animation tuning: reduced-motion support and typed error extraction
+
+## Next Steps
+
+1. QA full disposal flow with real role-based accounts (`create/update/approve/cancel`)
+2. Add edit-draft flow UI if sprint scope requires draft modification on detail page
+3. Monitor `/api/inventories` performance for lot/availability lookup under large datasets
