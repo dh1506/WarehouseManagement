@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   useCreateStockDisposal,
   useDisposalAvailableQuantity,
+  useDisposalLocationOptions,
   useDisposalLotOptions,
   useDisposalReasons,
 } from '../hooks/useStockDisposal';
@@ -16,8 +17,10 @@ import {
   type CreateStockDisposalFormValues,
 } from '../schemas/stockDisposalSchemas';
 import { ProductSearchSelect } from '@/features/inbound/components/ProductSearchSelect';
-import { WarehouseLocationSelect } from '@/features/inbound/components/WarehouseLocationSelect';
-import { getDisposalAvailableQuantity } from '@/services/stockDisposalService';
+import {
+  getDisposalAvailableQuantity,
+  getDisposalLocationOptions,
+} from '@/services/stockDisposalService';
 import {
   Sheet,
   SheetContent,
@@ -68,7 +71,16 @@ function DisposalDetailRow({
   const selectedLotId = useWatch({ control, name: `details.${index}.lot_id` });
 
   const lotOptionsQuery = useDisposalLotOptions(productId, productId > 0);
-  const availableQtyQuery = useDisposalAvailableQuantity(productId, warehouseLocationId, productId > 0 && warehouseLocationId > 0);
+  const locationOptionsQuery = useDisposalLocationOptions(productId, selectedLotId, productId > 0);
+  const requiresLotSelection = productId > 0 && (lotOptionsQuery.data?.length ?? 0) > 0;
+  const canChooseLocation = productId > 0 && (!requiresLotSelection || Boolean(selectedLotId));
+
+  const availableQtyQuery = useDisposalAvailableQuantity(
+    productId,
+    warehouseLocationId,
+    selectedLotId,
+    canChooseLocation && warehouseLocationId > 0,
+  );
 
   const availableQty = availableQtyQuery.data ?? 0;
   const lineAmount = (Number(quantity) || 0) * (Number(unitPrice) || 0);
@@ -84,6 +96,17 @@ function DisposalDetailRow({
       form.setValue(`details.${index}.lot_id`, undefined, { shouldDirty: true, shouldValidate: true });
     }
   }, [selectedLotId, lotOptionsQuery.data, form, index]);
+
+  useEffect(() => {
+    if (warehouseLocationId <= 0) {
+      return;
+    }
+
+    const allowedLocationIds = new Set((locationOptionsQuery.data ?? []).map((item) => item.id));
+    if (!allowedLocationIds.has(warehouseLocationId)) {
+      form.setValue(`details.${index}.warehouse_location_id`, 0, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [warehouseLocationId, locationOptionsQuery.data, form, index]);
 
   return (
     <motion.div
@@ -114,26 +137,6 @@ function DisposalDetailRow({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-slate-500">Warehouse location</label>
-            <Controller
-              name={`details.${index}.warehouse_location_id`}
-              control={control}
-              render={({ field }) => (
-                <WarehouseLocationSelect
-                  value={field.value || null}
-                  onValueChange={(option) => {
-                    field.onChange(option?.id ?? 0);
-                  }}
-                  placeholder="Select location..."
-                />
-              )}
-            />
-            {lineErrors?.warehouse_location_id && (
-              <p className="text-[10px] text-rose-500">{lineErrors.warehouse_location_id.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
             <label className="text-[10px] font-semibold text-slate-500">Product</label>
             <Controller
               name={`details.${index}.product_id`}
@@ -144,6 +147,7 @@ function DisposalDetailRow({
                   onValueChange={(option) => {
                     field.onChange(Number(option.id));
                     form.setValue(`details.${index}.lot_id`, undefined, { shouldDirty: true, shouldValidate: true });
+                    form.setValue(`details.${index}.warehouse_location_id`, 0, { shouldDirty: true, shouldValidate: true });
                   }}
                   placeholder="Select product..."
                 />
@@ -160,19 +164,63 @@ function DisposalDetailRow({
               {...form.register(`details.${index}.lot_id`, {
                 setValueAs: (value: string) => (value ? Number(value) : undefined),
               })}
-              disabled={productId <= 0 || lotOptionsQuery.isFetching}
+              disabled={productId <= 0 || lotOptionsQuery.isFetching || (lotOptionsQuery.data?.length ?? 0) === 0}
               className={cn(
                 'h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-slate-100',
                 lineErrors?.lot_id && 'border-rose-300',
               )}
+              onChange={(event) => {
+                const value = event.target.value;
+                form.setValue(`details.${index}.lot_id`, value ? Number(value) : undefined, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+                form.setValue(`details.${index}.warehouse_location_id`, 0, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
             >
-              <option value="">No lot</option>
+              <option value="">{requiresLotSelection ? 'Select lot...' : 'No lot'}</option>
               {(lotOptionsQuery.data ?? []).map((lot) => (
                 <option key={lot.id} value={lot.id}>
                   {lot.lotNo} {lot.status !== 'ACTIVE' ? `(${lot.status})` : ''}
                 </option>
               ))}
             </select>
+            {requiresLotSelection && !selectedLotId ? (
+              <p className="text-[10px] text-amber-600">Please select a lot to see available locations.</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-slate-500">Warehouse location</label>
+            <select
+              {...form.register(`details.${index}.warehouse_location_id`, {
+                valueAsNumber: true,
+              })}
+              disabled={!canChooseLocation || locationOptionsQuery.isFetching}
+              className={cn(
+                'h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-slate-100',
+                lineErrors?.warehouse_location_id && 'border-rose-300',
+              )}
+            >
+              <option value={0}>
+                {!productId
+                  ? 'Select product first...'
+                  : requiresLotSelection && !selectedLotId
+                    ? 'Select lot first...'
+                    : 'Select location...'}
+              </option>
+              {(locationOptionsQuery.data ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.fullPath} (Avail: {location.availableQty})
+                </option>
+              ))}
+            </select>
+            {lineErrors?.warehouse_location_id && (
+              <p className="text-[10px] text-rose-500">{lineErrors.warehouse_location_id.message}</p>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -307,8 +355,19 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
             return { index, availableQty: 0, skip: true };
           }
 
-          const availableQty = await getDisposalAvailableQuantity(detail.product_id, detail.warehouse_location_id);
-          return { index, availableQty, skip: false };
+          const [availableQty, allowedLocations] = await Promise.all([
+            getDisposalAvailableQuantity(detail.product_id, detail.warehouse_location_id, detail.lot_id),
+            getDisposalLocationOptions(detail.product_id, detail.lot_id),
+          ]);
+
+          const allowedLocationIds = new Set(allowedLocations.map((item) => item.id));
+
+          return {
+            index,
+            availableQty,
+            skip: false,
+            isLocationAllowed: allowedLocationIds.has(detail.warehouse_location_id),
+          };
         }),
       );
 
@@ -319,6 +378,14 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
         }
 
         const detail = values.details[check.index];
+        if (!check.isLocationAllowed) {
+          hasStockError = true;
+          form.setError(`details.${check.index}.warehouse_location_id`, {
+            type: 'manual',
+            message: 'Selected location does not contain the selected product lot.',
+          });
+        }
+
         if (detail.quantity > check.availableQty) {
           hasStockError = true;
           form.setError(`details.${check.index}.quantity`, {

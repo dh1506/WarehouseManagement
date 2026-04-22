@@ -17,10 +17,17 @@ interface DisposalInventoryLotApiItem {
 }
 
 interface DisposalInventoryItem {
+  id?: number;
   product_id: number;
   warehouse_location_id: number;
   available_quantity: number | string;
   lots?: DisposalInventoryLotApiItem[];
+  location?: {
+    id?: number;
+    code?: string;
+    location_code?: string;
+    full_path?: string;
+  };
 }
 
 interface DisposalInventoryListApiData {
@@ -33,6 +40,13 @@ export interface DisposalLotOption {
   lotNo: string;
   status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
   expiredDate: string | null;
+}
+
+export interface DisposalLocationOption {
+  id: number;
+  code: string;
+  fullPath: string;
+  availableQty: number;
 }
 
 function unwrap<T>(response: unknown): T {
@@ -132,6 +146,7 @@ export async function getDisposalAnalytics(query: DisposalAnalyticsQuery): Promi
 export async function getDisposalAvailableQuantity(
   productId: number,
   warehouseLocationId: number,
+  lotId?: number,
 ): Promise<number> {
   const response = await apiClient.get('/api/inventories', {
     params: {
@@ -139,6 +154,7 @@ export async function getDisposalAvailableQuantity(
       limit: 100,
       product_id: productId,
       warehouse_location_id: warehouseLocationId,
+      ...(lotId ? { lot_id: lotId } : {}),
     },
   });
 
@@ -175,4 +191,56 @@ export async function getDisposalLotOptions(productId: number): Promise<Disposal
   });
 
   return Array.from(lotMap.values()).sort((left, right) => left.lotNo.localeCompare(right.lotNo));
+}
+
+export async function getDisposalLocationOptions(
+  productId: number,
+  lotId?: number,
+): Promise<DisposalLocationOption[]> {
+  const response = await apiClient.get('/api/inventories', {
+    params: {
+      page: 1,
+      limit: 100,
+      product_id: productId,
+      is_available: true,
+      ...(lotId ? { lot_id: lotId } : {}),
+    },
+  });
+
+  const payload = unwrap<DisposalInventoryListApiData>(response);
+  const rows = payload.items ?? payload.inventories ?? [];
+  const locationMap = new Map<number, DisposalLocationOption>();
+
+  rows.forEach((row) => {
+    const locationId = Number(row.location?.id ?? row.warehouse_location_id);
+    if (!Number.isFinite(locationId) || locationId <= 0) {
+      return;
+    }
+
+    if (lotId) {
+      const hasLot = (row.lots ?? []).some((lot) => lot.id === lotId);
+      if (!hasLot) {
+        return;
+      }
+    }
+
+    const availableQty = Number(row.available_quantity) || 0;
+    const code = row.location?.location_code ?? row.location?.code ?? `LOC-${locationId}`;
+    const fullPath = row.location?.full_path ?? code;
+
+    const existing = locationMap.get(locationId);
+    if (existing) {
+      existing.availableQty += availableQty;
+      return;
+    }
+
+    locationMap.set(locationId, {
+      id: locationId,
+      code,
+      fullPath,
+      availableQty,
+    });
+  });
+
+  return Array.from(locationMap.values()).sort((left, right) => left.fullPath.localeCompare(right.fullPath));
 }

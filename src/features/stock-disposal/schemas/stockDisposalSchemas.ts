@@ -5,7 +5,7 @@ export const createStockDisposalDetailSchema = z.object({
   warehouse_location_id: z
     .number({ error: 'Location is required' })
     .int()
-    .positive('Location ID must be positive'),
+    .positive('Please select warehouse location'),
   product_id: z
     .number({ error: 'Product is required' })
     .int()

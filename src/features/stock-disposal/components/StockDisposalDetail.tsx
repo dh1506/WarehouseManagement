@@ -61,6 +61,8 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
   const sd = stockDisposal;
+  const details = Array.isArray(sd.details) ? sd.details : [];
+  const history = Array.isArray(sd.history) ? sd.history : [];
 
   const canUpdate = usePermission('stock_disposals:update');
   const canApprove = usePermission('stock_disposals:approve');
@@ -83,13 +85,13 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
     completeMutation.isPending || cancelMutation.isPending;
 
   // ── Computed values ───────────────────────────────────────────────────────
-  const totalValue = sd.details.reduce((sum, d) => {
+  const totalValue = details.reduce((sum, d) => {
     const qty = Number(d.quantity) || 0;
     const price = Number(d.unit_price) || 0;
     return sum + qty * price;
   }, 0);
 
-  const totalQty = sd.details.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0);
+  const totalQty = details.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0);
 
   // ── Action handlers ───────────────────────────────────────────────────────
   const handleSubmit = () => {
@@ -193,7 +195,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
             <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900">{sd.code}</h2>
             <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
               <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-              Created on {formatDate(sd.created_at)} by {sd.creator.full_name}
+              Created on {formatDate(sd.created_at)} by {sd.creator?.full_name ?? 'Unknown'}
             </p>
           </div>
 
@@ -204,7 +206,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSubmit}
-                disabled={isMutating || sd.details.length === 0}
+                disabled={isMutating || details.length === 0}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Submit for Approval
@@ -293,7 +295,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                   <span className="material-symbols-outlined text-blue-600 text-[20px]">list_alt</span>
                   Disposal Items
                   <span className="ml-auto text-xs font-medium text-slate-400 tabular-nums">
-                    {sd.details.length} line{sd.details.length !== 1 ? 's' : ''}
+                    {details.length} line{details.length !== 1 ? 's' : ''}
                   </span>
                 </h3>
               </div>
@@ -311,7 +313,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {sd.details.map((detail, i) => {
+                    {details.map((detail, i) => {
                       const qty = Number(detail.quantity) || 0;
                       const price = Number(detail.unit_price) || 0;
                       const lineAmount = qty * price;
@@ -374,7 +376,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                   )}
                 </table>
               </div>
-              {sd.details.length === 0 && (
+              {details.length === 0 && (
                 <div className="p-8 text-center">
                   <span className="material-symbols-outlined text-[40px] text-slate-300">inbox</span>
                   <p className="text-sm text-slate-400 mt-2">No items added yet</p>
@@ -400,7 +402,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-blue-200">Total Items</p>
-                    <p className="text-2xl font-extrabold">{sd.details.length}</p>
+                    <p className="text-2xl font-extrabold">{details.length}</p>
                   </div>
                   <div>
                     <p className="text-xs text-blue-200">Total Quantity</p>
@@ -491,7 +493,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
             </motion.div>
 
             {/* Status History */}
-            {sd.history.length > 0 && (
+            {history.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -503,7 +505,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                   Activity Log
                 </h3>
                 <div className="space-y-4">
-                  {sd.history.map((h, i) => {
+                  {history.map((h, i) => {
                     const hStyle = STOCK_DISPOSAL_STATUS_STYLES[h.status];
                     return (
                       <motion.div

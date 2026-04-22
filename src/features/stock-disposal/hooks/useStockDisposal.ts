@@ -11,8 +11,13 @@ import {
   cancelStockDisposal,
   getDisposalAvailableQuantity,
   getDisposalLotOptions,
+  getDisposalLocationOptions,
 } from '@/services/stockDisposalService';
-import type { CreateStockDisposalPayload, DisposalLotOption } from '@/services/stockDisposalService';
+import type {
+  CreateStockDisposalPayload,
+  DisposalLotOption,
+  DisposalLocationOption,
+} from '@/services/stockDisposalService';
 import type {
   StockDisposal,
   StockDisposalListResponse,
@@ -29,6 +34,7 @@ export const STOCK_DISPOSAL_KEYS = {
   availableQty: (productId: number, warehouseLocationId: number) =>
     ['stock-disposals', 'available-qty', productId, warehouseLocationId] as const,
   lots: (productId: number) => ['stock-disposals', 'lots', productId] as const,
+  locations: (productId: number, lotId?: number) => ['stock-disposals', 'locations', productId, lotId ?? 'none'] as const,
 };
 
 // ── Disposal Reasons ─────────────────────────────────────────────────────────
@@ -135,10 +141,15 @@ export function useCancelStockDisposal() {
   });
 }
 
-export function useDisposalAvailableQuantity(productId: number, warehouseLocationId: number, enabled = true) {
+export function useDisposalAvailableQuantity(
+  productId: number,
+  warehouseLocationId: number,
+  lotId?: number,
+  enabled = true,
+) {
   return useQuery<number>({
-    queryKey: STOCK_DISPOSAL_KEYS.availableQty(productId, warehouseLocationId),
-    queryFn: () => getDisposalAvailableQuantity(productId, warehouseLocationId),
+    queryKey: [...STOCK_DISPOSAL_KEYS.availableQty(productId, warehouseLocationId), lotId ?? 'none'],
+    queryFn: () => getDisposalAvailableQuantity(productId, warehouseLocationId, lotId),
     enabled: enabled && productId > 0 && warehouseLocationId > 0,
     staleTime: 30 * 1000,
   });
@@ -148,6 +159,15 @@ export function useDisposalLotOptions(productId: number, enabled = true) {
   return useQuery<DisposalLotOption[]>({
     queryKey: STOCK_DISPOSAL_KEYS.lots(productId),
     queryFn: () => getDisposalLotOptions(productId),
+    enabled: enabled && productId > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useDisposalLocationOptions(productId: number, lotId?: number, enabled = true) {
+  return useQuery<DisposalLocationOption[]>({
+    queryKey: STOCK_DISPOSAL_KEYS.locations(productId, lotId),
+    queryFn: () => getDisposalLocationOptions(productId, lotId),
     enabled: enabled && productId > 0,
     staleTime: 30 * 1000,
   });
