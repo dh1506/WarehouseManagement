@@ -122,7 +122,7 @@ CREATE TABLE `inventory_transactions` (
     `product_id` INTEGER NOT NULL,
     `lot_id` INTEGER NULL,
     `product_uom_id` INTEGER NOT NULL,
-    `transaction_type` ENUM('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT') NOT NULL,
+    `transaction_type` ENUM('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT', 'POS_SALE', 'POS_RETURN') NOT NULL,
     `quantity` DECIMAL(15, 3) NOT NULL,
     `base_quantity` DECIMAL(15, 3) NOT NULL,
     `balance_after` DECIMAL(15, 3) NOT NULL,
@@ -257,6 +257,69 @@ CREATE TABLE `brands_products` (
 
     INDEX `brands_products_brand_id_idx`(`brand_id`),
     INDEX `brands_products_product_id_idx`(`product_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `sales_import_batches` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `batch_code` VARCHAR(255) NOT NULL,
+    `source` VARCHAR(50) NOT NULL,
+    `status` VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    `total_records` INTEGER NOT NULL DEFAULT 0,
+    `success_records` INTEGER NOT NULL DEFAULT 0,
+    `error_records` INTEGER NOT NULL DEFAULT 0,
+    `error_log` JSON NULL,
+    `created_by` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `sales_import_batches_batch_code_key`(`batch_code`),
+    INDEX `sales_import_batches_created_by_idx`(`created_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `sales_transactions` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `batch_id` INTEGER NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `transaction_code` VARCHAR(255) NOT NULL,
+    `transaction_type` VARCHAR(50) NOT NULL,
+    `transaction_date` DATETIME(3) NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `quantity` DECIMAL(15, 3) NOT NULL,
+    `unit_price` DECIMAL(15, 2) NOT NULL,
+    `promo_discount_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    `net_amount` DECIMAL(15, 2) NOT NULL,
+    `is_valid` BOOLEAN NOT NULL DEFAULT true,
+    `is_inventory_updated` BOOLEAN NOT NULL DEFAULT false,
+    `validation_note` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `sales_transactions_batch_id_idx`(`batch_id`),
+    INDEX `sales_transactions_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `sales_transactions_product_id_idx`(`product_id`),
+    UNIQUE INDEX `sales_transactions_transaction_code_transaction_type_product_key`(`transaction_code`, `transaction_type`, `product_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `sales_daily_summaries` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `summary_date` DATE NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `total_sales_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0,
+    `total_returned_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0,
+    `net_sales_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0,
+    `total_promo_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    `total_revenue` DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    `last_updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `sales_daily_summaries_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `sales_daily_summaries_product_id_idx`(`product_id`),
+    UNIQUE INDEX `sales_daily_summaries_summary_date_warehouse_location_id_pro_key`(`summary_date`, `warehouse_location_id`, `product_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -688,6 +751,24 @@ ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_brand_id_fkey` FOR
 
 -- AddForeignKey
 ALTER TABLE `brands_products` ADD CONSTRAINT `brands_products_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `sales_import_batches` ADD CONSTRAINT `sales_import_batches_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_batch_id_fkey` FOREIGN KEY (`batch_id`) REFERENCES `sales_import_batches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `sales_daily_summaries` ADD CONSTRAINT `sales_daily_summaries_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `sales_daily_summaries` ADD CONSTRAINT `sales_daily_summaries_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_counts` ADD CONSTRAINT `stock_counts_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

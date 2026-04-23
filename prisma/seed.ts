@@ -9,6 +9,7 @@ import { seedInventory } from "./seed/inventory.seed";
 import { seedOperation } from "./seed/operation.seed";
 import { seedStockCount } from "./seed/stock-count.seed";
 import { seedStockDisposal } from "./seed/stock-disposal.seed";
+import { seedSales } from "./seed/sales.seed";
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ async function main() {
   await prisma.stockOutDetailLot.deleteMany({});
   await prisma.stockInDetail.deleteMany({});
   await prisma.stockOutDetail.deleteMany({});
+  await prisma.salesDailySummary.deleteMany({});
+  await prisma.salesTransaction.deleteMany({});
+  await prisma.salesImportBatch.deleteMany({});
   await prisma.stockInDiscrepancy.deleteMany({});
   await prisma.stockIn.deleteMany({});
   await prisma.stockOut.deleteMany({});
@@ -72,6 +76,7 @@ async function main() {
   await seedOperation(prisma);
   await seedStockCount(prisma);
   await seedStockDisposal(prisma);
+  await seedSales(prisma);
 
   console.log("--- Hoàn thành Seeding thành công! ---");
 }
