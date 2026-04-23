@@ -86,7 +86,7 @@ export function Sidebar() {
             className={`absolute transition-all duration-300 p-2 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30 flex-shrink-0 ${collapsed ? 'left-1/2 -translate-x-1/2' : 'right-3'
               }`}
           >
-            <span className="material-symbols-outlined text-[24px]">
+            <span className="material-symbols-outlined text-[24px]" >
               menu
             </span>
           </button>
