@@ -4,7 +4,16 @@ import { generateStockCountCode, generateAdjustmentCode } from "../utils/generat
 import { checkIsClosed } from "./inventory.service";
 import { Prisma } from "../generated";
 import ExcelJS from "exceljs";
-import PdfPrinter from "pdfmake";
+// @ts-ignore
+import PdfPrinterModule from "pdfmake/js/printer";
+// @ts-ignore
+import virtualfsModule from "pdfmake/js/virtual-fs";
+// @ts-ignore
+import URLResolverModule from "pdfmake/js/URLResolver";
+
+const PdfPrinter = (PdfPrinterModule as any).default || PdfPrinterModule;
+const virtualfs = (virtualfsModule as any).default || virtualfsModule;
+const URLResolver = (URLResolverModule as any).default || URLResolverModule;
 import path from "path";
 import { fileURLToPath } from "url";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -864,7 +873,8 @@ export const exportStockCountPdf = async (id: number): Promise<Buffer> => {
     },
   };
 
-  const printer = new (PdfPrinter as any)(fonts);
+  const urlResolver = new (URLResolver as any)(virtualfs);
+  const printer = new (PdfPrinter as any)(fonts, virtualfs, urlResolver);
 
   // Xây dựng dữ liệu bảng
   const tableBody: string[][] = [
@@ -1009,13 +1019,17 @@ export const exportStockCountPdf = async (id: number): Promise<Buffer> => {
     },
   };
 
-  return new Promise<Buffer>((resolve, reject) => {
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
-    const chunks: Uint8Array[] = [];
+  return new Promise<Buffer>(async (resolve, reject) => {
+    try {
+      const pdfDoc = await printer.createPdfKitDocument(docDefinition);
+      const chunks: Uint8Array[] = [];
 
-    pdfDoc.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-    pdfDoc.on("end", () => resolve(Buffer.concat(chunks) as unknown as Buffer));
-    pdfDoc.on("error", (err: Error) => reject(err));
-    pdfDoc.end();
+      pdfDoc.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+      pdfDoc.on("end", () => resolve(Buffer.concat(chunks) as unknown as Buffer));
+      pdfDoc.on("error", (err: Error) => reject(err));
+      pdfDoc.end();
+    } catch (err) {
+      reject(err);
+    }
   });
 };

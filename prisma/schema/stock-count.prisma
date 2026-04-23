@@ -25,19 +25,19 @@ model StockCount {
 
 // Bảng chi tiết - Từng dòng sản phẩm tại vị trí cụ thể
 model StockCountDetail {
-  id                    Int       @id @default(autoincrement())
+  id                    Int  @id @default(autoincrement())
   stock_count_id        Int
   warehouse_location_id Int
   product_id            Int
   lot_id                Int?
 
-  system_quantity  Decimal  @db.Decimal(15, 3) // Chốt tại thời điểm bắt đầu đếm
-  counted_quantity Decimal? @db.Decimal(15, 3) // Nhân viên thực đếm
+  system_quantity   Decimal  @db.Decimal(15, 3) // Chốt tại thời điểm bắt đầu đếm
+  counted_quantity  Decimal? @db.Decimal(15, 3) // Nhân viên thực đếm
   variance_quantity Decimal? @db.Decimal(15, 3) // = counted - system (tính tự động)
-  unit_price       Decimal? @db.Decimal(15, 2) // Đơn giá tính thiệt hại/dôi dư
+  unit_price        Decimal? @db.Decimal(15, 2) // Đơn giá tính thiệt hại/dôi dư
 
-  variance_reason String?  @db.Text // Lý do chênh lệch
-  is_confirmed    Boolean  @default(false) // Đã xác nhận chênh lệch chưa
+  variance_reason String?   @db.Text // Lý do chênh lệch
+  is_confirmed    Boolean   @default(false) // Đã xác nhận chênh lệch chưa
   counted_by      Int? // Người thực hiện đếm
   counted_at      DateTime? // Thời điểm đếm xong
 

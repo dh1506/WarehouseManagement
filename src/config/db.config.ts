@@ -56,6 +56,9 @@ const MODEL_TO_MODULE: Record<string, string> = {
   StockDisposal: 'STOCK_DISPOSAL',
   StockDisposalDetail: 'STOCK_DISPOSAL',
   StockDisposalHistory: 'STOCK_DISPOSAL',
+  SalesImportBatch: 'SALES_MANAGEMENT',
+  SalesTransaction: 'SALES_MANAGEMENT',
+  SalesDailySummary: 'SALES_MANAGEMENT',
 };
 
 /** Chuyển PascalCase sang camelCase để truy cập dynamic model trên Prisma */

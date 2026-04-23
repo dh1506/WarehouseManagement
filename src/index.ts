@@ -20,6 +20,7 @@ import stockOutRoutes from "./routes/stock-out.route";
 import inventoryTransactionRoutes from "./routes/inventory-transaction.route";
 import stockCountRoutes from "./routes/stock-count.route";
 import stockDisposalRoutes from "./routes/stock-disposal.route";
+import salesRoutes from "./routes/sales.routes";
 import { globalErrorHandler } from "./middlewares/error.middleware";
 
 dotenv.config();
@@ -56,6 +57,7 @@ app.use("/api/stock-outs", stockOutRoutes);
 app.use("/api/inventory-transactions", inventoryTransactionRoutes);
 app.use("/api/stock-counts", stockCountRoutes);
 app.use("/api/stock-disposals", stockDisposalRoutes);
+app.use("/api/sales", salesRoutes);
 
 // Error Middleware
 app.use(globalErrorHandler);

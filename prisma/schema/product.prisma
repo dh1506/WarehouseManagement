@@ -42,37 +42,39 @@ model UnitOfMeasure {
 }
 
 model Product {
-  id                     Int                    @id @default(autoincrement())
-  code                   String                 @unique
-  name                   String
-  description            String?                @db.Text
-  product_type           ProductType            @default(GOODS)
-  product_status         ProductStatus          @default(ACTIVE)
-  base_uom_id            Int
-  has_batch              Boolean                @default(false)
-  min_stock              Decimal?               @db.Decimal(15, 3)
-  max_stock              Decimal?               @db.Decimal(15, 3)
-  safe_stock             Decimal?               @db.Decimal(15, 3)
-  storage_conditions     String?
-  image_url              String?
-  created_at             DateTime               @default(now())
-  updated_at             DateTime               @updatedAt
-  expiry_date            DateTime?
-  production_date        DateTime?
-  brands                 BrandProduct[]
-  inventories            Inventory[]
-  inventory_transactions InventoryTransaction[]
-  categories             ProductCategoryMap[]
-  lots                   ProductLot[]
-  productSuppliers       ProductSupplier[]
-  uoms                   ProductUom[]
-  warehouses             ProductWarehouse[]
-  base_uom               UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
-  stock_in_details       StockInDetail[]
-  stock_out_details      StockOutDetail[]
-  stock_count_details    StockCountDetail[]
+  id                      Int                    @id @default(autoincrement())
+  code                    String                 @unique
+  name                    String
+  description             String?                @db.Text
+  product_type            ProductType            @default(GOODS)
+  product_status          ProductStatus          @default(ACTIVE)
+  base_uom_id             Int
+  has_batch               Boolean                @default(false)
+  min_stock               Decimal?               @db.Decimal(15, 3)
+  max_stock               Decimal?               @db.Decimal(15, 3)
+  safe_stock              Decimal?               @db.Decimal(15, 3)
+  storage_conditions      String?
+  image_url               String?
+  created_at              DateTime               @default(now())
+  updated_at              DateTime               @updatedAt
+  expiry_date             DateTime?
+  production_date         DateTime?
+  brands                  BrandProduct[]
+  inventories             Inventory[]
+  inventory_transactions  InventoryTransaction[]
+  categories              ProductCategoryMap[]
+  lots                    ProductLot[]
+  productSuppliers        ProductSupplier[]
+  uoms                    ProductUom[]
+  warehouses              ProductWarehouse[]
+  base_uom                UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
+  stock_in_details        StockInDetail[]
+  stock_out_details       StockOutDetail[]
+  stock_count_details     StockCountDetail[]
   stock_count_adjustments StockCountAdjustment[]
-  stock_disposal_details StockDisposalDetail[]
+  stock_disposal_details  StockDisposalDetail[]
+  sales_transactions      SalesTransaction[]
+  sales_daily_summaries   SalesDailySummary[]
 
   @@index([base_uom_id], map: "products_base_uom_id_fkey")
   @@map("products")

@@ -29,6 +29,7 @@ model User {
   stock_disposals_created          StockDisposal[]        @relation("StockDisposalCreator")
   stock_disposals_approved         StockDisposal[]        @relation("StockDisposalApprover")
   stock_disposal_histories         StockDisposalHistory[] @relation("StockDisposalHistoryCreator")
+  sales_import_batches             SalesImportBatch[]     @relation("SalesBatchCreator")
   role                             Role                   @relation(fields: [role_id], references: [id])
   warehouse                        Warehouse?             @relation(fields: [warehouse_id], references: [id])
 
