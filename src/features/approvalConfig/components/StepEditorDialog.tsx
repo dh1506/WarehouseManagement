@@ -78,7 +78,7 @@ export function StepEditorDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-headline text-lg">
+          <DialogTitle className="font-headline text-sm">
             {isEdit ? 'Chỉnh sửa bước' : `Thêm bước mới (Step ${stepNumber})`}
           </DialogTitle>
         </DialogHeader>

@@ -1,51 +1,230 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useDeferredValue } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useUserRoleOptions, useUsers } from '../hooks/useUsers';
-import { UserTable } from './UserTable';
+
 import { UserFormSheet } from './UserFormSheet';
 import { LockUserDialog, ResetPasswordDialog } from './UserActionDialogs';
 import { exportUsersToExcel } from '../utils/exportUsers';
 import { getUsers } from '@/services/userService';
 import type { UserItem } from '@/services/userService';
-import { useAuthStore } from '@/store/authStore';
-import { hasModuleActionPermission } from '@/utils/module-permission';
 import { useToast } from '@/hooks/use-toast';
+import { usePermission } from '@/hooks/usePermission';
+import { UserTable } from '@/features/users/components/UserTable';
 
 const PAGE_LIMIT = 10;
 
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+interface HybridFilterSelectProps {
+  id: string;
+  value: string;
+  placeholder: string;
+  options: FilterOption[];
+  onChange: (nextValue: string) => void;
+  error?: string;
+}
+
+function HybridFilterSelect({
+  id,
+  value,
+  placeholder,
+  options,
+  onChange,
+  error,
+}: HybridFilterSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [touched, setTouched] = useState(false);
+  const selected = options.find((item) => item.value === value) ?? null;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      const wrapper = document.getElementById(`${id}-wrapper`);
+      if (!wrapper?.contains(target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [id, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    const selectedIndex = options.findIndex((item) => item.value === value);
+    setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : (options.length > 0 ? 0 : -1));
+  }, [open, options, value]);
+
+  const activeError = touched ? error : undefined;
+
+  return (
+    <div id={`${id}-wrapper`} className="w-full sm:w-auto">
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setTouched(true);
+        }}
+        onBlur={() => setTouched(true)}
+        aria-invalid={Boolean(activeError)}
+        className={`w-full min-h-11 rounded-xl border bg-white px-4 py-2 text-[16px] text-gray-700 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 ease-out hover:border-blue-300 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 md:hidden ${activeError ? 'border-red-400 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'}`}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+
+      <div className="relative hidden md:block">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={`${id}-listbox`}
+          aria-invalid={Boolean(activeError)}
+          onClick={() => {
+            setOpen((prev) => !prev);
+            setTouched(true);
+          }}
+          onBlur={() => setTouched(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setOpen((prev) => !prev);
+              return;
+            }
+
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              setOpen(false);
+              return;
+            }
+
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+
+              setHighlightedIndex((prev) => {
+                if (options.length === 0) return -1;
+                if (prev < 0) return 0;
+                return Math.min(options.length - 1, prev + 1);
+              });
+              return;
+            }
+
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+
+              setHighlightedIndex((prev) => {
+                if (options.length === 0) return -1;
+                if (prev < 0) return options.length - 1;
+                return Math.max(0, prev - 1);
+              });
+            }
+          }}
+          className={`flex min-h-11 w-full min-w-44 items-center justify-between rounded-xl border bg-white px-4 py-2 text-left text-[16px] text-gray-700 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 ease-out hover:border-blue-300 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${activeError ? 'border-red-400 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'}`}
+        >
+          <span className={selected ? 'text-gray-700' : 'text-gray-500'}>{selected?.label ?? placeholder}</span>
+          <span className="material-symbols-outlined text-[20px] text-gray-400">expand_more</span>
+        </button>
+
+        <AnimatePresence>
+          {open ? (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="absolute z-30 mt-2 w-full min-w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
+            >
+              <ul id={`${id}-listbox`} role="listbox" className="max-h-72 overflow-y-auto py-1">
+                <li role="option" aria-selected={value === ''}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setHighlightedIndex(-1)}
+                    onClick={() => {
+                      onChange('');
+                      setOpen(false);
+                    }}
+                    className={`flex min-h-11 w-full items-center px-4 py-2 text-left text-[16px] transition-colors ${value === '' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    {placeholder}
+                  </button>
+                </li>
+                {options.map((option, index) => {
+                  const isSelected = option.value === value;
+                  const isHighlighted = highlightedIndex === index;
+
+                  return (
+                    <li key={option.value} role="option" aria-selected={isSelected}>
+                      <button
+                        type="button"
+                        onMouseEnter={() => setHighlightedIndex(index)}
+                        onClick={() => {
+                          onChange(option.value);
+                          setOpen(false);
+                        }}
+                        className={`flex min-h-11 w-full items-center px-4 py-2 text-left text-[16px] transition-colors ${isSelected
+                          ? 'bg-blue-50 text-blue-700'
+                          : isHighlighted
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+
+      {activeError ? <p className="mt-1 text-sm text-red-600">{activeError}</p> : null}
+    </div>
+  );
+}
+
 export function UserManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-  const user = useAuthStore((state) => state.user);
-  const userPermissions = user?.permissions ?? [];
-
-  const canCreate = hasModuleActionPermission({
-    permissions: userPermissions,
-    moduleName: 'users',
-    moduleAliases: ['user'],
-    action: 'create',
-    roleName: user?.role,
-  });
-
-  const canEdit = hasModuleActionPermission({
-    permissions: userPermissions,
-    moduleName: 'users',
-    moduleAliases: ['user'],
-    action: 'edit',
-    roleName: user?.role,
-  });
-
-  const canUpdate = canEdit;
-
-  const showNoPermissionToast = (actionLabel: string) => {
-    toast({
-      title: 'Khong co quyen thuc hien',
-      description: `Ban khong co quyen ${actionLabel} nguoi dung nay.`,
-      variant: 'destructive',
-    });
-  };
+  const canCreateUser = usePermission('users:create');
+  const canUpdateUser = usePermission('users:update');
 
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserItem['status'] | ''>('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -62,15 +241,30 @@ export function UserManagement() {
   const [resetPwdTarget, setResetPwdTarget] = useState<UserItem | null>(null);
 
   // Debounce tìm kiếm
+  const searchInput = searchParams.get('search') ?? '';
   const debouncedSearch = useDebounce(searchInput, 400);
+  const deferredRoleFilter = useDeferredValue(roleFilter);
+  const deferredStatusFilter = useDeferredValue(statusFilter);
   const roleOptionsQuery = useUserRoleOptions();
+  const roleOptions = useMemo<FilterOption[]>(
+    () => (roleOptionsQuery.data ?? []).map((role) => ({ value: role.id, label: role.name })),
+    [roleOptionsQuery.data],
+  );
+  const statusOptions = useMemo<FilterOption[]>(
+    () => [
+      { value: 'Active', label: 'Active' },
+      { value: 'Inactive', label: 'Inactive' },
+      { value: 'Suspended', label: 'Suspended' },
+    ],
+    [],
+  );
 
   const { data, isLoading, isFetching } = useUsers({
     page,
     limit: PAGE_LIMIT,
     search: debouncedSearch || undefined,
-    roleId: roleFilter || undefined,
-    status: statusFilter || undefined,
+    roleId: deferredRoleFilter || undefined,
+    status: deferredStatusFilter || undefined,
   });
 
   const totalPages = data ? Math.ceil(data.total / PAGE_LIMIT) : 0;
@@ -87,20 +281,33 @@ export function UserManagement() {
   const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
+    const nextValue = e.target.value;
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextValue.trim()) {
+      nextParams.set('search', nextValue);
+    } else {
+      nextParams.delete('search');
+    }
+
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
     setPage(1);
     setSelectedUserIds([]);
     setIsHeaderChecked(false);
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   const handleReset = useCallback(() => {
-    setSearchInput('');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('search');
+    nextParams.set('page', '1');
+    setSearchParams(nextParams);
     setRoleFilter('');
     setStatusFilter('');
     setPage(1);
     setSelectedUserIds([]);
     setIsHeaderChecked(false);
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setSelectedUserIds((prev) => prev.filter((id) => currentUserIdSet.has(id)));
@@ -141,42 +348,22 @@ export function UserManagement() {
 
   // --- Handlers ---
   const handleAddUser = () => {
-    if (!canCreate) {
-      showNoPermissionToast('tao moi');
-      return;
-    }
-
     setEditUser(null);
     setSheetOpen(true);
   };
 
-  const handleEditUser = useCallback((targetUser: UserItem) => {
-    if (!canEdit) {
-      showNoPermissionToast('chinh sua');
-      return;
-    }
-
-    setEditUser(targetUser);
+  const handleEditUser = useCallback((user: UserItem) => {
+    setEditUser(user);
     setSheetOpen(true);
-  }, [canEdit]);
+  }, [toast]);
 
-  const handleLockUser = useCallback((targetUser: UserItem) => {
-    if (!canUpdate) {
-      showNoPermissionToast('khoa/mo khoa');
-      return;
-    }
+  const handleLockUser = useCallback((user: UserItem) => {
+    setLockTarget(user);
+  }, [toast]);
 
-    setLockTarget(targetUser);
-  }, [canUpdate]);
-
-  const handleResetPassword = useCallback((targetUser: UserItem) => {
-    if (!canUpdate) {
-      showNoPermissionToast('dat lai mat khau');
-      return;
-    }
-
-    setResetPwdTarget(targetUser);
-  }, [canUpdate]);
+  const handleResetPassword = useCallback((user: UserItem) => {
+    setResetPwdTarget(user);
+  }, [toast]);
 
   const handleCloseSheet = () => { setSheetOpen(false); setEditUser(null); };
 
@@ -206,86 +393,92 @@ export function UserManagement() {
   };
 
   return (
-    <div className="flex flex-col h-full p-3 gap-2 max-w-7xl mx-auto w-full">
+    <div className="flex h-full w-full flex-col gap-2 px-2 py-2 sm:gap-3 sm:px-3 sm:py-3 lg:px-4 lg:py-3">
 
       {/* Page Title & Actions */}
-      <div className="flex-none flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+      <motion.div
+        className="flex-none flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">User Management</h2>
-          <p className="text-gray-500 mt-1">Oversee enterprise access and role definitions.</p>
+          <h2 className="text-base font-bold tracking-tight text-gray-900">User Management</h2>
         </div>
-        <button
-          onClick={handleAddUser}
-          disabled={!canCreate}
-          className="shrink-0 bg-primary hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
-          Add User
-        </button>
-      </div>
+        {canCreateUser ? (
+          <button
+            onClick={handleAddUser}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-blue-800 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 active:translate-y-px"
+          >
+            <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
+            Add User
+          </button>
+        ) : null}
+      </motion.div>
 
       {/* Filters */}
-      <div className="flex-none bg-gray-50 p-3 rounded-2xl flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-50 relative">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]" data-icon="filter_list">filter_list</span>
-          <input
-            type="text"
-            value={searchInput}
-            onChange={handleSearch}
-            placeholder="Search by name, email, or username..."
-            className="w-full pl-12 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/30 focus:border-transparent transition-all"
-          />
+      <motion.div
+        className="flex-none rounded-xl bg-gray-50 p-2 sm:p-3"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.04 }}
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]" data-icon="filter_list">filter_list</span>
+            <input
+              type="text"
+              value={searchInput}
+              onChange={handleSearch}
+              placeholder="Search by name, email, or username..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-12 pr-4 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-primary/30 focus-visible:outline-none"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            <HybridFilterSelect
+              id="role-filter"
+              value={roleFilter}
+              placeholder="All Roles"
+              options={roleOptions}
+              onChange={(nextValue) => {
+                setRoleFilter(nextValue);
+                setPage(1);
+                setSelectedUserIds([]);
+                setIsHeaderChecked(false);
+              }}
+            />
+            <HybridFilterSelect
+              id="status-filter"
+              value={statusFilter}
+              placeholder="All Status"
+              options={statusOptions}
+              onChange={(nextValue) => {
+                setStatusFilter((nextValue || '') as UserItem['status'] | '');
+                setPage(1);
+                setSelectedUserIds([]);
+                setIsHeaderChecked(false);
+              }}
+            />
+            <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1 sm:justify-start">
+              <button
+                onClick={handleReset}
+                title="Reset bộ lọc"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                <span className="material-symbols-outlined text-[18px]" data-icon="refresh">refresh</span>
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={!(isHeaderChecked || selectedUsersForExport.length > 0)}
+                title="Xuất file Excel"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-gray-500 transition-colors hover:bg-green-50 hover:text-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-[18px]" data-icon="download">download</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center flex-wrap gap-3">
-          <select
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value);
-              setPage(1);
-              setSelectedUserIds([]);
-              setIsHeaderChecked(false);
-            }}
-            className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary/30 focus:border-transparent font-medium cursor-pointer"
-          >
-            <option value="">All Roles</option>
-            {(roleOptionsQuery.data ?? []).map((role) => (
-              <option key={role.id} value={role.id}>{role.name}</option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter((e.target.value || '') as UserItem['status'] | '');
-              setPage(1);
-              setSelectedUserIds([]);
-              setIsHeaderChecked(false);
-            }}
-            className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary/30 focus:border-transparent font-medium cursor-pointer"
-          >
-            <option value="">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Suspended">Suspended</option>
-          </select>
-          <div className="w-px h-8 bg-gray-200" />
-          <button
-            onClick={handleReset}
-            title="Reset bộ lọc"
-            className="p-2.5 text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]" data-icon="refresh">refresh</span>
-          </button>
-          {/* Export Excel */}
-          <button
-            onClick={handleExport}
-            disabled={!(isHeaderChecked || selectedUsersForExport.length > 0)}
-            title="Xuất file Excel"
-            className="p-2.5 text-gray-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined text-[18px]" data-icon="download">download</span>
-          </button>
-        </div>
-      </div>
+      </motion.div>
 
       {/* Table area */}
       <div className={`flex-1 min-h-0 flex flex-col gap-2 transition-opacity duration-200 ${isFetching && !isLoading ? 'opacity-60' : 'opacity-100'}`}>
@@ -301,53 +494,58 @@ export function UserManagement() {
             onEdit={handleEditUser}
             onLock={handleLockUser}
             onResetPassword={handleResetPassword}
+            canEdit={canUpdateUser}
+            canLock={canUpdateUser}
+            canResetPassword={canUpdateUser}
           />
         </div>
 
         {/* Pagination — hiển thị khi có data */}
         {!isLoading && (data?.total ?? 0) > 0 && (
-          <div className="flex-none bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p className="text-sm text-gray-500 font-medium">
-              Showing {(page - 1) * PAGE_LIMIT + 1} – {Math.min(page * PAGE_LIMIT, data?.total ?? 0)} of {data?.total ?? 0} users
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <span className="material-symbols-outlined text-[16px]" data-icon="chevron_left">chevron_left</span>
-                Prev
-              </button>
-              {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                const p = i + 1;
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors ${page === p ? 'bg-primary text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-              {totalPages > 5 && <span className="px-1 text-gray-400">...</span>}
-              {totalPages > 5 && (
+          <div className="flex-none rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-2.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-500 font-medium">
+                Showing {(page - 1) * PAGE_LIMIT + 1} – {Math.min(page * PAGE_LIMIT, data?.total ?? 0)} of {data?.total ?? 0} users
+              </p>
+              <div className="flex flex-wrap items-center gap-1">
                 <button
-                  onClick={() => setPage(totalPages)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors ${page === totalPages ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {totalPages}
+                  <span className="material-symbols-outlined text-[16px]" data-icon="chevron_left">chevron_left</span>
+                  Prev
                 </button>
-              )}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-50 flex items-center gap-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Next
-                <span className="material-symbols-outlined text-[16px]" data-icon="chevron_right">chevron_right</span>
-              </button>
+                {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                  const p = i + 1;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === p ? 'bg-primary text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+                {totalPages > 5 && <span className="px-1 text-gray-400">...</span>}
+                {totalPages > 5 && (
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium transition-colors ${page === totalPages ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    {totalPages}
+                  </button>
+                )}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                  <span className="material-symbols-outlined text-[16px]" data-icon="chevron_right">chevron_right</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

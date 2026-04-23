@@ -1,328 +1,63 @@
 # Decision Log
 
-## DEC-001 - Mock services for frontend progress
+## 2026-04-22 — Stock Count Module
 
-**Date:** 2026-03-28  
-**Context:** Backend chua s?n s�ng nhung frontend Sprint 1 v?n c?n ho�n thi?n production-shaped flows.  
-**Decision:** D�ng mock services mutable trong `src/services/` cho user, role, category, product settings, products, v� warehouses.  
-**Rationale:** Gi? ti?n d? FE m� v?n b�m d�ng API boundary `services -> hooks -> feature UI`.
+### D1: Reuse inbound ProductSearchSelect + WarehouseLocationSelect
 
-## DEC-002 - Separate create/update form handling when schema diverges
+Imported directly from `features/inbound/components/`. These are general enough to reuse.
+These should be migrated to `components/shared/` in a future cleanup sprint.
 
-**Date:** 2026-03-28  
-**Context:** M?t s? form c� create/update schema kh�c nhau r� r?t.  
-**Decision:** T�ch ri�ng form flow khi c?n thay v� c? gom v�o m?t schema ph?c t?p.  
-**Rationale:** Type-safe hon, �t xung d?t hon v?i React Hook Form v� Zod.
+### D2: Client-side variance calculation
 
-## DEC-003 - Category hierarchy computed in frontend
+Per NFR-2: variance (counted - system_quantity) is computed in the FE without server round-trip.
+Implemented via local `draftQty` state in `StockCountDetailGrid`. Save triggers only on blur or explicit "Save" button.
 
-**Date:** 2026-03-29  
-**Context:** Category tree c?n hi?n th? parent/child ngay c? khi BE chua tr? v? metadata c�y d?y d?.  
-**Decision:** T�nh to�n hierarchy trong frontend t? danh s�ch category hi?n c�.  
-**Rationale:** Gi? UI ph?n h?i t?t v� kh�ng ch?n ti?n d? do thi?u backend aggregation.
+### D3: Cancel dialog has no reason body to BE
 
-## DEC-004 - Sprint 1 master-data modules implemented as architecture-first reimplementation
+BE `cancelStockCountSchema` only accepts params (no body). Cancel dialog is a confirmation-only UI.
+Audit log entry is created server-side on status change.
 
-**Date:** 2026-03-29  
-**Context:** Y�u c?u kh�ng reuse external/generated code structure, ch? gi? design language.  
-**Decision:** Re-implement Product Settings, Product Management, Warehouse, v� Warehouse Locations theo d�ng structure hi?n c� c?a repo.  
-**Rationale:** Tu�n th? `AGENTS.md`, gi? page m?ng, business logic trong `features/`, raw API calls trong `services/`.
+### D4: Status flow aligned to BE (not kiemke.md spec)
 
-## DEC-005 - Reusable foundation kept intentionally lightweight
+`kiemke.md` describes a `PENDING_REVIEW` status. BE only has: `DRAFT → COUNTING → COMPLETED → APPROVED | CANCELLED`.
+FE uses BE statuses only. `PENDING_REVIEW` mapped to `COMPLETED`.
 
-**Date:** 2026-03-29  
-**Context:** Sprint 1 c?n foundation d? Sprint 2 t�i s? d?ng nhung kh�ng du?c m? r?ng refactor ngo�i scope.  
-**Decision:** Ch? th�m shared pieces th?t s? d�ng du?c ngay:
+### D5: Export downloads via window.open
 
-- `PageHeader`
-- `StatusBadge`
-- `StatePanel`
-- `usePermission`
-  **Rationale:** �? reuse cho master-data v� transaction screens sau n�y m� kh�ng t?o abstraction n?ng ho?c generic h�a qu� s?m.
+BE export endpoints require auth. Token-based download via `window.open` to new tab.
+If BE adds cookie auth, this will work seamlessly. For token-based, BE needs to support token as query param.
 
-## DEC-006 - Product supporting masters in Sprint 1 include unit and brand
+### D6: Progress tracking — client-side
 
-**Date:** 2026-03-29  
-**Context:** Scope ghi r� unit of measure v� brand/manufacturer "if included in scope", nhung workspace kh�ng c� contract ri�ng.  
-**Decision:** Bao g?m `unit` v� `brand` trong Sprint 1 d? product master c� d? d? li?u g?c v?n h�nh.  
-**Rationale:** ��y l� b? d? li?u t?i thi?u h?p l� d? Sprint 2 inbound/outbound/inventory c� th? t�i s? d?ng ngay.
+`progressPct = counted / total * 100` — no dedicated BE field.
+`counted` = `details.filter(d => d.counted_quantity !== null).length`.
 
-## DEC-007 - Permission checks for new modules use shared hook with wildcard support
+### D7: `PENDING_CEO` status not present
 
-**Date:** 2026-03-29  
-**Context:** Auth store hi?n c� user mock v?i `permissions: ['*']`, nhung chua c� permission guard d�ng chung cho module m?i.  
-**Decision:** Th�m `usePermission()` d? UI m?i c� th? ?n/hi?n action theo permission v� v?n tuong th�ch v?i wildcard hi?n t?i.  
-**Rationale:** Gi?m l?p logic permission trong component v� d? thay th? khi backend ch?t permission keys th?t.
+`kiemke.md` mentions `PENDING_CEO` if variance > threshold. This does not exist in current BE schema. Not implemented.
 
-## DEC-008 - Warehouse Hub switched to service-driven CRUD
+## 2026-04-22 — Stock Disposal Module
 
-**Date:** 2026-03-30  
-**Context:** Warehouse Hub page was mutating local mock arrays directly in component, causing drift from architecture rules.  
-**Decision:** Move warehouse hub CRUD, zone CRUD, and layout config persistence to `src/services/warehouseService.ts`, expose via React Query hooks in `src/features/warehouses/hooks/useWarehouses.ts`.  
-**Rationale:** Keeps page thin, centralizes raw API logic, and aligns with AGENTS architecture (`services -> hooks -> feature UI`).
+### D8: Stock disposal state machine follows BE exactly
 
-## DEC-009 - Swipe layout configuration stored per warehouse
+`huy.md` describes manager/CEO split states, but BE contract only supports `DRAFT -> PENDING -> APPROVED -> COMPLETED | CANCELLED`.
+FE keeps this exact state machine and does not introduce pseudo statuses.
 
-**Date:** 2026-03-30  
-**Context:** User requested configurable "so do kho dang luot" behavior on hub map.  
-**Decision:** Add `layoutConfig` to `WarehouseHub` model (`viewMode`, `colorMode`, `columns`) and provide save/reset flow through layout mutation.  
-**Rationale:** Enables configurable horizontal map browsing without introducing unrelated global state or heavy refactors.
+### D9: Create form uses reusable selectors, not raw ID entry
 
-## DEC-010 - Zone bins persisted on zone model instead of detached cache
+`CreateStockDisposalSheet` now reuses `ProductSearchSelect` and `WarehouseLocationSelect` to avoid fragile numeric ID input.
+Payload remains unchanged and matches BE schema exactly.
 
-**Date:** 2026-03-30  
-**Context:** Zone Detail was reading bins generated lazily from a detached in-memory map, not from the hub zone payload.  
-**Decision:** Persist bins directly in each `Zone` (`bins: Bin[]`) and update service flows (`getZoneBins`, `updateZoneBinCapacity`, zone update sync) to read/write that model.  
-**Rationale:** Keeps zone detail aligned with warehouse hub resource shape, reduces model drift, and preserves architecture boundary `services -> hooks -> feature UI`.
+### D10: Submit-time stock guard on FE
 
-## DEC-011 - Zone detail mutation actions follow warehouse manage permission
+Before create mutation, FE calls inventory availability helper and blocks lines where `quantity > available_quantity`.
+This is a UX guard only; BE remains final source of validation.
 
-**Date:** 2026-03-30  
-**Context:** Bin capacity controls were always editable in Zone Detail regardless of permission state.  
-**Decision:** Gate edit actions using `usePermission('master_data.warehouses.manage')` and disable input/mutation controls for read-only users.  
-**Rationale:** Aligns Zone Detail with permission-aware behavior already used in Warehouse Hub and other admin modules.
+### D11: Lot selection sourced from /api/inventories
 
-## DEC-012 - User Management switched from mock to real API contract
+Lot options are derived from inventory rows filtered by `product_id`, deduplicated and sorted.
+`lot_id` remains optional and is reset when product changes.
 
-**Date:** 2026-03-30  
-**Context:** User module still depended on mutable in-memory mock data and diverged from backend contract wrappers.  
-**Decision:** Replace mock CRUD with real calls to `/api/users` and normalize FE/BE mapping in `userService.ts` (`username/full_name/role_id/user_status`).  
-**Rationale:** Aligns sprint implementation with approved API contract and avoids data drift between FE behavior and backend persistence.
+### D12: Motion optimization with reduced-motion support
 
-## DEC-013 - User role filter and form role selection now use role_id
-
-**Date:** 2026-03-30  
-**Context:** FE was filtering and submitting users by hardcoded role labels (`Admin/Manager/Staff`) while backend expects `role_id`.  
-**Decision:** Fetch role options from `/api/roles` and bind filter/form values to role IDs.  
-**Rationale:** Keeps query and mutation payloads contract-accurate and removes hardcoded assumptions.
-
-## DEC-014 - Login response normalized and persisted auth state hardened
-
-**Date:** 2026-03-30  
-**Context:** FE showed white-screen behavior in runtime while build stayed green after auth/user contract changes. Root cause risk came from mismatched login payload mapping and legacy persisted auth shape (missing `permissions`).  
-**Decision:** Normalize login response in `features/auth/api/login.ts` (unwrap API envelope + map backend user/permissions to `UserProfile`) and harden permission guards/migration in auth store (`usePermission` + persisted state normalization).  
-**Rationale:** Prevents runtime crashes from malformed user objects, keeps auth state contract-stable, and preserves architecture boundaries.
-
-## DEC-015 - Permission fallback for warehouse manage interactions
-
-**Date:** 2026-03-30  
-**Context:** Warehouse drag/drop and edit actions were blocked after auth integration because FE checked `master_data.warehouses.manage` while backend permissions were not yet aligned to that key set.  
-**Decision:** Extend `usePermission` with safe fallback rules: admin-style role bypass (`ADMIN`, `CEO`) and alias matching for warehouse manage keys (`warehouse(s):manage/update/write`).  
-**Rationale:** Restores expected manage UX (including DnD) while waiting for backend permission contract to converge.
-
-## DEC-016 - User export now follows explicit checkbox selection
-
-**Date:** 2026-03-30  
-**Context:** User requested row-level checkbox export behavior: export only selected rows; if header checkbox is selected, export full dataset.  
-**Decision:** Add checkbox selection state in User table and wire export logic so header checkbox triggers full filtered fetch from BE (`getUsers` with `limit = total`), while row selection exports only selected rows on current view.  
-**Rationale:** Matches user expectation and keeps data source API-driven instead of exporting implicit page data.
-
-## DEC-017 - Role permission matrix switched to backend contract
-
-**Date:** 2026-03-31  
-**Context:** Role permission screen was still using in-memory mock data while backend already exposes `/api/roles`, `/api/roles/:id`, `/api/roles/:id/permissions`, and `/api/permissions`.  
-**Decision:** Replace `roleService.ts` mock flow with API-driven mapping: fetch roles from `/api/roles`, build matrix from assigned permissions (`/api/roles/:id`) + permission catalog (`/api/permissions`), and submit updates via `PUT /api/roles/:id/permissions` with `permission_ids`.  
-**Rationale:** Aligns FE behavior with approved API contract, removes data drift, and keeps architecture boundary `services -> hooks -> feature UI` intact.
-
-## DEC-018 - Align FE methods with API design table (users/roles permissions)
-
-**Date:** 2026-03-31  
-**Context:** API design table specifies: `PUT /api/users/:id`, `PATCH /api/users/:id` (lock), `PATCH /api/users/:id/reset-password`, `GET /api/roles/:id/permissions`, `PATCH /api/roles/:id/permissions`.  
-**Decision:** Update FE service methods/endpoints to match exactly this contract in `userService.ts` and `roleService.ts`.  
-**Rationale:** Tránh lệch method/path giữa FE và tài liệu API đã chốt, giúp backend integration ổn định theo schema User/Role/Permission hiện có.
-
-## DEC-019 - Complete API review for users, roles, permissions, approval
-
-**Date:** 2026-03-31  
-**Context:** API design table bổ sung nhóm quản lý vai trò (`POST/PUT /api/roles/:id`) và phê duyệt (`PATCH /api/roles/:id/approval-config`).  
-**Decision:** Bổ sung hàm `createRole`, `updateRole` trong `roleService.ts` và đổi `updateApprovalConfig` sang gọi `PATCH /api/roles/:id/approval-config`.  
-**Rationale:** Bao phủ đầy đủ 4 nhóm API trong scope review: người dùng, vai trò, phân quyền, phê duyệt theo đúng tài liệu đã thiết kế.
-
-## DEC-020 - Backend role domain locked to CEO/MANAGER/STAFF
-
-**Date:** 2026-03-31  
-**Context:** Yêu cầu nghiệp vụ chốt chỉ dùng 3 role: CEO, MANAGER, STAFF.  
-**Decision:** Khóa whitelist role ở BE tại `role.schema.ts` + `role.service.ts`, và đổi logic role mặc định khi register sang tra theo `name='STAFF'` thay vì hardcode `id=1`.  
-**Rationale:** Đảm bảo không thể tạo/cập nhật role ngoài domain chuẩn và tránh sai lệch khi id role thay đổi theo dữ liệu thực tế.
-
-## DEC-021 - Remove gender from user add/update and standardize full_name + VN phone validation
-
-**Date:** 2026-03-31  
-**Context:** Yêu cầu nghiệp vụ bỏ trường giới tính trong luồng add/update user; full_name chỉ cần không rỗng (kể cả trim), phone phải theo chuẩn số Việt Nam.  
-**Decision:** Xoá `gender` khỏi FE user form/schema/payload và cập nhật validate `full_name` + `phone` ở cả BE (`user.schema.ts`) và FE (`features/users/schemas/userSchema.ts`). Đồng thời thêm field `phone` vào payload/user model FE và form UI add/update.  
-**Rationale:** Đồng bộ behavior nhập liệu giữa FE và BE theo yêu cầu business, giảm sai lệch validate và đảm bảo dữ liệu sạch trước khi lưu.
-
-## DEC-022 - Canonical user update endpoint follows running backend route (PATCH)
-
-**Date:** 2026-03-31  
-**Context:** FE update flow failed with 404 because FE called `PUT /api/users/:id` while current BE route is `PATCH /api/users/:id`.  
-**Decision:** Standardize FE user update call to `PATCH /api/users/:id` in `userService.ts` until backend route contract is explicitly changed.  
-**Rationale:** Removes runtime endpoint mismatch immediately and keeps FE behavior consistent with deployed backend routing.
-
-## DEC-023 - Add dedicated reset-password endpoint in users module
-
-**Date:** 2026-03-31  
-**Context:** FE already used `PATCH /api/users/:id/reset-password` but BE lacked this endpoint, causing reset-password action to fail.  
-**Decision:** Implement reset-password as a dedicated users endpoint with its own schema (`new_password`), controller action, and service-level bcrypt hashing update.  
-**Rationale:** Keeps password reset separate from profile update semantics, improves auditability of intent, and aligns FE/BE contract for user administration flows.
-
-## DEC-024 - Role permission matrix follows current sidebar navigation
-
-**Date:** 2026-03-31  
-**Context:** User requested role permissions to cover the pages currently exposed in the sidebar, while the existing matrix was based only on raw backend permission modules.  
-**Decision:** Extract sidebar navigation into `src/layouts/sidebar-navigation.ts` and reuse that config to render the role permission matrix in sidebar order, with page-to-permission-module mapping.  
-**Rationale:** Keeps navigation and permission UI in sync, reduces duplicated config, and avoids drift when sidebar pages change later.
-
-## DEC-025 - Sidebar pages without backend permission seeds stay visible but disabled
-
-**Date:** 2026-03-31  
-**Context:** Backend seed currently exposes real permission modules for only part of the current sidebar (`users`, `roles`, `permissions`), while other pages do not yet have matching permission records.  
-**Decision:** Render all sidebar pages in the matrix, but disable toggles and show a backend-gap indicator for pages that do not have matching permission modules/actions from `/api/permissions`.  
-**Rationale:** Satisfies the requested page coverage in UI without inventing unsupported permission IDs or breaking the existing API contract.
-
-## DEC-026 - Advanced Permissions repurposed to page-level sidebar access
-
-**Date:** 2026-03-31  
-**Context:** User requested `/admin/advanced-permission` to control whether each role can enter specific sidebar pages such as Users, Roles, and AI Forecast.  
-**Decision:** Implement a new page-based advanced permission matrix sourced from `sidebar-navigation.ts`, with mock per-role defaults that allow scenarios like `CEO` accessing Users/Roles while `MANAGER` is blocked from those admin pages.  
-**Rationale:** Aligns the advanced permission screen with actual navigation behavior and gives a dedicated place to manage page access without changing the existing backend contract yet.
-
-## DEC-027 - Role management keeps metadata CRUD separate from permission assignment
-
-**Date:** 2026-03-31  
-**Context:** User requested create role, update role information, and active/inactive toggle directly on the Role screen while the same page already manages permission assignment.  
-**Decision:** Add dedicated create/edit role flows on the left role hierarchy pane using `POST /api/roles` and `PATCH /api/roles/:id`, while keeping permission matrix saving on the existing permission-specific API flow.  
-**Rationale:** Keeps payload responsibilities clear, matches backend route design, and avoids coupling role metadata changes to matrix updates.
-
-## DEC-028 - Role create/edit validation is locked to backend-approved names
-
-**Date:** 2026-03-31  
-**Context:** Backend currently restricts role names to `CEO`, `MANAGER`, and `STAFF`, and rejects duplicates.  
-**Decision:** Add a dedicated Zod schema for role create/update and constrain the create dialog to only offer missing role names from that whitelist.  
-**Rationale:** Prevents invalid submissions early in the UI and keeps FE validation aligned with the current backend domain model.
-
-## DEC-029 - Product references switched from mock to real API contract
-
-**Date:** 2026-04-01  
-**Context:** Product settings module (unit/brand) was still backed by in-memory mock data while backend already provides `/api/units-of-measure` and `/api/brands`.  
-**Decision:** Replace `productReferenceService.ts` mock CRUD with API-driven list/create/update mapping and keep FE-facing shape stable for existing UI/hooks.  
-**Rationale:** Aligns module behavior with approved API contract and avoids drift between product master references and backend source of truth.
-
-## DEC-030 - Product management switched from mock to real API contract
-
-**Date:** 2026-04-01  
-**Context:** Product module still used mock products despite backend routes and schema being available (`/api/products`, `/api/product-categories`, `/api/manufacturers`).  
-**Decision:** Re-implement `productService.ts` as API-backed service with explicit FE/BE mappers (`sku <-> code`, `trackedByLot <-> has_batch`, `status <-> product_status`, id conversion string/number).  
-**Rationale:** Keeps UI architecture unchanged while making data flow contract-accurate and production-oriented.
-
-## DEC-031 - Product form manufacturer field moved to manufacturer_id selection
-
-**Date:** 2026-04-01
-
-## DEC-032 - Roles page now configures page visibility only
-
-**Date:** 2026-04-01  
-**Context:** Business flow was updated so Roles should only decide whether each role can see a page; advanced action permissions stay in Advanced Permissions.  
-**Decision:** Simplify `RolePermissions` matrix to a single `view` toggle per sidebar page and keep advanced actions out of this screen.  
-**Rationale:** Matches requested UX (quick on/off page access), reduces role-screen complexity, and preserves two-layer RBAC model (page visibility vs action permissions).
-
-## DEC-032 - Runtime page access now follows module View permission
-
-**Date:** 2026-04-01  
-**Context:** User requested page visibility by role (vd MANAGER thay doi duoc page Warehouse, STAFF bi hidden), thay vi cho user vao route roi moi bi loi 403 API.  
-**Decision:** Add module-level route guard in `App.tsx` and sidebar filtering in `Sidebar.tsx` using shared checker `hasModuleActionPermission` with action `view`.  
-**Rationale:** Dam bao quyen xem trang duoc ap dung nhat quan o ca navigation va direct URL access.
-
-## DEC-033 - Advanced Permission matrix is scoped by Roles page view grants
-
-**Date:** 2026-04-01  
-**Context:** User requested Roles la noi quyet dinh role xem duoc trang nao; Advanced Permissions chi cau hinh quyen nang cao tren nhung trang da duoc cap view.  
-**Decision:** `AdvancedPagePermissions` now consumes `useRolePermissions(selectedRoleId)` and filters modules by `permission.view === true` from Roles matrix.
-
-## DEC-034 - Advanced Permissions switched from mock to role-permission API source
-
-**Date:** 2026-04-01  
-**Context:** Advanced page save flow was updating in-memory mock only, so user-configured action rights were not persisted to backend role permissions.  
-**Decision:** Re-implement `advancedPagePermissionService.ts` to read/write via `getRolePermissions` and `updateRolePermissions`, then map module actions back to sidebar module templates.  
-**Rationale:** Makes advanced permission save persistent, keeps contract-aligned data flow, and ensures runtime guards can follow backend truth.
-
-## DEC-035 - Product actions now enforce create/edit/delete separately
-
-**Date:** 2026-04-01  
-**Context:** Business rule requires action-level behavior (e.g., MANAGER can edit but cannot create/delete) with explicit popup feedback when action is denied.  
-**Decision:** Add module-action checks (`create`, `edit`, `delete`) in Product Management and Product Detail using `hasModuleActionPermission`, and show destructive toast when user attempts forbidden actions.  
-**Rationale:** Aligns UI behavior with advanced permissions matrix and avoids silent hiding that makes permission configuration hard to verify.
-**Rationale:** Giu dung mo hinh 2 tang quyen: page visibility (Roles) va action-level controls (Advanced Permissions).
-
-## DEC-034 - Forbidden access feedback uses global toast + /403 redirect
-
-**Date:** 2026-04-01  
-**Context:** User requested popup thong bao khi nguoi dung thao tac vao chuc nang khong co quyen.
-
-## DEC-036 - User role options fallback when roles endpoint is forbidden
-
-**Date:** 2026-04-01  
-**Context:** Role dropdown in Add User was empty for accounts that can manage users but do not have `roles:read`, because FE fetched role options only from `/api/roles`.  
-**Decision:** In `userService.getUserRoleOptions`, keep primary source `/api/roles` and add 403 fallback to derive unique role options from `/api/users` list payload.  
-**Rationale:** Prevents empty role selection UI for delegated user-admin roles without broad role-management permission, while staying within existing backend contract.
-
-## DEC-037 - Users module now enforces action-level checks on UI triggers
-
-**Date:** 2026-04-01  
-**Context:** Edit/lock/reset actions in Users table opened dialogs without checking action permissions, causing mismatch with Advanced Permissions expectations.  
-**Decision:** Add module-action checks (`create`, `edit`/`update`) in `UserManagement` click handlers and show destructive toast when action is denied.  
-**Rationale:** Aligns Users behavior with Product module RBAC UX and ensures denied actions are blocked with explicit feedback.
-**Decision:** Mount global `Toaster` in `App.tsx` and show destructive toast in `PermissionDeniedRedirect` before redirecting to `/403`.  
-**Rationale:** User nhan duoc feedback ngay lap tuc thay vi chi thay trang loi ma khong co thong diep ngu canh.
-**Context:** Existing product form used free-text `manufacturer`, but backend create/update contract expects `manufacturer_id`.  
-**Decision:** Change FE form schema/types/components to use `manufacturerId` and load options from `/api/manufacturers`. Keep display field `manufacturer` in `ProductItem` as derived name for UI readability.  
-**Rationale:** Removes payload mismatch risk and ensures product mutations are valid against backend validation schema.
-
-## DEC-038 - Supplier frontend module implemented from existing backend contract
-
-**Date:** 2026-04-01  
-**Context:** Backend already exposes `suppliers` routes/schema/Prisma model, but FE had no corresponding feature module, page, service, or navigation entry.  
-**Decision:** Implement `suppliers` as a feature-based FE module with raw API calls in `src/services/supplierService.ts`, React Query hooks in `src/features/suppliers/hooks/useSuppliers.ts`, Zod form/filter schemas, and a thin page route at `/admin/suppliers`.  
-**Rationale:** This closes a contract-backed frontend gap without inventing unsupported inventory or warehouse transaction APIs.
-
-## DEC-039 - Supplier delete action is intentionally omitted
-
-**Date:** 2026-04-01  
-**Context:** Current backend supplier contract includes list/detail/create/update only; there is no delete endpoint in this workspace.  
-**Decision:** Ship supplier UI with read/create/update flows and no delete mutation or delete CTA.  
-**Rationale:** Keeps FE behavior aligned with approved API scope and avoids exposing a broken destructive action.
-
-## DEC-040 - User role option fallback must understand normalized apiClient errors
-
-**Date:** 2026-04-01  
-**Context:** `apiClient` rejects with normalized backend error payloads, not always raw Axios error objects. This caused `getUserRoleOptions()` to miss `403` detection and skip the fallback role-source path.  
-**Decision:** Extend forbidden-error detection in `userService.ts` to recognize both Axios-style `response.status === 403` and normalized backend payloads (`statusCode`, nested `error.code`, message fallback).  
-**Rationale:** Restores role dropdown behavior for delegated user-admin accounts that can manage users but cannot read the roles catalog.
-
-## DEC-041 - Reset-password dialog must provide explicit success feedback
-
-**Date:** 2026-04-01  
-**Context:** After resetting a password, the dialog flow gave no visible confirmation, making it look like the action did nothing.  
-**Decision:** Show success toast on reset-password completion, show destructive toast on failure, and reset/close the popup after success.  
-**Rationale:** Makes critical credential actions observable and reduces operator uncertainty during admin workflows.
-
-## DEC-042 - Reset-password backend endpoint restored as separate users action
-
-**Date:** 2026-04-01  
-**Context:** FE contract expects `PATCH /api/users/:id/reset-password`, but current BE workspace state had lost that route, causing runtime `404`.  
-**Decision:** Reintroduce dedicated reset-password schema, route, controller action, and service hashing flow under users module.  
-**Rationale:** Keeps password-reset as an explicit admin action instead of overloading generic update semantics, and restores FE/BE contract alignment.
-
-## DEC-043 - Warehouse master and location master moved to dedicated FE API service
-
-**Date:** 2026-04-01  
-**Context:** `src/services/warehouseService.ts` still mixed mock warehouse master/location data with hub-zone visualization logic, while FE Sprint 1 master-data screens needed to follow the real backend warehouse contract already present in the workspace.  
-**Decision:** Add `src/services/warehouseMasterService.ts` as the raw API layer for warehouse master and warehouse location master, and repoint `useWarehouses.ts` list/create/update hooks to that service while keeping hub/zone mock logic isolated in the legacy `warehouseService.ts`.  
-**Rationale:** Keeps architecture boundaries clean for the contract-backed Sprint 1 module without forcing an unrelated refactor of the separate Warehouse Hub prototype.
-
-## DEC-044 - Warehouse master UI now hides unsupported delete actions
-
-**Date:** 2026-04-01  
-**Context:** Current backend warehouse contract in this workspace exposes list/create/update for warehouses and locations, but does not expose delete endpoints.  
-**Decision:** New warehouse management UI removes delete CTAs for both warehouses and locations and limits operator actions to view/create/update flows.  
-**Rationale:** Prevents FE from advertising destructive actions that are not supported by backend contract and keeps UX aligned with production capability.
+List/detail views now honor `prefers-reduced-motion` and reduce animation intensity automatically.

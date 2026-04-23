@@ -1,17 +1,16 @@
-export type WarehouseStatus = 'active' | 'inactive';
-export type WarehouseLocationStatus = 'available' | 'partial' | 'full' | 'maintenance';
-export type StorageCondition = 'ambient' | 'chilled' | 'frozen' | 'dry';
-export type BinOccupancyLevel = 'empty' | 'partial' | 'full' | 'overloaded';
+export type WarehouseStatus = 'operational' | 'maintenance' | 'inactive';
+export type WarehouseLocationStatus = 'active' | 'blocked' | 'inactive';
+export type BinOccupancyLevel = 'empty' | 'low' | 'partial' | 'full' | 'overloaded';
 
 export interface WarehouseHub {
   id: string;
   code: string;
   name: string;
-  location: string;
-  tier: string;
   totalSpace: number;
+  totalLocations: number;
   totalZones: number;
   usedCapacity: number;
+  allowedCategoryIds: string[];
   layoutConfig: WarehouseLayoutConfig;
   zones: Zone[];
 }
@@ -29,6 +28,10 @@ export interface Zone {
   code: string;
   name: string;
   type: string;
+  allowedCategoryIds: string[];
+  rackCodes: string[];
+  levelCodes: string[];
+  binCodes: string[];
   rows: number;
   shelves: number;
   levels: number;
@@ -40,20 +43,19 @@ export interface Zone {
 export interface WarehouseHubFormValues {
   code: string;
   name: string;
-  location: string;
-  tier: string;
   totalSpace: number;
   usedCapacity: number;
+  categoryIds: string[];
 }
 
 export interface WarehouseZoneFormValues {
   code: string;
   name: string;
   type: string;
-  rows: number;
-  shelves: number;
+  racks: number;
   levels: number;
-  occupancy: number;
+  bins: number;
+  categoryIds: string[];
 }
 
 export interface Bin {
@@ -68,6 +70,9 @@ export interface Bin {
   currentLoad: number;
   items: number;
   productCount: number;
+  assignedCategoryId?: string;
+  assignedProductId?: string;
+  assignedProductName?: string;
   temperature?: number;
   humidity?: number;
   lastUpdated: string;
@@ -84,15 +89,33 @@ export interface BinCapacityFormValues {
   currentLoad: number;
   items: number;
   productCount: number;
+  categoryId: string;
+  productId: string;
+}
+
+export interface WarehouseCategoryOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface WarehouseProductOption {
+  id: string;
+  sku: string;
+  name: string;
+  categoryIds: string[];
 }
 
 export interface WarehouseItem {
   id: string;
   code: string;
   name: string;
-  isActive: boolean;
-  status: WarehouseStatus;
+  manager: string;
+  address: string;
+  description: string;
+  capacityUsage: number;
   locationCount: number;
+  status: WarehouseStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -101,22 +124,17 @@ export interface WarehouseLocationItem {
   id: string;
   warehouseId: string;
   warehouseName: string;
-  warehouseCode: string;
   code: string;
-  zoneCode: string;
-  aisleCode: string;
-  rackCode: string;
-  levelCode: string;
-  binCode: string;
-  fullPath: string;
+  zone: string;
+  rack: string;
+  level: string;
+  bin: string;
+  fullPath?: string;
+  storageCondition?: string;
+  capacity: number;
+  currentLoad: number;
+  productCount: number;
   status: WarehouseLocationStatus;
-  isActive: boolean;
-  maxWeight: number | null;
-  maxVolume: number | null;
-  currentWeight: number | null;
-  currentVolume: number | null;
-  occupancyPercent: number;
-  storageCondition: StorageCondition;
   createdAt: string;
   updatedAt: string;
 }
@@ -132,7 +150,6 @@ export interface WarehouseLocationListParams {
   search?: string;
   status?: WarehouseLocationStatus | 'all';
   warehouseId?: string;
-  storageCondition?: StorageCondition | 'all';
   page?: number;
   pageSize?: number;
 }
@@ -154,22 +171,34 @@ export interface WarehouseLocationListResponse {
 export interface WarehouseFormValues {
   code: string;
   name: string;
-  isActive: boolean;
+  manager: string;
+  address: string;
+  description: string;
+  capacityUsage: number;
+  status: WarehouseStatus;
 }
 
 export interface WarehouseLocationFormValues {
   warehouseId: string;
   code: string;
-  zoneCode: string;
-  aisleCode: string;
-  rackCode: string;
-  levelCode: string;
-  binCode: string;
+  zone: string;
+  rack: string;
+  level: string;
+  bin: string;
+  capacity: number;
+  currentLoad: number;
+  productCount: number;
   status: WarehouseLocationStatus;
-  isActive: boolean;
-  maxWeight: number | null;
-  maxVolume: number | null;
-  currentWeight: number | null;
-  currentVolume: number | null;
-  storageCondition: StorageCondition;
+}
+
+export interface BinInventoryItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  lot_id: number | null;
+  lot_code: string | null;
+  available_quantity: number;
+  uom_name: string;
+  product_uom_id: number;
 }

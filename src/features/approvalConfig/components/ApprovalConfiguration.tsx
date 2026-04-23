@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 // Icon SVG paths cho từng step
 const STEP_ICONS = [
@@ -40,6 +41,7 @@ function formatTimeAgo(isoDate: string): string {
 }
 
 export function ApprovalConfiguration() {
+  const { toast } = useToast();
   const { data: scenarios, isLoading } = useApprovalConfigs();
   const updateMutation = useUpdateApprovalConfig();
   const createMutation = useCreateApprovalConfig();
@@ -135,9 +137,21 @@ export function ApprovalConfiguration() {
     if (!selectedId) return;
     updateMutation.mutate(
       { scenarioId: selectedId, payload: { steps: localSteps } },
-      { onSuccess: () => setIsDirty(false) },
+      {
+        onSuccess: () => {
+          setIsDirty(false);
+          toast({ title: 'Đã lưu quy trình', description: 'Workflow configuration đã được cập nhật.' });
+        },
+        onError: (error) => {
+          toast({
+            title: 'Không thể lưu quy trình',
+            description: error instanceof Error ? error.message : 'Đã có lỗi xảy ra khi lưu cấu hình.',
+            variant: 'destructive',
+          });
+        },
+      },
     );
-  }, [selectedId, localSteps, updateMutation]);
+  }, [selectedId, localSteps, updateMutation, toast]);
 
   const handleDiscard = useCallback(() => {
     if (selectedScenario) {
@@ -152,10 +166,14 @@ export function ApprovalConfiguration() {
         onSuccess: (created) => {
           setSelectedId(created.id);
           setNewScenarioOpen(false);
+          toast({ title: 'Đã tạo scenario', description: `${created.name} đã được thêm vào hệ thống.` });
+        },
+        onError: () => {
+          toast({ title: 'Không thể tạo scenario', description: 'Đã có lỗi xảy ra khi tạo scenario mới.', variant: 'destructive' });
         },
       });
     },
-    [createMutation],
+    [createMutation, toast],
   );
 
   const handleConfirmDeleteScenario = useCallback(() => {
@@ -164,9 +182,13 @@ export function ApprovalConfiguration() {
       onSuccess: () => {
         setSelectedId(null);
         setDeleteScenarioConfirmOpen(false);
+        toast({ title: 'Đã xóa scenario', description: 'Quy trình đã được xóa khỏi hệ thống.' });
+      },
+      onError: () => {
+        toast({ title: 'Không thể xóa scenario', description: 'Đã có lỗi xảy ra khi xóa.', variant: 'destructive' });
       },
     });
-  }, [selectedId, deleteMutation]);
+  }, [selectedId, deleteMutation, toast]);
 
   // --- Summary stats ---
   const triggerCount = localSteps.length > 0 ? 1 : 0;
@@ -176,19 +198,16 @@ export function ApprovalConfiguration() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
       {/* ── Page Header ──────────────────────────────────────── */}
-      <section className="px-8 py-5 flex justify-between items-end shrink-0">
+      <section className="px-4 py-3 flex justify-between items-center shrink-0">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">
             Cấu hình Quy trình &amp; Phê duyệt
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Thiết lập chi tiết các bước, vai trò và mô tả nghiệp vụ cho hệ thống.
-          </p>
         </div>
       </section>
 
       {/* ── Main Content ─────────────────────────────────────── */}
-      <div className="flex-1 flex px-8 pb-6 gap-6 overflow-hidden">
+      <div className="flex-1 flex px-4 pb-3 gap-4 overflow-hidden">
 
         {/* ── Left Sidebar: Active Scenarios ── */}
         <div className="w-80 flex flex-col gap-4 overflow-y-auto pr-2 shrink-0">
@@ -211,11 +230,10 @@ export function ApprovalConfiguration() {
                   <button
                     key={scenario.id}
                     onClick={() => setSelectedId(scenario.id)}
-                    className={`group relative w-full text-left p-4 rounded-xl transition-all border-l-4 ${
-                      isActive
+                    className={`group relative w-full text-left p-4 rounded-xl transition-all border-l-4 ${isActive
                         ? 'bg-white shadow-sm border-blue-700'
                         : 'bg-slate-100/80 hover:bg-white border-transparent'
-                    }`}
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${meta.className}`}>
@@ -326,7 +344,7 @@ export function ApprovalConfiguration() {
                         <div className={`flex-1 bg-white p-5 rounded-2xl shadow-md border hover:shadow-lg transition-all ${color.border}`}>
                           <div className="flex justify-between items-center mb-3">
                             <div className="flex items-center gap-3 flex-wrap">
-                              <h4 className="font-bold text-base text-slate-900">
+                              <h4 className="font-bold text-xs text-slate-900">
                                 Step {step.stepNumber}: {step.name}
                               </h4>
                               <div className={`px-3 py-1 rounded-full flex items-center gap-2 border text-xs font-bold uppercase tracking-wider ${color.badge}`}>

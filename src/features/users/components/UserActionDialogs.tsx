@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLockUser, useResetUserPassword } from '../hooks/useUserMutations';
-import type { UserItem } from '@/services/userService';
+import { getApiErrorMessage, type UserItem } from '@/services/userService';
 
 // ---------------------------------------------------------------------------
 // Utility: generate password (same logic as UserFormSheet)
@@ -81,7 +81,7 @@ export function LockUserDialog({ user, onClose, onSuccess }: LockUserDialogProps
     } catch (error) {
       toast({
         title: 'Không thể cập nhật trạng thái tài khoản',
-        description: error instanceof Error ? error.message : 'Vui lòng kiểm tra quyền thao tác hoặc thử lại sau.',
+        description: getApiErrorMessage(error, 'Vui lòng kiểm tra quyền thao tác hoặc thử lại sau.'),
         variant: 'destructive',
       });
     }
@@ -99,7 +99,7 @@ export function LockUserDialog({ user, onClose, onSuccess }: LockUserDialogProps
               </span>
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-gray-900">
+              <DialogTitle className="text-xs font-bold text-gray-900">
                 {isLocking ? 'Khoá tài khoản' : 'Mở khoá tài khoản'}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
@@ -189,17 +189,15 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
     try {
       await mutateAsync({ id: user.id, payload: { newPassword: data.newPassword } });
       toast({
-        title: '??t l?i m?t kh?u th?nh c?ng',
-        description: `M?t kh?u c?a ${user.name} ?? ???c c?p nh?t.`,
+        title: 'Đặt lại mật khẩu thành công',
+        description: `Mật khẩu của ${user.name} đã được cập nhật.`,
       });
-      reset();
-      setShowPwd(false);
       onSuccess?.();
-      onClose();
+      handleClose();
     } catch (error) {
       toast({
-        title: 'Kh?ng th? ??t l?i m?t kh?u',
-        description: error instanceof Error ? error.message : 'Vui l?ng th? l?i sau.',
+        title: 'Không thể đặt lại mật khẩu',
+        description: getApiErrorMessage(error, 'Vui lòng thử lại sau.'),
         variant: 'destructive',
       });
     }
@@ -221,7 +219,7 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
               <span className="material-symbols-outlined text-[22px] text-red-600" data-icon="key">key</span>
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-gray-900">Đặt lại mật khẩu</DialogTitle>
+              <DialogTitle className="text-xs font-bold text-gray-900">Đặt lại mật khẩu</DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
                 Cập nhật mật khẩu mới cho <span className="font-semibold text-gray-700">{user?.name}</span>
               </DialogDescription>
@@ -229,7 +227,7 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
           </div>
         </DialogHeader>
 
-        <form id="reset-pwd-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Mật khẩu mới */}
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-gray-700">
@@ -293,8 +291,8 @@ export function ResetPasswordDialog({ user, onClose, onSuccess }: ResetPasswordD
             Huỷ
           </button>
           <button
-            type="submit"
-            form="reset-pwd-form"
+            type="button"
+            onClick={() => void handleSubmit(onSubmit)()}
             disabled={isPending}
             className={`px-5 py-2 text-sm font-semibold text-white rounded-xl flex items-center gap-2 transition-all
               ${isPending ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]'}`}

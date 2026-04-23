@@ -169,7 +169,7 @@ export function UserProfile() {
             >
               <span className="material-symbols-outlined text-[20px]">arrow_back</span>
             </button>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Quản lý tài khoản</h1>
+            <h1 className="text-sm md:text-xs font-bold text-gray-900 tracking-tight">Quản lý tài khoản</h1>
           </div>
           <p className="text-gray-500 ml-1 sm:ml-[52px]">Cập nhật thông tin cá nhân và thiết lập bảo mật của bạn.</p>
         </div>
@@ -185,11 +185,11 @@ export function UserProfile() {
               <div className="relative inline-block mb-4">
                 <div className="w-32 h-32 rounded-full border-4 border-white shadow-md overflow-hidden bg-primary/5 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 relative">
                   {isUploadingAvatar ? (
-                    <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
+                    <span className="material-symbols-outlined text-lg sm:text-xl text-primary animate-spin">progress_activity</span>
                   ) : user?.avatar ? (
                     <img src={user.avatar} alt="User Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="material-symbols-outlined text-5xl text-primary/30" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    <span className="material-symbols-outlined text-lg sm:text-xl text-primary/30" style={{ fontVariationSettings: "'FILL' 1" }}>
                       person
                     </span>
                   )}
@@ -219,7 +219,7 @@ export function UserProfile() {
               </div>
 
               {/* User Name & Title */}
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 truncate">
+              <h2 className="text-xs sm:text-sm font-bold text-gray-900 mb-2 truncate">
                 {user?.name || 'Chưa cung cấp tên'}
               </h2>
               <span className="inline-block bg-primary/10 text-primary text-xs sm:text-sm px-4 py-1.5 rounded-full font-semibold mb-6 tracking-wide">
@@ -269,7 +269,7 @@ export function UserProfile() {
                 <div className="bg-primary/10 text-primary p-2.5 rounded-xl">
                   <span className="material-symbols-outlined text-[20px]">person_outline</span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">Thông tin cá nhân</h3>
+                <h3 className="text-sm sm:text-xs font-bold text-gray-900 tracking-tight">Thông tin cá nhân</h3>
               </div>
 
               <form onSubmit={handleProfileSubmit(onSubmitProfile)} className="space-y-2 sm:space-y-3">
@@ -366,7 +366,7 @@ export function UserProfile() {
                 <div className="bg-red-50 text-red-500 p-2.5 rounded-xl">
                   <span className="material-symbols-outlined text-[20px]">security</span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">Bảo mật & Đổi mật khẩu</h3>
+                <h3 className="text-sm sm:text-xs font-bold text-gray-900 tracking-tight">Bảo mật & Đổi mật khẩu</h3>
               </div>
 
               <form onSubmit={handleSubmit(onSubmitPassword)} className="space-y-5 sm:space-y-6">

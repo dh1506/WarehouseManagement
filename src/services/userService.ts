@@ -1,5 +1,6 @@
 import apiClient from './apiClient';
 import type { ApiResponse } from '@/types/api';
+import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -94,45 +95,6 @@ interface RoleApiItem {
 
 interface RolesListApiData {
   roles: RoleApiItem[];
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-function isForbiddenError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') {
-    return false;
-  }
-
-  if ('response' in error) {
-    const response = (error as { response?: { status?: unknown } }).response;
-    if (response?.status === 403) {
-      return true;
-    }
-  }
-
-  if ('statusCode' in error && (error as { statusCode?: unknown }).statusCode === 403) {
-    return true;
-  }
-
-  if ('error' in error) {
-    const nestedError = (error as { error?: { code?: unknown } }).error;
-    if (nestedError?.code === 'FORBIDDEN') {
-      return true;
-    }
-  }
-
-  if ('message' in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string' && message.toLowerCase().includes('không có quyền')) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 export interface UserRoleOption {
@@ -140,23 +102,8 @@ export interface UserRoleOption {
   name: string;
 }
 
-function mapRoleOptionsFromUsers(users: UserApiItem[]): UserRoleOption[] {
-  const roleMap = new Map<string, UserRoleOption>();
-
-  for (const user of users) {
-    const roleId = String(user.role_id);
-    const roleName = user.role?.name?.trim();
-
-    if (!roleName) {
-      continue;
-    }
-
-    if (!roleMap.has(roleId)) {
-      roleMap.set(roleId, { id: roleId, name: roleName });
-    }
-  }
-
-  return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+interface ApiErrorShape {
+  message?: string;
 }
 
 function unwrapApiData<T>(response: unknown): T {
@@ -170,6 +117,40 @@ function unwrapApiData<T>(response: unknown): T {
   }
 
   return response as T;
+}
+
+function toTrimmedOrUndefined(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function toTrimmedOrNull(value?: string): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function parsePositiveInt(value: string, fieldLabel: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${fieldLabel} không hợp lệ.`);
+  }
+
+  return parsed;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as ApiErrorShape).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 function fromApiStatus(status: UserApiItem['user_status']): UserItem['status'] {
@@ -210,17 +191,20 @@ function mapUserFromApi(item: UserApiItem): UserItem {
  * Xem danh sách người dùng (có phân trang, tìm kiếm)
  */
 export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
+  const page = params.page;
+  const limit = params.limit;
   const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
+    page,
+    limit,
   };
 
-  if (params.search) {
-    query.search = params.search;
+  const search = toTrimmedOrUndefined(params.search);
+  if (search) {
+    query.search = search;
   }
 
   if (params.roleId) {
-    query.role_id = Number(params.roleId);
+    query.role_id = parsePositiveInt(params.roleId, 'Role ID');
   }
 
   if (params.status) {
@@ -229,11 +213,61 @@ export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
 
   return apiClient
     .get<ApiResponse<UsersListApiData>>('/api/users', { params: query })
-    .then((response) => {
+    .then(async (response) => {
       const payload = unwrapApiData<UsersListApiData>(response);
+      const mappedUsers = payload.users.map(mapUserFromApi);
+
+      if (search && mappedUsers.length === 0) {
+        const allUsers = await collectPaginatedItems({
+          fetchPage: async (fallbackPage, fallbackLimit) => {
+            const fallbackQuery: Record<string, string | number> = {
+              page: fallbackPage,
+              limit: fallbackLimit,
+            };
+
+            if (params.roleId) {
+              fallbackQuery.role_id = parsePositiveInt(params.roleId, 'Role ID');
+            }
+
+            if (params.status) {
+              fallbackQuery.status = toApiStatus(params.status);
+            }
+
+            const fallbackResponse = await apiClient.get<ApiResponse<UsersListApiData>>('/api/users', {
+              params: fallbackQuery,
+            });
+
+            return unwrapApiData<UsersListApiData>(fallbackResponse);
+          },
+          getItems: (fallbackPayload) => fallbackPayload.users.map(mapUserFromApi),
+          getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+        });
+
+        const fallbackResult = paginateFallbackItems(
+          allUsers.filter((item) =>
+            matchesCaseInsensitiveSearch(search, [
+              item.username,
+              item.name,
+              item.fullName,
+              item.email,
+              item.phone,
+              item.role,
+            ]),
+          ),
+          page,
+          limit,
+        );
+
+        return {
+          data: fallbackResult.data,
+          total: fallbackResult.total,
+          page: fallbackResult.page,
+          limit: fallbackResult.pageSize,
+        };
+      }
 
       return {
-        data: payload.users.map(mapUserFromApi),
+        data: mappedUsers,
         total: payload.pagination.total,
         page: payload.pagination.page,
         limit: payload.pagination.limit,
@@ -258,9 +292,9 @@ export const createUser = (payload: CreateUserPayload): Promise<UserItem> =>
       username: payload.username.trim(),
       password: payload.password,
       full_name: payload.fullName.trim(),
-      email: payload.email?.trim() || undefined,
-      phone: payload.phone?.trim() || undefined,
-      role_id: Number(payload.roleId),
+      email: toTrimmedOrUndefined(payload.email),
+      phone: toTrimmedOrUndefined(payload.phone),
+      role_id: parsePositiveInt(payload.roleId, 'Role ID'),
       user_status: 'ACTIVE',
     })
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
@@ -273,9 +307,9 @@ export const updateUser = (id: string, payload: UpdateUserPayload): Promise<User
   apiClient
     .patch<ApiResponse<UserApiItem>>(`/api/users/${id}`, {
       full_name: payload.fullName?.trim(),
-      email: payload.email?.trim() || null,
-      phone: payload.phone?.trim() || null,
-      role_id: payload.roleId ? Number(payload.roleId) : undefined,
+      email: payload.email !== undefined ? toTrimmedOrNull(payload.email) : undefined,
+      phone: payload.phone !== undefined ? toTrimmedOrNull(payload.phone) : undefined,
+      role_id: payload.roleId ? parsePositiveInt(payload.roleId, 'Role ID') : undefined,
       user_status: payload.status ? toApiStatus(payload.status) : undefined,
       password: payload.password,
     })
@@ -293,69 +327,30 @@ export const lockUser = (id: string, payload: LockUserPayload): Promise<UserItem
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
 /**
- * PATCH /api/users/:id/reset-password
+ * PATCH /api/users/:id
  * Đặt lại mật khẩu người dùng
  */
 export const resetUserPassword = (id: string, payload: ResetPasswordPayload): Promise<void> =>
   apiClient
-    .patch<ApiResponse<unknown>>(`/api/users/${id}/reset-password`, {
-      new_password: payload.newPassword,
+    .patch<ApiResponse<unknown>>(`/api/users/${id}`, {
+      password: payload.newPassword,
     })
     .then(() => undefined);
 
-export const getUserRoleOptions = async (): Promise<UserRoleOption[]> => {
-  try {
-    const limit = 10;
-    let page = 1;
-    let totalPages = 1;
-    const roleMap = new Map<string, UserRoleOption>();
+export const getUserRoleOptions = (): Promise<UserRoleOption[]> =>
+  apiClient
+    .get<ApiResponse<RolesListApiData>>('/api/roles', {
+      params: {
+        page: 1,
+        limit: 100,
+      },
+    })
+    .then((response) => {
+      const payload = unwrapApiData<RolesListApiData>(response);
 
-    while (page <= totalPages) {
-      const roleResponse = await apiClient.get<ApiResponse<RolesListApiData>>('/api/roles', {
-        params: {
-          page,
-          limit,
-        },
-      });
+      return payload.roles
+        .filter((role) => role.is_active)
+        .map((role) => ({ id: String(role.id), name: role.name }));
+    });
 
-      const payload = unwrapApiData<RolesListApiData>(roleResponse);
-
-      for (const role of payload.roles) {
-        if (!role.is_active) {
-          continue;
-        }
-        roleMap.set(String(role.id), { id: String(role.id), name: role.name });
-      }
-
-      totalPages = payload.pagination?.totalPages ?? 1;
-      page += 1;
-    }
-
-    return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  } catch (error) {
-    if (!isForbiddenError(error)) {
-      throw error;
-    }
-
-    const limit = 10;
-    let page = 1;
-    let totalPages = 1;
-    const allUsers: UserApiItem[] = [];
-
-    while (page <= totalPages) {
-      const usersResponse = await apiClient.get<ApiResponse<UsersListApiData>>('/api/users', {
-        params: {
-          page,
-          limit,
-        },
-      });
-
-      const payload = unwrapApiData<UsersListApiData>(usersResponse);
-      allUsers.push(...payload.users);
-      totalPages = payload.pagination.totalPages;
-      page += 1;
-    }
-
-    return mapRoleOptionsFromUsers(allUsers);
-  }
-};
+export { getApiErrorMessage };

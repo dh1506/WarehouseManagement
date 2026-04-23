@@ -9,6 +9,9 @@ export interface LoginResponse {
 
 interface LoginApiPermission {
   name: string;
+  module: string;
+  action: string;
+  is_active: boolean;
 }
 
 interface LoginApiUser {
@@ -44,8 +47,11 @@ function unwrapApiData<T>(response: unknown): T {
 }
 
 function mapLoginUser(user: LoginApiUser): UserProfile {
+  // The login response permission objects don't include `is_active`
+  // (the BE select doesn't expose it). Accept all permissions here;
+  // MainLayout re-fetches and applies the is_active filter at runtime.
   const permissions = Array.isArray(user.role?.permissions)
-    ? user.role.permissions.map((permission) => permission.name)
+    ? user.role.permissions.map((p) => `${p.module}:${p.action}`.toLowerCase())
     : [];
 
   return {
@@ -53,6 +59,7 @@ function mapLoginUser(user: LoginApiUser): UserProfile {
     name: user.full_name?.trim() || user.username,
     email: user.email ?? '',
     role: user.role?.name ?? String(user.role_id),
+    role_id: user.role_id,
     permissions,
   };
 }

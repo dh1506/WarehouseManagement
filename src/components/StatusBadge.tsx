@@ -16,6 +16,7 @@ const STATUS_STYLES: Record<string, string> = {
   available: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   partial: 'bg-amber-50 text-amber-700 ring-amber-200',
   full: 'bg-rose-50 text-rose-700 ring-rose-200',
+  unknown: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

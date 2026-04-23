@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+﻿import ExcelJS from 'exceljs';
 import type { ProductCategory } from '../types/categoryType';
 
 export const exportCategoriesToExcel = async (categories: ProductCategory[]) => {
@@ -7,11 +7,12 @@ export const exportCategoriesToExcel = async (categories: ProductCategory[]) => 
 
   worksheet.columns = [
     { header: 'ID', key: 'id', width: 10 },
+    { header: 'Code', key: 'code', width: 18 },
     { header: 'Category Name', key: 'name', width: 25 },
     { header: 'Description', key: 'description', width: 40 },
     { header: 'Parent', key: 'parentName', width: 20 },
+    { header: 'Sub-categories', key: 'childrenCount', width: 15 },
     { header: 'Total Products', key: 'totalProducts', width: 15 },
-    { header: 'Status', key: 'status', width: 15 },
     { header: 'Created At', key: 'createdAt', width: 20 },
   ];
 
@@ -20,7 +21,7 @@ export const exportCategoriesToExcel = async (categories: ProductCategory[]) => 
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FF1E3A8A' }, // blue-900
+      fgColor: { argb: 'FF1E3A8A' },
     };
     cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
     cell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -33,18 +34,19 @@ export const exportCategoriesToExcel = async (categories: ProductCategory[]) => 
   });
   headerRow.height = 30;
 
-  categories.forEach((cat) => {
+  categories.forEach((category) => {
     const row = worksheet.addRow({
-      id: cat.id,
-      name: cat.name,
-      description: cat.description,
-      parentName: cat.parentName || 'Root',
-      totalProducts: cat.totalProducts,
-      status: cat.status.toUpperCase(),
-      createdAt: new Date(cat.createdAt).toLocaleDateString('vi-VN'),
+      id: category.id,
+      code: category.code,
+      name: category.name,
+      description: category.description,
+      parentName: category.parentName || 'Root',
+      childrenCount: category.childrenCount,
+      totalProducts: category.totalProducts,
+      createdAt: new Date(category.createdAt).toLocaleDateString('en-US'),
     });
 
-    row.eachCell((cell, colNumber) => {
+    row.eachCell((cell) => {
       cell.border = {
         top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
         left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -52,13 +54,6 @@ export const exportCategoriesToExcel = async (categories: ProductCategory[]) => 
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
       };
       cell.alignment = { vertical: 'middle' };
-
-      if (colNumber === 6) { // status
-        cell.font = {
-          bold: true,
-          color: { argb: cat.status === 'active' ? 'FF059669' : 'FF64748B' },
-        };
-      }
     });
   });
 

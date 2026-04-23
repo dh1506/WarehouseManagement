@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState } from 'react';
+import { useDeferredValue, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { StatePanel } from '@/components/StatePanel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -45,17 +44,20 @@ export function WarehouseManagement() {
   const [warehouseOpen, setWarehouseOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'warehouse' | 'location'; id: string; name: string } | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const deferredStatus = useDeferredValue(status);
+  const deferredWarehouseFilter = useDeferredValue(warehouseFilter);
 
   const warehouseQuery = useWarehouses({
-    search: tab === 'warehouses' ? search || undefined : undefined,
-    status: tab === 'warehouses' ? (status as 'all' | 'operational' | 'maintenance' | 'inactive') : 'all',
+    search: tab === 'warehouses' ? deferredSearch || undefined : undefined,
+    status: tab === 'warehouses' ? (deferredStatus as 'all' | 'operational' | 'maintenance' | 'inactive') : 'all',
     page,
     pageSize: PAGE_SIZE,
   });
   const locationQuery = useWarehouseLocations({
-    search: tab === 'locations' ? search || undefined : undefined,
-    status: tab === 'locations' ? (status as 'all' | 'active' | 'blocked' | 'inactive') : 'all',
-    warehouseId: tab === 'locations' ? warehouseFilter || undefined : undefined,
+    search: tab === 'locations' ? deferredSearch || undefined : undefined,
+    status: tab === 'locations' ? (deferredStatus as 'all' | 'active' | 'blocked' | 'inactive') : 'all',
+    warehouseId: tab === 'locations' ? deferredWarehouseFilter || undefined : undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -103,8 +105,8 @@ export function WarehouseManagement() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+    <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
+      <div className="flex w-full flex-1 flex-col gap-3">
         <PageHeader
           eyebrow="Sprint 1 · Warehouse Structure"
           title="Warehouse & Locations"
@@ -157,27 +159,29 @@ export function WarehouseManagement() {
               </div>
 
               <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-                {tab === 'warehouses' ? (
-                  <WarehouseRows
-                    items={warehouseQuery.data?.data ?? []}
-                    isLoading={warehouseQuery.isLoading}
-                    isError={warehouseQuery.isError}
-                    canManage={canManage}
-                    onView={(item) => openWarehouse('view', item)}
-                    onEdit={(item) => openWarehouse('edit', item)}
-                    onDelete={(item) => setDeleteTarget({ kind: 'warehouse', id: item.id, name: item.name })}
-                  />
-                ) : (
-                  <LocationRows
-                    items={locationQuery.data?.data ?? []}
-                    isLoading={locationQuery.isLoading}
-                    isError={locationQuery.isError}
-                    canManage={canManage}
-                    onView={(item) => openLocation('view', item)}
-                    onEdit={(item) => openLocation('edit', item)}
-                    onDelete={(item) => setDeleteTarget({ kind: 'location', id: item.id, name: item.code })}
-                  />
-                )}
+                <div className={`transition-all duration-300 ease-out ${((tab === 'warehouses' ? warehouseQuery.isFetching : locationQuery.isFetching) ? 'opacity-70 saturate-75' : 'opacity-100 saturate-100')}`}>
+                  {tab === 'warehouses' ? (
+                    <WarehouseRows
+                      items={warehouseQuery.data?.data ?? []}
+                      isLoading={warehouseQuery.isLoading}
+                      isError={warehouseQuery.isError}
+                      canManage={canManage}
+                      onView={(item) => openWarehouse('view', item)}
+                      onEdit={(item) => openWarehouse('edit', item)}
+                      onDelete={(item) => setDeleteTarget({ kind: 'warehouse', id: item.id, name: item.name })}
+                    />
+                  ) : (
+                    <LocationRows
+                      items={locationQuery.data?.data ?? []}
+                      isLoading={locationQuery.isLoading}
+                      isError={locationQuery.isError}
+                      canManage={canManage}
+                      onView={(item) => openLocation('view', item)}
+                      onEdit={(item) => openLocation('edit', item)}
+                      onDelete={(item) => setDeleteTarget({ kind: 'location', id: item.id, name: item.code })}
+                    />
+                  )}
+                </div>
                 {total > 0 ? <Pagination page={page} totalPages={totalPages} totalItems={total} onChange={setPage} /> : null}
               </div>
             </div>
@@ -253,11 +257,11 @@ function LocationRows({
   if (isLoading) return <div className="p-8"><StatePanel title="Đang tải vị trí kho" description="Hệ thống đang đồng bộ warehouse locations." icon="hourglass_top" /></div>;
   if (isError) return <div className="p-8"><StatePanel title="Không tải được vị trí" description="Vui lòng thử lại sau." icon="error" tone="error" /></div>;
   if (items.length === 0) return <div className="p-8"><StatePanel title="Chưa có vị trí phù hợp" description="Tạo vị trí lưu trữ đầu tiên để gán hàng hóa trong kho." icon="grid_view" /></div>;
-  return <table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><th className="px-4 py-3">Location</th><th className="px-4 py-3">Warehouse</th><th className="px-4 py-3">Coordinates</th><th className="px-4 py-3">Load</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">{items.map((item) => <tr key={item.id} className="align-top"><td className="px-4 py-4"><div className="font-semibold text-slate-900">{item.code}</div><div className="mt-1 text-xs text-slate-400">{item.productCount} products</div></td><td className="px-4 py-4 text-sm text-slate-600">{item.warehouseName}</td><td className="px-4 py-4 text-sm text-slate-600">Zone {item.zone} · Aisle {item.aisle} · Bin {item.bin}</td><td className="px-4 py-4 text-sm text-slate-600">{item.currentLoad} / {item.capacity}</td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><ActionButton icon="visibility" label="View" onClick={() => onView(item)} />{canManage ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(item)} /> : null}{canManage ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(item)} /> : null}</div></td></tr>)}</tbody></table>;
+  return <table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><th className="px-4 py-3">Location</th><th className="px-4 py-3">Warehouse</th><th className="px-4 py-3">Coordinates</th><th className="px-4 py-3">Load</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">{items.map((item) => <tr key={item.id} className="align-top"><td className="px-4 py-4"><div className="font-semibold text-slate-900">{item.code}</div><div className="mt-1 text-xs text-slate-400">{item.productCount} products</div></td><td className="px-4 py-4 text-sm text-slate-600">{item.warehouseName}</td><td className="px-4 py-4 text-sm text-slate-600">Zone {item.zone} · Rack {item.rack} · Level {item.level} · Bin {item.bin}</td><td className="px-4 py-4 text-sm text-slate-600">{item.currentLoad} / {item.capacity}</td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><ActionButton icon="visibility" label="View" onClick={() => onView(item)} />{canManage ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(item)} /> : null}{canManage ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(item)} /> : null}</div></td></tr>)}</tbody></table>;
 }
 
 function TextInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
-  return <div className="relative min-w-[240px]"><span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15" /></div>;
+  return <div className="relative min-w-60"><span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15" /></div>;
 }
 
 function SelectInput({ value, onChange, children }: { value: string; onChange: (value: string) => void; children: React.ReactNode }) {

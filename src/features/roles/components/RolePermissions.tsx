@@ -1,28 +1,152 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react';
 import { StatePanel } from '@/components/StatePanel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { sidebarNavItems } from '@/layouts/sidebar-navigation';
-import { RoleFormDialog, type RoleFormValues } from './RoleFormDialog';
-import { useCreateRole, useRoles, useRolePermissions, useUpdateRole, useUpdateRolePermissions } from '../hooks/useRolePermissions';
-import { ROLE_NAME_OPTIONS } from '../schemas/roleSchemas';
-import type { Permission } from '../types/roleType';
+import { usePermission } from '@/hooks/usePermission';
+import { PAGE_PERMISSION_MAP } from '@/lib/pageAccess';
+import type { PagePermissionConfig } from '@/lib/pageAccess';
+import {
+  useCreateRole,
+  useRolePermissions,
+  useRoles,
+  useUpdateRole,
+  useUpdateRolePermissions,
+} from '../hooks/useRolePermissions';
+import type { Permission, Role } from '../types/roleType';
 
-interface PermissionPageRow {
-  module: string;
-  label: string;
-  icon: string;
-  route: string;
-  description: string;
-  permission: Permission;
-  isBackedByApi: boolean;
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function PermCheckbox({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled}
+      className={`mx-auto flex h-5 w-5 items-center justify-center rounded-[0.25em] border-[1.5px] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${
+        checked
+          ? 'bg-blue-800 border-blue-800'
+          : 'bg-white border-slate-300 hover:border-blue-400'
+      }`}
+    >
+      {checked && (
+        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M1.5 6.5L4.5 9.5L10.5 2.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </button>
+  );
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Aggregate module permissions into a single page-level view. */
+function computePageRow(
+  page: PagePermissionConfig,
+  localPermissions: Permission[],
+): { view: boolean; create: boolean; edit: boolean; delete: boolean } {
+  const related = localPermissions.filter((p) => page.modules.includes(p.module));
+  return {
+    view: related.some((p) => p.view),
+    create: related.some((p) => p.create),
+    edit: related.some((p) => p.edit),
+    delete: related.some((p) => p.delete),
+  };
+}
+
+/** Apply a toggle to all modules belonging to a page, creating missing entries. */
+function applyPageToggle(
+  prev: Permission[],
+  pageModules: string[],
+  field: 'view' | 'create' | 'edit' | 'delete',
+  newValue: boolean,
+): Permission[] {
+  // Ensure every page module has an entry
+  const existingModules = new Set(prev.map((p) => p.module));
+  const base: Permission[] = [...prev];
+  for (const mod of pageModules) {
+    if (!existingModules.has(mod)) {
+      base.push({ module: mod, view: false, create: false, edit: false, delete: false, approve: false });
+    }
+  }
+
+  return base.map((p) => {
+    if (!pageModules.includes(p.module)) return p;
+
+    const updated = { ...p, [field]: newValue };
+
+    // Rule 2 – uncheck VIEW → clear all other actions (Cascade Down)
+    if (field === 'view' && !newValue) {
+      updated.create = false;
+      updated.edit = false;
+      updated.delete = false;
+      updated.approve = false;
+    }
+
+    // Rule 1 – check any non-VIEW action → auto-check VIEW (View Prerequisite)
+    if (field !== 'view' && newValue) {
+      updated.view = true;
+    }
+
+    return updated;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
 
 export function RolePermissions() {
   const { toast } = useToast();
+  const canCreateRole = usePermission('roles:create');
+  const canUpdateRolePermissions = usePermission('roles:update');
+
   const { data: roles, isLoading: rolesLoading, isError: rolesError, refetch: refetchRoles } = useRoles();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
 
-  // Set selected role when roles are loaded initially
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [roleDialogMode, setRoleDialogMode] = useState<'create' | 'edit'>('create');
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [roleForm, setRoleForm] = useState({ name: '', description: '', isActive: true });
+  const [statusTarget, setStatusTarget] = useState<Role | null>(null);
+
+  const [filterText, setFilterText] = useState('');
+  const deferredFilterText = useDeferredValue(filterText);
+
+  const roleListScrollRef = useRef<HTMLDivElement | null>(null);
+  const matrixScrollRef = useRef<HTMLDivElement | null>(null);
+  const [showRoleTopFade, setShowRoleTopFade] = useState(false);
+  const [showRoleBottomFade, setShowRoleBottomFade] = useState(false);
+  const [showMatrixTopFade, setShowMatrixTopFade] = useState(false);
+  const [showMatrixBottomFade, setShowMatrixBottomFade] = useState(false);
+
+  // Auto-select first role
   useEffect(() => {
     if (roles && roles.length > 0 && !selectedRoleId) {
       setSelectedRoleId(roles[0].id);
@@ -30,76 +154,95 @@ export function RolePermissions() {
   }, [roles, selectedRoleId]);
 
   const {
-    data: rolePermissions,
-    isLoading: permissionsLoading,
-    isError: permissionsError,
+    data: permData,
+    isLoading: permLoading,
+    isError: permError,
     refetch: refetchPermissions,
   } = useRolePermissions(selectedRoleId);
+
   const updateMutation = useUpdateRolePermissions();
   const createRoleMutation = useCreateRole();
   const updateRoleMutation = useUpdateRole();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
+  // ── Local permissions state (module-level, source of truth) ───────────────
   const [localPermissions, setLocalPermissions] = useState<Permission[]>([]);
 
-  // Sync server data to local state when role changes or finishes loading
   useEffect(() => {
-    if (rolePermissions) {
-      setLocalPermissions(rolePermissions.permissions);
+    if (permData) {
+      setLocalPermissions(permData.permissions.map((p) => ({ ...p })));
     } else {
       setLocalPermissions([]);
     }
-  }, [rolePermissions]);
+  }, [permData]);
 
-  const pageRows = useMemo<PermissionPageRow[]>(() => {
-    const availableModuleMap = new Map(
-      (rolePermissions?.availableModules ?? []).map((item) => [normalizePermissionKey(item.module), item])
-    );
-    const localPermissionMap = new Map(
-      localPermissions.map((permission) => [normalizePermissionKey(permission.module), permission])
-    );
+  // ── Page-level aggregated rows ─────────────────────────────────────────────
+  const pageRows = useMemo(
+    () =>
+      PAGE_PERMISSION_MAP.map((page) => ({
+        ...page,
+        ...computePageRow(page, localPermissions),
+      })),
+    [localPermissions],
+  );
 
-    return sidebarNavItems.map((item) => {
-      const lookupKeys = [item.permissionModule, ...(item.permissionAliases ?? [])].map(normalizePermissionKey);
-      const matchedModule =
-        lookupKeys.find((key) => availableModuleMap.has(key) || localPermissionMap.has(key)) ?? null;
-      const availableModule = matchedModule ? availableModuleMap.get(matchedModule) : undefined;
-      const backingPermission = matchedModule ? localPermissionMap.get(matchedModule) : undefined;
+  const filteredPageRows = useMemo(
+    () =>
+      pageRows.filter((row) =>
+        row.label.toLowerCase().includes(deferredFilterText.toLowerCase()),
+      ),
+    [pageRows, deferredFilterText],
+  );
 
-      return {
-        module: matchedModule ?? item.permissionModule,
-        label: item.label,
-        icon: item.icon,
-        route: item.to,
-        description: item.pageDescription ?? `Truy cập trang ${item.label}.`,
-        permission: backingPermission ?? createEmptyPermission(matchedModule ?? item.permissionModule),
-        isBackedByApi: Boolean(availableModule),
-      };
-    });
-  }, [localPermissions, rolePermissions?.availableModules]);
-
-  const handleToggleView = (moduleName: string) => {
-    setLocalPermissions((prev) => {
-      const existingIndex = prev.findIndex((perm) => normalizePermissionKey(perm.module) === normalizePermissionKey(moduleName));
-
-      if (existingIndex === -1) {
-        return [...prev, { ...createEmptyPermission(moduleName), view: true }];
-      }
-
-      return prev.map((perm, index) =>
-        index === existingIndex ? { ...perm, view: !perm.view } : perm
-      );
-    });
-  };
-
+  // ── Dirty state ────────────────────────────────────────────────────────────
   const hasChanges = useMemo(() => {
-    const source = rolePermissions?.permissions ?? [];
+    const source = permData?.permissions ?? [];
     return JSON.stringify(source) !== JSON.stringify(localPermissions);
-  }, [localPermissions, rolePermissions]);
+  }, [localPermissions, permData]);
 
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  const activePagesCount = useMemo(() => pageRows.filter((r) => r.view).length, [pageRows]);
+  const highRiskPagesCount = useMemo(
+    () => pageRows.filter((r) => r.create || r.edit || r.delete).length,
+    [pageRows],
+  );
+
+  // ── Toggle handler (page-level → propagates to all modules) ───────────────
+  const handleTogglePage = useCallback(
+    (
+      pageModules: string[],
+      field: 'view' | 'create' | 'edit' | 'delete',
+      currentPageValue: boolean,
+    ) => {
+      if (!canUpdateRolePermissions) return;
+      const newValue = !currentPageValue;
+      setLocalPermissions((prev) => applyPageToggle(prev, pageModules, field, newValue));
+    },
+    [canUpdateRolePermissions],
+  );
+
+  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!selectedRoleId) {
+    if (!selectedRoleId) return;
+
+    if (!canUpdateRolePermissions) {
+      toast({
+        title: 'Access denied',
+        description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi phân quyền.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // NFR02: block save if any module has CREATE/EDIT/DELETE without VIEW
+    const invalid = localPermissions.find(
+      (p) => (p.create || p.edit || p.delete) && !p.view,
+    );
+    if (invalid) {
+      toast({
+        title: 'Dữ liệu không hợp lệ',
+        description: `Module "${invalid.module}" có quyền CREATE/EDIT/DELETE nhưng thiếu VIEW.`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -108,10 +251,7 @@ export function RolePermissions() {
         roleId: selectedRoleId,
         payload: { permissions: localPermissions },
       });
-      toast({
-        title: 'Đã cập nhật quyền',
-        description: 'Permission matrix đã được lưu thành công.',
-      });
+      toast({ title: 'Đã cập nhật quyền', description: 'Cấu hình phân quyền đã được lưu thành công.' });
     } catch (error) {
       toast({
         title: 'Không thể cập nhật quyền',
@@ -122,398 +262,430 @@ export function RolePermissions() {
   };
 
   const handleDiscard = () => {
-    if (rolePermissions) {
-      setLocalPermissions(rolePermissions.permissions);
+    if (permData) {
+      setLocalPermissions(permData.permissions.map((p) => ({ ...p })));
     }
   };
 
-  const selectedRole = roles?.find((r) => r.id === selectedRoleId);
-  const availableRoleNames = useMemo(
-    () => ROLE_NAME_OPTIONS.filter((roleName) => !roles?.some((role) => role.name === roleName)),
-    [roles]
-  );
-  const showEmptyRoles = !rolesLoading && !rolesError && (roles?.length ?? 0) === 0;
-  const showEmptyPermissions = !permissionsLoading && !permissionsError && pageRows.length === 0;
-  const isInteractionDisabled = updateMutation.isPending || permissionsLoading;
+  // ── Scroll fade ────────────────────────────────────────────────────────────
+  const updateRoleListFade = useCallback(() => {
+    const el = roleListScrollRef.current;
+    if (!el) return;
+    setShowRoleTopFade(el.scrollTop > 2);
+    setShowRoleBottomFade(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  }, []);
 
-  const handleOpenCreate = () => {
-    if (availableRoleNames.length === 0) {
-      toast({
-        title: 'Khong con role de tao moi',
-        description: 'He thong hien chi cho phep CEO, MANAGER va STAFF. Tat ca role nay da ton tai.',
-      });
+  const updateMatrixFade = useCallback(() => {
+    const el = matrixScrollRef.current;
+    if (!el) return;
+    setShowMatrixTopFade(el.scrollTop > 2);
+    setShowMatrixBottomFade(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  }, []);
+
+  useEffect(() => { updateRoleListFade(); }, [roles, rolesLoading, rolesError, updateRoleListFade]);
+  useEffect(() => { updateMatrixFade(); }, [filteredPageRows, permLoading, permError, updateMatrixFade]);
+
+  // ── Role dialog helpers ────────────────────────────────────────────────────
+  const openCreateRoleDialog = () => {
+    if (!canCreateRole) {
+      toast({ title: 'Access denied', description: 'Bạn không có quyền tạo role mới.', variant: 'destructive' });
       return;
     }
-
-    setCreateDialogOpen(true);
+    setRoleDialogMode('create');
+    setEditingRole(null);
+    setRoleForm({ name: '', description: '', isActive: true });
+    setIsRoleDialogOpen(true);
   };
 
-  const handleCreateRole = async (payload: RoleFormValues) => {
-    const createdRole = await createRoleMutation.mutateAsync({
-      name: payload.name,
-      description: payload.description || undefined,
-      isActive: payload.isActive,
-    });
-
-    setCreateDialogOpen(false);
-    setSelectedRoleId(createdRole.id);
-    toast({
-      title: 'Da tao role',
-      description: `Role ${createdRole.name} da duoc tao thanh cong.`,
-    });
-  };
-
-  const handleUpdateRoleMeta = async (payload: RoleFormValues) => {
-    if (!selectedRole) {
+  const openEditRoleDialog = (role: Role) => {
+    if (!canUpdateRolePermissions) {
+      toast({ title: 'Access denied', description: 'Bạn không có quyền chỉnh sửa role.', variant: 'destructive' });
       return;
     }
-    await updateRoleMutation.mutateAsync({
-      roleId: selectedRole.id,
-      payload: {
-        name: payload.name,
-        description: payload.description || undefined,
-        isActive: payload.isActive,
-      },
-    });
-
-    setEditDialogOpen(false);
-    toast({
-      title: 'Da cap nhat role',
-      description: `Thong tin role ${selectedRole.name} da duoc cap nhat.`,
-    });
+    setRoleDialogMode('edit');
+    setEditingRole(role);
+    setRoleForm({ name: role.name, description: role.description ?? '', isActive: role.isActive ?? true });
+    setIsRoleDialogOpen(true);
   };
 
-  const handleToggleRoleStatus = async (roleId: string, nextStatus: boolean) => {
-    const targetRole = roles?.find((role) => role.id === roleId);
-    if (!targetRole) {
+  const handleRoleSubmit = async () => {
+    const normalizedName = roleForm.name.trim();
+    if (normalizedName.length < 2) {
+      toast({ title: 'Dữ liệu chưa hợp lệ', description: 'Tên role phải có ít nhất 2 ký tự.', variant: 'destructive' });
       return;
     }
-
     try {
-      await updateRoleMutation.mutateAsync({
-        roleId,
-        payload: {
-          name: targetRole.name,
-          description: targetRole.description,
-          isActive: nextStatus,
-        },
-      });
-
-      toast({
-        title: nextStatus ? 'Da bat role' : 'Da tat role',
-        description: `Role ${targetRole.name} da duoc ${nextStatus ? 'kich hoat' : 'vo hieu hoa'}.`,
-      });
+      if (roleDialogMode === 'create') {
+        const created = await createRoleMutation.mutateAsync({
+          name: normalizedName,
+          description: roleForm.description,
+          isActive: roleForm.isActive,
+        });
+        setSelectedRoleId(created.id);
+        toast({ title: 'Tạo role thành công', description: `Role ${created.name} đã được thêm vào hệ thống.` });
+      } else if (editingRole) {
+        const updated = await updateRoleMutation.mutateAsync({
+          roleId: editingRole.id,
+          payload: { name: normalizedName, description: roleForm.description, isActive: roleForm.isActive },
+        });
+        setSelectedRoleId(updated.id);
+        toast({ title: 'Cập nhật role thành công', description: `Đã lưu thay đổi cho role ${updated.name}.` });
+      }
+      setIsRoleDialogOpen(false);
+      setEditingRole(null);
     } catch (error) {
       toast({
-        title: 'Khong the cap nhat trang thai role',
-        description: error instanceof Error ? error.message : 'Da xay ra loi khi cap nhat role.',
+        title: roleDialogMode === 'create' ? 'Không thể tạo role' : 'Không thể cập nhật role',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi thao tác role.',
         variant: 'destructive',
       });
     }
   };
 
+  const handleConfirmToggleStatus = async () => {
+    if (!statusTarget || !canUpdateRolePermissions) return;
+    try {
+      const nextStatus = !(statusTarget.isActive ?? true);
+      const updated = await updateRoleMutation.mutateAsync({
+        roleId: statusTarget.id,
+        payload: { isActive: nextStatus },
+      });
+      toast({
+        title: 'Đổi trạng thái thành công',
+        description: `Role ${updated.name} đã chuyển sang ${nextStatus ? 'Active' : 'Inactive'}.`,
+      });
+      setStatusTarget(null);
+    } catch (error) {
+      toast({
+        title: 'Không thể đổi trạng thái role',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi đổi trạng thái.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const selectedRole = roles?.find((r) => r.id === selectedRoleId);
+  const showEmptyRoles = !rolesLoading && !rolesError && (roles?.length ?? 0) === 0;
+  const showEmptyPermissions = !permLoading && !permError && pageRows.length === 0;
+  const isRoleMutationPending = createRoleMutation.isPending || updateRoleMutation.isPending;
+  const isInteractionDisabled = updateMutation.isPending || permLoading || !canUpdateRolePermissions;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
-      {/* Title and Context */}
-      <div className="flex flex-col gap-1">
-        <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
-        <p className="text-gray-500 max-w-2xl">
-          Define operational boundaries and AI forecasting access levels across your enterprise warehouse workforce.
-        </p>
+    <div className="flex-1 overflow-hidden flex flex-col p-3 gap-3">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-base font-bold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
       </div>
 
-      {/* Three-Pane Management Layout */}
-      <div className="flex-1 flex gap-6 min-h-0">
+      <div className="flex-1 flex gap-4 min-h-0">
 
-        {/* Left Pane: List of Roles */}
-        <div className="w-80 flex flex-col gap-4 bg-gray-50 rounded-xl p-4 overflow-y-auto">
+        {/* ── Left Pane: Role List ─────────────────────────────────────────── */}
+        <div
+          ref={roleListScrollRef}
+          onScroll={updateRoleListFade}
+          className="relative w-72 flex flex-col gap-3 overflow-y-auto rounded-xl bg-gray-50 p-3"
+        >
+          <div className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-gray-50 to-transparent transition-opacity duration-200 ${showRoleTopFade ? 'opacity-100' : 'opacity-0'}`} />
+
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2">Role Hierarchy</span>
             <button
-              className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"
-              onClick={handleOpenCreate}
-              type="button"
+              onClick={openCreateRoleDialog}
+              disabled={!canCreateRole || isRoleMutationPending}
+              className="rounded p-1 text-primary transition-all duration-200 ease-out hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
+              title={!canCreateRole ? 'Bạn không có quyền tạo role mới.' : 'Thêm role mới'}
             >
-              <span className="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+              <span className="material-symbols-outlined text-[20px]">add</span>
             </button>
           </div>
 
           <div className="space-y-3">
             {rolesLoading ? (
               <div className="animate-pulse flex flex-col gap-3">
-                <div className="h-20 bg-gray-200 rounded-xl"></div>
-                <div className="h-20 bg-gray-200 rounded-xl"></div>
+                {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-gray-200 rounded-xl" />)}
               </div>
             ) : rolesError ? (
-              <StatePanel
-                title="Không tải được vai trò"
-                description="Hệ thống chưa lấy được danh sách vai trò. Vui lòng thử lại."
-                icon="error"
-                tone="error"
-                action={
-                  <button
-                    onClick={() => void refetchRoles()}
-                    className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  >
-                    Thử lại
-                  </button>
-                }
+              <StatePanel title="Không tải được vai trò" description="Vui lòng thử lại." icon="error" tone="error"
+                action={<button onClick={() => void refetchRoles()} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Thử lại</button>}
               />
             ) : showEmptyRoles ? (
-              <StatePanel
-                title="Chưa có vai trò"
-                description="Không tìm thấy dữ liệu vai trò trong hệ thống."
-                icon="shield"
-              />
+              <StatePanel title="Chưa có vai trò" description="Không tìm thấy dữ liệu vai trò trong hệ thống." icon="shield" />
             ) : (
               roles?.map((role) => {
-                const isActive = role.id === selectedRoleId;
+                const isSelected = role.id === selectedRoleId;
                 return (
-                  <button
-                    key={role.id}
-                    onClick={() => setSelectedRoleId(role.id)}
-                    className={`w-full text-left p-4 rounded-xl transition-all group ${isActive
-                      ? 'bg-white shadow-sm ring-2 ring-primary'
-                      : 'bg-white/50 hover:bg-white'
-                      }`}
-                  >
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className={`w-2 h-2 rounded-full transition-colors ${isActive ? 'bg-primary' : role.colorClass || 'bg-slate-300 group-hover:bg-primary/50'
-                        }`}></div>
-                      <span className={`font-bold ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
-                        {role.name}
-                      </span>
-                    </div>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${role.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'
-                          }`}
-                      >
-                        {role.isActive ? 'Active' : 'Disabled'}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedRoleId(role.id);
-                            setEditDialogOpen(true);
-                          }}
-                          className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary"
-                          title="Chinh sua role"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleToggleRoleStatus(role.id, !role.isActive);
-                          }}
-                          className={`rounded-lg p-1 transition-colors ${role.isActive
-                            ? 'text-gray-400 hover:bg-red-50 hover:text-red-600'
-                            : 'text-gray-400 hover:bg-emerald-50 hover:text-emerald-600'
-                            }`}
-                          title={role.isActive ? 'Tat role' : 'Bat role'}
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            {role.isActive ? 'toggle_off' : 'toggle_on'}
-                          </span>
-                        </button>
+                  <div key={role.id} className={`group w-full rounded-xl p-4 text-left transition-all duration-200 ease-out ${isSelected ? 'bg-white shadow-sm ring-2 ring-primary' : 'bg-white/50 hover:-translate-y-0.5 hover:bg-white'}`}>
+                    <button onClick={() => setSelectedRoleId(role.id)} className="w-full text-left">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className={`w-2 h-2 rounded-full transition-colors ${isSelected ? 'bg-primary' : role.colorClass || 'bg-slate-300 group-hover:bg-primary/50'}`} />
+                        <span className={`font-bold ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>{role.name}</span>
+                        <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${role.isActive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {role.isActive ? 'Active' : 'Inactive'}
+                        </span>
                       </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">{role.description}</p>
+                    </button>
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button onClick={() => openEditRoleDialog(role)} disabled={!canUpdateRolePermissions || isRoleMutationPending}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition-all duration-200 ease-out hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45">
+                        <span className="material-symbols-outlined text-[16px]">edit</span>Edit
+                      </button>
+                      <button onClick={() => setStatusTarget(role)} disabled={!canUpdateRolePermissions || isRoleMutationPending}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition-all duration-200 ease-out hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
+                        title={role.isActive ? 'Inactivate role' : 'Activate role'}>
+                        <span className="material-symbols-outlined text-[16px]">{role.isActive ? 'block' : 'check_circle'}</span>
+                        {role.isActive ? 'Inactivate' : 'Activate'}
+                      </button>
                     </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      {role.description}
-                    </p>
-                  </button>
+                  </div>
                 );
               })
             )}
           </div>
+          <div className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-gray-50 to-transparent transition-opacity duration-200 ${showRoleBottomFade ? 'opacity-100' : 'opacity-0'}`} />
         </div>
 
-        {/* Right Pane: Permission Matrix */}
+        {/* ── Right Pane: Permission Matrix ────────────────────────────────── */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+
+          {/* Header */}
           <div className="p-4 bg-slate-50 flex items-center justify-between border-b border-gray-100">
             <div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Permission Matrix: <span className="text-primary">{selectedRole?.name}</span>
+              <h3 className="text-sm font-bold text-gray-900">
+                Module Permissions Matrix: <span className="text-primary">{selectedRole?.name ?? '—'}</span>
               </h3>
-              <p className="text-sm text-gray-500">Bật hoặc tắt quyền xem từng trang. Quyền thao tác nâng cao được cấu hình tại Advanced Permissions.</p>
+              <p className="text-sm text-gray-500">Each row represents a sidebar page and controls all its underlying modules.</p>
             </div>
-            {selectedRole?.name === 'Director' && (
-              <div className="flex gap-1">
-                <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]" data-icon="auto_awesome" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                  AI Forecast Enabled
-                </span>
-              </div>
-            )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-hidden p-4">
-            {permissionsLoading ? (
-              <div className="animate-pulse space-y-2">
-                <div className="h-10 bg-gray-100 rounded"></div>
-                <div className="h-10 bg-gray-100 rounded"></div>
-                <div className="h-10 bg-gray-100 rounded"></div>
+          {/* Stats + Search */}
+          {!permLoading && !permError && pageRows.length > 0 && (
+            <div className="px-4 py-3 bg-slate-50/50 border-b border-gray-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-600" />
+                  <span className="text-sm font-medium text-slate-700">{activePagesCount} Active Pages</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-sm font-medium text-slate-700">{highRiskPagesCount} High-risk Permissions</span>
+                </div>
               </div>
-            ) : permissionsError ? (
-              <StatePanel
-                title="Không tải được ma trận quyền"
-                description="Vui lòng thử lại để tiếp tục chỉnh sửa quyền cho vai trò này."
-                icon="error"
-                tone="error"
-                action={
-                  <button
-                    onClick={() => void refetchPermissions()}
-                    className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  >
-                    Thử lại
-                  </button>
-                }
+              <div className="relative shrink-0">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  placeholder="Filter pages..."
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64 bg-slate-50 placeholder-slate-400"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Matrix Table */}
+          <div ref={matrixScrollRef} onScroll={updateMatrixFade} className="relative flex-1 overflow-auto">
+            <div className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-white to-transparent transition-opacity duration-200 ${showMatrixTopFade ? 'opacity-100' : 'opacity-0'}`} />
+
+            {permLoading ? (
+              <div className="p-4 space-y-2 animate-pulse">
+                {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-gray-100 rounded" />)}
+              </div>
+            ) : permError ? (
+              <StatePanel title="Không tải được ma trận quyền" description="Vui lòng thử lại để tiếp tục chỉnh sửa quyền." icon="error" tone="error"
+                action={<button onClick={() => void refetchPermissions()} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Thử lại</button>}
               />
             ) : showEmptyPermissions ? (
-              <StatePanel
-                title="Chưa có quyền khả dụng"
-                description="Danh mục quyền hiện tại đang rỗng hoặc chưa được seed từ backend."
-                icon="shield_lock"
-              />
+              <StatePanel title="Chưa có quyền khả dụng" description="Danh mục quyền hiện tại đang rỗng hoặc chưa được seed từ backend." icon="shield_lock" />
             ) : (
-              <div className="h-full overflow-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <table className="w-full border-collapse text-left">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-gray-100 bg-gray-50 text-left">
-                      <th className="px-4 py-3.5 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider">System Module</th>
-                      <th className="px-4 py-3.5 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Visible</th>
-                      <th className="px-4 py-3.5 font-headline font-bold text-gray-400 text-xs uppercase tracking-wider text-center">Status</th>
+              <table className="min-w-150 w-full border-collapse text-left">
+                <thead>
+                  <tr className="sticky top-0 z-10 bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                    <th className="py-4 px-6 w-2/5">Sidebar Page</th>
+                    <th className="py-4 px-4 text-center">View</th>
+                    <th className="py-4 px-4 text-center">Create</th>
+                    <th className="py-4 px-4 text-center">Edit</th>
+                    <th className="py-4 px-4 text-center">Delete / Deactivate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {filteredPageRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-16 text-center text-slate-400 text-sm">
+                        Không tìm thấy trang phù hợp.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {pageRows.map((row) => {
-                      const moduleName = row.label;
-                      const isAiForecast = isAiForecastModule(row.module);
-                      const rowDisabled = isInteractionDisabled || !row.isBackedByApi;
-                      return (
-                        <tr key={row.route} className="group transition-colors duration-150 hover:bg-gray-50/60">
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg shadow-sm ${isAiForecast ? 'bg-cyan-600 text-white' : 'bg-gray-50 text-primary'
-                                }`}>
-                                <span
-                                  className="material-symbols-outlined text-xl"
-                                  data-icon={row.icon}
-                                  style={isAiForecast ? { fontVariationSettings: "'FILL' 1" } : {}}
-                                >
-                                  {row.icon}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="font-bold text-gray-900">{moduleName}</span>
-                                <span className="block text-xs text-gray-500">{row.route}</span>
-                                <span className="block text-xs text-gray-500">{row.description}</span>
-                                {isAiForecast && (
-                                  <span className="block text-[10px] text-cyan-700 font-bold uppercase tracking-tighter">Predictive Analysis</span>
-                                )}
-                                {!row.isBackedByApi && (
-                                  <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
-                                    Chưa có permission backend
+                  ) : (
+                    filteredPageRows.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg border border-slate-200 bg-blue-50 flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined text-blue-600 text-[20px]">{row.icon}</span>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-900">{row.label}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">{row.description}</div>
+                              {/* Module tags */}
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {row.modules.map((mod) => (
+                                  <span key={mod} className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                    {mod}
                                   </span>
-                                )}
+                                ))}
                               </div>
                             </div>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <input
-                              type="checkbox"
-                              checked={row.permission.view}
-                              onChange={() => handleToggleView(row.permission.module)}
-                              disabled={rowDisabled}
-                              className={`h-5 w-5 rounded border-gray-300 focus:ring-2 ${isAiForecast ? 'text-cyan-600 focus:ring-cyan-600/20' : 'text-primary focus:ring-primary/20'}`}
-                            />
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${row.permission.view ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                                }`}
-                            >
-                              {row.permission.view ? 'Visible' : 'Hidden'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <PermCheckbox
+                            checked={row.view}
+                            onChange={() => handleTogglePage(row.modules, 'view', row.view)}
+                            disabled={isInteractionDisabled}
+                          />
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <PermCheckbox
+                            checked={row.create}
+                            onChange={() => handleTogglePage(row.modules, 'create', row.create)}
+                            disabled={isInteractionDisabled}
+                          />
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <PermCheckbox
+                            checked={row.edit}
+                            onChange={() => handleTogglePage(row.modules, 'edit', row.edit)}
+                            disabled={isInteractionDisabled}
+                          />
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <PermCheckbox
+                            checked={row.delete}
+                            onChange={() => handleTogglePage(row.modules, 'delete', row.delete)}
+                            disabled={isInteractionDisabled}
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             )}
+            <div className={`pointer-events-none sticky bottom-0 z-20 h-3 w-full bg-linear-to-t from-white to-transparent transition-opacity duration-200 ${showMatrixBottomFade ? 'opacity-100' : 'opacity-0'}`} />
           </div>
 
-          {/* Footer Actions */}
+          {/* Footer */}
           <div className="p-2 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-500 text-sm">
-              <span className="material-symbols-outlined text-sm" data-icon="history">history</span>
-              <span>Last modified by <span className="font-bold">Director</span> • 2 hours ago</span>
+              <span className="material-symbols-outlined text-sm">shield</span>
+              <span>Role: <span className="font-bold">{selectedRole?.name ?? '—'}</span></span>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleDiscard}
-                disabled={!hasChanges || updateMutation.isPending}
-                className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-200/50 transition-all disabled:opacity-50"
+                disabled={!hasChanges || isInteractionDisabled}
+                className="rounded-xl px-6 py-3 font-bold text-gray-500 transition-all duration-200 ease-out hover:bg-gray-200/50 disabled:opacity-50"
               >
                 Discard Changes
               </button>
               <button
                 onClick={() => void handleSave()}
-                disabled={!hasChanges || updateMutation.isPending || showEmptyPermissions}
-                className="px-8 py-3 rounded-xl font-bold text-white bg-primary shadow-lg shadow-primary/20 hover:bg-blue-800 active:scale-[0.99] transition-all disabled:opacity-75 flex items-center gap-2"
+                disabled={!hasChanges || isInteractionDisabled || showEmptyPermissions}
+                className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all duration-200 ease-out hover:bg-blue-800 active:scale-[0.99] disabled:opacity-75"
               >
                 {updateMutation.isPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
-                Lưu quyền xem trang
+                Save Access
               </button>
             </div>
           </div>
-
         </div>
       </div>
 
-      <RoleFormDialog
-        mode="create"
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        availableRoleNames={availableRoleNames}
-        isPending={createRoleMutation.isPending}
-        onSubmit={handleCreateRole}
-      />
+      {/* ── Role Create/Edit Dialog ────────────────────────────────────────── */}
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{roleDialogMode === 'create' ? 'Create New Role' : 'Edit Role'}</DialogTitle>
+            <DialogDescription>
+              {roleDialogMode === 'create' ? 'Thêm role mới để phân quyền cho nhóm người dùng.' : 'Cập nhật thông tin role hiện có.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Role Name</label>
+              <input
+                value={roleForm.name}
+                onChange={(e) => setRoleForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Ví dụ: Warehouse Supervisor"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Description</label>
+              <textarea
+                rows={3}
+                value={roleForm.description}
+                onChange={(e) => setRoleForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Mô tả phạm vi công việc của role"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Status</label>
+              <select
+                value={roleForm.isActive ? 'active' : 'inactive'}
+                onChange={(e) => setRoleForm((prev) => ({ ...prev, isActive: e.target.value === 'active' }))}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setIsRoleDialogOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button
+              onClick={() => void handleRoleSubmit()}
+              disabled={isRoleMutationPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isRoleMutationPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
+              {roleDialogMode === 'create' ? 'Create Role' : 'Save Changes'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <RoleFormDialog
-        mode="edit"
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        initialRole={selectedRole}
-        isPending={updateRoleMutation.isPending}
-        onSubmit={handleUpdateRoleMeta}
-      />
+      {/* ── Status Toggle Confirmation ─────────────────────────────────────── */}
+      <Dialog open={!!statusTarget} onOpenChange={(open) => !open && setStatusTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{statusTarget?.isActive ? 'Inactivate Role' : 'Activate Role'}</DialogTitle>
+            <DialogDescription>
+              {statusTarget
+                ? `Bạn có chắc muốn chuyển role ${statusTarget.name} sang trạng thái ${statusTarget.isActive ? 'Inactive' : 'Active'}?`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button onClick={() => setStatusTarget(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button
+              onClick={() => void handleConfirmToggleStatus()}
+              disabled={isRoleMutationPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isRoleMutationPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
+              Confirm
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-function isAiForecastModule(module: string): boolean {
-  const normalized = module.trim().toLowerCase();
-  return normalized === 'ai forecast' || normalized === 'ai-forecast' || normalized === 'ai_forecast';
-}
-
-function normalizePermissionKey(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function createEmptyPermission(moduleName: string): Permission {
-  return {
-    module: moduleName,
-    view: false,
-    create: false,
-    edit: false,
-    delete: false,
-    approve: false,
-  };
 }

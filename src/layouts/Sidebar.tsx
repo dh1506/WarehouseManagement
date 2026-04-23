@@ -1,9 +1,35 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
-import { sidebarNavItems } from './sidebar-navigation';
-import { hasModuleActionPermission } from '@/utils/module-permission';
+import { hasPageAccessFromPermissionNames } from '@/lib/pageAccess';
+
+interface NavItem {
+  to: string;
+  icon: string;
+  label: string;
+  end?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { to: '/', icon: 'dashboard', label: 'Dashboard', end: true },
+  { to: '/admin/warehouses', icon: 'warehouse', label: 'Warehouse Hub' },
+  { to: '/admin/categories', icon: 'category', label: 'Category' },
+  { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
+  { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
+  { to: '/import-export', icon: 'swap_horiz', label: 'Import / Export' },
+  { to: '/inbound', icon: 'move_to_inbox', label: 'Inbound Flow' },
+  { to: '/outbound', icon: 'local_shipping', label: 'Outbound' },
+  { to: '/inventory', icon: 'widgets', label: 'Inventory' },
+  { to: '/inventory/transactions', icon: 'history', label: 'Audit Log' },
+  { to: '/stock-count', icon: 'fact_check', label: 'Stock Count' },
+  { to: '/stock-disposal', icon: 'delete_sweep', label: 'Disposal' },
+  { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
+  { to: '/sales-data', icon: 'bar_chart', label: 'Sales Data' },
+  { to: '/reports', icon: 'monitoring', label: 'Reports' },
+  { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
+  { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
+  { to: '/admin/approval-configuration', icon: 'approval', label: 'Approval Configuration' },
+];
 
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
@@ -13,20 +39,11 @@ export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
 
-  const allowedNavItems = useMemo(() => {
-    const roleName = user?.role;
-    const userPermissions = Array.isArray(user?.permissions) ? user.permissions : [];
-
-    return sidebarNavItems.filter((item) =>
-      hasModuleActionPermission({
-        permissions: userPermissions,
-        moduleName: item.permissionModule,
-        moduleAliases: item.permissionAliases,
-        action: 'view',
-        roleName,
-      })
-    );
-  }, [user]);
+  const permissionNames = user?.permissions ?? [];
+  const roleName = user?.role ?? '';
+  const visibleNavItems = navItems.filter((item) =>
+    hasPageAccessFromPermissionNames(item.to, permissionNames, roleName),
+  );
 
   const handleLogout = () => {
     logout();
@@ -77,7 +94,7 @@ export function Sidebar() {
 
         {/* ── Navigation ────────────────────────────────────────────────────── */}
         <nav className="p-2 space-y-0.5 mt-2 flex-1 overflow-y-auto overflow-x-hidden">
-          {allowedNavItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

@@ -1,11 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  createRole,
-  getRoles,
-  getRolePermissions,
-  updateRole,
-  updateRolePermissions,
-} from '@/services/roleService';
+import { createRole, getRoles, getRolePermissions, updateRole, updateRolePermissions } from '@/services/roleService';
 import type { CreateRolePayload, UpdateRolePayload, UpdateRolePermissionPayload } from '../types/roleType';
 
 export const ROLE_KEYS = {
@@ -57,7 +51,8 @@ export function useUpdateRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) => updateRole(roleId, payload),
+    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) =>
+      updateRole(roleId, payload),
     onSuccess: (_, { roleId }) => {
       queryClient.invalidateQueries({ queryKey: ROLE_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: ROLE_KEYS.permissions(roleId) });

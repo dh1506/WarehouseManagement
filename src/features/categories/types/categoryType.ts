@@ -1,12 +1,15 @@
-export type CategoryStatus = 'active' | 'inactive';
+export type CategoryStatus = 'active' | 'inactive' | 'unknown';
 
 export interface ProductCategory {
   id: string;
+  code: string;
   name: string;
   description: string;
   parentId: string | null;
   parentName: string | null;
+  parentCode: string | null;
   icon: string;
+  childrenCount: number;
   totalProducts: number;
   status: CategoryStatus;
   createdAt: string;
@@ -17,8 +20,6 @@ export interface CategoryFormData {
   name: string;
   description: string;
   parentId: string | null;
-  icon: string;
-  status: CategoryStatus;
 }
 
 export interface CategoriesResponse {
@@ -26,6 +27,14 @@ export interface CategoriesResponse {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface CategoryDetail extends ProductCategory {
+  childCategories: Array<{
+    id: string;
+    code: string;
+    name: string;
+  }>;
 }
 
 // Icon options cho form chọn icon
