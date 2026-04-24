@@ -1,4 +1,6 @@
+import axios from 'axios';
 import apiClient from '@/services/apiClient';
+import { useAuthStore } from '@/store/authStore';
 import type { ApiResponse } from '@/types/api';
 import type {
   InventoryTransaction,
@@ -6,6 +8,24 @@ import type {
   TransactionQueryParams,
   CreateAdjustmentPayload,
 } from '../types/transactionType';
+
+// Raw axios instance that bypasses the apiClient response interceptor.
+// Required for blob downloads — the shared interceptor unwraps ApiResponse<T>
+// which corrupts binary streams.
+const rawAxios = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  timeout: 30000,
+});
+
+async function downloadBlobFromApi(url: string, params: Record<string, string | number>): Promise<Blob> {
+  const token = useAuthStore.getState().token;
+  const response = await rawAxios.get(url, {
+    params,
+    responseType: 'blob',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return response.data as Blob;
+}
 
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
@@ -65,15 +85,7 @@ export async function exportTransactionsExcel(
   if (params.warehouse_id) query.warehouse_id = params.warehouse_id;
   if (params.reference_type) query.reference_type = params.reference_type;
 
-  const response = await apiClient.get('/api/inventory-transactions/export/excel', {
-    params: query,
-    responseType: 'blob',
-    // Override the default interceptor to get raw response
-    transformResponse: [(data: unknown) => data],
-  });
-
-  // apiClient interceptor returns response.data, which is the blob
-  return response as unknown as Blob;
+  return downloadBlobFromApi('/api/inventory-transactions/export/excel', query);
 }
 
 // ── GET /api/inventory-transactions/export/pdf ──────────────────────────────
@@ -89,11 +101,5 @@ export async function exportTransactionsPdf(
   if (params.warehouse_id) query.warehouse_id = params.warehouse_id;
   if (params.reference_type) query.reference_type = params.reference_type;
 
-  const response = await apiClient.get('/api/inventory-transactions/export/pdf', {
-    params: query,
-    responseType: 'blob',
-    transformResponse: [(data: unknown) => data],
-  });
-
-  return response as unknown as Blob;
+  return downloadBlobFromApi('/api/inventory-transactions/export/pdf', query);
 }

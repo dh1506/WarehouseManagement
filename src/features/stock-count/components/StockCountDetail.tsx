@@ -19,11 +19,11 @@ import {
   useCompleteCounting,
   useApproveStockCount,
   useCancelStockCount,
+  useExportStockCount,
 } from '../hooks/useStockCount';
 import { StockCountDetailGrid } from './StockCountDetailGrid';
 import { CancelStockCountDialog } from './CancelStockCountDialog';
-import { buildExportUrl } from '@/services/stockCountService';
-import { useAuthStore } from '@/store/authStore';
+import { ApproveWithVarianceDialog } from './ApproveWithVarianceDialog';
 import type { StockCount, StockCountStatus } from '../types/stockCountType';
 import {
   STOCK_COUNT_STATUS_LABELS,
@@ -69,7 +69,6 @@ function formatDate(iso: string): string {
 export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const token = useAuthStore((s) => s.token);
 
   const canUpdate = usePermission('stock_counts:update');
   const canApprove = usePermission('stock_counts:approve');
@@ -80,20 +79,27 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   const completeMutation = useCompleteCounting();
   const approveMutation = useApproveStockCount();
   const cancelMutation = useCancelStockCount();
+  const { exportExcel, exportPdf } = useExportStockCount();
 
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
 
   // Progress
   const totalItems = stockCount.details.length;
   const countedItems = stockCount.details.filter((d) => d.counted_quantity !== null).length;
   const progressPct = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
 
-  // Unconfirmed variances
+  // Unconfirmed variances (blocks Complete)
   const unconfirmedVariances = stockCount.details.filter(
     (d) =>
       d.counted_quantity !== null &&
       Number(d.variance_quantity ?? 0) !== 0 &&
       !d.is_confirmed,
+  );
+
+  // All items with any variance (shown in approve dialog)
+  const allVarianceDetails = stockCount.details.filter(
+    (d) => d.counted_quantity !== null && Number(d.variance_quantity ?? 0) !== 0,
   );
 
   const canComplete =
@@ -105,7 +111,17 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   const handleStart = () => {
     startMutation.mutate(stockCount.id, {
       onSuccess: () => toast({ title: 'Audit started', description: 'Status changed to Counting.' }),
-      onError: (err) => toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }),
+      onError: (err) => {
+        const msg = (err as Error).message ?? '';
+        const isConflict = /conflict|overlap|already counting|in progress/i.test(msg);
+        toast({
+          title: 'Failed to start',
+          description: isConflict
+            ? 'Cannot start — another audit is already counting one or more overlapping locations. Complete or cancel that audit first, then try again.'
+            : msg,
+          variant: 'destructive',
+        });
+      },
     });
   };
 
@@ -116,10 +132,25 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
     });
   };
 
+  // Show variance warning dialog if there are any variances; otherwise approve directly.
   const handleApprove = () => {
+    if (allVarianceDetails.length > 0) {
+      setApproveOpen(true);
+    } else {
+      doApprove();
+    }
+  };
+
+  const doApprove = () => {
     approveMutation.mutate(stockCount.id, {
-      onSuccess: () => toast({ title: 'Audit approved', description: 'Inventory has been updated.' }),
-      onError: (err) => toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }),
+      onSuccess: () => {
+        setApproveOpen(false);
+        toast({ title: 'Audit approved', description: 'Inventory has been updated.' });
+      },
+      onError: (err) => {
+        setApproveOpen(false);
+        toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' });
+      },
     });
   };
 
@@ -137,10 +168,8 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   };
 
   const handleExport = (format: 'excel' | 'pdf') => {
-    const url = buildExportUrl(stockCount.id, format);
-    // Open in new tab with token in header isn't directly possible.
-    // Download via anchor with auth — this opens the URL; backend authenticates via cookie or query param.
-    window.open(url, '_blank');
+    if (format === 'excel') exportExcel(stockCount.id, stockCount.code);
+    else exportPdf(stockCount.id, stockCount.code);
   };
 
   const isAnyPending =
@@ -192,15 +221,19 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons — single AnimatePresence with keyed children prevents
+              simultaneous insertBefore conflicts when multiple buttons exit/enter
+              on the same status transition. */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* Export */}
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
+              {/* Export */}
               {canExport && (stockCount.status === 'COMPLETED' || stockCount.status === 'APPROVED') && (
                 <motion.div
+                  key="export"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.15 }}
                   className="flex items-center gap-1"
                 >
                   <motion.button
@@ -223,15 +256,15 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   </motion.button>
                 </motion.div>
               )}
-            </AnimatePresence>
 
-            {/* Cancel */}
-            <AnimatePresence>
+              {/* Cancel */}
               {canCancel && (stockCount.status === 'DRAFT' || stockCount.status === 'COUNTING') && (
                 <motion.button
+                  key="cancel"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.15 }}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={() => setCancelOpen(true)}
@@ -242,15 +275,15 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   Cancel
                 </motion.button>
               )}
-            </AnimatePresence>
 
-            {/* Start counting */}
-            <AnimatePresence>
+              {/* Start counting */}
               {canUpdate && stockCount.status === 'DRAFT' && (
                 <motion.button
+                  key="start"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.15 }}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={handleStart}
@@ -265,15 +298,15 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   Start Counting
                 </motion.button>
               )}
-            </AnimatePresence>
 
-            {/* Complete */}
-            <AnimatePresence>
+              {/* Complete */}
               {canUpdate && stockCount.status === 'COUNTING' && (
                 <motion.button
+                  key="complete"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.15 }}
                   whileHover={canComplete ? { scale: 1.04 } : {}}
                   whileTap={canComplete ? { scale: 0.96 } : {}}
                   onClick={handleComplete}
@@ -301,15 +334,15 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   Complete Audit
                 </motion.button>
               )}
-            </AnimatePresence>
 
-            {/* Approve */}
-            <AnimatePresence>
+              {/* Approve */}
               {canApprove && stockCount.status === 'COMPLETED' && (
                 <motion.button
+                  key="approve"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.15 }}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={handleApprove}
@@ -377,24 +410,62 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
           </div>
         </motion.div>
 
-        {/* Unconfirmed variance warning */}
-        <AnimatePresence>
-          {unconfirmedVariances.length > 0 && stockCount.status === 'COUNTING' && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
-            >
-              <span className="material-symbols-outlined text-amber-500 text-[20px]">warning</span>
-              <p className="text-sm font-medium text-amber-800">
-                {unconfirmedVariances.length} item{unconfirmedVariances.length !== 1 ? 's have' : ' has'} a
-                variance that needs a reason before you can complete the audit.
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Status banners */}
+        <div className="space-y-2">
+          <AnimatePresence>
+            {/* Transaction lock info — shown whenever counting is active */}
+            {stockCount.status === 'COUNTING' && (
+              <motion.div
+                key="lock-banner"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3"
+              >
+                <span className="material-symbols-outlined text-blue-500 text-[20px]">lock</span>
+                <p className="text-sm font-medium text-blue-800">
+                  Inventory transactions for all items in this audit are locked until counting is completed or cancelled.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Not-all-counted hint — visible on mobile where the disabled tooltip is inaccessible */}
+            {stockCount.status === 'COUNTING' && countedItems < totalItems && unconfirmedVariances.length === 0 && (
+              <motion.div
+                key="incomplete-banner"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+              >
+                <span className="material-symbols-outlined text-slate-400 text-[20px]">pending</span>
+                <p className="text-sm font-medium text-slate-600">
+                  {totalItems - countedItems} item{totalItems - countedItems !== 1 ? 's' : ''} still need to be counted before you can complete the audit.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Unconfirmed variance warning */}
+            {unconfirmedVariances.length > 0 && stockCount.status === 'COUNTING' && (
+              <motion.div
+                key="variance-banner"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+              >
+                <span className="material-symbols-outlined text-amber-500 text-[20px]">warning</span>
+                <p className="text-sm font-medium text-amber-800">
+                  {unconfirmedVariances.length} item{unconfirmedVariances.length !== 1 ? 's have' : ' has'} a
+                  variance that needs a reason before you can complete the audit.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
 
       {/* ── Detail grid ──────────────────────────────────────────────────────── */}
@@ -479,6 +550,16 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
         isPending={cancelMutation.isPending}
         onConfirm={handleCancel}
         onClose={() => setCancelOpen(false)}
+      />
+
+      {/* ── Approve variance confirmation dialog ──────────────────────────── */}
+      <ApproveWithVarianceDialog
+        open={approveOpen}
+        stockCountCode={stockCount.code}
+        varianceDetails={allVarianceDetails}
+        isPending={approveMutation.isPending}
+        onConfirm={doApprove}
+        onClose={() => setApproveOpen(false)}
       />
     </motion.div>
   );

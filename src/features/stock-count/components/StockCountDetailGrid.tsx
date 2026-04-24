@@ -254,7 +254,6 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
             </thead>
 
             <tbody className="divide-y divide-slate-50">
-              <AnimatePresence initial={false}>
                 {stockCount.details.map((detail, idx) => {
                   const draftValue = draftQty[detail.id] ?? '';
                   const draftNum = draftValue !== '' ? parseFloat(draftValue) : null;
@@ -277,7 +276,6 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                   return (
                     <motion.tr
                       key={detail.id}
-                      layout
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.15, delay: Math.min(idx * 0.025, 0.2) }}
@@ -445,30 +443,21 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                                 Save
                               </motion.button>
                             )}
-                            <AnimatePresence>
-                              {needsConfirm && (
-                                <motion.button
-                                  initial={{ opacity: 0, scale: 0.8 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.8 }}
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  transition={{ duration: 0.12 }}
-                                  onClick={() => handleOpenConfirmSingle(detail)}
-                                  className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-amber-600 transition-colors"
-                                >
-                                  <AlertCircle className="h-3 w-3" />
-                                  Reason
-                                </motion.button>
-                              )}
-                            </AnimatePresence>
+                            {needsConfirm && (
+                              <button
+                                onClick={() => handleOpenConfirmSingle(detail)}
+                                className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-amber-600 transition-colors"
+                              >
+                                <AlertCircle className="h-3 w-3" />
+                                Reason
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}
                     </motion.tr>
                   );
                 })}
-              </AnimatePresence>
 
               {stockCount.details.length === 0 && (
                 <tr>

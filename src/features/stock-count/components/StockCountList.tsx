@@ -344,16 +344,14 @@ export function StockCountList() {
                     </td>
                   </tr>
                 ) : (
-                  <AnimatePresence initial={false}>
-                    {data.stockCounts.map((sc, i) => (
+                    data.stockCounts.map((sc, i) => (
                       <StockCountRow
                         key={sc.id}
                         stockCount={sc}
                         index={i}
                         onNavigate={(id) => navigate(`/stock-count/${id}`)}
                       />
-                    ))}
-                  </AnimatePresence>
+                    ))
                 )}
               </tbody>
             </table>
@@ -435,10 +433,8 @@ function StockCountRow({
 
   return (
     <motion.tr
-      layout
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -10 }}
       transition={{ duration: 0.16, delay: Math.min(index * 0.025, 0.18), ease: 'easeOut' }}
       className={cn(
         'group cursor-pointer transition-colors hover:bg-slate-50/70',

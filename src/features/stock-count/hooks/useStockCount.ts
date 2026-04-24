@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import {
   getStockCounts,
   getStockCountById,
@@ -9,6 +11,7 @@ import {
   completeCounting,
   approveStockCount,
   cancelStockCount,
+  exportStockCount,
 } from '@/services/stockCountService';
 import type { CreateStockCountPayload } from '@/services/stockCountService';
 import type {
@@ -136,4 +139,47 @@ export function useCancelStockCount() {
       queryClient.setQueryData(STOCK_COUNT_KEYS.detail(data.id), data);
     },
   });
+}
+
+// ── Export (imperative, not a query) ─────────────────────────────────────────
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export function useExportStockCount() {
+  const { toast } = useToast();
+
+  const exportExcel = useCallback(async (id: number, code: string) => {
+    try {
+      toast({ title: 'Exporting Excel…', description: 'Please wait a moment.' });
+      const blob = await exportStockCount(id, 'excel');
+      downloadBlob(blob, `stock-count-${code}-${Date.now()}.xlsx`);
+      toast({ title: 'Excel exported successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to export Excel file.';
+      toast({ title: 'Export failed', description: message, variant: 'destructive' });
+    }
+  }, [toast]);
+
+  const exportPdf = useCallback(async (id: number, code: string) => {
+    try {
+      toast({ title: 'Exporting PDF…', description: 'Please wait a moment.' });
+      const blob = await exportStockCount(id, 'pdf');
+      downloadBlob(blob, `stock-count-${code}-${Date.now()}.pdf`);
+      toast({ title: 'PDF exported successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to export PDF file.';
+      toast({ title: 'Export failed', description: message, variant: 'destructive' });
+    }
+  }, [toast]);
+
+  return { exportExcel, exportPdf };
 }
