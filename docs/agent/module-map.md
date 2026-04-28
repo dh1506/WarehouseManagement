@@ -1,5 +1,32 @@
 # Module Map
 
+## Sales Data Management Module
+
+### Page (thin wrapper)
+
+- `src/pages/operations/SalesDataPage.tsx` → Tabs container with URL-synced `?tab=` param
+
+### Feature Domain
+
+- `src/features/sales/types/salesType.ts` — SalesTransaction, SalesDailySummary, SalesImportResult, query params, SalesFilterState
+- `src/features/sales/schemas/salesSchemas.ts` — Zod filter schema, validateImportFile helper, ALLOWED_EXTENSIONS/MAX_FILE_SIZE constants
+- `src/features/sales/hooks/useSales.ts` — SALES_KEYS factory + useSalesTransactions, useSalesDailySummaries, useImportSalesBatch
+- `src/features/sales/components/ImportCenterTab.tsx` — Drag-and-drop import, lock overlay, success banner, error table (stagger animation)
+- `src/features/sales/components/SalesFilterBar.tsx` — Shared date-range inputs + location combobox (Popover+Command)
+- `src/features/sales/components/SalesTransactionsTab.tsx` — Paginated transaction table, SALE/RETURN badges, URL-synced filters
+- `src/features/sales/components/DailySummariesTab.tsx` — Aggregated summary table, bold net_sales_qty, red negative revenue
+
+### Service
+
+- `src/services/salesService.ts` — importSalesBatch (multipart), getSalesTransactions, getSalesDailySummaries, getSampleFileUrl
+
+### Routing
+
+- `/sales-data` → `SalesDataPage` (already registered in App.tsx, no change needed)
+- Tab state: `?tab=import|transactions|summaries`
+
+---
+
 ## Stock Count Module
 
 ### Pages (thin wrappers)

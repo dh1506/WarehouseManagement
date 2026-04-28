@@ -50,6 +50,26 @@ Create form validates `quantity <= available_quantity` using `/api/inventories` 
 Concurrency can still change stock before mutation reaches BE.
 BE validation remains authoritative.
 
+## Sales Data Management Module
+
+### KI-11: Import error envelope shape is assumed
+
+FE assumes 4xx import error body is `{ success, message, data: { batchId, errorCount, errors: [{row,column,value,reason}] } }`. If BE returns a flat shape or uses different field names, only `ImportCenterTab.tsx` needs updating (the `catch` block's `SalesImportApiError` cast + `.data.errors` access).
+
+### KI-12: Sample file endpoint not confirmed
+
+`getSampleFileUrl()` returns `{VITE_API_URL}/api/sales/import/sample`. If BE uses a different path or requires auth headers for download, replace with an apiClient blob-download approach (same pattern as KI-2 for stock count export).
+
+### KI-13: BE endpoint paths for transactions/summaries not verified
+
+Assumed: `GET /api/sales/transactions` and `GET /api/sales/summaries`. Confirm with BE and update `salesService.ts` path strings if different.
+
+### KI-14: Pagination component duplicated between SalesTransactionsTab and DailySummariesTab
+
+The `<Pagination>` component is inlined in both tab files. Candidate for extraction to `components/shared/Pagination.tsx` once a third module needs it (per DRY threshold rule).
+
+---
+
 ### KI-10: Lot source is inventory-aggregated, not dedicated lot search API
 
 Lot options are deduped from `/api/inventories` rows.

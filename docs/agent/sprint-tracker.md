@@ -56,3 +56,30 @@
 1. QA full disposal flow with real role-based accounts (`create/update/approve/cancel`)
 2. Add edit-draft flow UI if sprint scope requires draft modification on detail page
 3. Monitor `/api/inventories` performance for lot/availability lookup under large datasets
+
+---
+
+## Sprint: Sales Data Management (Quản lý Dữ liệu Bán hàng) — 2026-04-28
+
+### Status: IMPLEMENTED (FE) ✅
+
+## Completed Tasks
+
+- [x] Types: `src/features/sales/types/salesType.ts` — SalesTransaction, SalesDailySummary, SalesImportResult, SalesImportApiError, query params, SalesFilterState
+- [x] Schemas: `src/features/sales/schemas/salesSchemas.ts` — salesFilterSchema (with endDate ≥ startDate refinement), validateImportFile, ALLOWED_EXTENSIONS/MAX_FILE_SIZE
+- [x] Service: `src/services/salesService.ts` — importSalesBatch (multipart/60s), getSalesTransactions, getSalesDailySummaries, getSampleFileUrl
+- [x] Hooks: `src/features/sales/hooks/useSales.ts` — SALES_KEYS factory, useSalesTransactions, useSalesDailySummaries, useImportSalesBatch mutation
+- [x] Component: `SalesFilterBar.tsx` — date range inputs (native) + location Popover/Command combobox + Apply button; validation highlighting; responsive stacking
+- [x] Component: `ImportCenterTab.tsx` — drag-and-drop dropzone, file card with remove, lock overlay (AnimatePresence), success banner, error banner, stagger-animated error table
+- [x] Component: `SalesTransactionsTab.tsx` — skeleton loading, SALE/RETURN badges, RETURN row tint, URL-synced pagination, empty state + clear filters
+- [x] Component: `DailySummariesTab.tsx` — bold net_sales_qty, red text for negative revenue, URL-synced pagination, empty state + clear filters
+- [x] Page: `SalesDataPage.tsx` — thin Tabs wrapper, URL-synced ?tab= param, AnimatePresence tab transition, forceMount to preserve React Query subscriptions
+- [x] Working memory: decision-log.md, module-map.md updated
+
+## Next Steps
+
+1. QA import flow end-to-end with real BE `/api/sales/import` (verify error envelope shape matches SalesImportApiError)
+2. Confirm BE endpoint paths: `/api/sales/transactions` and `/api/sales/summaries` (update salesService.ts if different)
+3. Verify BE returns SalesDailySummaryListResponse with `meta.totalPages` (not `meta.totalPages` from a different key)
+4. Add product_id filter if BE and sprint scope expand to support it
+5. Consider extracting the Pagination component to `components/shared/` once used in 3+ modules

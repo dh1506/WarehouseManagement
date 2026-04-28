@@ -1,5 +1,37 @@
 # Decision Log
 
+## 2026-04-28 — Sales Data Management Module
+
+### D-S1: Tab state synced to URL via ?tab= param
+
+Used `useSearchParams` at page level to persist active tab across refreshes and enable shareable deep links. Filter params (startDate, endDate, locationId) are also URL-synced via `useTableParams` within each tab.
+
+### D-S2: SalesFilterBar uses native <input type="date">
+
+No date-picker library in the project. Native date inputs styled with Tailwind to match the design language. Start/end validation is done inline (startDate > endDate → error highlight + disabled apply button).
+
+### D-S3: Location combobox reuses getWarehouseLocations from warehouseService
+
+Rather than adding a new endpoint, the filter combobox queries `/api/warehouses/locations/search` with pageSize=50. This matches the existing pattern used by other create-form selects in the project.
+
+### D-S4: multipart/form-data upload overrides apiClient default Content-Type
+
+The import API requires file upload. salesService.ts passes `{ 'Content-Type': 'multipart/form-data' }` as a per-request header override. The 60s timeout is set at request level (not globally) to avoid affecting other calls.
+
+### D-S5: Import error parsing reads apiErr.data.errors from intercepted error body
+
+apiClient interceptor returns `error.response.data` (the ApiResponse envelope) on 4xx. ImportCenterTab casts caught errors to `SalesImportApiError` and reads `.data.errors`. If the array is empty, falls back to generic toast.
+
+### D-S6: AnimatePresence mode="wait" on tab panel
+
+Prevents old and new panel from overlapping during transition. Combined with `forceMount + hidden` to keep React Query subscriptions alive across tab switches (avoids refetch cost on tab re-visit).
+
+### D-S7: useReducedMotion guard on all animations
+
+All spring/stagger/fade animations check `useReducedMotion()`. When true, `initial={false}` is passed to skip entry animations entirely.
+
+
+
 ## 2026-04-22 — Stock Count Module
 
 ### D1: Reuse inbound ProductSearchSelect + WarehouseLocationSelect
