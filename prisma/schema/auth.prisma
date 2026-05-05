@@ -11,9 +11,21 @@ model User {
   created_at                       DateTime               @default(now())
   updated_at                       DateTime               @updatedAt
   warehouse_id                     Int?
+  ai_forecast_events_created       AiForecastEvent[]      @relation("AiForecastEventCreator")
+  ai_forecast_results_reviewed     AiForecastResult[]     @relation("AiForecastReviewer")
+  ai_forecasts_triggered           AiForecast[]           @relation("AiForecastTrigger")
+  ai_retrain_batches_triggered     AiRetrainBatch[]       @relation("AiRetrainBatchTrigger")
   audit_logs                       AuditLog[]
   inventoryClosings                InventoryClosing[]
   inventory_transactions           InventoryTransaction[]
+  sales_import_batches             SalesImportBatch[]     @relation("SalesBatchCreator")
+  stock_count_adjustments_created  StockCountAdjustment[] @relation("StockCountAdjustmentCreator")
+  stock_count_details_counted      StockCountDetail[]     @relation("StockCountDetailCounter")
+  stock_counts_approved            StockCount[]           @relation("StockCountApprover")
+  stock_counts_created             StockCount[]           @relation("StockCountCreator")
+  stock_disposal_histories         StockDisposalHistory[] @relation("StockDisposalHistoryCreator")
+  stock_disposals_approved         StockDisposal[]        @relation("StockDisposalApprover")
+  stock_disposals_created          StockDisposal[]        @relation("StockDisposalCreator")
   discrepancies_reported           StockInDiscrepancy[]   @relation("DiscrepancyReporter")
   discrepancies_resolved           StockInDiscrepancy[]   @relation("DiscrepancyResolver")
   stock_ins_approved               StockIn[]              @relation("StockInApprover")
@@ -22,14 +34,6 @@ model User {
   stock_out_discrepancies_resolved StockOutDiscrepancy[]  @relation("StockOutDiscrepancyResolver")
   stock_outs_approved              StockOut[]             @relation("StockOutApprover")
   stock_outs_created               StockOut[]             @relation("StockOutCreator")
-  stock_counts_created             StockCount[]           @relation("StockCountCreator")
-  stock_counts_approved            StockCount[]           @relation("StockCountApprover")
-  stock_count_details_counted      StockCountDetail[]     @relation("StockCountDetailCounter")
-  stock_count_adjustments_created  StockCountAdjustment[] @relation("StockCountAdjustmentCreator")
-  stock_disposals_created          StockDisposal[]        @relation("StockDisposalCreator")
-  stock_disposals_approved         StockDisposal[]        @relation("StockDisposalApprover")
-  stock_disposal_histories         StockDisposalHistory[] @relation("StockDisposalHistoryCreator")
-  sales_import_batches             SalesImportBatch[]     @relation("SalesBatchCreator")
   role                             Role                   @relation(fields: [role_id], references: [id])
   warehouse                        Warehouse?             @relation(fields: [warehouse_id], references: [id])
 

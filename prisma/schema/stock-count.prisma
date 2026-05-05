@@ -1,51 +1,43 @@
-// ==================== MODULE KIỂM KÊ KHO ====================
-
-// Bảng chính - Đợt kiểm kê
 model StockCount {
-  id          Int              @id @default(autoincrement())
-  code        String           @unique @map("stock_count_code") // VD: 'KK-20260420-0001'
-  type        StockCountType   @default(PERIODIC) // Định kỳ / Đột xuất
-  scope_type  StockCountScope  @default(FULL) // Phạm vi: Toàn bộ, Khu vực, Sản phẩm, Lô
-  description String?          @db.Text
-  status      StockCountStatus @default(DRAFT) // DRAFT → COUNTING → COMPLETED → APPROVED / CANCELLED
+  id          Int                    @id @default(autoincrement())
+  code        String                 @unique @map("stock_count_code")
+  type        StockCountType         @default(PERIODIC)
+  scope_type  StockCountScope        @default(FULL)
+  description String?                @db.Text
+  status      StockCountStatus       @default(DRAFT)
   created_by  Int
   approved_by Int?
-  created_at  DateTime         @default(now())
-  updated_at  DateTime         @updatedAt
-
-  creator     User                   @relation("StockCountCreator", fields: [created_by], references: [id])
-  approver    User?                  @relation("StockCountApprover", fields: [approved_by], references: [id])
-  details     StockCountDetail[]
+  created_at  DateTime               @default(now())
+  updated_at  DateTime               @updatedAt
   adjustments StockCountAdjustment[]
+  details     StockCountDetail[]
+  approver    User?                  @relation("StockCountApprover", fields: [approved_by], references: [id])
+  creator     User                   @relation("StockCountCreator", fields: [created_by], references: [id])
 
   @@index([created_by])
   @@index([approved_by])
   @@map("stock_counts")
 }
 
-// Bảng chi tiết - Từng dòng sản phẩm tại vị trí cụ thể
 model StockCountDetail {
-  id                    Int  @id @default(autoincrement())
+  id                    Int               @id @default(autoincrement())
   stock_count_id        Int
   warehouse_location_id Int
   product_id            Int
   lot_id                Int?
-
-  system_quantity   Decimal  @db.Decimal(15, 3) // Chốt tại thời điểm bắt đầu đếm
-  counted_quantity  Decimal? @db.Decimal(15, 3) // Nhân viên thực đếm
-  variance_quantity Decimal? @db.Decimal(15, 3) // = counted - system (tính tự động)
-  unit_price        Decimal? @db.Decimal(15, 2) // Đơn giá tính thiệt hại/dôi dư
-
-  variance_reason String?   @db.Text // Lý do chênh lệch
-  is_confirmed    Boolean   @default(false) // Đã xác nhận chênh lệch chưa
-  counted_by      Int? // Người thực hiện đếm
-  counted_at      DateTime? // Thời điểm đếm xong
-
-  stock_count StockCount        @relation(fields: [stock_count_id], references: [id], onDelete: Cascade)
-  location    WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
-  product     Product           @relation(fields: [product_id], references: [id])
-  lot         ProductLot?       @relation(fields: [lot_id], references: [id])
-  counter     User?             @relation("StockCountDetailCounter", fields: [counted_by], references: [id])
+  system_quantity       Decimal           @db.Decimal(15, 3)
+  counted_quantity      Decimal?          @db.Decimal(15, 3)
+  variance_quantity     Decimal?          @db.Decimal(15, 3)
+  unit_price            Decimal?          @db.Decimal(15, 2)
+  variance_reason       String?           @db.Text
+  is_confirmed          Boolean           @default(false)
+  counted_by            Int?
+  counted_at            DateTime?
+  counter               User?             @relation("StockCountDetailCounter", fields: [counted_by], references: [id])
+  lot                   ProductLot?       @relation(fields: [lot_id], references: [id])
+  product               Product           @relation(fields: [product_id], references: [id])
+  stock_count           StockCount        @relation(fields: [stock_count_id], references: [id], onDelete: Cascade)
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
 
   @@index([stock_count_id])
   @@index([warehouse_location_id])
@@ -55,55 +47,54 @@ model StockCountDetail {
   @@map("stock_count_details")
 }
 
-// Bảng phiếu điều chỉnh tồn kho phát sinh từ kiểm kê
 model StockCountAdjustment {
-  id                    Int            @id @default(autoincrement())
+  id                    Int               @id @default(autoincrement())
   stock_count_id        Int
   stock_count_detail_id Int
   warehouse_location_id Int
   product_id            Int
   lot_id                Int?
-  adjustment_type       AdjustmentType // INCREASE hoặc DECREASE
-  adjustment_quantity   Decimal        @db.Decimal(15, 3)
-  note                  String?        @db.Text
+  adjustment_type       AdjustmentType
+  adjustment_quantity   Decimal           @db.Decimal(15, 3)
+  note                  String?           @db.Text
   created_by            Int
-  created_at            DateTime       @default(now())
-
-  stock_count StockCount        @relation(fields: [stock_count_id], references: [id], onDelete: Cascade)
-  product     Product           @relation(fields: [product_id], references: [id])
-  location    WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
-  lot         ProductLot?       @relation(fields: [lot_id], references: [id])
-  creator     User              @relation("StockCountAdjustmentCreator", fields: [created_by], references: [id])
+  created_at            DateTime          @default(now())
+  creator               User              @relation("StockCountAdjustmentCreator", fields: [created_by], references: [id])
+  lot                   ProductLot?       @relation(fields: [lot_id], references: [id])
+  product               Product           @relation(fields: [product_id], references: [id])
+  stock_count           StockCount        @relation(fields: [stock_count_id], references: [id], onDelete: Cascade)
+  location              WarehouseLocation @relation(fields: [warehouse_location_id], references: [id])
 
   @@index([stock_count_id])
   @@index([stock_count_detail_id])
   @@index([created_by])
+  @@index([lot_id], map: "stock_count_adjustments_lot_id_fkey")
+  @@index([product_id], map: "stock_count_adjustments_product_id_fkey")
+  @@index([warehouse_location_id], map: "stock_count_adjustments_warehouse_location_id_fkey")
   @@map("stock_count_adjustments")
 }
 
-// ==================== ENUMS ====================
-
 enum StockCountType {
-  PERIODIC // Kiểm kê định kỳ
-  AD_HOC // Kiểm kê đột xuất
+  PERIODIC
+  AD_HOC
 }
 
 enum StockCountScope {
-  FULL // Toàn bộ kho
-  ZONE // Theo khu vực/vị trí
-  PRODUCT // Theo sản phẩm
-  LOT // Theo lô
+  FULL
+  ZONE
+  PRODUCT
+  LOT
 }
 
 enum StockCountStatus {
-  DRAFT // Nháp - đang thiết lập phạm vi
-  COUNTING // Đang đếm - khóa giao dịch
-  COMPLETED // Hoàn tất đếm - chờ duyệt
-  APPROVED // Đã duyệt - đã tạo phiếu điều chỉnh
-  CANCELLED // Đã hủy
+  DRAFT
+  COUNTING
+  COMPLETED
+  APPROVED
+  CANCELLED
 }
 
 enum AdjustmentType {
-  INCREASE // Điều chỉnh tăng (thực tế > hệ thống)
-  DECREASE // Điều chỉnh giảm (thực tế < hệ thống)
+  INCREASE
+  DECREASE
 }

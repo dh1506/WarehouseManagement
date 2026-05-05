@@ -1,0 +1,150 @@
+/// Bảng lưu thông tin sự kiện/chương trình khuyến mãi tháng
+model AiForecastEvent {
+  id                  Int          @id @default(autoincrement())
+  /// Tháng áp dụng sự kiện (lưu dạng ngày đầu tháng, VD: 2026-05-01)
+  event_month         DateTime     @db.Date
+  program_name        String       @db.VarChar(255)
+  /// Mảng chuỗi: DISCOUNT, BOGO, COMBO, GIFT
+  promotion_types     Json
+  /// Mô tả nhóm sản phẩm áp dụng
+  applicable_products String?      @db.Text
+  start_date          DateTime     @db.Date
+  end_date            DateTime     @db.Date
+  /// Mảng chuỗi: STORE, SHOPEE, FACEBOOK, ...
+  channels            Json
+  /// Mục tiêu kỳ vọng
+  expected_target     String?      @db.Text
+  estimated_budget    Decimal?     @db.Decimal(15, 2)
+  notes               String?      @db.Text
+  created_by          Int
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+  creator             User         @relation("AiForecastEventCreator", fields: [created_by], references: [id])
+  forecasts           AiForecast[]
+
+  @@index([created_by])
+  @@index([event_month])
+  @@map("ai_forecast_events")
+}
+
+/// Bảng lưu mỗi lần chạy dự báo (1 run = 1 record)
+model AiForecast {
+  id              Int                @id @default(autoincrement())
+  /// Tháng dự báo cho
+  forecast_month  DateTime           @db.Date
+  status          AiForecastStatus   @default(PENDING)
+  /// Dữ liệu đầu vào đã được masking (lưu để audit / retrain)
+  input_snapshot  Json?
+  /// Response thô từ AI (lưu để debug / audit)
+  ai_raw_response Json?
+  /// Có dùng fallback không (khi AI fail)
+  is_fallback     Boolean            @default(false)
+  fallback_reason String?            @db.Text
+  /// Thông tin thời tiết lúc chạy
+  weather_data    Json?
+  event_id        Int?
+  triggered_by    Int
+  completed_at    DateTime?
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+  results         AiForecastResult[]
+  event           AiForecastEvent?   @relation(fields: [event_id], references: [id])
+  triggered_user  User               @relation("AiForecastTrigger", fields: [triggered_by], references: [id])
+
+  @@index([triggered_by])
+  @@index([event_id])
+  @@index([forecast_month])
+  @@map("ai_forecasts")
+}
+
+/// Bảng lưu kết quả dự báo chi tiết theo từng sản phẩm
+model AiForecastResult {
+  id                    Int                  @id @default(autoincrement())
+  forecast_id           Int
+  product_id            Int
+  warehouse_location_id Int
+  /// Số lượng AI dự báo sẽ bán trong tháng
+  forecast_qty          Decimal              @db.Decimal(15, 3)
+  /// Số lượng thực tế bán được (cập nhật sau khi tháng kết thúc)
+  actual_qty            Decimal?             @db.Decimal(15, 3)
+  /// Tồn kho hiện tại lúc chạy forecast
+  current_stock         Decimal              @db.Decimal(15, 3)
+  /// Tồn kho an toàn của sản phẩm
+  safe_stock            Decimal              @db.Decimal(15, 3)
+  /// Số lượng hàng đang trên đường về (pending stock-in)
+  incoming_stock        Decimal              @default(0.000) @db.Decimal(15, 3)
+  /// Đề xuất số lượng cần nhập = max(0, forecast_qty - current_stock - incoming_stock + safe_stock)
+  suggested_order_qty   Decimal              @db.Decimal(15, 3)
+  /// Lead time trung bình của sản phẩm (ngày) - dùng để tính ngày đặt hàng
+  lead_time_days        Int                  @default(0)
+  /// Chỉ số MAPE (%) - tính sau khi có actual_qty
+  mape_score            Decimal?             @db.Decimal(8, 4)
+  /// Mức cảnh báo MAPE
+  mape_alert_level      MapeAlertLevel?
+  /// Trạng thái phê duyệt của đề xuất
+  review_status         ForecastReviewStatus @default(PENDING)
+  /// Lý do reject (bắt buộc khi reject)
+  reject_reason         String?              @db.Text
+  reviewed_by           Int?
+  reviewed_at           DateTime?
+  /// Đã gửi vào batch retrain chưa
+  is_retrain_submitted  Boolean              @default(false)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+  forecast              AiForecast           @relation(fields: [forecast_id], references: [id], onDelete: Cascade)
+  product               Product              @relation(fields: [product_id], references: [id])
+  reviewer              User?                @relation("AiForecastReviewer", fields: [reviewed_by], references: [id])
+  location              WarehouseLocation    @relation(fields: [warehouse_location_id], references: [id])
+
+  @@index([forecast_id])
+  @@index([product_id])
+  @@index([warehouse_location_id])
+  @@index([reviewed_by])
+  @@map("ai_forecast_results")
+}
+
+/// Bảng lưu lịch sử gom feedback gửi AI retrain
+model AiRetrainBatch {
+  id              Int                @id @default(autoincrement())
+  /// Ngày gom feedback
+  batch_date      DateTime           @db.Date
+  status          RetrainBatchStatus @default(PENDING)
+  total_feedbacks Int                @default(0)
+  ai_raw_response Json?
+  error_message   String?            @db.Text
+  triggered_by    Int?
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+  triggered_user  User?              @relation("AiRetrainBatchTrigger", fields: [triggered_by], references: [id])
+
+  @@index([triggered_by])
+  @@index([batch_date])
+  @@map("ai_retrain_batches")
+}
+
+enum AiForecastStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ForecastReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MapeAlertLevel {
+  /// MAPE > 10%
+  WARNING
+  /// MAPE > 20%
+  CRITICAL
+}
+
+enum RetrainBatchStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}

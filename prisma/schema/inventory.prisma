@@ -29,11 +29,11 @@ model ProductLot {
   transactions            InventoryTransaction[]
   inventory               Inventory              @relation(fields: [inventories_id], references: [id], onDelete: Cascade)
   product                 Product                @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  stock_count_adjustments StockCountAdjustment[]
+  stock_count_details     StockCountDetail[]
+  stock_disposal_details  StockDisposalDetail[]
   stock_in_detail_lots    StockInDetailLot[]
   stock_out_detail_lots   StockOutDetailLot[]
-  stock_count_details     StockCountDetail[]
-  stock_count_adjustments StockCountAdjustment[]
-  stock_disposal_details  StockDisposalDetail[]
 
   @@index([product_id])
   @@index([inventories_id])
