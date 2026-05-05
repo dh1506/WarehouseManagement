@@ -66,6 +66,46 @@
 - `src/features/inbound/components/ProductSearchSelect.tsx`
 - `src/features/inbound/components/WarehouseLocationSelect.tsx`
 
+## AI Forecast Module
+
+### Pages (thin wrappers)
+
+- `src/pages/operations/AiForecastPage.tsx` → renders `AiForecastList`
+- `src/pages/operations/AiForecastDetailPage.tsx` → parses numeric `:id` param → renders `AiForecastDetail`
+
+### Feature Domain
+
+- `src/features/ai-forecast/types/aiForecastType.ts` — AiForecastStatus, ReviewStatus, MapeAlertLevel, PromotionType, ForecastChannel enums; label/style maps; AiForecastEvent, AiForecastResult, AiForecast, AiForecastDetail, AiRetrainBatch entities; query/filter/form types
+- `src/features/ai-forecast/schemas/aiForecastSchemas.ts` — triggerForecastSchema, createEventSchema, reviewResultSchema, updateActualSchema, listFilterSchema
+- `src/features/ai-forecast/hooks/useAiForecast.ts` — AI_FORECAST_KEYS factory; useAiForecastHistory, useAiForecastDetail, useAiForecastEvents queries; useTriggerForecast, useCreateForecastEvent, useReviewForecastResult, useUpdateActualQty, useTriggerRetrain mutations
+- `src/features/ai-forecast/components/AiForecastList.tsx` — list page: KPI strip, filters, table with pulsing RUNNING badge, pagination, TriggerForecastSheet + CreateEventSheet
+- `src/features/ai-forecast/components/AiForecastDetail.tsx` — detail: WeatherCard, EventCard, fallback banner, AiInsightsPanel (collapsible chat-like Gemini notes + confidence bars), results table with Approve/Reject/Set Actual, MAPE display, Retrain button
+- `src/features/ai-forecast/components/TriggerForecastSheet.tsx` — slide-over: forecast_month, event_id, city; 120s AI timeout
+- `src/features/ai-forecast/components/CreateEventSheet.tsx` — slide-over: event_month, program_name, promotion_types (checkboxes), channels (checkboxes), dates, budget
+- `src/features/ai-forecast/components/ReviewResultDialog.tsx` — approve/reject toggle; conditional reject_reason textarea
+- `src/features/ai-forecast/components/UpdateActualDialog.tsx` — actual_qty input; client-side MAPE preview
+
+### Service
+
+- `src/services/aiForecastService.ts` — 8 raw API calls to `/api/ai-forecasts/*`
+
+### Routing
+
+- `/ai-forecast` → `AiForecastPage`
+- `/ai-forecast/:id` → `AiForecastDetailPage` (param renamed from `:sku` in App.tsx)
+
+### Modified Files
+
+- `src/App.tsx` — renamed route param `:sku` → `:id` on detail route
+- `src/lib/pageAccess.ts` — added `ai-forecast` entry to `PAGE_PERMISSION_MAP` with `modules: ['ai_forecasts']`
+
+### Orphaned (not imported, safe to delete in cleanup sprint)
+
+- `src/features/ai-forecast/hooks/useAiForecastInsights.ts`
+- `src/features/ai-forecast/components/AiForecastDashboard.tsx`
+
+---
+
 ## Stock Disposal Module
 
 ### Pages (thin wrappers)

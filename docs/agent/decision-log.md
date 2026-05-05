@@ -1,5 +1,30 @@
 # Decision Log
 
+## 2026-05-05 — AI Forecast Module
+
+### D-AF-1: Replace static Ant Design mocks entirely
+Both page components were 100% hardcoded Ant Design demos. Replaced completely — their architecture (Ant Table, inline styles, static data) was incompatible with the project's shadcn/Tailwind conventions.
+
+### D-AF-2: `ai_raw_response` cross-reference for Gemini confidence/notes
+Gemini returns `confidence` (0–1) and `note` per product. BE stores this in `AiForecast.ai_raw_response`, not in individual `AiForecastResult` rows. `AiInsightsPanel` builds a `Map<product_id, GeminiResultItem>` from `ai_raw_response` and matches by `product_id`.
+
+### D-AF-3: Route param renamed `:sku` → `:id`
+Old detail route used `:sku` (demo artifact). Real BE uses numeric IDs. Updated `App.tsx`; page parses as `parseInt` with NaN guard + redirect.
+
+### D-AF-4: KPI strip shows page-level counts
+No dedicated stats endpoint. KPI counts derived from current page items. Cards labeled "page" for clarity. A BE `GET /api/ai-forecasts/stats` endpoint would improve this.
+
+### D-AF-5: 120s timeout on trigger endpoint
+Gemini call can take 30–90 s with retries. Custom `timeout: 120_000` overrides the default 10s axios timeout on `triggerForecast`.
+
+### D-AF-6: Manual state + Zod (not react-hook-form)
+Forms use `useState` + Zod `safeParse` on submit — consistent with existing `CreateStockCountSheet` pattern.
+
+### D-AF-7: `PAGE_PERMISSION_MAP` entry added; sidebar stays open
+Added `ai-forecast` to `PAGE_PERMISSION_MAP` for future role-gating. `SIDEBAR_PAGE_ACCESS_CONFIG` keeps `modules: []` (all authenticated users) — matching BE which only requires `authenticate` middleware.
+
+---
+
 ## 2026-04-28 — Sales Data Management Module
 
 ### D-S1: Tab state synced to URL via ?tab= param

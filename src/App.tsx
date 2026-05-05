@@ -137,7 +137,7 @@ function App() {
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
             <Route path="/inventory/transactions" element={<PageAccessRoute path="/inventory/transactions"><TransactionHistoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
-            <Route path="/ai-forecast/:sku" element={<PageAccessRoute path="/ai-forecast"><AiForecastDetailPage /></PageAccessRoute>} />
+            <Route path="/ai-forecast/:id" element={<PageAccessRoute path="/ai-forecast"><AiForecastDetailPage /></PageAccessRoute>} />
             <Route path="/sales-data" element={<PageAccessRoute path="/sales-data"><SalesDataPage /></PageAccessRoute>} />
             <Route path="/reports" element={<PageAccessRoute path="/reports"><ReportsPage /></PageAccessRoute>} />
             <Route path="/inbound" element={<PageAccessRoute path="/inbound"><InboundManagementPage /></PageAccessRoute>} />

@@ -68,7 +68,7 @@
 - [x] Types: `src/features/sales/types/salesType.ts` — SalesTransaction, SalesDailySummary, SalesImportResult, SalesImportApiError, query params, SalesFilterState
 - [x] Schemas: `src/features/sales/schemas/salesSchemas.ts` — salesFilterSchema (with endDate ≥ startDate refinement), validateImportFile, ALLOWED_EXTENSIONS/MAX_FILE_SIZE
 - [x] Service: `src/services/salesService.ts` — importSalesBatch (multipart/60s), getSalesTransactions, getSalesDailySummaries, getSampleFileUrl
-- [x] Hooks: `src/features/sales/hooks/useSales.ts` — SALES_KEYS factory, useSalesTransactions, useSalesDailySummaries, useImportSalesBatch mutation
+- [x] Hooks: `src/features/sales/hooks/useSales.ts` — SALES_KEYS factory + useSalesTransactions, useSalesDailySummaries, useImportSalesBatch mutation
 - [x] Component: `SalesFilterBar.tsx` — date range inputs (native) + location Popover/Command combobox + Apply button; validation highlighting; responsive stacking
 - [x] Component: `ImportCenterTab.tsx` — drag-and-drop dropzone, file card with remove, lock overlay (AnimatePresence), success banner, error banner, stagger-animated error table
 - [x] Component: `SalesTransactionsTab.tsx` — skeleton loading, SALE/RETURN badges, RETURN row tint, URL-synced pagination, empty state + clear filters
@@ -83,3 +83,35 @@
 3. Verify BE returns SalesDailySummaryListResponse with `meta.totalPages` (not `meta.totalPages` from a different key)
 4. Add product_id filter if BE and sprint scope expand to support it
 5. Consider extracting the Pagination component to `components/shared/` once used in 3+ modules
+
+---
+
+## Sprint: AI Forecast (Dự báo AI) — 2026-05-05
+
+### Status: IMPLEMENTED (FE) ✅
+
+## Completed Tasks
+
+- [x] Types: `src/features/ai-forecast/types/aiForecastType.ts` — full replacement: AiForecastStatus, ReviewStatus, MapeAlertLevel, PromotionType, ForecastChannel enums + label/style maps; AiForecastEvent, AiForecastResult, AiForecast, AiForecastDetail, AiRetrainBatch entities; query/filter/form value types
+- [x] Schemas: `src/features/ai-forecast/schemas/aiForecastSchemas.ts` — full replacement: triggerForecastSchema, createEventSchema, reviewResultSchema, updateActualSchema, listFilterSchema + exported inferred types
+- [x] Service: `src/services/aiForecastService.ts` — NEW file: 8 endpoints covering events CRUD, forecast trigger (120s timeout), history list, detail, result review, actual qty update, retrain
+- [x] Hooks: `src/features/ai-forecast/hooks/useAiForecast.ts` — NEW file: AI_FORECAST_KEYS factory, useAiForecastHistory, useAiForecastDetail, useAiForecastEvents, useTriggerForecast, useCreateForecastEvent, useReviewForecastResult, useUpdateActualQty, useTriggerRetrain
+- [x] Component: `TriggerForecastSheet.tsx` — slide-over form: forecast_month (validated YYYY-MM), event_id select (from events list), city optional; Loader2 spinner during mutation; navigate to detail on success
+- [x] Component: `CreateEventSheet.tsx` — slide-over form: event_month, program_name, promotion_types (checkboxes), channels (checkboxes), date range, applicable_products, expected_target, estimated_budget, notes; full Zod validation
+- [x] Component: `ReviewResultDialog.tsx` — approve/reject toggle buttons; reject_reason textarea (conditional, min 10 chars); references product name + forecast qty in header
+- [x] Component: `UpdateActualDialog.tsx` — actual_qty input; client-side MAPE preview with color-coded threshold display; updates on save → triggers MAPE recalculation on BE
+- [x] Component: `AiForecastList.tsx` — list page: PageHeader + Trigger/Events buttons; KPI strip (total/completed/running/fallback counts); filter bar (month + status); animated table with status badges (pulsing for RUNNING); pagination; empty + error states
+- [x] Component: `AiForecastDetail.tsx` — detail page: back nav; status badge; fallback warning banner; WeatherCard; EventCard (with channel/promotion badges); AiInsightsPanel (collapsible, chat-like per-product confidence bars + AI notes from ai_raw_response); full results table with Approve/Reject/Set Actual actions; MAPE display with WARNING/CRITICAL alerts; Retrain button (when eligible results exist)
+- [x] Page: `AiForecastPage.tsx` — thin wrapper → AiForecastList
+- [x] Page: `AiForecastDetailPage.tsx` — thin wrapper: parses numeric :id param, guards invalid IDs with redirect
+- [x] Routing: `App.tsx` — renamed route param `:sku` → `:id`
+- [x] Access: `pageAccess.ts` — added `ai-forecast` entry to `PAGE_PERMISSION_MAP` with `modules: ['ai_forecasts']`
+
+## Next Steps
+
+1. Verify exact BE response envelope shape for `POST /api/ai-forecasts/trigger` — service returns `prisma.aiForecast.findUnique()` without `triggered_user` include; if BE controller doesn't include it, the detail navigation after trigger will still work (only `id` is used for navigation)
+2. Verify `confidence` (0–1 scale) and `note` fields are present in `ai_raw_response.results` — currently cross-referenced from `AiForecast.ai_raw_response` by product_id; if not present (fallback), the AI Insights panel shows appropriate fallback message
+3. Test retrain button eligibility logic — requires `review_status !== 'PENDING'` AND `actual_qty !== null` AND `is_retrain_submitted = false`
+4. Add pagination to `GET /api/ai-forecasts/events` if event list grows large
+5. Consider adding a dedicated analytics endpoint to the BE for global status counts (currently KPI cards show page-level counts only)
+6. Retire orphaned files: `useAiForecastInsights.ts` and `AiForecastDashboard.tsx` in a cleanup sprint

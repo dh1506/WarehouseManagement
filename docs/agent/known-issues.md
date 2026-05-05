@@ -68,6 +68,28 @@ Assumed: `GET /api/sales/transactions` and `GET /api/sales/summaries`. Confirm w
 
 The `<Pagination>` component is inlined in both tab files. Candidate for extraction to `components/shared/Pagination.tsx` once a third module needs it (per DRY threshold rule).
 
+## AI Forecast Module
+
+### KI-15: Trigger response missing `triggered_user` include
+
+`POST /api/ai-forecasts/trigger` calls `prisma.aiForecast.findUnique()` without the `triggered_user` include. The FE only uses `data.id` and `data.is_fallback` from the trigger response (for toast + navigation), so this is not currently a problem. If the trigger response is displayed directly in future, the BE controller must add the include.
+
+### KI-16: `confidence` field is 0–1, not 0–100
+
+Gemini returns `confidence` in the range 0–1. The `AiInsightsPanel` multiplies by 100 for display (`gemini.confidence * 100`). If the BE changes this convention, update the multiplication in `AiForecastDetail.tsx`.
+
+### KI-17: KPI cards show page-level counts, not global
+
+The 4 KPI cards (Completed/Running/Fallback) on `AiForecastList` are computed from the current page's items only, not the full dataset. A dedicated BE analytics endpoint (`GET /api/ai-forecasts/stats`) would fix this.
+
+### KI-18: Retrain is a global operation, not per-forecast
+
+`POST /api/ai-forecasts/retrain` collects feedback from ALL forecasts in the system (not just the one currently viewed). The Retrain button is placed on the detail page as a UX convenience but operates globally.
+
+### KI-19: Orphaned files not deleted
+
+`useAiForecastInsights.ts` and `AiForecastDashboard.tsx` are no longer imported but still exist in the codebase. They compile without errors and do not affect the app. Schedule for removal in a cleanup sprint.
+
 ---
 
 ### KI-10: Lot source is inventory-aggregated, not dedicated lot search API

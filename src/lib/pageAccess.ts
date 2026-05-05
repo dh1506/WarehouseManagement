@@ -105,6 +105,13 @@ export const PAGE_PERMISSION_MAP: PagePermissionConfig[] = [
     description: 'Disposal ticket management for damaged and expired goods',
     modules: ['stock_disposals'],
   },
+  {
+    id: 'ai-forecast',
+    label: 'AI Forecast',
+    icon: 'smart_toy',
+    description: 'Gemini AI demand forecasting and accuracy tracking',
+    modules: ['ai_forecasts'],
+  },
 ];
 
 export interface SidebarPageAccessConfig {
