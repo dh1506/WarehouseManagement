@@ -1,4 +1,95 @@
 -- CreateTable
+CREATE TABLE `ai_forecast_events` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `event_month` DATE NOT NULL,
+    `program_name` VARCHAR(255) NOT NULL,
+    `promotion_types` JSON NOT NULL,
+    `applicable_products` TEXT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `channels` JSON NOT NULL,
+    `expected_target` TEXT NULL,
+    `estimated_budget` DECIMAL(15, 2) NULL,
+    `notes` TEXT NULL,
+    `created_by` INTEGER NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `ai_forecast_events_created_by_idx`(`created_by`),
+    INDEX `ai_forecast_events_event_month_idx`(`event_month`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ai_forecasts` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `forecast_month` DATE NOT NULL,
+    `status` ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    `input_snapshot` JSON NULL,
+    `ai_raw_response` JSON NULL,
+    `is_fallback` BOOLEAN NOT NULL DEFAULT false,
+    `fallback_reason` TEXT NULL,
+    `weather_data` JSON NULL,
+    `event_id` INTEGER NULL,
+    `triggered_by` INTEGER NOT NULL,
+    `completed_at` DATETIME(3) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `ai_forecasts_triggered_by_idx`(`triggered_by`),
+    INDEX `ai_forecasts_event_id_idx`(`event_id`),
+    INDEX `ai_forecasts_forecast_month_idx`(`forecast_month`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ai_forecast_results` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `forecast_id` INTEGER NOT NULL,
+    `product_id` INTEGER NOT NULL,
+    `warehouse_location_id` INTEGER NOT NULL,
+    `forecast_qty` DECIMAL(15, 3) NOT NULL,
+    `actual_qty` DECIMAL(15, 3) NULL,
+    `current_stock` DECIMAL(15, 3) NOT NULL,
+    `safe_stock` DECIMAL(15, 3) NOT NULL,
+    `incoming_stock` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `suggested_order_qty` DECIMAL(15, 3) NOT NULL,
+    `lead_time_days` INTEGER NOT NULL DEFAULT 0,
+    `mape_score` DECIMAL(8, 4) NULL,
+    `mape_alert_level` ENUM('WARNING', 'CRITICAL') NULL,
+    `review_status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    `reject_reason` TEXT NULL,
+    `reviewed_by` INTEGER NULL,
+    `reviewed_at` DATETIME(3) NULL,
+    `is_retrain_submitted` BOOLEAN NOT NULL DEFAULT false,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `ai_forecast_results_forecast_id_idx`(`forecast_id`),
+    INDEX `ai_forecast_results_product_id_idx`(`product_id`),
+    INDEX `ai_forecast_results_warehouse_location_id_idx`(`warehouse_location_id`),
+    INDEX `ai_forecast_results_reviewed_by_idx`(`reviewed_by`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ai_retrain_batches` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `batch_date` DATE NOT NULL,
+    `status` ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    `total_feedbacks` INTEGER NOT NULL DEFAULT 0,
+    `ai_raw_response` JSON NULL,
+    `error_message` TEXT NULL,
+    `triggered_by` INTEGER NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `ai_retrain_batches_triggered_by_idx`(`triggered_by`),
+    INDEX `ai_retrain_batches_batch_date_idx`(`batch_date`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `audit_logs` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `module` VARCHAR(100) NOT NULL,
@@ -261,6 +352,20 @@ CREATE TABLE `brands_products` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `report_configs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    `report_type` ENUM('DASHBOARD_SUMMARY', 'STOCK_IN', 'STOCK_OUT', 'STOCK_COUNT', 'STOCK_DISPOSAL', 'INVENTORY') NOT NULL,
+    `recipient_emails` TEXT NOT NULL,
+    `schedule_cron` VARCHAR(100) NOT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `sales_import_batches` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `batch_code` VARCHAR(255) NOT NULL,
@@ -290,7 +395,7 @@ CREATE TABLE `sales_transactions` (
     `product_id` INTEGER NOT NULL,
     `quantity` DECIMAL(15, 3) NOT NULL,
     `unit_price` DECIMAL(15, 2) NOT NULL,
-    `promo_discount_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    `promo_discount_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     `net_amount` DECIMAL(15, 2) NOT NULL,
     `is_valid` BOOLEAN NOT NULL DEFAULT true,
     `is_inventory_updated` BOOLEAN NOT NULL DEFAULT false,
@@ -310,11 +415,11 @@ CREATE TABLE `sales_daily_summaries` (
     `summary_date` DATE NOT NULL,
     `warehouse_location_id` INTEGER NOT NULL,
     `product_id` INTEGER NOT NULL,
-    `total_sales_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0,
-    `total_returned_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0,
-    `net_sales_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0,
-    `total_promo_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0,
-    `total_revenue` DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    `total_sales_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `total_returned_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `net_sales_qty` DECIMAL(15, 3) NOT NULL DEFAULT 0.000,
+    `total_promo_amount` DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+    `total_revenue` DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     `last_updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     INDEX `sales_daily_summaries_warehouse_location_id_idx`(`warehouse_location_id`),
@@ -383,6 +488,9 @@ CREATE TABLE `stock_count_adjustments` (
     INDEX `stock_count_adjustments_stock_count_id_idx`(`stock_count_id`),
     INDEX `stock_count_adjustments_stock_count_detail_id_idx`(`stock_count_detail_id`),
     INDEX `stock_count_adjustments_created_by_idx`(`created_by`),
+    INDEX `stock_count_adjustments_lot_id_fkey`(`lot_id`),
+    INDEX `stock_count_adjustments_product_id_fkey`(`product_id`),
+    INDEX `stock_count_adjustments_warehouse_location_id_fkey`(`warehouse_location_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -684,6 +792,30 @@ CREATE TABLE `product_warehouses` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
+ALTER TABLE `ai_forecast_events` ADD CONSTRAINT `ai_forecast_events_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_forecasts` ADD CONSTRAINT `ai_forecasts_event_id_fkey` FOREIGN KEY (`event_id`) REFERENCES `ai_forecast_events`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_forecasts` ADD CONSTRAINT `ai_forecasts_triggered_by_fkey` FOREIGN KEY (`triggered_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_forecast_results` ADD CONSTRAINT `ai_forecast_results_forecast_id_fkey` FOREIGN KEY (`forecast_id`) REFERENCES `ai_forecasts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_forecast_results` ADD CONSTRAINT `ai_forecast_results_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_forecast_results` ADD CONSTRAINT `ai_forecast_results_reviewed_by_fkey` FOREIGN KEY (`reviewed_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_forecast_results` ADD CONSTRAINT `ai_forecast_results_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ai_retrain_batches` ADD CONSTRAINT `ai_retrain_batches_triggered_by_fkey` FOREIGN KEY (`triggered_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -759,22 +891,31 @@ ALTER TABLE `sales_import_batches` ADD CONSTRAINT `sales_import_batches_created_
 ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_batch_id_fkey` FOREIGN KEY (`batch_id`) REFERENCES `sales_import_batches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `sales_daily_summaries` ADD CONSTRAINT `sales_daily_summaries_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `sales_transactions` ADD CONSTRAINT `sales_transactions_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `sales_daily_summaries` ADD CONSTRAINT `sales_daily_summaries_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_counts` ADD CONSTRAINT `stock_counts_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `sales_daily_summaries` ADD CONSTRAINT `sales_daily_summaries_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_counts` ADD CONSTRAINT `stock_counts_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_counts` ADD CONSTRAINT `stock_counts_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_counted_by_fkey` FOREIGN KEY (`counted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_stock_count_id_fkey` FOREIGN KEY (`stock_count_id`) REFERENCES `stock_counts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -783,55 +924,46 @@ ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_stock_coun
 ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_count_details` ADD CONSTRAINT `stock_count_details_counted_by_fkey` FOREIGN KEY (`counted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_stock_count_id_fkey` FOREIGN KEY (`stock_count_id`) REFERENCES `stock_counts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_disposals` ADD CONSTRAINT `stock_disposals_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_stock_count_id_fkey` FOREIGN KEY (`stock_count_id`) REFERENCES `stock_counts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_count_adjustments` ADD CONSTRAINT `stock_count_adjustments_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_disposals` ADD CONSTRAINT `stock_disposals_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stock_disposal_history` ADD CONSTRAINT `stock_disposal_history_stock_disposal_id_fkey` FOREIGN KEY (`stock_disposal_id`) REFERENCES `stock_disposals`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stock_disposals` ADD CONSTRAINT `stock_disposals_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_disposal_history` ADD CONSTRAINT `stock_disposal_history_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_history` ADD CONSTRAINT `stock_disposal_history_stock_disposal_id_fkey` FOREIGN KEY (`stock_disposal_id`) REFERENCES `stock_disposals`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_reason_id_fkey` FOREIGN KEY (`reason_id`) REFERENCES `disposal_reasons`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_stock_disposal_id_fkey` FOREIGN KEY (`stock_disposal_id`) REFERENCES `stock_disposals`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_warehouse_location_id_fkey` FOREIGN KEY (`warehouse_location_id`) REFERENCES `warehouse_locations`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_lot_id_fkey` FOREIGN KEY (`lot_id`) REFERENCES `product_lots`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `stock_disposal_details` ADD CONSTRAINT `stock_disposal_details_reason_id_fkey` FOREIGN KEY (`reason_id`) REFERENCES `disposal_reasons`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `stock_ins` ADD CONSTRAINT `stock_ins_approved_by_fkey` FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
