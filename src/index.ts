@@ -22,7 +22,9 @@ import stockCountRoutes from "./routes/stock-count.route";
 import stockDisposalRoutes from "./routes/stock-disposal.route";
 import salesRoutes from "./routes/sales.routes";
 import aiForecastRoutes from "./routes/ai-forecast.routes";
+import reportRoutes from "./routes/report.route";
 import { globalErrorHandler } from "./middlewares/error.middleware";
+import { initScheduler } from "./utils/scheduler.util";
 
 dotenv.config();
 
@@ -60,6 +62,7 @@ app.use("/api/stock-counts", stockCountRoutes);
 app.use("/api/stock-disposals", stockDisposalRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/ai-forecasts", aiForecastRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Error Middleware
 app.use(globalErrorHandler);
@@ -67,4 +70,5 @@ app.use(globalErrorHandler);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  initScheduler();
 });

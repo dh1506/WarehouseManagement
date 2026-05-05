@@ -408,6 +408,44 @@ export async function seedAuth(prisma: PrismaClient) {
       module: "stock_disposals",
       action: "analytics",
     },
+
+    // DASHBOARD & REPORTS
+    {
+      name: "dashboard:read",
+      description: "Xem dashboard tổng quan",
+      module: "dashboard",
+      action: "read",
+    },
+    {
+      name: "reports:read",
+      description: "Xem báo cáo chi tiết",
+      module: "reports",
+      action: "read",
+    },
+    {
+      name: "report_configs:read",
+      description: "Xem cấu hình báo cáo",
+      module: "report_configs",
+      action: "read",
+    },
+    {
+      name: "report_configs:create",
+      description: "Tạo cấu hình báo cáo",
+      module: "report_configs",
+      action: "create",
+    },
+    {
+      name: "report_configs:update",
+      description: "Sửa cấu hình báo cáo",
+      module: "report_configs",
+      action: "update",
+    },
+    {
+      name: "report_configs:delete",
+      description: "Xóa cấu hình báo cáo",
+      module: "report_configs",
+      action: "delete",
+    },
   ];
 
   for (const p of permissions) {

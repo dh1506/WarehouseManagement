@@ -167,3 +167,22 @@ export const sendMapeAlertEmail = async (payload: MapeAlertEmailPayload): Promis
 
   console.log(`[Email] Gửi MAPE alert email thành công đến ${recipientEmail}`);
 };
+
+// =============================================
+// Hàm gửi email chung
+// =============================================
+
+export const sendEmail = async (options: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<void> => {
+  const mail = getTransporter();
+  await mail.sendMail({
+    from: `"Warehouse Management System" <${process.env.EMAIL_USER}>`,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  });
+  console.log(`[Email] Gửi email thành công đến ${options.to}`);
+};
