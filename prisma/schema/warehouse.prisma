@@ -31,16 +31,17 @@ model WarehouseLocation {
   storage_condition       StorageType               @default(AMBIENT)
   created_at              DateTime                  @default(now())
   updated_at              DateTime                  @updatedAt
+  ai_forecast_results     AiForecastResult[]
   inventories             Inventory[]
   inventory_transactions  InventoryTransaction[]
   allowed_categories      LocationAllowedCategory[]
+  sales_daily_summaries   SalesDailySummary[]
+  sales_transactions      SalesTransaction[]
+  stock_count_adjustments StockCountAdjustment[]
+  stock_count_details     StockCountDetail[]
+  stock_disposal_details  StockDisposalDetail[]
   stock_ins               StockIn[]
   stock_outs              StockOut[]
-  stock_count_details     StockCountDetail[]
-  stock_count_adjustments StockCountAdjustment[]
-  stock_disposal_details  StockDisposalDetail[]
-  sales_transactions      SalesTransaction[]
-  sales_daily_summaries   SalesDailySummary[]
   warehouse               Warehouse                 @relation(fields: [warehouse_id], references: [id], onDelete: Cascade)
 
   @@index([warehouse_id], map: "warehouse_locations_warehouse_id_fkey")

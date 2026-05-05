@@ -59,6 +59,7 @@ model Product {
   updated_at              DateTime               @updatedAt
   expiry_date             DateTime?
   production_date         DateTime?
+  ai_forecast_results     AiForecastResult[]
   brands                  BrandProduct[]
   inventories             Inventory[]
   inventory_transactions  InventoryTransaction[]
@@ -68,13 +69,13 @@ model Product {
   uoms                    ProductUom[]
   warehouses              ProductWarehouse[]
   base_uom                UnitOfMeasure          @relation(fields: [base_uom_id], references: [id])
+  sales_daily_summaries   SalesDailySummary[]
+  sales_transactions      SalesTransaction[]
+  stock_count_adjustments StockCountAdjustment[]
+  stock_count_details     StockCountDetail[]
+  stock_disposal_details  StockDisposalDetail[]
   stock_in_details        StockInDetail[]
   stock_out_details       StockOutDetail[]
-  stock_count_details     StockCountDetail[]
-  stock_count_adjustments StockCountAdjustment[]
-  stock_disposal_details  StockDisposalDetail[]
-  sales_transactions      SalesTransaction[]
-  sales_daily_summaries   SalesDailySummary[]
 
   @@index([base_uom_id], map: "products_base_uom_id_fkey")
   @@map("products")
