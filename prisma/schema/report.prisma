@@ -1,12 +1,12 @@
 model ReportConfig {
-  id               Int      @id @default(autoincrement())
-  name             String   @db.VarChar(255)
-  report_type      ReportType 
-  recipient_emails String   @db.Text
-  schedule_cron    String   @db.VarChar(100)
-  is_active        Boolean  @default(true)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  id               Int        @id @default(autoincrement())
+  name             String     @db.VarChar(255)
+  report_type      ReportType
+  recipient_emails String     @db.Text
+  schedule_cron    String     @db.VarChar(100)
+  is_active        Boolean    @default(true)
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
 
   @@map("report_configs")
 }
