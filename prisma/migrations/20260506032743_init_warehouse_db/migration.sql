@@ -386,7 +386,7 @@ CREATE TABLE `sales_import_batches` (
 
 -- CreateTable
 CREATE TABLE `sales_transactions` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `batch_id` INTEGER NOT NULL,
     `warehouse_location_id` INTEGER NOT NULL,
     `transaction_code` VARCHAR(255) NOT NULL,
