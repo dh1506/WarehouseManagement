@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as salesController from '../controllers/sales.controller';
+import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
+
+router.use(authenticate);
 
 // Configure multer for memory storage
 const upload = multer({
