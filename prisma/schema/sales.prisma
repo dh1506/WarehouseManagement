@@ -18,7 +18,7 @@ model SalesImportBatch {
 }
 
 model SalesTransaction {
-  id                    BigInt            @id @default(autoincrement())
+  id                    Int               @id @default(autoincrement())
   batch_id              Int
   warehouse_location_id Int
   transaction_code      String            @db.VarChar(255)
