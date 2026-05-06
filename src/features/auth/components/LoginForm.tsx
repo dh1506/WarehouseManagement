@@ -16,7 +16,7 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    mode: 'onTouched',
+    mode: 'onSubmit',
   });
 
   const { mutateAsync: loginMutation } = useLogin();

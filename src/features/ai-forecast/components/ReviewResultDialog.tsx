@@ -54,7 +54,7 @@ export function ReviewResultDialog({
 
     if (!parsed.success) {
       const fieldErrors: FieldErrors = {};
-      parsed.error.errors.forEach((err) => {
+      parsed.error.issues.forEach((err) => {
         const key = err.path[0] as keyof FieldErrors;
         if (key) fieldErrors[key] = err.message;
       });
@@ -163,7 +163,7 @@ export function ReviewResultDialog({
             onClick={handleSubmit}
             disabled={reviewMutation.isPending}
             variant={isApprove ? 'default' : 'destructive'}
-            className="min-w-[100px]"
+            className="min-w-25"
           >
             {reviewMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

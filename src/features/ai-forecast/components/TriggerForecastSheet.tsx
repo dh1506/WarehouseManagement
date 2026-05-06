@@ -73,7 +73,7 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
 
     if (!parsed.success) {
       const fieldErrors: FieldErrors = {};
-      parsed.error.errors.forEach((err) => {
+      parsed.error.issues.forEach((err) => {
         const key = err.path[0] as keyof FieldErrors;
         if (key) fieldErrors[key] = err.message;
       });
@@ -105,7 +105,7 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
           <div className="flex flex-col gap-1.5">
             <FieldLabel required>Forecast Month</FieldLabel>
             <Input
-              placeholder="e.g. 2025-06"
+              type="month"
               value={fields.forecast_month}
               onChange={(e) => setFields((prev) => ({ ...prev, forecast_month: e.target.value }))}
             />
@@ -116,14 +116,14 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
           <div className="flex flex-col gap-1.5">
             <FieldLabel>Promotion Event</FieldLabel>
             <Select
-              value={fields.event_id}
-              onValueChange={(v) => setFields((prev) => ({ ...prev, event_id: v }))}
+              value={fields.event_id === '' ? '__NONE__' : fields.event_id}
+              onValueChange={(v) => setFields((prev) => ({ ...prev, event_id: v === '__NONE__' ? '' : v }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="No event (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No event</SelectItem>
+                <SelectItem value="__NONE__">No event</SelectItem>
                 {eventsQuery.data?.map((ev) => (
                   <SelectItem key={ev.id} value={String(ev.id)}>
                     {ev.program_name}

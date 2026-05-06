@@ -104,7 +104,7 @@ export function CreateEventSheet({ open, onClose }: CreateEventSheetProps) {
 
     if (!parsed.success) {
       const fieldErrors: FieldErrors = {};
-      parsed.error.errors.forEach((err) => {
+      parsed.error.issues.forEach((err) => {
         const key = err.path[0] as keyof FieldErrors;
         if (key) fieldErrors[key] = err.message;
       });
@@ -131,9 +131,11 @@ export function CreateEventSheet({ open, onClose }: CreateEventSheetProps) {
           <div className="flex flex-col gap-1.5">
             <FieldLabel required>Event Month</FieldLabel>
             <Input
-              placeholder="e.g. 2025-07"
-              value={fields.event_month}
-              onChange={(e) => setFields((prev) => ({ ...prev, event_month: e.target.value }))}
+              type="date"
+              value={fields.event_month ? fields.event_month + '-01' : ''}
+              onChange={(e) =>
+                setFields((prev) => ({ ...prev, event_month: e.target.value.slice(0, 7) }))
+              }
             />
             <FieldError msg={errors.event_month} />
           </div>
@@ -260,7 +262,7 @@ export function CreateEventSheet({ open, onClose }: CreateEventSheetProps) {
           <Button variant="outline" onClick={onClose} disabled={createMutation.isPending}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={createMutation.isPending} className="min-w-[120px]">
+          <Button onClick={handleSubmit} disabled={createMutation.isPending} className="min-w-30">
             {createMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

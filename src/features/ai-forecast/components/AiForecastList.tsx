@@ -210,11 +210,11 @@ export function AiForecastList() {
               }
             />
             <Select
-              value={draftFilters.status}
+              value={draftFilters.status === '' ? '__ALL__' : draftFilters.status}
               onValueChange={(v) =>
                 setDraftFilters((prev) => ({
                   ...prev,
-                  status: v as AiForecastStatus | '',
+                  status: (v === '__ALL__' ? '' : v) as AiForecastStatus | '',
                 }))
               }
             >
@@ -222,7 +222,7 @@ export function AiForecastList() {
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All statuses</SelectItem>
+                <SelectItem value="__ALL__">All statuses</SelectItem>
                 <SelectItem value="PENDING">Pending</SelectItem>
                 <SelectItem value="RUNNING">Running</SelectItem>
                 <SelectItem value="COMPLETED">Completed</SelectItem>
