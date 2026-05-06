@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { FolderX } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +10,17 @@ import type { SalesFilterState, SalesTransaction, SalesTransactionType } from '.
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// Convert a bare YYYY-MM-DD date string to a local-timezone ISO datetime.
+// Omitting the Z suffix forces the Date constructor to interpret the value as
+// local time, so users in UTC+7 get the correct midnight/end-of-day boundaries
+// rather than UTC midnight (AC-4: Timezone Accuracy).
+function toLocalStartISO(date: string): string {
+  return new Date(date + 'T00:00:00').toISOString();
+}
+function toLocalEndISO(date: string): string {
+  return new Date(date + 'T23:59:59.999').toISOString();
 }
 
 function formatDateTime(iso: string): string {
@@ -25,10 +36,12 @@ function formatDateTime(iso: string): string {
 function formatCurrency(value: string): string {
   const num = parseFloat(value);
   if (isNaN(num)) return value;
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num) + ' ₫';
+  return (
+    new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num) + ' ₫'
+  );
 }
 
 function TypeBadge({ type }: { type: SalesTransactionType }) {
@@ -127,7 +140,7 @@ function Pagination({
   );
 }
 
-// ── Skeleton rows ─────────────────────────────────────────────────────────────
+// ── Skeleton rows (9 columns matching table header) ───────────────────────────
 function SkeletonRows() {
   return (
     <>
@@ -137,7 +150,8 @@ function SkeletonRows() {
           <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
           <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
           <td className="px-4 py-3"><Skeleton className="h-4 w-36" /></td>
-          <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+          <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+          <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-10 ml-auto" /></td>
           <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
           <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-14 ml-auto" /></td>
           <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
@@ -148,7 +162,15 @@ function SkeletonRows() {
 }
 
 // ── Transaction row ───────────────────────────────────────────────────────────
-function TransactionRow({ tx, index, reduced }: { tx: SalesTransaction; index: number; reduced: boolean | null }) {
+function TransactionRow({
+  tx,
+  index,
+  reduced,
+}: {
+  tx: SalesTransaction;
+  index: number;
+  reduced: boolean | null;
+}) {
   const isReturn = tx.transaction_type === 'RETURN';
   return (
     <motion.tr
@@ -170,9 +192,7 @@ function TransactionRow({ tx, index, reduced }: { tx: SalesTransaction; index: n
         <TypeBadge type={tx.transaction_type} />
       </td>
       <td className="px-4 py-3 text-[13px] text-zinc-700 max-w-[180px]">
-        <span className="block truncate">
-          {tx.location.location_code}
-        </span>
+        <span className="block truncate">{tx.location.location_code}</span>
       </td>
       <td className="px-4 py-3 text-[13px] text-zinc-700 max-w-[200px]">
         <span className="block truncate">
@@ -190,11 +210,14 @@ function TransactionRow({ tx, index, reduced }: { tx: SalesTransaction; index: n
       <td className="px-4 py-3 text-[13px] text-right tabular-nums text-zinc-500">
         {parseFloat(tx.promo_discount_amount) > 0 ? formatCurrency(tx.promo_discount_amount) : '—'}
       </td>
-      <td className={[
-        'px-4 py-3 text-[13px] text-right tabular-nums font-medium',
-        isReturn ? 'text-red-600' : 'text-zinc-900',
-      ].join(' ')}>
-        {isReturn ? '−' : ''}{formatCurrency(tx.net_amount)}
+      <td
+        className={[
+          'px-4 py-3 text-[13px] text-right tabular-nums font-medium',
+          isReturn ? 'text-red-600' : 'text-zinc-900',
+        ].join(' ')}
+      >
+        {isReturn ? '−' : ''}
+        {formatCurrency(tx.net_amount)}
       </td>
     </motion.tr>
   );
@@ -203,36 +226,45 @@ function TransactionRow({ tx, index, reduced }: { tx: SalesTransaction; index: n
 // ── Main component ────────────────────────────────────────────────────────────
 export function SalesTransactionsTab() {
   const reduced = useReducedMotion();
-  const { params, updateTableParams } = useTableParams('transaction_date', 'desc');
+  // useTableParams infers a narrow type; cast to include custom URL filter keys.
+  const { params: _params, updateTableParams } = useTableParams('transaction_date', 'desc');
+  const params = _params as typeof _params & {
+    startDate?: string;
+    endDate?: string;
+    locationId?: string;
+  };
 
   const today = todayISO();
 
-  // Derive filter state from URL params
   const [pendingFilters, setPendingFilters] = useState<SalesFilterState>({
-    startDate: (params.startDate as string | undefined) ?? today,
-    endDate: (params.endDate as string | undefined) ?? today,
+    startDate: params.startDate ?? today,
+    endDate: params.endDate ?? today,
     locationId: params.locationId ? Number(params.locationId) : undefined,
   });
 
-  // Sync URL → local pending filters when navigating
+  // Sync URL → local pending filters when the user navigates back to this tab.
   useEffect(() => {
     setPendingFilters({
-      startDate: (params.startDate as string | undefined) ?? today,
-      endDate: (params.endDate as string | undefined) ?? today,
+      startDate: params.startDate ?? today,
+      endDate: params.endDate ?? today,
       locationId: params.locationId ? Number(params.locationId) : undefined,
     });
-    // Only re-sync when the URL changes, not on every render
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.startDate, params.endDate, params.locationId]);
 
   const page = Number(params.page) || 1;
   const pageSize = 20;
 
+  // Convert bare YYYY-MM-DD URL values to proper local-timezone ISO strings
+  // so the BE Prisma gte/lte comparison uses the correct day boundaries (AC-4).
+  const rawStart = params.startDate ?? today;
+  const rawEnd = params.endDate ?? today;
+
   const queryParams = {
     page,
     limit: pageSize,
-    startDate: (params.startDate as string | undefined) ?? today + 'T00:00:00.000Z',
-    endDate: (params.endDate as string | undefined) ?? today + 'T23:59:59.999Z',
+    startDate: toLocalStartISO(rawStart),
+    endDate: toLocalEndISO(rawEnd),
     warehouse_location_id: params.locationId ? Number(params.locationId) : undefined,
   };
 
@@ -287,10 +319,12 @@ export function SalesTransactionsTab() {
       </div>
 
       {/* Data table */}
-      <div className={[
-        'bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm transition-opacity duration-200',
-        isFetching && !isLoading ? 'opacity-60' : 'opacity-100',
-      ].join(' ')}>
+      <div
+        className={[
+          'bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm transition-opacity duration-200',
+          isFetching && !isLoading ? 'opacity-60' : 'opacity-100',
+        ].join(' ')}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[860px]">
             <thead>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { FolderX } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,12 +12,22 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Convert a bare YYYY-MM-DD date string to a local-timezone ISO datetime.
+// Omitting the Z suffix forces the Date constructor to interpret the value as
+// local time, so users in UTC+7 get the correct midnight/end-of-day boundaries
+// rather than UTC midnight (AC-4: Timezone Accuracy).
+function toLocalStartISO(date: string): string {
+  return new Date(date + 'T00:00:00').toISOString();
+}
+function toLocalEndISO(date: string): string {
+  return new Date(date + 'T23:59:59.999').toISOString();
+}
+
+// Parse summary_date directly from the YYYY-MM-DD portion to avoid UTC offset
+// shifting the displayed date for users in non-zero timezones.
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function formatCurrency(value: string): string {
@@ -111,7 +121,7 @@ function Pagination({
   );
 }
 
-// ── Skeleton rows ─────────────────────────────────────────────────────────────
+// ── Skeleton rows (8 columns matching table header) ───────────────────────────
 function SkeletonRows() {
   return (
     <>
@@ -154,10 +164,10 @@ function SummaryRow({
       <td className="px-4 py-3 text-[13px] text-zinc-500 whitespace-nowrap">
         {formatDate(row.summary_date)}
       </td>
-      <td className="px-4 py-3 text-[13px] text-zinc-700 max-w-[160px]">
+      <td className="px-4 py-3 text-[13px] text-zinc-700 max-w-40">
         <span className="block truncate">{row.location.location_code}</span>
       </td>
-      <td className="px-4 py-3 text-[13px] text-zinc-700 max-w-[200px]">
+      <td className="px-4 py-3 text-[13px] text-zinc-700 max-w-50">
         <span className="block truncate">
           <span className="font-medium">{row.product.code}</span>
           {' · '}
@@ -170,18 +180,20 @@ function SummaryRow({
       <td className="px-4 py-3 text-[13px] text-right tabular-nums text-zinc-800">
         {row.total_returned_qty.toLocaleString()}
       </td>
-      {/* Net Sales Qty — key metric, always bold */}
+      {/* Net Sales Qty — key metric, always bold (AC: SL Bán thực tế) */}
       <td className="px-4 py-3 text-[13px] text-right tabular-nums font-bold text-zinc-900">
         {row.net_sales_qty.toLocaleString()}
       </td>
       <td className="px-4 py-3 text-[13px] text-right tabular-nums text-zinc-500">
         {parseFloat(row.total_promo_amount) > 0 ? formatCurrency(row.total_promo_amount) : '—'}
       </td>
-      {/* Revenue — red + minus sign when negative per AC */}
-      <td className={[
-        'px-4 py-3 text-[13px] text-right tabular-nums font-medium',
-        isNegativeRevenue ? 'text-red-600' : 'text-zinc-900',
-      ].join(' ')}>
+      {/* Revenue — red + minus sign when negative (AC-2: Summaries) */}
+      <td
+        className={[
+          'px-4 py-3 text-[13px] text-right tabular-nums font-medium',
+          isNegativeRevenue ? 'text-red-600' : 'text-zinc-900',
+        ].join(' ')}
+      >
         {formatCurrency(row.total_revenue)}
       </td>
     </motion.tr>
@@ -191,20 +203,26 @@ function SummaryRow({
 // ── Main component ────────────────────────────────────────────────────────────
 export function DailySummariesTab() {
   const reduced = useReducedMotion();
-  const { params, updateTableParams } = useTableParams('summary_date', 'desc');
+  // useTableParams infers a narrow type; cast to include custom URL filter keys.
+  const { params: _params, updateTableParams } = useTableParams('summary_date', 'desc');
+  const params = _params as typeof _params & {
+    startDate?: string;
+    endDate?: string;
+    locationId?: string;
+  };
 
   const today = todayISO();
 
   const [pendingFilters, setPendingFilters] = useState<SalesFilterState>({
-    startDate: (params.startDate as string | undefined) ?? today,
-    endDate: (params.endDate as string | undefined) ?? today,
+    startDate: params.startDate ?? today,
+    endDate: params.endDate ?? today,
     locationId: params.locationId ? Number(params.locationId) : undefined,
   });
 
   useEffect(() => {
     setPendingFilters({
-      startDate: (params.startDate as string | undefined) ?? today,
-      endDate: (params.endDate as string | undefined) ?? today,
+      startDate: params.startDate ?? today,
+      endDate: params.endDate ?? today,
       locationId: params.locationId ? Number(params.locationId) : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,11 +231,16 @@ export function DailySummariesTab() {
   const page = Number(params.page) || 1;
   const pageSize = 20;
 
+  // Convert bare YYYY-MM-DD URL values to proper local-timezone ISO strings
+  // so the BE Prisma gte/lte comparison uses the correct day boundaries (AC-4).
+  const rawStart = params.startDate ?? today;
+  const rawEnd = params.endDate ?? today;
+
   const queryParams = {
     page,
     limit: pageSize,
-    startDate: (params.startDate as string | undefined) ?? today,
-    endDate: (params.endDate as string | undefined) ?? today,
+    startDate: toLocalStartISO(rawStart),
+    endDate: toLocalEndISO(rawEnd),
     warehouse_location_id: params.locationId ? Number(params.locationId) : undefined,
   };
 
@@ -272,12 +295,14 @@ export function DailySummariesTab() {
       </div>
 
       {/* Data table */}
-      <div className={[
-        'bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm transition-opacity duration-200',
-        isFetching && !isLoading ? 'opacity-60' : 'opacity-100',
-      ].join(' ')}>
+      <div
+        className={[
+          'bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm transition-opacity duration-200',
+          isFetching && !isLoading ? 'opacity-60' : 'opacity-100',
+        ].join(' ')}
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[860px]">
+          <table className="w-full text-left border-collapse min-w-215">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-200">
                 {[
