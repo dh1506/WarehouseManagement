@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReportFilterBarProps {
+  id: string;
   startDate: string;
   endDate: string;
   onFilter: (from: string, to: string) => void;
@@ -10,6 +11,7 @@ interface ReportFilterBarProps {
 }
 
 export function ReportFilterBar({
+  id,
   startDate,
   endDate,
   onFilter,
@@ -42,8 +44,8 @@ export function ReportFilterBar({
         <span className="font-medium">Từ ngày</span>
       </div>
       <input
-        id="filter-date-from"
-        name="filter-date-from"
+        id={`${id}-filter-from`}
+        name={`${id}-filter-from`}
         type="date"
         value={localFrom}
         onChange={(e) => setLocalFrom(e.target.value)}
@@ -51,8 +53,8 @@ export function ReportFilterBar({
       />
       <span className="text-slate-400 text-xs">–</span>
       <input
-        id="filter-date-to"
-        name="filter-date-to"
+        id={`${id}-filter-to`}
+        name={`${id}-filter-to`}
         type="date"
         value={localTo}
         onChange={(e) => setLocalTo(e.target.value)}

@@ -74,6 +74,7 @@ export function StockCountReportTab() {
   return (
     <div className="flex flex-col h-full gap-3">
       <ReportFilterBar
+        id="stock-count"
         startDate={startDate}
         endDate={endDate}
         onFilter={handleFilter}

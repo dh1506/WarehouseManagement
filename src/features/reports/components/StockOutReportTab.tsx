@@ -72,6 +72,7 @@ export function StockOutReportTab() {
   return (
     <div className="flex flex-col h-full gap-3">
       <ReportFilterBar
+        id="stock-out"
         startDate={startDate}
         endDate={endDate}
         onFilter={handleFilter}

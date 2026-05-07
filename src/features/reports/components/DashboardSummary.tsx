@@ -219,12 +219,7 @@ export function DashboardSummary() {
   );
 
   return (
-    <motion.div
-      className="flex flex-col h-full overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-    >
+    <div className="flex flex-col h-full overflow-hidden">
       {/* ── Fixed header ──────────────────────────────────────────────────────── */}
       <div className="shrink-0 px-4 pt-4 pb-3 md:px-6 md:pt-5 space-y-4">
         <PageHeader
@@ -282,40 +277,26 @@ export function DashboardSummary() {
       {/* ── Scrollable content ────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 md:px-6">
         {isError ? (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-8 flex flex-col items-center gap-3 text-center"
-          >
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
             <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
               <span className="material-symbols-outlined text-[24px] text-rose-500">error_outline</span>
             </div>
             <p className="text-sm font-medium text-slate-700">Không thể tải dữ liệu dashboard</p>
             <p className="text-xs text-slate-400">Vui lòng kiểm tra kết nối và thử lại.</p>
-          </motion.div>
+          </div>
         ) : (
           <>
             {/* KPI grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-2">
-              {kpiCards.map((card, i) => (
-                <motion.div
-                  key={card.label}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.07, ease: 'easeOut' }}
-                >
+              {kpiCards.map((card) => (
+                <div key={card.label}>
                   <KpiCard {...card} isLoading={isLoading} />
-                </motion.div>
+                </div>
               ))}
             </div>
 
             {/* Quick-access section */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.32, ease: 'easeOut' }}
-              className="mt-6"
-            >
+            <div className="mt-6">
               <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400 mb-3">
                 Truy cập nhanh
               </h3>
@@ -324,11 +305,11 @@ export function DashboardSummary() {
                   <QuickLinkCard key={link.path} {...link} />
                 ))}
               </div>
-            </motion.div>
+            </div>
           </>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

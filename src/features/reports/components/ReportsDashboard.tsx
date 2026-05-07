@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { PageHeader } from '@/components/PageHeader';
 import { usePermission } from '@/hooks/usePermission';
 import { StockInReportTab } from './StockInReportTab';
@@ -30,6 +29,8 @@ const TABS: TabDef[] = [
   { id: 'config', label: 'Cấu hình email', icon: 'mail', requiresPermission: 'report_configs:manage' },
 ];
 
+const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
+
 // ── Tab Button ────────────────────────────────────────────────────────────────
 
 function TabButton({
@@ -51,7 +52,7 @@ function TabButton({
           : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
       }`}
     >
-      <span className={`material-symbols-outlined text-[14px]`}>{tab.icon}</span>
+      <span className="material-symbols-outlined text-[14px]">{tab.icon}</span>
       {tab.label}
     </button>
   );
@@ -63,30 +64,20 @@ export function ReportsDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const canManageConfigs = usePermission('report_configs:manage');
 
-  const initialTab = (searchParams.get('tab') as TabId) ?? 'stock-in';
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  // Derive active tab directly from URL — no local state, no sync effects
+  const rawTab = searchParams.get('tab');
+  const activeTab: TabId = (rawTab && VALID_TABS.has(rawTab) ? rawTab : 'stock-in') as TabId;
 
-  // Sync URL param when tab changes — guard prevents infinite loop
-  useEffect(() => {
+  const handleTabClick = (id: TabId) => {
     setSearchParams(
       (prev) => {
-        if (prev.get('tab') === activeTab) return prev;
         const next = new URLSearchParams(prev);
-        next.set('tab', activeTab);
+        next.set('tab', id);
         return next;
       },
       { replace: true },
     );
-  }, [activeTab, setSearchParams]);
-
-  // Sync activeTab from URL on mount / back-navigation
-  useEffect(() => {
-    const tab = searchParams.get('tab') as TabId | null;
-    if (tab && TABS.some((t) => t.id === tab)) {
-      setActiveTab(tab);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
 
   const visibleTabs = TABS.filter((t) => {
     if (!t.requiresPermission) return true;
@@ -103,12 +94,7 @@ export function ReportsDashboard() {
   }, [activeTab]);
 
   return (
-    <motion.div
-      className="flex flex-col h-full overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-    >
+    <div className="flex flex-col h-full overflow-hidden">
       {/* ── Fixed header ──────────────────────────────────────────────────────── */}
       <div className="shrink-0 px-4 pt-4 pb-3 md:px-6 md:pt-5 space-y-3 border-b border-slate-100 bg-white">
         <PageHeader
@@ -128,7 +114,7 @@ export function ReportsDashboard() {
               key={tab.id}
               tab={tab}
               active={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
             />
           ))}
         </div>
@@ -165,8 +151,7 @@ export function ReportsDashboard() {
             </div>
           )}
         </div>
-
       </div>
-    </motion.div>
+    </div>
   );
 }
