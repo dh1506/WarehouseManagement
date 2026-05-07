@@ -42,6 +42,8 @@ export function ReportFilterBar({
         <span className="font-medium">Từ ngày</span>
       </div>
       <input
+        id="filter-date-from"
+        name="filter-date-from"
         type="date"
         value={localFrom}
         onChange={(e) => setLocalFrom(e.target.value)}
@@ -49,6 +51,8 @@ export function ReportFilterBar({
       />
       <span className="text-slate-400 text-xs">–</span>
       <input
+        id="filter-date-to"
+        name="filter-date-to"
         type="date"
         value={localTo}
         onChange={(e) => setLocalTo(e.target.value)}

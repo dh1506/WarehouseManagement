@@ -43,10 +43,7 @@ export async function getDashboardSummary(
 export async function getStockInReport(
   params: StockInReportParams,
 ): Promise<StockInReportResponse> {
-  const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
-  };
+  const query: Record<string, string | number> = { page: params.page };
   if (params.start_date) query.start_date = params.start_date;
   if (params.end_date) query.end_date = params.end_date;
   if (params.warehouse_location_id) query.warehouse_location_id = params.warehouse_location_id;
@@ -59,10 +56,7 @@ export async function getStockInReport(
 export async function getStockOutReport(
   params: StockOutReportParams,
 ): Promise<StockOutReportResponse> {
-  const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
-  };
+  const query: Record<string, string | number> = { page: params.page };
   if (params.start_date) query.start_date = params.start_date;
   if (params.end_date) query.end_date = params.end_date;
   if (params.warehouse_location_id) query.warehouse_location_id = params.warehouse_location_id;
@@ -75,10 +69,7 @@ export async function getStockOutReport(
 export async function getStockCountReport(
   params: StockCountReportParams,
 ): Promise<StockCountReportResponse> {
-  const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
-  };
+  const query: Record<string, string | number> = { page: params.page };
   if (params.start_date) query.start_date = params.start_date;
   if (params.end_date) query.end_date = params.end_date;
 
@@ -89,10 +80,7 @@ export async function getStockCountReport(
 export async function getStockDisposalReport(
   params: StockDisposalReportParams,
 ): Promise<StockDisposalReportResponse> {
-  const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
-  };
+  const query: Record<string, string | number> = { page: params.page };
   if (params.start_date) query.start_date = params.start_date;
   if (params.end_date) query.end_date = params.end_date;
 
@@ -103,10 +91,7 @@ export async function getStockDisposalReport(
 export async function getInventoryReport(
   params: InventoryReportParams,
 ): Promise<InventoryReportResponse> {
-  const query: Record<string, string | number> = {
-    page: params.page,
-    limit: params.limit,
-  };
+  const query: Record<string, string | number> = { page: params.page };
   if (params.warehouse_location_id) query.warehouse_location_id = params.warehouse_location_id;
   if (params.product_id) query.product_id = params.product_id;
 

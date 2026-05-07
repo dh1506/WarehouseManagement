@@ -64,6 +64,7 @@ export function useStockInReport(params: StockInReportParams) {
     queryFn: () => getStockInReport(params),
     placeholderData: (prev) => prev,
     staleTime: REPORT_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }
@@ -74,6 +75,7 @@ export function useStockOutReport(params: StockOutReportParams) {
     queryFn: () => getStockOutReport(params),
     placeholderData: (prev) => prev,
     staleTime: REPORT_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }
@@ -84,6 +86,7 @@ export function useStockCountReport(params: StockCountReportParams) {
     queryFn: () => getStockCountReport(params),
     placeholderData: (prev) => prev,
     staleTime: REPORT_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }
@@ -94,6 +97,7 @@ export function useStockDisposalReport(params: StockDisposalReportParams) {
     queryFn: () => getStockDisposalReport(params),
     placeholderData: (prev) => prev,
     staleTime: REPORT_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }
@@ -104,6 +108,7 @@ export function useInventoryReport(params: InventoryReportParams) {
     queryFn: () => getInventoryReport(params),
     placeholderData: (prev) => prev,
     staleTime: REPORT_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }

@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { motion } from 'motion/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInventoryReport } from '../hooks/useReports';
 import type { InventoryReportParams } from '../types/reportType';
 import { ReportPagination } from './ReportPagination';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -82,6 +81,8 @@ export function InventoryReportTab() {
             search
           </span>
           <input
+            id="inventory-search"
+            name="inventory-search"
             type="text"
             value={search}
             onChange={handleSearchChange}
@@ -140,12 +141,9 @@ export function InventoryReportTab() {
                   </td>
                 </tr>
               )}
-              {!isLoading && !isError && filteredData?.map((item, idx) => (
-                <motion.tr
+              {!isLoading && !isError && filteredData?.map((item) => (
+                <tr
                   key={item.id}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18, delay: idx * 0.025 }}
                   className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors"
                 >
                   <td className="px-4 py-3 text-slate-700 text-xs font-medium max-w-[200px] truncate">
@@ -168,17 +166,17 @@ export function InventoryReportTab() {
                     />
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{formatDateTime(item.updated_at)}</td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {data && data.pagination.totalPages > 1 && (
+        {data && data.pagination.total_pages > 1 && (
           <div className="shrink-0 border-t border-slate-100 px-4 py-3">
             <ReportPagination
               page={page}
-              totalPages={data.pagination.totalPages}
+              totalPages={data.pagination.total_pages}
               total={data.pagination.total}
               pageSize={PAGE_SIZE}
               onPageChange={setPage}

@@ -257,6 +257,8 @@ export function DashboardSummary() {
                 className="flex items-center gap-2 overflow-hidden"
               >
                 <input
+                  id="dashboard-custom-from"
+                  name="dashboard-custom-from"
                   type="date"
                   value={customFrom}
                   onChange={(e) => setCustomFrom(e.target.value)}
@@ -264,6 +266,8 @@ export function DashboardSummary() {
                 />
                 <span className="text-slate-400 text-xs">–</span>
                 <input
+                  id="dashboard-custom-to"
+                  name="dashboard-custom-to"
                   type="date"
                   value={customTo}
                   onChange={(e) => setCustomTo(e.target.value)}

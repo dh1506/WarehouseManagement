@@ -1,13 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStockDisposalReport } from '../hooks/useReports';
 import type { StockDisposalReportParams } from '../types/reportType';
 import { ReportFilterBar } from './ReportFilterBar';
 import { ReportPagination } from './ReportPagination';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -106,16 +105,13 @@ export function StockDisposalReportTab() {
                   </td>
                 </tr>
               )}
-              {!isLoading && !isError && data?.data.map((item, idx) => {
+              {!isLoading && !isError && data?.data.map((item) => {
                 const reasons = Array.from(
                   new Set((item.details ?? []).map((d) => d.reason?.name).filter(Boolean)),
                 ).join(', ');
                 return (
-                  <motion.tr
+                  <tr
                     key={item.id}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18, delay: idx * 0.03 }}
                     className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors"
                   >
                     <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700">{item.code}</td>
@@ -134,18 +130,18 @@ export function StockDisposalReportTab() {
                         Xem chi tiết
                       </button>
                     </td>
-                  </motion.tr>
+                  </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
 
-        {data && data.pagination.totalPages > 1 && (
+        {data && data.pagination.total_pages > 1 && (
           <div className="shrink-0 border-t border-slate-100 px-4 py-3">
             <ReportPagination
               page={page}
-              totalPages={data.pagination.totalPages}
+              totalPages={data.pagination.total_pages}
               total={data.pagination.total}
               pageSize={PAGE_SIZE}
               onPageChange={setPage}

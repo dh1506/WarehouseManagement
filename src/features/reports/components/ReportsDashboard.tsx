@@ -110,7 +110,7 @@ export function ReportsDashboard() {
       transition={{ duration: 0.25, ease: 'easeOut' }}
     >
       {/* ── Fixed header ──────────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 pt-4 pb-3 md:px-6 md:pt-5 space-y-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm">
+      <div className="shrink-0 px-4 pt-4 pb-3 md:px-6 md:pt-5 space-y-3 border-b border-slate-100 bg-white">
         <PageHeader
           eyebrow="Báo cáo"
           title="Quản lý Báo cáo"
