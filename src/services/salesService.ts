@@ -37,6 +37,7 @@ export async function getSalesTransactions(
   if (params.startDate) query.startDate = params.startDate;
   if (params.endDate) query.endDate = params.endDate;
   if (params.warehouse_location_id) query.warehouse_location_id = params.warehouse_location_id;
+  if (params.product_id) query.product_id = params.product_id;
 
   const response = await apiClient.get('/api/sales/transactions', { params: query });
   return unwrap<SalesTransactionListResponse>(response);
@@ -53,13 +54,8 @@ export async function getSalesDailySummaries(
   if (params.startDate) query.startDate = params.startDate;
   if (params.endDate) query.endDate = params.endDate;
   if (params.warehouse_location_id) query.warehouse_location_id = params.warehouse_location_id;
+  if (params.product_id) query.product_id = params.product_id;
 
   const response = await apiClient.get('/api/sales/summaries', { params: query });
   return unwrap<SalesDailySummaryListResponse>(response);
-}
-
-// ── Sample file download URL ──────────────────────────────────────────────────
-export function getSampleFileUrl(): string {
-  const baseURL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
-  return `${baseURL}/api/sales/import/sample`;
 }

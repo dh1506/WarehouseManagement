@@ -99,6 +99,7 @@ export interface SalesTransactionQueryParams {
   startDate?: string;
   endDate?: string;
   warehouse_location_id?: number;
+  product_id?: number;
 }
 
 export interface SalesDailySummaryQueryParams {
@@ -107,6 +108,7 @@ export interface SalesDailySummaryQueryParams {
   startDate?: string;
   endDate?: string;
   warehouse_location_id?: number;
+  product_id?: number;
 }
 
 // ── Filter state (shared by both table tabs) ──────────────────────────────────

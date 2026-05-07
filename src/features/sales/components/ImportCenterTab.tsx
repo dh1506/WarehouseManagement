@@ -4,7 +4,6 @@ import {
   UploadCloud,
   FileSpreadsheet,
   X,
-  Download,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -13,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useImportSalesBatch } from '../hooks/useSales';
 import { validateImportFile, ALLOWED_EXTENSIONS } from '../schemas/salesSchemas';
-import { getSampleFileUrl } from '@/services/salesService';
 import type { SalesImportError, SalesImportApiError } from '../types/salesType';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -296,7 +294,7 @@ export function ImportCenterTab() {
                 <span className="text-zinc-900 underline underline-offset-2">chọn file</span>
               </p>
               <p className="text-[12px] text-zinc-400 mt-1">
-                Hỗ trợ .xlsx, .xls — Tối đa 10 MB
+                Hỗ trợ .xlsx, .xls, .csv — Tối đa 10 MB
               </p>
             </div>
           )}
@@ -306,14 +304,6 @@ export function ImportCenterTab() {
             className="flex flex-wrap items-center justify-center gap-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <a
-              href={getSampleFileUrl()}
-              download
-              className="inline-flex items-center gap-1.5 h-9 px-4 border border-zinc-200 rounded text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Tải file mẫu
-            </a>
             <Button
               type="button"
               disabled={!file || isLocked}

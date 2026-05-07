@@ -40,14 +40,14 @@ export const salesImportResultSchema = z.object({
 export type SalesImportErrorSchema = z.infer<typeof salesImportErrorSchema>;
 
 // ── File upload constraints ───────────────────────────────────────────────────
-export const ALLOWED_EXTENSIONS = ['.xlsx', '.xls'] as const;
+export const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'] as const;
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export function validateImportFile(file: File): string | null {
   const name = file.name.toLowerCase();
   const hasValidExt = ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
   if (!hasValidExt) {
-    return 'Chỉ chấp nhận file định dạng .xlsx hoặc .xls';
+    return 'Chỉ chấp nhận file định dạng .xlsx, .xls hoặc .csv';
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return `Dung lượng file không được vượt quá 10 MB (hiện tại: ${(file.size / 1024 / 1024).toFixed(1)} MB)`;
