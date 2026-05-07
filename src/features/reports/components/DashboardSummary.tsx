@@ -168,52 +168,55 @@ export function DashboardSummary() {
 
   const { data, isLoading, isError } = useDashboardSummary(summaryParams);
 
-  const kpiCards: Omit<KpiCardProps, 'isLoading'>[] = [
-    {
-      icon: 'move_to_inbox',
-      label: 'Phiếu nhập kho',
-      value: data?.total_stock_ins,
-      colorClass: 'text-blue-600',
-      bgClass: 'bg-gradient-to-br from-blue-50 to-white',
-      iconBgClass: 'bg-blue-100',
-      description: 'Phiếu nhập đã hoàn thành trong kỳ',
-      drillPath: '/reports?tab=stock-in',
-      drillLabel: 'Xem báo cáo nhập kho',
-    },
-    {
-      icon: 'local_shipping',
-      label: 'Phiếu xuất kho',
-      value: data?.total_stock_outs,
-      colorClass: 'text-violet-600',
-      bgClass: 'bg-gradient-to-br from-violet-50 to-white',
-      iconBgClass: 'bg-violet-100',
-      description: 'Phiếu xuất đã hoàn thành trong kỳ',
-      drillPath: '/reports?tab=stock-out',
-      drillLabel: 'Xem báo cáo xuất kho',
-    },
-    {
-      icon: 'warning',
-      label: 'Lô sắp hết hạn',
-      value: data?.expiring_lots,
-      colorClass: 'text-amber-600',
-      bgClass: 'bg-gradient-to-br from-amber-50 to-white',
-      iconBgClass: 'bg-amber-100',
-      description: 'Lô hàng hết hạn trong vòng 30 ngày',
-      drillPath: '/reports?tab=inventory',
-      drillLabel: 'Xem tồn kho hiện tại',
-    },
-    {
-      icon: 'difference',
-      label: 'Sai lệch kiểm kê',
-      value: data?.discrepancies_found,
-      colorClass: 'text-rose-600',
-      bgClass: 'bg-gradient-to-br from-rose-50 to-white',
-      iconBgClass: 'bg-rose-100',
-      description: 'Chi tiết kiểm kê có variance ≠ 0',
-      drillPath: '/reports?tab=stock-count',
-      drillLabel: 'Xem báo cáo kiểm kê',
-    },
-  ];
+  const kpiCards = useMemo<Omit<KpiCardProps, 'isLoading'>[]>(
+    () => [
+      {
+        icon: 'move_to_inbox',
+        label: 'Phiếu nhập kho',
+        value: data?.total_stock_ins,
+        colorClass: 'text-blue-600',
+        bgClass: 'bg-gradient-to-br from-blue-50 to-white',
+        iconBgClass: 'bg-blue-100',
+        description: 'Phiếu nhập đã hoàn thành trong kỳ',
+        drillPath: '/reports?tab=stock-in',
+        drillLabel: 'Xem báo cáo nhập kho',
+      },
+      {
+        icon: 'local_shipping',
+        label: 'Phiếu xuất kho',
+        value: data?.total_stock_outs,
+        colorClass: 'text-violet-600',
+        bgClass: 'bg-gradient-to-br from-violet-50 to-white',
+        iconBgClass: 'bg-violet-100',
+        description: 'Phiếu xuất đã hoàn thành trong kỳ',
+        drillPath: '/reports?tab=stock-out',
+        drillLabel: 'Xem báo cáo xuất kho',
+      },
+      {
+        icon: 'warning',
+        label: 'Lô sắp hết hạn',
+        value: data?.expiring_lots,
+        colorClass: 'text-amber-600',
+        bgClass: 'bg-gradient-to-br from-amber-50 to-white',
+        iconBgClass: 'bg-amber-100',
+        description: 'Lô hàng hết hạn trong vòng 30 ngày',
+        drillPath: '/reports?tab=inventory',
+        drillLabel: 'Xem tồn kho hiện tại',
+      },
+      {
+        icon: 'difference',
+        label: 'Sai lệch kiểm kê',
+        value: data?.discrepancies_found,
+        colorClass: 'text-rose-600',
+        bgClass: 'bg-gradient-to-br from-rose-50 to-white',
+        iconBgClass: 'bg-rose-100',
+        description: 'Chi tiết kiểm kê có variance ≠ 0',
+        drillPath: '/reports?tab=stock-count',
+        drillLabel: 'Xem báo cáo kiểm kê',
+      },
+    ],
+    [data],
+  );
 
   return (
     <motion.div
@@ -229,7 +232,7 @@ export function DashboardSummary() {
           title="Dashboard Kho hàng"
           actions={
             data?.period ? (
-              <PeriodBadge start={data.period.start_date} end={data.period.end_date} />
+              <PeriodBadge start={data.period.start} end={data.period.end} />
             ) : undefined
           }
         />

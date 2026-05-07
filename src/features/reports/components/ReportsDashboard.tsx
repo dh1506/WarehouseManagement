@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { PageHeader } from '@/components/PageHeader';
 import { usePermission } from '@/hooks/usePermission';
 import { StockInReportTab } from './StockInReportTab';
@@ -66,12 +66,18 @@ export function ReportsDashboard() {
   const initialTab = (searchParams.get('tab') as TabId) ?? 'stock-in';
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
-  // Sync URL param when tab changes
+  // Sync URL param when tab changes — guard prevents infinite loop
   useEffect(() => {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', activeTab);
-    setSearchParams(next, { replace: true });
-  }, [activeTab, searchParams, setSearchParams]);
+    setSearchParams(
+      (prev) => {
+        if (prev.get('tab') === activeTab) return prev;
+        const next = new URLSearchParams(prev);
+        next.set('tab', activeTab);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeTab, setSearchParams]);
 
   // Sync activeTab from URL on mount / back-navigation
   useEffect(() => {
@@ -86,6 +92,15 @@ export function ReportsDashboard() {
     if (!t.requiresPermission) return true;
     return canManageConfigs;
   });
+
+  // Track which tabs have been visited so we only mount them once (never unmount)
+  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(new Set([activeTab]));
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      return new Set([...prev, activeTab]);
+    });
+  }, [activeTab]);
 
   return (
     <motion.div
@@ -120,32 +135,37 @@ export function ReportsDashboard() {
       </div>
 
       {/* ── Tab content ──────────────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="h-full overflow-y-auto px-4 py-4 md:px-6"
-          >
-            {activeTab === 'stock-in' && <StockInReportTab />}
-            {activeTab === 'stock-out' && <StockOutReportTab />}
-            {activeTab === 'stock-count' && <StockCountReportTab />}
-            {activeTab === 'stock-disposal' && <StockDisposalReportTab />}
-            {activeTab === 'inventory' && <InventoryReportTab />}
-            {activeTab === 'config' && canManageConfigs && <ReportConfigManagement />}
-            {activeTab === 'config' && !canManageConfigs && (
-              <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <span className="material-symbols-outlined text-[36px] text-slate-300">lock</span>
-                <p className="text-sm font-medium text-slate-500">
-                  Bạn không có quyền truy cập cấu hình email
-                </p>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+      {/* Tabs are mounted on first visit and kept alive — no remount on switch */}
+      <div className="flex-1 min-h-0 overflow-hidden relative">
+        {(['stock-in', 'stock-out', 'stock-count', 'stock-disposal', 'inventory'] as const).map((id) =>
+          mountedTabs.has(id) ? (
+            <div
+              key={id}
+              className={`absolute inset-0 overflow-y-auto px-4 py-4 md:px-6 ${activeTab === id ? 'block' : 'hidden'}`}
+            >
+              {id === 'stock-in' && <StockInReportTab />}
+              {id === 'stock-out' && <StockOutReportTab />}
+              {id === 'stock-count' && <StockCountReportTab />}
+              {id === 'stock-disposal' && <StockDisposalReportTab />}
+              {id === 'inventory' && <InventoryReportTab />}
+            </div>
+          ) : null,
+        )}
+
+        {/* Config tab — lightweight, always conditionally render */}
+        <div className={`absolute inset-0 overflow-y-auto px-4 py-4 md:px-6 ${activeTab === 'config' ? 'block' : 'hidden'}`}>
+          {canManageConfigs ? (
+            <ReportConfigManagement />
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <span className="material-symbols-outlined text-[36px] text-slate-300">lock</span>
+              <p className="text-sm font-medium text-slate-500">
+                Bạn không có quyền truy cập cấu hình email
+              </p>
+            </div>
+          )}
+        </div>
+
       </div>
     </motion.div>
   );

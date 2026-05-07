@@ -1,8 +1,8 @@
 // ── Dashboard Summary ─────────────────────────────────────────────────────────
 
 export interface DashboardSummaryPeriod {
-  start_date: string;
-  end_date: string;
+  start: string;
+  end: string;
 }
 
 export interface DashboardSummary {

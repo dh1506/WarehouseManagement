@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { motion } from 'motion/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInventoryReport } from '../hooks/useReports';
@@ -44,7 +45,7 @@ function SkeletonRows() {
 export function InventoryReportTab() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebounce(search.toLowerCase().trim(), 300);
 
   const params: InventoryReportParams = {
     page,
@@ -54,15 +55,11 @@ export function InventoryReportTab() {
   const { data, isLoading, isError } = useInventoryReport(params);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearch(val);
-    // Simple debounce via state — no timer needed, client-side filter
-    setDebouncedSearch(val.toLowerCase().trim());
+    setSearch(e.target.value);
   }, []);
 
   const handleResetSearch = useCallback(() => {
     setSearch('');
-    setDebouncedSearch('');
     setPage(1);
   }, []);
 

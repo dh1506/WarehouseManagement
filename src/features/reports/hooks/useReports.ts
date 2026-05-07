@@ -56,11 +56,15 @@ export function useDashboardSummary(params?: DashboardSummaryParams) {
 
 // ── Detailed Reports ──────────────────────────────────────────────────────────
 
+const REPORT_STALE_TIME = 2 * 60 * 1000; // 2 min — prevents refetch on every window focus
+
 export function useStockInReport(params: StockInReportParams) {
   return useQuery<StockInReportResponse>({
     queryKey: REPORT_KEYS.stockIn(params),
     queryFn: () => getStockInReport(params),
     placeholderData: (prev) => prev,
+    staleTime: REPORT_STALE_TIME,
+    retry: 1,
   });
 }
 
@@ -69,6 +73,8 @@ export function useStockOutReport(params: StockOutReportParams) {
     queryKey: REPORT_KEYS.stockOut(params),
     queryFn: () => getStockOutReport(params),
     placeholderData: (prev) => prev,
+    staleTime: REPORT_STALE_TIME,
+    retry: 1,
   });
 }
 
@@ -77,6 +83,8 @@ export function useStockCountReport(params: StockCountReportParams) {
     queryKey: REPORT_KEYS.stockCount(params),
     queryFn: () => getStockCountReport(params),
     placeholderData: (prev) => prev,
+    staleTime: REPORT_STALE_TIME,
+    retry: 1,
   });
 }
 
@@ -85,6 +93,8 @@ export function useStockDisposalReport(params: StockDisposalReportParams) {
     queryKey: REPORT_KEYS.stockDisposal(params),
     queryFn: () => getStockDisposalReport(params),
     placeholderData: (prev) => prev,
+    staleTime: REPORT_STALE_TIME,
+    retry: 1,
   });
 }
 
@@ -93,6 +103,8 @@ export function useInventoryReport(params: InventoryReportParams) {
     queryKey: REPORT_KEYS.inventory(params),
     queryFn: () => getInventoryReport(params),
     placeholderData: (prev) => prev,
+    staleTime: REPORT_STALE_TIME,
+    retry: 1,
   });
 }
 

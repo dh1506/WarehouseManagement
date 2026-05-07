@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReportFilterBarProps {
@@ -18,6 +18,10 @@ export function ReportFilterBar({
 }: ReportFilterBarProps) {
   const [localFrom, setLocalFrom] = useState(startDate);
   const [localTo, setLocalTo] = useState(endDate);
+
+  // Keep local inputs in sync when parent resets props to ''
+  useEffect(() => { setLocalFrom(startDate); }, [startDate]);
+  useEffect(() => { setLocalTo(endDate); }, [endDate]);
 
   const hasFilter = Boolean(startDate || endDate);
 
