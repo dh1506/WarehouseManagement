@@ -1,35 +1,30 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
 import { hasPageAccessFromPermissionNames } from '@/lib/pageAccess';
 
-interface NavItem {
-  to: string;
-  icon: string;
-  label: string;
-  end?: boolean;
-}
-
-const navItems: NavItem[] = [
-  { to: '/', icon: 'dashboard', label: 'Dashboard', end: true },
-  { to: '/admin/warehouses', icon: 'warehouse', label: 'Warehouse Hub' },
-  { to: '/admin/categories', icon: 'category', label: 'Category' },
-  { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
-  { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
-  { to: '/inbound', icon: 'move_to_inbox', label: 'Inbound Flow' },
-  { to: '/outbound', icon: 'local_shipping', label: 'Outbound' },
-  { to: '/inventory', icon: 'widgets', label: 'Inventory' },
-  { to: '/inventory/transactions', icon: 'history', label: 'Audit Log' },
-  { to: '/stock-count', icon: 'fact_check', label: 'Stock Count' },
-  { to: '/stock-disposal', icon: 'delete_sweep', label: 'Disposal' },
-  { to: '/ai-forecast', icon: 'auto_awesome', label: 'AI Forecast' },
-  { to: '/sales-data', icon: 'bar_chart', label: 'Sales Data' },
-  { to: '/reports', icon: 'monitoring', label: 'Reports' },
-  { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
-  { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
+const NAV_ROUTES: { to: string; icon: string; key: string; end?: boolean }[] = [
+  { to: '/', icon: 'dashboard', key: 'dashboard', end: true },
+  { to: '/admin/warehouses', icon: 'warehouse', key: 'warehouseHub' },
+  { to: '/admin/categories', icon: 'category', key: 'category' },
+  { to: '/admin/product-settings', icon: 'straighten', key: 'productSettings' },
+  { to: '/admin/products', icon: 'inventory_2', key: 'products' },
+  { to: '/inbound', icon: 'move_to_inbox', key: 'inbound' },
+  { to: '/outbound', icon: 'local_shipping', key: 'outbound' },
+  { to: '/inventory', icon: 'widgets', key: 'inventory' },
+  { to: '/inventory/transactions', icon: 'history', key: 'auditLog' },
+  { to: '/stock-count', icon: 'fact_check', key: 'stockCount' },
+  { to: '/stock-disposal', icon: 'delete_sweep', key: 'stockDisposal' },
+  { to: '/ai-forecast', icon: 'auto_awesome', key: 'aiForecast' },
+  { to: '/sales-data', icon: 'bar_chart', key: 'salesData' },
+  { to: '/reports', icon: 'monitoring', key: 'reports' },
+  { to: '/admin/users', icon: 'manage_accounts', key: 'userManagement' },
+  { to: '/admin/role-permissions', icon: 'security', key: 'roles' },
 ];
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -39,6 +34,8 @@ export function Sidebar() {
 
   const permissionNames = user?.permissions ?? [];
   const roleName = user?.role ?? '';
+
+  const navItems = NAV_ROUTES.map((r) => ({ ...r, label: t(`nav.${r.key}`) }));
   const visibleNavItems = navItems.filter((item) =>
     hasPageAccessFromPermissionNames(item.to, permissionNames, roleName),
   );
