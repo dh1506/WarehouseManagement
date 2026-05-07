@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/PageHeader';
 import { useDashboardSummary } from '../hooks/useReports';
 import type { DashboardSummaryParams } from '../types/reportType';
+import { OperationalDashboard } from './OperationalDashboard';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,14 +76,14 @@ function KpiCard({
   return (
     <motion.button
       type="button"
-      className={`group relative w-full text-left rounded-2xl border border-slate-100 ${bgClass} p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-300 outline-none`}
+      className={`group relative w-full text-left rounded-2xl border border-slate-100 ${bgClass} p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-300 outline-none`}
       onClick={() => navigate(drillPath)}
       whileHover={{ y: -2 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-xl ${iconBgClass} flex items-center justify-center`}>
-          <span className={`material-symbols-outlined text-[20px] ${colorClass}`}>{icon}</span>
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-8 h-8 rounded-lg ${iconBgClass} flex items-center justify-center`}>
+          <span className={`material-symbols-outlined text-[17px] ${colorClass}`}>{icon}</span>
         </div>
         <span className={`material-symbols-outlined text-[16px] text-slate-300 group-hover:${colorClass} transition-colors`}>
           arrow_forward
@@ -96,15 +97,15 @@ function KpiCard({
         </div>
       ) : (
         <>
-          <p className={`text-3xl font-bold tracking-tight ${colorClass}`}>
+          <p className={`text-2xl font-bold tracking-tight ${colorClass}`}>
             {value?.toLocaleString('vi-VN') ?? '—'}
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
-          <p className="mt-0.5 text-xs text-slate-400">{description}</p>
+          <p className="mt-0.5 text-xs font-semibold text-slate-700">{label}</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">{description}</p>
         </>
       )}
 
-      <div className={`mt-3 pt-3 border-t border-slate-100 flex items-center gap-1`}>
+      <div className={`mt-2.5 pt-2.5 border-t border-slate-100 flex items-center gap-1`}>
         <span className="text-xs font-medium text-slate-400 group-hover:text-slate-600 transition-colors">
           {drillLabel}
         </span>
@@ -306,6 +307,11 @@ export function DashboardSummary() {
                 ))}
               </div>
             </div>
+
+            {/* Operational charts */}
+            <div className="mt-8">
+              <OperationalDashboard />
+            </div>
           </>
         )}
       </div>
@@ -338,10 +344,10 @@ function QuickLinkCard({ icon, label, path, color, bg }: QuickLink) {
     <button
       type="button"
       onClick={() => navigate(path)}
-      className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-100 bg-white hover:shadow-sm hover:border-slate-200 transition-all group"
+      className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-slate-100 bg-white hover:shadow-sm hover:border-slate-200 transition-all group"
     >
-      <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center`}>
-        <span className={`material-symbols-outlined text-[18px] ${color}`}>{icon}</span>
+      <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
+        <span className={`material-symbols-outlined text-[16px] ${color}`}>{icon}</span>
       </div>
       <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors text-center leading-tight">
         {label}
