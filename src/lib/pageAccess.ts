@@ -85,13 +85,6 @@ export const PAGE_PERMISSION_MAP: PagePermissionConfig[] = [
     modules: ['roles', 'permissions'],
   },
   {
-    id: 'approval-configuration',
-    label: 'Approval Configuration',
-    icon: 'approval',
-    description: 'Approval workflow configuration',
-    modules: ['roles'],
-  },
-  {
     id: 'stock-count',
     label: 'Stock Count',
     icon: 'fact_check',
@@ -132,7 +125,6 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
     modules: ['brands', 'uoms', 'suppliers'],
   },
   { id: 'products', label: 'Products', path: '/admin/products', modules: ['products'] },
-  { id: 'import-export', label: 'Import / Export', path: '/import-export', modules: [] },
   { id: 'outbound', label: 'Outbound', path: '/outbound', modules: ['stock_outs'] },
   { id: 'inventory', label: 'Inventory', path: '/inventory', modules: ['inventory'] },
   { id: 'inventory-transactions', label: 'Audit Log', path: '/inventory/transactions', modules: ['inventory_transactions'] },
@@ -142,12 +134,6 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
   { id: 'inbound', label: 'Inbound Flow', path: '/inbound', modules: [] },
   { id: 'users', label: 'User Management', path: '/admin/users', modules: ['users'] },
   { id: 'roles', label: 'Roles', path: '/admin/role-permissions', modules: ['roles', 'permissions'] },
-  {
-    id: 'approval-configuration',
-    label: 'Approval Configuration',
-    path: '/admin/approval-configuration',
-    modules: ['roles'],
-  },
   {
     id: 'stock-count',
     label: 'Stock Count',

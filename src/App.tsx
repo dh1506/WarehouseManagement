@@ -11,14 +11,12 @@ import { useAuthStore } from './store/authStore';
 import { hasPageAccessFromPermissionNames } from './lib/pageAccess';
 import { CategoryManagementPage } from './pages/admin/CategoryManagementPage';
 import { RolePermissionsPage } from './pages/admin/RolePermissionsPage';
-import { ApprovalConfigurationPage } from './pages/admin/ApprovalConfigurationPage';
 import { ProductReferenceManagementPage } from './pages/admin/ProductReferenceManagementPage';
 import { ProductManagementPage } from './pages/admin/ProductManagementPage';
 import { ProductDetailPage } from './pages/admin/ProductDetailPage';
 import { WarehouseManagementPage } from './pages/admin/WarehouseManagementPage';
 import { WarehouseHubPage } from './pages/admin/WarehouseHubPage';
 import { ZoneDetailPage } from './pages/admin/ZoneDetailPage';
-import { ImportExportPage } from './pages/operations/ImportExportPage';
 import { InventoryPage } from './pages/operations/InventoryPage';
 import { AiForecastPage } from './pages/operations/AiForecastPage';
 import { AiForecastDetailPage } from './pages/operations/AiForecastDetailPage';
@@ -32,7 +30,6 @@ import { OutboundPickingPage } from './pages/operations/OutboundPickingPage';
 import { StockCountListPage } from './pages/operations/StockCountListPage';
 import { StockCountDetailPage } from './pages/operations/StockCountDetailPage';
 import { Toaster } from './components/ui/toaster';
-import { AntdDashboard } from './pages/AntdDashboard';
 import { DashboardPage } from './pages/operations/DashboardPage';
 import { ReportsPage } from './pages/operations/ReportsPage';
 import { SalesDataPage } from './pages/operations/SalesDataPage';
@@ -78,7 +75,6 @@ function DefaultLandingRoute() {
     '/inventory/transactions',
     '/admin/users',
     '/admin/role-permissions',
-    '/admin/approval-configuration',
   ];
 
   const firstAccessible = candidates.find((path) =>
@@ -119,7 +115,6 @@ function App() {
             <Route path="/profile" element={<UserProfilePage />} />
             <Route path="/admin/users" element={<PageAccessRoute path="/admin/users"><UserManagementPage /></PageAccessRoute>} />
             <Route path="/admin/role-permissions" element={<PageAccessRoute path="/admin/role-permissions"><RolePermissionsPage /></PageAccessRoute>} />
-            <Route path="/admin/approval-configuration" element={<PageAccessRoute path="/admin/approval-configuration"><ApprovalConfigurationPage /></PageAccessRoute>} />
             <Route path="/admin/categories" element={<PageAccessRoute path="/admin/categories"><CategoryManagementPage /></PageAccessRoute>} />
             <Route path="/admin/product-settings" element={<PageAccessRoute path="/admin/product-settings"><ProductReferenceManagementPage /></PageAccessRoute>} />
             <Route path="/admin/product" element={<Navigate to="/admin/products" replace />} />
@@ -133,7 +128,6 @@ function App() {
             <Route path="/warehouse" element={<PageAccessRoute path="/admin/warehouses"><WarehouseHubPage /></PageAccessRoute>} />
             <Route path="/warehouse/master" element={<PageAccessRoute path="/admin/warehouses"><WarehouseManagementPage /></PageAccessRoute>} />
 
-            <Route path="/import-export" element={<PageAccessRoute path="/import-export"><ImportExportPage /></PageAccessRoute>} />
             <Route path="/inventory" element={<PageAccessRoute path="/inventory"><InventoryPage /></PageAccessRoute>} />
             <Route path="/inventory/transactions" element={<PageAccessRoute path="/inventory/transactions"><TransactionHistoryPage /></PageAccessRoute>} />
             <Route path="/ai-forecast" element={<PageAccessRoute path="/ai-forecast"><AiForecastPage /></PageAccessRoute>} />
@@ -154,8 +148,6 @@ function App() {
           {/* 404 — mọi route không khớp */}
           <Route path="*" element={<NotFoundPage />} />
 
-          {/* Ant Design Prototype */}
-          <Route path="/antd" element={<AntdDashboard />} />
         </Routes>
         <Toaster />
       </BrowserRouter>

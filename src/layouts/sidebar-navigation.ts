@@ -58,14 +58,6 @@ export const sidebarNavItems: SidebarNavItem[] = [
     pageDescription: 'Quản lý hồ sơ nhà cung cấp và đầu mối liên hệ mua hàng.',
   },
   {
-    to: '/import-export',
-    icon: 'swap_horiz',
-    label: 'Import / Export',
-    permissionModule: 'import-export',
-    permissionAliases: ['import_export', 'transactions'],
-    pageDescription: 'Điều phối luồng nhập xuất kho và chứng từ liên quan.',
-  },
-  {
     to: '/inventory',
     icon: 'widgets',
     label: 'Inventory',
@@ -103,13 +95,5 @@ export const sidebarNavItems: SidebarNavItem[] = [
     permissionModule: 'permissions',
     permissionAliases: ['advanced-permissions', 'advanced_permissions'],
     pageDescription: 'Thiết lập logic quyền nâng cao và kiểm soát truy cập mở rộng.',
-  },
-  {
-    to: '/admin/approval-configuration',
-    icon: 'approval',
-    label: 'Approval Configuration',
-    permissionModule: 'approval-configuration',
-    permissionAliases: ['approval_configuration', 'approvals'],
-    pageDescription: 'Thiết lập luồng phê duyệt và điều kiện duyệt nghiệp vụ.',
   },
 ];

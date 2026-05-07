@@ -112,11 +112,11 @@ function getIconBackground(moduleId: string): string {
     return 'bg-indigo-50';
   }
 
-  if (moduleId === 'ai-forecast' || moduleId === 'approval-configuration') {
+  if (moduleId === 'ai-forecast') {
     return 'bg-teal-50';
   }
 
-  if (moduleId === 'warehouses' || moduleId === 'inventory' || moduleId === 'import-export') {
+  if (moduleId === 'warehouses' || moduleId === 'inventory') {
     return 'bg-sky-50';
   }
 
@@ -128,11 +128,11 @@ function getIconColor(moduleId: string): string {
     return 'text-indigo-600';
   }
 
-  if (moduleId === 'ai-forecast' || moduleId === 'approval-configuration') {
+  if (moduleId === 'ai-forecast') {
     return 'text-teal-600';
   }
 
-  if (moduleId === 'warehouses' || moduleId === 'inventory' || moduleId === 'import-export') {
+  if (moduleId === 'warehouses' || moduleId === 'inventory') {
     return 'text-sky-600';
   }
 

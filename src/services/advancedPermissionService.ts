@@ -81,14 +81,6 @@ const SIDEBAR_MODULE_TEMPLATES: SidebarModuleTemplate[] = [
     backendModules: ['products'],
   },
   {
-    moduleId: 'import-export',
-    moduleName: 'Import / Export',
-    description: 'Inbound and outbound transactions (future sprint modules).',
-    iconBg: 'bg-slate-100',
-    iconColor: 'text-slate-600',
-    backendModules: [],
-  },
-  {
     moduleId: 'inventory',
     moduleName: 'Inventory',
     description: 'Inventory balances and movements (future sprint modules).',
@@ -119,14 +111,6 @@ const SIDEBAR_MODULE_TEMPLATES: SidebarModuleTemplate[] = [
     iconBg: 'bg-blue-50',
     iconColor: 'text-blue-600',
     backendModules: ['roles', 'permissions'],
-  },
-  {
-    moduleId: 'approval-configuration',
-    moduleName: 'Approval Configuration',
-    description: 'Role approval settings and approval workflow capabilities.',
-    iconBg: 'bg-cyan-50',
-    iconColor: 'text-cyan-600',
-    backendModules: ['roles'],
   },
 ];
 

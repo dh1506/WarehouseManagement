@@ -16,7 +16,6 @@ const navItems: NavItem[] = [
   { to: '/admin/categories', icon: 'category', label: 'Category' },
   { to: '/admin/product-settings', icon: 'straighten', label: 'Product Settings' },
   { to: '/admin/products', icon: 'inventory_2', label: 'Products' },
-  { to: '/import-export', icon: 'swap_horiz', label: 'Import / Export' },
   { to: '/inbound', icon: 'move_to_inbox', label: 'Inbound Flow' },
   { to: '/outbound', icon: 'local_shipping', label: 'Outbound' },
   { to: '/inventory', icon: 'widgets', label: 'Inventory' },
@@ -28,7 +27,6 @@ const navItems: NavItem[] = [
   { to: '/reports', icon: 'monitoring', label: 'Reports' },
   { to: '/admin/users', icon: 'manage_accounts', label: 'User Managerment' },
   { to: '/admin/role-permissions', icon: 'security', label: 'Roles' },
-  { to: '/admin/approval-configuration', icon: 'approval', label: 'Approval Configuration' },
 ];
 
 export function Sidebar() {

@@ -15,13 +15,11 @@ const MODULE_ICON: Record<string, string> = {
   categories: 'M4 6h16M4 12h10M4 18h7',
   references: 'M7 4h10v4H7zM5 10h14v10H5z',
   products: 'M6 7l6-3 6 3v10l-6 3-6-3V7z',
-  'import-export': 'M8 7h10m0 0l-4-4m4 4l-4 4M16 17H6m0 0l4 4m-4-4 4-4',
   inventory: 'M4 7h16v10H4zM8 11h8',
   'ai-forecast': 'M4 17l4-4 3 3 5-7 4 4',
   users: 'M12 12a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0',
   roles: 'M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z',
   permissions: 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7l3-7z',
-  'approval-configuration': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
 };
 
 function normalizePermissionKey(value: string): string {
