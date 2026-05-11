@@ -7,11 +7,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  TriangleAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useImportSalesBatch } from '../hooks/useSales';
 import { validateImportFile, ALLOWED_EXTENSIONS } from '../schemas/salesSchemas';
+import { validateImportRows } from '../utils/validateImportRows';
+import type { PreValidationResult } from '../utils/validateImportRows';
 import type { SalesImportError, SalesImportApiError } from '../types/salesType';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -57,6 +60,8 @@ export function ImportCenterTab() {
 
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [preValidation, setPreValidation] = useState<PreValidationResult | null>(null);
   const [importErrors, setImportErrors] = useState<SalesImportError[]>([]);
   const [errorBannerMsg, setErrorBannerMsg] = useState<string | null>(null);
   const [successCount, setSuccessCount] = useState<number | null>(null);
@@ -66,7 +71,7 @@ export function ImportCenterTab() {
 
   // ── File selection ──────────────────────────────────────────────────────────
   const applyFile = useCallback(
-    (candidate: File) => {
+    async (candidate: File) => {
       const err = validateImportFile(candidate);
       if (err) {
         toast({ title: 'File không hợp lệ', description: err, variant: 'destructive' });
@@ -76,13 +81,28 @@ export function ImportCenterTab() {
       setImportErrors([]);
       setErrorBannerMsg(null);
       setSuccessCount(null);
+      setPreValidation(null);
+      setIsParsing(true);
+      try {
+        const result = await validateImportRows(candidate);
+        setPreValidation(result);
+      } catch {
+        toast({
+          title: 'Không thể đọc file',
+          description: 'File bị lỗi hoặc định dạng không được hỗ trợ.',
+          variant: 'destructive',
+        });
+        setFile(null);
+      } finally {
+        setIsParsing(false);
+      }
     },
     [toast],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
-    if (selected) applyFile(selected);
+    if (selected) void applyFile(selected);
     e.target.value = '';
   };
 
@@ -96,7 +116,7 @@ export function ImportCenterTab() {
     e.preventDefault();
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped) applyFile(dropped);
+    if (dropped) void applyFile(dropped);
   };
 
   const handleRemoveFile = () => {
@@ -104,6 +124,8 @@ export function ImportCenterTab() {
     setImportErrors([]);
     setErrorBannerMsg(null);
     setSuccessCount(null);
+    setPreValidation(null);
+    setIsParsing(false);
   };
 
   // ── Import submit ───────────────────────────────────────────────────────────
@@ -112,6 +134,7 @@ export function ImportCenterTab() {
     setImportErrors([]);
     setErrorBannerMsg(null);
     setSuccessCount(null);
+    setPreValidation(null);
 
     try {
       const result = await importMutation.mutateAsync(file);
@@ -137,7 +160,18 @@ export function ImportCenterTab() {
   };
 
   const isLocked = importMutation.isPending;
-  const hasErrors = importErrors.length > 0;
+
+  // Derived display state
+  const hasClientErrors = (preValidation?.errors.length ?? 0) > 0;
+  const hasMissingCols = (preValidation?.missingColumns.length ?? 0) > 0;
+  const hasBeErrors = importErrors.length > 0;
+  const displayErrors = hasClientErrors ? preValidation!.errors : importErrors;
+  const hasDisplayErrors = displayErrors.length > 0;
+  const isButtonDisabled = !file || isLocked || isParsing || hasClientErrors || hasMissingCols;
+  const isAllValid =
+    preValidation !== null &&
+    preValidation.errors.length === 0 &&
+    preValidation.missingColumns.length === 0;
 
   return (
     <div className="relative">
@@ -201,7 +235,48 @@ export function ImportCenterTab() {
           )}
         </AnimatePresence>
 
-        {/* Error banner */}
+        {/* Missing columns warning */}
+        <AnimatePresence>
+          {hasMissingCols && (
+            <motion.div
+              key="missing-cols"
+              initial={reduced ? false : { opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22 }}
+              className="flex items-start gap-3 bg-amber-50 border border-amber-200/80 rounded-lg p-4"
+            >
+              <TriangleAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold text-amber-800">
+                  File thiếu cột bắt buộc
+                </p>
+                <p className="text-[13px] text-amber-700 mt-1">
+                  Hệ thống không tìm thấy các cột sau trong file. Vui lòng kiểm tra tên cột và
+                  thử lại:
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {preValidation!.missingColumns.map((col) => (
+                    <span
+                      key={col}
+                      className="inline-block bg-amber-100 text-amber-800 border border-amber-300/60 rounded px-2 py-0.5 text-[12px] font-medium"
+                    >
+                      {col}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={handleRemoveFile}
+                className="text-amber-400 hover:text-amber-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* BE error banner */}
         <AnimatePresence>
           {errorBannerMsg && (
             <motion.div
@@ -214,7 +289,9 @@ export function ImportCenterTab() {
             >
               <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-[14px] font-semibold text-red-800">Nhập liệu thất bại do có dữ liệu không hợp lệ</p>
+                <p className="text-[14px] font-semibold text-red-800">
+                  Nhập liệu thất bại do có dữ liệu không hợp lệ
+                </p>
                 <p className="text-[13px] text-red-600/80 mt-0.5">
                   Toàn bộ tiến trình đã được hoàn tác (Rollback). Vui lòng kiểm tra lỗi bên
                   dưới, sửa file và thử lại.
@@ -244,7 +321,7 @@ export function ImportCenterTab() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => !file && inputRef.current?.click()}
+          onClick={() => !file && !isParsing && inputRef.current?.click()}
           className={[
             'bg-white border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-5 transition-colors',
             isDragging ? 'bg-zinc-50/80' : '',
@@ -264,28 +341,70 @@ export function ImportCenterTab() {
           </div>
 
           {file ? (
-            /* Selected file card */
-            <div className="flex items-center justify-between w-full max-w-sm bg-zinc-50 border border-zinc-200 rounded-lg px-4 py-3 shadow-sm">
-              <div className="flex items-center gap-3 min-w-0">
-                <FileSpreadsheet className="h-5 w-5 text-zinc-500 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-zinc-900 truncate">{file.name}</p>
-                  <p className="text-[11px] uppercase tracking-wide text-zinc-400 mt-0.5">
-                    {formatBytes(file.size)} •{' '}
-                    {file.name.split('.').pop()?.toUpperCase()}
-                  </p>
+            <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+              {/* Selected file card */}
+              <div className="flex items-center justify-between w-full bg-zinc-50 border border-zinc-200 rounded-lg px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileSpreadsheet className="h-5 w-5 text-zinc-500 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-zinc-900 truncate">{file.name}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-400 mt-0.5">
+                      {formatBytes(file.size)} •{' '}
+                      {file.name.split('.').pop()?.toUpperCase()}
+                    </p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveFile();
+                  }}
+                  className="ml-3 text-zinc-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRemoveFile();
-                }}
-                className="ml-3 text-zinc-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
-              >
-                <X className="h-4 w-4" />
-              </button>
+
+              {/* Parsing / validation status */}
+              <AnimatePresence mode="wait">
+                {isParsing && (
+                  <motion.p
+                    key="parsing"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-1.5 text-[13px] text-zinc-500"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang kiểm tra dữ liệu...
+                  </motion.p>
+                )}
+                {isAllValid && !isParsing && (
+                  <motion.p
+                    key="valid"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-1.5 text-[13px] text-emerald-600 font-medium"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {preValidation!.validCount.toLocaleString()} dòng hợp lệ — sẵn sàng nhập
+                  </motion.p>
+                )}
+                {hasClientErrors && !isParsing && (
+                  <motion.p
+                    key="client-err"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-1.5 text-[13px] text-red-600 font-medium"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    Phát hiện {preValidation!.errors.length} lỗi — vui lòng sửa file và chọn lại
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <div className="text-center">
@@ -306,7 +425,7 @@ export function ImportCenterTab() {
           >
             <Button
               type="button"
-              disabled={!file || isLocked}
+              disabled={isButtonDisabled}
               onClick={handleImport}
               className="h-9 px-5 text-[13px] font-medium gap-2"
             >
@@ -322,9 +441,9 @@ export function ImportCenterTab() {
           </div>
         </motion.div>
 
-        {/* Validation error table */}
+        {/* Validation error table (client-side or BE errors) */}
         <AnimatePresence>
-          {hasErrors && (
+          {hasDisplayErrors && (
             <motion.div
               key="error-table"
               initial={reduced ? false : { opacity: 0, height: 0 }}
@@ -334,9 +453,24 @@ export function ImportCenterTab() {
               className="overflow-hidden"
             >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[18px] font-semibold tracking-tight text-zinc-900">
-                  Lỗi xác thực ({importErrors.length})
-                </h3>
+                <div>
+                  <h3 className="text-[18px] font-semibold tracking-tight text-zinc-900">
+                    {hasClientErrors ? 'Lỗi dữ liệu trong file' : 'Lỗi từ hệ thống'}{' '}
+                    <span className="text-[15px] font-normal text-zinc-500">
+                      ({displayErrors.length} lỗi)
+                    </span>
+                  </h3>
+                  {hasClientErrors && (
+                    <p className="text-[13px] text-zinc-500 mt-0.5">
+                      Sửa các ô được đánh dấu trong file rồi chọn lại để nhập.
+                    </p>
+                  )}
+                  {hasBeErrors && !hasClientErrors && (
+                    <p className="text-[13px] text-zinc-500 mt-0.5">
+                      Dữ liệu đã được hoàn tác. Sửa file và thử lại.
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
@@ -358,7 +492,7 @@ export function ImportCenterTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {importErrors.map((err, i) => (
+                      {displayErrors.map((err, i) => (
                         <ErrorTableRow
                           key={`${err.row}-${err.column}-${i}`}
                           error={err}
