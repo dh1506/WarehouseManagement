@@ -7,6 +7,7 @@ import type {
   SalesTransactionQueryParams,
   SalesDailySummaryQueryParams,
 } from '@/features/sales/types/salesType';
+import { useAuthStore } from '@/store/authStore';
 
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
@@ -14,18 +15,42 @@ function unwrap<T>(response: unknown): T {
 }
 
 // ── POST /api/sales/import ────────────────────────────────────────────────────
-// Sends file as multipart/form-data; BE processes & returns batch result.
-// Timeout extended to 60s to accommodate large file processing.
+// Uses native fetch (not apiClient) so the browser can auto-set the correct
+// multipart/form-data; boundary=... Content-Type header for the FormData body.
+// Axios's default Content-Type: application/json interferes with multer when
+// using the shared apiClient instance.
 export async function importSalesBatch(file: File): Promise<SalesImportResult> {
   const formData = new FormData();
   formData.append('file', file);
-  // Content-Type is deleted by the apiClient request interceptor for all
-  // FormData bodies, allowing the browser to inject the correct
-  // multipart/form-data; boundary=... header automatically.
-  const response = await apiClient.post('/api/sales/import', formData, {
-    timeout: 60_000,
-  });
-  return unwrap<SalesImportResult>(response);
+
+  const token = useAuthStore.getState().token;
+  const baseURL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000';
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+  try {
+    const response = await fetch(`${baseURL}/api/sales/import`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        // No Content-Type header — the browser auto-injects
+        // "multipart/form-data; boundary=<uuid>" from the FormData body.
+      },
+      signal: controller.signal,
+    });
+
+    const body = await response.json() as { success: boolean; data?: SalesImportResult; message?: string; error?: unknown };
+
+    if (!response.ok) {
+      return Promise.reject(body);
+    }
+
+    return body.data as SalesImportResult;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // ── GET /api/sales/transactions ───────────────────────────────────────────────

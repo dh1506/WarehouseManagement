@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useDeferredValue } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useDebounce } from '../../../hooks/useDebounce';
@@ -240,9 +240,44 @@ export function UserManagement() {
   // --- Reset password dialog state ---
   const [resetPwdTarget, setResetPwdTarget] = useState<UserItem | null>(null);
 
-  // Debounce tìm kiếm
-  const searchInput = searchParams.get('search') ?? '';
+  // Local state for the search input so typing never triggers a URL navigation
+  // (which would cause a re-render and lose focus on every keystroke).
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '');
   const debouncedSearch = useDebounce(searchInput, 400);
+
+  // Sync the settled debounced value to URL params once typing stops.
+  // Use replace:true so every debounce tick doesn't pollute browser history.
+  const lastSyncedSearch = useRef(debouncedSearch);
+  useEffect(() => {
+    if (lastSyncedSearch.current === debouncedSearch) return;
+    lastSyncedSearch.current = debouncedSearch;
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (debouncedSearch.trim()) {
+        next.set('search', debouncedSearch);
+      } else {
+        next.delete('search');
+      }
+      next.set('page', '1');
+      return next;
+    }, { replace: true });
+    setPage(1);
+    setSelectedUserIds([]);
+    setIsHeaderChecked(false);
+  }, [debouncedSearch, setSearchParams]);
+
+  // Sync URL → local state for external changes (e.g., the header search bar).
+  // Guard with lastSyncedSearch so we don't re-apply our own URL writes.
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') ?? '';
+    if (urlSearch !== lastSyncedSearch.current) {
+      lastSyncedSearch.current = urlSearch;
+      setSearchInput(urlSearch);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const deferredRoleFilter = useDeferredValue(roleFilter);
   const deferredStatusFilter = useDeferredValue(statusFilter);
   const roleOptionsQuery = useUserRoleOptions();
@@ -281,23 +316,11 @@ export function UserManagement() {
   const isPartiallySelected = selectedCountInCurrentPage > 0 && !isAllRowsSelected;
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = e.target.value;
-    const nextParams = new URLSearchParams(searchParams);
-
-    if (nextValue.trim()) {
-      nextParams.set('search', nextValue);
-    } else {
-      nextParams.delete('search');
-    }
-
-    nextParams.set('page', '1');
-    setSearchParams(nextParams);
-    setPage(1);
-    setSelectedUserIds([]);
-    setIsHeaderChecked(false);
-  }, [searchParams, setSearchParams]);
+    setSearchInput(e.target.value);
+  }, []);
 
   const handleReset = useCallback(() => {
+    setSearchInput('');
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('search');
     nextParams.set('page', '1');

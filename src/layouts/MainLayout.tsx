@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useSearchParams } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Sidebar } from './Sidebar';
 import { useAuthStore } from '@/store/authStore';
 import apiClient from '@/services/apiClient';
@@ -68,22 +69,39 @@ export function MainLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const supportsHeaderSearch = location.pathname === '/admin/users';
-  const headerSearchValue = supportsHeaderSearch ? searchParams.get('search') ?? '' : '';
 
-  const handleHeaderSearchChange = (value: string) => {
+  // Local state for the header search input — avoids calling setSearchParams on
+  // every keystroke (which used to change location.key and remount the page).
+  const [headerInput, setHeaderInput] = useState(() =>
+    location.pathname === '/admin/users' ? (searchParams.get('search') ?? '') : '',
+  );
+  const debouncedHeaderInput = useDebounce(headerInput, 400);
+
+  // Keep header input in sync when the in-page search box updates the URL.
+  useEffect(() => {
     if (!supportsHeaderSearch) return;
+    const urlSearch = searchParams.get('search') ?? '';
+    setHeaderInput(urlSearch);
+  // We intentionally only re-run when the URL search param itself changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get('search'), supportsHeaderSearch]);
+
+  // Commit debounced header value to URL.
+  useEffect(() => {
+    if (!supportsHeaderSearch) return;
+    const currentUrl = searchParams.get('search') ?? '';
+    if (debouncedHeaderInput === currentUrl) return;
 
     const nextParams = new URLSearchParams(searchParams);
-
-    if (value.trim()) {
-      nextParams.set('search', value);
+    if (debouncedHeaderInput.trim()) {
+      nextParams.set('search', debouncedHeaderInput);
     } else {
       nextParams.delete('search');
     }
-
     nextParams.set('page', '1');
-    setSearchParams(nextParams);
-  };
+    setSearchParams(nextParams, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedHeaderInput, supportsHeaderSearch]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fbfbfe] text-gray-800">
@@ -104,8 +122,8 @@ export function MainLayout() {
                 </span>
                 <input
                   type="text"
-                  value={headerSearchValue}
-                  onChange={(e) => handleHeaderSearchChange(e.target.value)}
+                  value={headerInput}
+                  onChange={(e) => setHeaderInput(e.target.value)}
                   placeholder="Search users..."
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 border-transparent rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:bg-white transition-colors"
                 />
@@ -129,7 +147,7 @@ export function MainLayout() {
         <main className="flex-1 overflow-hidden">
           <AnimatePresence initial={false}>
             <motion.div
-              key={location.key}
+              key={location.pathname}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
