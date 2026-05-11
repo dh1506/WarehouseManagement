@@ -40,7 +40,7 @@ export function ProductSearchSelect({
   id,
   value,
   onValueChange,
-  placeholder = 'Search product…',
+  placeholder = 'Tìm sản phẩm...',
   disabled,
   excludeIds = [],
   categoryId,
@@ -107,13 +107,13 @@ export function ProductSearchSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search by name or SKU…"
+            placeholder="Tìm theo tên hoặc SKU..."
             value={search}
             onValueChange={handleSearchChange}
           />
           <CommandList className="max-h-52">
             <CommandEmpty>
-              {isLoading ? 'Loading…' : 'No product found.'}
+              {isLoading ? 'Đang tải...' : 'Không tìm thấy sản phẩm.'}
             </CommandEmpty>
             <CommandGroup>
               {filteredProducts.map((product) => (

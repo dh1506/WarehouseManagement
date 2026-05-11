@@ -62,7 +62,7 @@ export function ConfirmVarianceDialog({
     const validated = rows.map((r) => {
       if (r.reason.trim().length < 5) {
         hasError = true;
-        return { ...r, error: 'Reason must be at least 5 characters' };
+        return { ...r, error: 'Lý do phải có ít nhất 5 ký tự' };
       }
       return { ...r, error: '' };
     });
@@ -101,10 +101,10 @@ export function ConfirmVarianceDialog({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-slate-900">
-                Confirm Variance Reasons
+                Xác nhận lý do chênh lệch
               </DialogTitle>
               <DialogDescription className="mt-0.5 text-sm text-slate-500">
-                Provide a reason for each discrepancy before completing the audit.
+                Cung cấp lý do cho từng sai lệch trước khi hoàn tất kiểm kê.
               </DialogDescription>
             </div>
           </div>
@@ -128,15 +128,15 @@ export function ConfirmVarianceDialog({
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {row.detail.product.code} · {row.detail.location.full_path}
-                      {row.detail.lot && ` · Lot: ${row.detail.lot.lot_no}`}
+                      {row.detail.lot && ` · Lô: ${row.detail.lot.lot_no}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-xs text-slate-500">
-                      System: <span className="font-semibold text-slate-700">{Number(row.detail.system_quantity)}</span>
+                      Hệ thống: <span className="font-semibold text-slate-700">{Number(row.detail.system_quantity)}</span>
                     </span>
                     <span className="text-xs text-slate-500">
-                      Counted: <span className="font-semibold text-slate-700">
+                      Thực đếm: <span className="font-semibold text-slate-700">
                         {row.detail.counted_quantity !== null ? Number(row.detail.counted_quantity) : '—'}
                       </span>
                     </span>
@@ -151,7 +151,7 @@ export function ConfirmVarianceDialog({
                   <textarea
                     value={row.reason}
                     onChange={(e) => handleReasonChange(idx, e.target.value)}
-                    placeholder="Explain the reason for this discrepancy…"
+                    placeholder="Giải thích lý do cho sai lệch này…"
                     rows={2}
                     disabled={isPending}
                     className={cn(
@@ -178,7 +178,7 @@ export function ConfirmVarianceDialog({
             disabled={isPending}
             className="text-slate-600"
           >
-            Cancel
+            Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
@@ -186,7 +186,7 @@ export function ConfirmVarianceDialog({
             className="gap-2 bg-amber-500 hover:bg-amber-600 text-white"
           >
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Confirm {rows.length} Variance{rows.length !== 1 ? 's' : ''}
+            Xác nhận {rows.length} chênh lệch
           </Button>
         </div>
       </DialogContent>

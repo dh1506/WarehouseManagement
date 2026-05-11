@@ -37,7 +37,7 @@ function formatCurrency(value: string): string {
   const num = parseFloat(value);
   if (isNaN(num)) return value;
   return (
-    new Intl.NumberFormat('en-US', {
+    new Intl.NumberFormat('vi-VN', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(num) + ' ₫'
@@ -48,13 +48,13 @@ function TypeBadge({ type }: { type: SalesTransactionType }) {
   if (type === 'SALE') {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#ecfdf5] text-[#065f46]">
-        SALE
+        Bán hàng
       </span>
     );
   }
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#fef2f2] text-[#991b1b]">
-      RETURN
+      Trả hàng
     </span>
   );
 }
@@ -94,7 +94,7 @@ function Pagination({
       <p className="text-[13px] text-zinc-500">
         Hiển thị <span className="font-medium text-zinc-800">{start}</span> –{' '}
         <span className="font-medium text-zinc-800">{end}</span> trong{' '}
-        <span className="font-medium text-zinc-800">{total.toLocaleString()}</span> kết quả
+        <span className="font-medium text-zinc-800">{total.toLocaleString('vi-VN')}</span> kết quả
       </p>
       <div className="flex items-center gap-1">
         <button

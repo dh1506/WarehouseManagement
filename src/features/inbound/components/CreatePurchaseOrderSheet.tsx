@@ -93,7 +93,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     (index: number, product: ProductOption) => {
       const isDuplicate = items.some((it, i) => i !== index && String(it.product_id) === product.id);
       if (isDuplicate) {
-        toast({ title: 'Duplicate product', description: 'This product is already in the list.', variant: 'destructive' });
+        toast({ title: 'Sản phẩm trùng lặp', description: 'Sản phẩm này đã có trong danh sách.', variant: 'destructive' });
         return;
       }
       setItems((prev) => {
@@ -193,12 +193,12 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     };
     createMutation.mutate(payload, {
       onSuccess: (data) => {
-        toast({ title: 'Order created', description: `Stock-in order ${data.code} created successfully.` });
+        toast({ title: 'Đã tạo phiếu', description: `Phiếu nhập kho ${data.code} đã được tạo thành công.` });
         onClose();
         navigate(`/inbound/${data.id}`);
       },
       onError: (e) => {
-        toast({ title: 'Creation failed', description: (e as Error).message, variant: 'destructive' });
+        toast({ title: 'Tạo phiếu thất bại', description: (e as Error).message, variant: 'destructive' });
       },
     });
   }, [validate, zone, supplierId, description, items, createMutation, toast, onClose, navigate]);
@@ -235,8 +235,8 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Create Stock-In Order</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Fill in the order details and add products</p>
+              <h2 className="text-lg font-bold text-slate-900">Tạo phiếu nhập kho</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Điền thông tin phiếu và thêm sản phẩm</p>
             </div>
             <button
               onClick={onClose}
@@ -251,14 +251,14 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
 
             {/* ── General Information ─────────────────────────────────────── */}
             <section className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">General Information</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Thông tin chung</h3>
 
               <div className="grid grid-cols-2 gap-4">
                 {/* Step 1: Product Category (for zone filtering) */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Product Category
-                    <span className="ml-1 text-slate-400 font-normal">(filters zones)</span>
+                    Danh mục sản phẩm
+                    <span className="ml-1 text-slate-400 font-normal">(lọc khu vực)</span>
                   </label>
                   <Select
                     value={locationCategoryId || '__all__'}
@@ -273,7 +273,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                       <SelectValue placeholder="All categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All categories</SelectItem>
+                      <SelectItem value="__all__">Tất cả danh mục</SelectItem>
                       {categories.map((cat) => (
                         <SelectItem key={cat.id} value={String(cat.id)}>
                           {cat.name}
@@ -286,7 +286,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 {/* Step 2: Warehouse Zone */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Warehouse Zone <span className="text-rose-500">*</span>
+                    Khu vực kho <span className="text-rose-500">*</span>
                   </label>
                   <WarehouseZoneSelect
                     value={zone}
@@ -313,7 +313,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                         {' · '}{zone.warehouseName}
                         {' · '}
                         <span className={zone.availableCount > 0 ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-semibold'}>
-                          {zone.availableCount} location{zone.availableCount !== 1 ? 's' : ''} available
+                          {zone.availableCount} vị trí khả dụng
                         </span>
                       </motion.p>
                       <ZoneMapEmbed zoneCode={zone.zone_code} compact />
@@ -324,7 +324,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 {/* Supplier */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Supplier <span className="text-rose-500">*</span>
+                    Nhà cung cấp <span className="text-rose-500">*</span>
                   </label>
                   <SupplierSearchSelect
                     value={supplierId}
@@ -333,7 +333,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                       setSupplierName(name);
                       setErrors((p) => { const n = { ...p }; delete n.supplierId; return n; });
                     }}
-                    placeholder="Search and select supplier…"
+                    placeholder="Tìm và chọn nhà cung cấp..."
                   />
                   {errors.supplierId && <p className="text-[11px] text-rose-500 mt-1">{errors.supplierId}</p>}
                   {supplierId && supplierName && (
@@ -342,7 +342,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                       animate={{ opacity: 1, height: 'auto' }}
                       className="text-[11px] text-slate-400 mt-1"
                     >
-                      Selected: <span className="font-medium text-slate-600">{supplierName}</span>
+                      Đã chọn: <span className="font-medium text-slate-600">{supplierName}</span>
                     </motion.p>
                   )}
                 </div>
@@ -350,11 +350,11 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Notes</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Ghi chú</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional notes…"
+                  placeholder="Ghi chú tuỳ chọn..."
                   rows={2}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 resize-none"
                 />
@@ -364,8 +364,8 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
             {/* ── Products ──────────────────────────────────────────────────── */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Products</h3>
-                <span className="text-[11px] text-slate-400">{items.filter(i => i.product_id > 0).length} item(s) added</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Sản phẩm</h3>
+                <span className="text-[11px] text-slate-400">{items.filter(i => i.product_id > 0).length} mặt hàng đã thêm</span>
               </div>
 
               {errors.items && (
@@ -453,7 +453,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                         <div className="grid grid-cols-2 gap-x-3 gap-y-2 pl-7">
                           {/* UoM */}
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Unit of Measure</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Đơn vị tính</span>
                             <span className={cn(
                               'inline-flex h-7 items-center rounded-md px-2.5 text-xs font-semibold w-fit',
                               item.uom ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' : 'bg-slate-100 text-slate-400',
@@ -464,7 +464,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
 
                           {/* Qty */}
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Quantity</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Số lượng</span>
                             <div className="flex items-center gap-1">
                               <button type="button" onClick={() => handleQtyChange(index, -1)}
                                 disabled={item.expected_quantity <= 1}
@@ -487,7 +487,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
 
                           {/* Unit Price */}
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Unit Price</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Đơn giá</span>
                             <div className="relative w-full">
                               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">$</span>
                               <input
@@ -504,7 +504,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
 
                           {/* Subtotal */}
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Subtotal</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Thành tiền</span>
                             <AnimatePresence mode="wait">
                               {subtotal > 0 ? (
                                 <motion.span
@@ -550,7 +550,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                   className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-white px-3 text-xs font-medium text-slate-500 hover:border-blue-300 hover:text-blue-600 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add Product Line
+                  Thêm dòng sản phẩm
                 </motion.button>
 
                 <AnimatePresence>
@@ -561,7 +561,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                       exit={{ opacity: 0, x: 10 }}
                       className="flex items-center gap-2"
                     >
-                      <span className="text-xs text-slate-500">Order Total:</span>
+                      <span className="text-xs text-slate-500">Tổng đơn hàng:</span>
                       <span className="text-xl font-extrabold text-blue-600 tabular-nums">
                         ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
@@ -580,7 +580,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
               disabled={createMutation.isPending}
               className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              Cancel
+              Huỷ
             </button>
             <motion.button
               type="button"
@@ -591,7 +591,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
               className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Submit for Approval
+              Gửi duyệt
             </motion.button>
           </div>
         </motion.div>

@@ -35,9 +35,9 @@ export function LoginForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col h-full flex-1">
       <div className="flex-none">
         <div className="mb-6">
-          <h2 className="text-lg sm:text-xl font-extrabold text-on-surface tracking-tight mb-2">Welcome Back</h2>
+          <h2 className="text-lg sm:text-xl font-extrabold text-on-surface tracking-tight mb-2">Chào mừng trở lại</h2>
           <p className="text-on-surface-variant font-medium">
-            Please enter your credentials to access the Predictive Architect dashboard.
+            Vui lòng nhập thông tin đăng nhập để tiếp tục quản lý kho hàng.
           </p>
         </div>
 
@@ -57,7 +57,7 @@ export function LoginForm() {
         {/* Username Field */}
         <div className="space-y-2 relative pb-5">
           <label className="text-sm font-bold text-on-surface-variant block" htmlFor="username">
-            Username
+            Tên đăng nhập
           </label>
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -90,10 +90,10 @@ export function LoginForm() {
         <div className="space-y-2 relative pb-5">
           <div className="flex justify-between items-center">
             <label className="text-sm font-bold text-on-surface-variant block" htmlFor="password">
-              Password
+              Mật khẩu
             </label>
             <a className="text-xs font-bold text-primary hover:text-primary-container transition-colors" href="#">
-              Forgot Password?
+              Quên mật khẩu?
             </a>
           </div>
           <div className="relative group">
@@ -143,7 +143,7 @@ export function LoginForm() {
             disabled={isSubmitting}
           />
           <label className="ml-3 block text-sm font-semibold text-on-surface-variant cursor-pointer" htmlFor="remember-me">
-            Keep me signed in for 30 days
+            Duy trì đăng nhập trong 30 ngày
           </label>
         </div>
 
@@ -160,7 +160,7 @@ export function LoginForm() {
           <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
         ) : (
           <>
-            Sign In to Dashboard
+            Đăng nhập
             <span className="material-symbols-outlined ml-2 text-xs" data-icon="arrow_forward">
               arrow_forward
             </span>

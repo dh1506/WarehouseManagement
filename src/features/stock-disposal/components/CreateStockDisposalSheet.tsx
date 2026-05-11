@@ -190,7 +190,7 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
               {index + 1}
             </span>
-            <span className="text-xs font-semibold text-slate-500">Disposal Item</span>
+            <span className="text-xs font-semibold text-slate-500">Mặt hàng thanh lý</span>
           </div>
           {totalRows > 1 && (
             <button
@@ -206,7 +206,7 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
         <div className="space-y-3.5 p-4">
           {/* Product — full width */}
           <div>
-            <FieldLabel required>Product</FieldLabel>
+            <FieldLabel required>Sản phẩm</FieldLabel>
             <Controller
               name={`details.${index}.product_id`}
               control={control}
@@ -218,7 +218,7 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
                     form.setValue(`details.${index}.lot_id`, undefined, { shouldDirty: true, shouldValidate: true });
                     form.setValue(`details.${index}.warehouse_location_id`, 0, { shouldDirty: true, shouldValidate: true });
                   }}
-                  placeholder="Search by name or SKU…"
+                  placeholder="Tìm kiếm theo tên hoặc SKU…"
                 />
               )}
             />
@@ -228,8 +228,8 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
           {/* Row 2: Lot + Location + Reason (3 equal columns, spans full width) */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <FieldLabel hint={requiresLotSelection && !selectedLotId ? 'required' : 'optional'}>
-                Lot / Batch
+              <FieldLabel hint={requiresLotSelection && !selectedLotId ? 'bắt buộc' : 'tùy chọn'}>
+                Lô / Mẻ
               </FieldLabel>
               <SelectField
                 {...form.register(`details.${index}.lot_id`, {
@@ -246,12 +246,12 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
               >
                 <option value="">
                   {productId <= 0
-                    ? 'Select product first'
+                    ? 'Chọn sản phẩm trước'
                     : lotOptionsQuery.isFetching
-                      ? 'Loading…'
+                      ? 'Đang tải…'
                       : (lotOptionsQuery.data?.length ?? 0) === 0
-                        ? 'No lots'
-                        : 'Select lot…'}
+                        ? 'Không có lô'
+                        : 'Chọn lô…'}
                 </option>
                 {(lotOptionsQuery.data ?? []).map((lot) => (
                   <option key={lot.id} value={lot.id}>
@@ -260,13 +260,13 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
                 ))}
               </SelectField>
               {requiresLotSelection && !selectedLotId && (
-                <p className="mt-1 text-[10px] text-amber-600">Select lot to see locations</p>
+                <p className="mt-1 text-[10px] text-amber-600">Chọn lô để xem vị trí</p>
               )}
               <FieldError message={lineErrors?.lot_id?.message} />
             </div>
 
             <div>
-              <FieldLabel required>Location</FieldLabel>
+              <FieldLabel required>Vị trí</FieldLabel>
               <SelectField
                 {...form.register(`details.${index}.warehouse_location_id`, { valueAsNumber: true })}
                 isLoading={locationOptionsQuery.isFetching}
@@ -275,18 +275,18 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
               >
                 <option value={0}>
                   {!productId
-                    ? 'Select product first'
+                    ? 'Chọn sản phẩm trước'
                     : requiresLotSelection && !selectedLotId
-                      ? 'Select lot first'
+                      ? 'Chọn lô trước'
                       : locationOptionsQuery.isFetching
-                        ? 'Loading…'
+                        ? 'Đang tải…'
                         : (locationOptionsQuery.data?.length ?? 0) === 0
-                          ? 'No locations'
-                          : 'Select location…'}
+                          ? 'Không có vị trí'
+                          : 'Chọn vị trí…'}
                 </option>
                 {(locationOptionsQuery.data ?? []).map((loc) => (
                   <option key={loc.id} value={loc.id}>
-                    {loc.fullPath} (Avail: {loc.availableQty})
+                    {loc.fullPath} (Tồn: {loc.availableQty})
                   </option>
                 ))}
               </SelectField>
@@ -294,12 +294,12 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
             </div>
 
             <div>
-              <FieldLabel required>Disposal Reason</FieldLabel>
+              <FieldLabel required>Lý do thanh lý</FieldLabel>
               <SelectField
                 {...form.register(`details.${index}.reason_id`, { valueAsNumber: true })}
                 error={!!lineErrors?.reason_id}
               >
-                <option value={0}>Select reason…</option>
+                <option value={0}>Chọn lý do…</option>
                 {reasonOptions.map((r) => (
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
@@ -311,7 +311,7 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
           {/* Row 3: Quantity (narrow) + Unit price (narrow) + Note (wide) */}
           <div className="grid grid-cols-4 gap-4">
             <div>
-              <FieldLabel required>Quantity</FieldLabel>
+              <FieldLabel required>Số lượng</FieldLabel>
               <input
                 type="number"
                 min={1}
@@ -333,17 +333,17 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
                       : 'text-emerald-600',
                 )}>
                   {availableQtyQuery.isFetching
-                    ? 'Checking…'
+                    ? 'Đang kiểm tra…'
                     : overAvailable
-                      ? `Over by ${Number(quantity) - availableQty}`
-                      : `Available: ${availableQty}`}
+                      ? `Vượt ${Number(quantity) - availableQty}`
+                      : `Tồn kho: ${availableQty}`}
                 </p>
               )}
               <FieldError message={lineErrors?.quantity?.message} />
             </div>
 
             <div>
-              <FieldLabel>Unit Price</FieldLabel>
+              <FieldLabel>Đơn giá</FieldLabel>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₫</span>
                 <input
@@ -365,11 +365,11 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
             </div>
 
             <div className="col-span-2">
-              <FieldLabel>Note</FieldLabel>
+              <FieldLabel>Ghi chú</FieldLabel>
               <input
                 type="text"
                 {...form.register(`details.${index}.reason_note`)}
-                placeholder="Additional details for this line (optional)…"
+                placeholder="Thông tin bổ sung cho dòng này (tùy chọn)…"
                 className={cn(
                   'h-9 w-full rounded-lg border bg-white px-3 text-sm placeholder:text-slate-300 transition-all',
                   'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400',
@@ -384,7 +384,7 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
           {lineAmount > 0 && (
             <div className="flex justify-end border-t border-slate-100 pt-2.5">
               <span className="text-xs text-slate-500">
-                Line total:{' '}
+                Thành tiền:{' '}
                 <span className="font-bold text-slate-800">{formatCurrency(lineAmount)}</span>
               </span>
             </div>
@@ -449,20 +449,20 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
           hasError = true;
           form.setError(`details.${check.index}.warehouse_location_id`, {
             type: 'manual',
-            message: 'This location does not hold the selected product / lot.',
+            message: 'Vị trí này không chứa sản phẩm / lô đã chọn.',
           });
         }
         if (detail.quantity > (check.availableQty ?? 0)) {
           hasError = true;
           form.setError(`details.${check.index}.quantity`, {
             type: 'manual',
-            message: `Exceeds available stock (${check.availableQty}).`,
+            message: `Vượt quá tồn kho khả dụng (${check.availableQty}).`,
           });
         }
       });
 
       if (hasError) {
-        toast({ title: 'Stock error', description: 'One or more lines exceed available stock.', variant: 'destructive' });
+        toast({ title: 'Lỗi tồn kho', description: 'Một hoặc nhiều dòng vượt quá tồn kho khả dụng.', variant: 'destructive' });
         return;
       }
 
@@ -481,11 +481,11 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
         },
         {
           onSuccess: () => {
-            toast({ title: 'Disposal ticket created', description: 'Saved as Draft.' });
+            toast({ title: 'Đã tạo phiếu thanh lý', description: 'Đã lưu dưới dạng nháp.' });
             onClose();
           },
           onError: (err) => {
-            toast({ title: 'Creation failed', description: err.message, variant: 'destructive' });
+            toast({ title: 'Tạo phiếu thất bại', description: err.message, variant: 'destructive' });
           },
         },
       );
@@ -507,9 +507,9 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
               <PackageX className="h-4.5 w-4.5 text-rose-500" />
             </div>
             <div>
-              <SheetTitle className="text-base font-bold text-slate-900">Create Disposal Ticket</SheetTitle>
+              <SheetTitle className="text-base font-bold text-slate-900">Tạo phiếu thanh lý</SheetTitle>
               <SheetDescription className="text-xs text-slate-500">
-                Record damaged, expired, or defective goods for disposal.
+                Ghi nhận hàng hỏng, hết hạn hoặc không đạt chất lượng để thanh lý.
               </SheetDescription>
             </div>
           </div>
@@ -521,11 +521,11 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
 
             {/* Description */}
             <div>
-              <FieldLabel>Description</FieldLabel>
+              <FieldLabel>Mô tả</FieldLabel>
               <textarea
                 {...form.register('description')}
                 rows={2}
-                placeholder="Brief description of this disposal batch…"
+                placeholder="Mô tả ngắn về đợt thanh lý này…"
                 className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 transition-all focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
               <FieldError message={form.formState.errors.description?.message} />
@@ -535,7 +535,7 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Disposal Items
+                  Mặt hàng thanh lý
                 </p>
                 {totalValue > 0 && (
                   <motion.span
@@ -543,7 +543,7 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
                     animate={{ opacity: 1, scale: 1 }}
                     className="text-xs font-bold text-slate-700"
                   >
-                    Total: <span className="text-blue-600">{formatCurrency(totalValue)}</span>
+                    Tổng: <span className="text-blue-600">{formatCurrency(totalValue)}</span>
                   </motion.span>
                 )}
               </div>
@@ -572,7 +572,7 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
                 className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm font-semibold text-slate-400 transition-all hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-600"
               >
                 <Plus className="h-4 w-4" />
-                Add Item
+                Thêm mặt hàng
               </button>
             </div>
           </form>
@@ -587,7 +587,7 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
               disabled={createMutation.isPending}
               className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 disabled:opacity-50"
             >
-              Cancel
+              Huỷ
             </button>
             <button
               type="submit"
@@ -596,7 +596,7 @@ export function CreateStockDisposalSheet({ open, onClose }: CreateStockDisposalS
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
             >
               {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {createMutation.isPending ? 'Creating…' : 'Create Draft'}
+              {createMutation.isPending ? 'Đang tạo…' : 'Tạo nháp'}
             </button>
           </div>
         </div>

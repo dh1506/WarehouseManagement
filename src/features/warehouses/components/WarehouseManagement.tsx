@@ -108,8 +108,8 @@ export function WarehouseManagement() {
     <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex w-full flex-1 flex-col gap-3">
         <PageHeader
-          eyebrow="Sprint 1 · Warehouse Structure"
-          title="Warehouse & Locations"
+          eyebrow="Sprint 1 · Cấu trúc kho"
+          title="Kho & Vị trí lưu trữ"
           description="Định nghĩa kho và vị trí lưu trữ để những sprint giao dịch sau có thể gán hàng vào cấu trúc vật lý ổn định."
           actions={
             canManage ? (
@@ -118,7 +118,7 @@ export function WarehouseManagement() {
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container"
               >
                 <span className="material-symbols-outlined text-[18px]">add</span>
-                New {tab === 'warehouses' ? 'Warehouse' : 'Location'}
+                {tab === 'warehouses' ? 'Thêm kho' : 'Thêm vị trí'}
               </button>
             ) : null
           }
@@ -126,33 +126,33 @@ export function WarehouseManagement() {
 
         <Tabs value={tab} onValueChange={(value) => { setTab(value as 'warehouses' | 'locations'); setPage(1); setSearch(''); setStatus('all'); }}>
           <TabsList variant="line" className="rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
-            <TabsTrigger value="warehouses" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Warehouses</TabsTrigger>
-            <TabsTrigger value="locations" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Locations</TabsTrigger>
+            <TabsTrigger value="warehouses" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Kho hàng</TabsTrigger>
+            <TabsTrigger value="locations" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Vị trí</TabsTrigger>
           </TabsList>
 
           <TabsContent value={tab} className="space-y-4">
             <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <TextInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder={tab === 'warehouses' ? 'Search code, warehouse, manager...' : 'Search code, warehouse, zone...'} />
+                <TextInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder={tab === 'warehouses' ? 'Tìm mã, kho, người quản lý...' : 'Tìm mã, kho, khu vực...'} />
                 <SelectInput value={status} onChange={(value) => { setStatus(value); setPage(1); }}>
-                  <option value="all">All status</option>
+                  <option value="all">Tất cả trạng thái</option>
                   {tab === 'warehouses' ? (
                     <>
-                      <option value="operational">Operational</option>
-                      <option value="maintenance">Maintenance</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="operational">Hoạt động</option>
+                      <option value="maintenance">Bảo trì</option>
+                      <option value="inactive">Không hoạt động</option>
                     </>
                   ) : (
                     <>
-                      <option value="active">Active</option>
-                      <option value="blocked">Blocked</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="active">Đang dùng</option>
+                      <option value="blocked">Bị khóa</option>
+                      <option value="inactive">Không hoạt động</option>
                     </>
                   )}
                 </SelectInput>
                 {tab === 'locations' ? (
                   <SelectInput value={warehouseFilter} onChange={(value) => { setWarehouseFilter(value); setPage(1); }}>
-                    <option value="">All warehouses</option>
+                    <option value="">Tất cả kho</option>
                     {warehouseOptionsQuery.data?.data.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </SelectInput>
                 ) : null}
@@ -201,7 +201,7 @@ export function WarehouseManagement() {
           } else {
             await createWarehouseMutation.mutateAsync(payload);
           }
-          toast({ title: 'Đã lưu kho', description: 'Warehouse master đã được cập nhật.' });
+          toast({ title: 'Đã lưu kho', description: 'Thông tin kho đã được cập nhật.' });
           setWarehouseOpen(false);
         }}
       />
@@ -219,7 +219,7 @@ export function WarehouseManagement() {
           } else {
             await createLocationMutation.mutateAsync(payload);
           }
-          toast({ title: 'Đã lưu vị trí', description: 'Warehouse location đã được cập nhật.' });
+          toast({ title: 'Đã lưu vị trí', description: 'Thông tin vị trí kho đã được cập nhật.' });
           setLocationOpen(false);
         }}
       />
@@ -242,10 +242,10 @@ function WarehouseRows({
   items: WarehouseItem[]; isLoading: boolean; isError: boolean; canManage: boolean;
   onView: (item: WarehouseItem) => void; onEdit: (item: WarehouseItem) => void; onDelete: (item: WarehouseItem) => void;
 }) {
-  if (isLoading) return <div className="p-8"><StatePanel title="Đang tải dữ liệu kho" description="Hệ thống đang đồng bộ warehouse master." icon="hourglass_top" /></div>;
+  if (isLoading) return <div className="p-8"><StatePanel title="Đang tải dữ liệu kho" description="Hệ thống đang đồng bộ danh sách kho." icon="hourglass_top" /></div>;
   if (isError) return <div className="p-8"><StatePanel title="Không tải được kho" description="Vui lòng thử lại sau." icon="error" tone="error" /></div>;
-  if (items.length === 0) return <div className="p-8"><StatePanel title="Chưa có kho phù hợp" description="Tạo warehouse master đầu tiên để định nghĩa cấu trúc lưu trữ." icon="warehouse" /></div>;
-  return <table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><th className="px-4 py-3">Warehouse</th><th className="px-4 py-3">Manager</th><th className="px-4 py-3">Address</th><th className="px-4 py-3">Capacity</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">{items.map((item) => <tr key={item.id} className="align-top"><td className="px-4 py-4"><div className="font-semibold text-slate-900">{item.name}</div><div className="mt-1 text-sm text-slate-500">{item.code}</div><div className="mt-2 text-xs text-slate-400">{item.locationCount} locations</div></td><td className="px-4 py-4 text-sm text-slate-600">{item.manager}</td><td className="px-4 py-4 text-sm text-slate-600">{item.address}</td><td className="px-4 py-4 text-sm text-slate-600">{item.capacityUsage}% utilized</td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><ActionButton icon="visibility" label="View" onClick={() => onView(item)} />{canManage ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(item)} /> : null}{canManage ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(item)} /> : null}</div></td></tr>)}</tbody></table>;
+  if (items.length === 0) return <div className="p-8"><StatePanel title="Chưa có kho phù hợp" description="Tạo kho đầu tiên để định nghĩa cấu trúc lưu trữ." icon="warehouse" /></div>;
+  return <table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><th className="px-4 py-3">Kho</th><th className="px-4 py-3">Quản lý</th><th className="px-4 py-3">Địa chỉ</th><th className="px-4 py-3">Công suất</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">{items.map((item) => <tr key={item.id} className="align-top"><td className="px-4 py-4"><div className="font-semibold text-slate-900">{item.name}</div><div className="mt-1 text-sm text-slate-500">{item.code}</div><div className="mt-2 text-xs text-slate-400">{item.locationCount} vị trí</div></td><td className="px-4 py-4 text-sm text-slate-600">{item.manager}</td><td className="px-4 py-4 text-sm text-slate-600">{item.address}</td><td className="px-4 py-4 text-sm text-slate-600">{item.capacityUsage}% đã dùng</td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><ActionButton icon="visibility" label="Xem" onClick={() => onView(item)} />{canManage ? <ActionButton icon="edit" label="Sửa" onClick={() => onEdit(item)} /> : null}{canManage ? <ActionButton icon="delete" label="Xóa" danger onClick={() => onDelete(item)} /> : null}</div></td></tr>)}</tbody></table>;
 }
 
 function LocationRows({
@@ -254,10 +254,10 @@ function LocationRows({
   items: WarehouseLocationItem[]; isLoading: boolean; isError: boolean; canManage: boolean;
   onView: (item: WarehouseLocationItem) => void; onEdit: (item: WarehouseLocationItem) => void; onDelete: (item: WarehouseLocationItem) => void;
 }) {
-  if (isLoading) return <div className="p-8"><StatePanel title="Đang tải vị trí kho" description="Hệ thống đang đồng bộ warehouse locations." icon="hourglass_top" /></div>;
+  if (isLoading) return <div className="p-8"><StatePanel title="Đang tải vị trí kho" description="Hệ thống đang đồng bộ danh sách vị trí." icon="hourglass_top" /></div>;
   if (isError) return <div className="p-8"><StatePanel title="Không tải được vị trí" description="Vui lòng thử lại sau." icon="error" tone="error" /></div>;
   if (items.length === 0) return <div className="p-8"><StatePanel title="Chưa có vị trí phù hợp" description="Tạo vị trí lưu trữ đầu tiên để gán hàng hóa trong kho." icon="grid_view" /></div>;
-  return <table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><th className="px-4 py-3">Location</th><th className="px-4 py-3">Warehouse</th><th className="px-4 py-3">Coordinates</th><th className="px-4 py-3">Load</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">{items.map((item) => <tr key={item.id} className="align-top"><td className="px-4 py-4"><div className="font-semibold text-slate-900">{item.code}</div><div className="mt-1 text-xs text-slate-400">{item.productCount} products</div></td><td className="px-4 py-4 text-sm text-slate-600">{item.warehouseName}</td><td className="px-4 py-4 text-sm text-slate-600">Zone {item.zone} · Rack {item.rack} · Level {item.level} · Bin {item.bin}</td><td className="px-4 py-4 text-sm text-slate-600">{item.currentLoad} / {item.capacity}</td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><ActionButton icon="visibility" label="View" onClick={() => onView(item)} />{canManage ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(item)} /> : null}{canManage ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(item)} /> : null}</div></td></tr>)}</tbody></table>;
+  return <table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><th className="px-4 py-3">Vị trí</th><th className="px-4 py-3">Kho</th><th className="px-4 py-3">Tọa độ</th><th className="px-4 py-3">Tải trọng</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">{items.map((item) => <tr key={item.id} className="align-top"><td className="px-4 py-4"><div className="font-semibold text-slate-900">{item.code}</div><div className="mt-1 text-xs text-slate-400">{item.productCount} sản phẩm</div></td><td className="px-4 py-4 text-sm text-slate-600">{item.warehouseName}</td><td className="px-4 py-4 text-sm text-slate-600">Khu vực {item.zone} · Kệ {item.rack} · Tầng {item.level} · Ô {item.bin}</td><td className="px-4 py-4 text-sm text-slate-600">{item.currentLoad} / {item.capacity}</td><td className="px-4 py-4"><StatusBadge status={item.status} /></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><ActionButton icon="visibility" label="Xem" onClick={() => onView(item)} />{canManage ? <ActionButton icon="edit" label="Sửa" onClick={() => onEdit(item)} /> : null}{canManage ? <ActionButton icon="delete" label="Xóa" danger onClick={() => onDelete(item)} /> : null}</div></td></tr>)}</tbody></table>;
 }
 
 function TextInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
@@ -277,5 +277,5 @@ function ActionButton({ icon, label, onClick, danger = false }: { icon: string; 
 }
 
 function Pagination({ page, totalPages, totalItems, onChange }: { page: number; totalPages: number; totalItems: number; onChange: (page: number) => void }) {
-  return <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-500">Total {totalItems} items</p><div className="flex items-center gap-2"><button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Prev</button><span className="text-sm font-medium text-slate-700">{page} / {totalPages}</span><button type="button" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Next</button></div></div>;
+  return <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-500">Tổng {totalItems} mục</p><div className="flex items-center gap-2"><button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Trước</button><span className="text-sm font-medium text-slate-700">{page} / {totalPages}</span><button type="button" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Sau</button></div></div>;
 }

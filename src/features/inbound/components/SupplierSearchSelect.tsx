@@ -30,7 +30,7 @@ interface SupplierSearchSelectProps {
 export function SupplierSearchSelect({
   value,
   onValueChange,
-  placeholder = 'Select supplier...',
+  placeholder = 'Chọn nhà cung cấp...',
   disabled,
   className,
   allowClear = false,
@@ -94,13 +94,13 @@ export function SupplierSearchSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
           <CommandInput
-            placeholder="Search supplier..."
+            placeholder="Tìm nhà cung cấp..."
             value={search}
             onValueChange={handleSearchChange}
           />
           <CommandList>
             <CommandEmpty>
-              {isLoading ? 'Loading...' : 'No supplier found.'}
+              {isLoading ? 'Đang tải...' : 'Không tìm thấy nhà cung cấp.'}
             </CommandEmpty>
             <CommandGroup>
               {allowClear && (
@@ -115,7 +115,7 @@ export function SupplierSearchSelect({
                   className="text-slate-400 italic"
                 >
                   <Check className={cn('mr-2 h-4 w-4', !value ? 'opacity-100' : 'opacity-0')} />
-                  All suppliers
+                  Tất cả nhà cung cấp
                 </CommandItem>
               )}
               {suppliers.map((supplier) => (

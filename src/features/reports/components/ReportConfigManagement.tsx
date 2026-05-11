@@ -21,6 +21,30 @@ function formatDate(iso: string): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+function formatRecipientEmails(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(', ');
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '—';
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(Boolean).join(', ');
+      }
+    } catch {
+      // Fall back to comma-separated text.
+    }
+
+    return trimmed;
+  }
+
+  return '—';
+}
+
 function ActiveBadge({ active }: { active: boolean }) {
   return (
     <span
@@ -72,7 +96,7 @@ function ConfigCard({
         <div className="flex items-start gap-2 text-xs text-slate-500">
           <span className="material-symbols-outlined text-[13px] mt-0.5 shrink-0">mail</span>
           <span className="text-slate-600 leading-relaxed">
-            {config.recipient_emails.join(', ')}
+            {formatRecipientEmails(config.recipient_emails)}
           </span>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-400">

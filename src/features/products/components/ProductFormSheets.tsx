@@ -92,9 +92,9 @@ export function ProductFormSheet({
   }, [open, product, reset]);
 
   const title = {
-    create: 'Create Product',
-    edit: 'Update Product',
-    view: 'Product Details',
+    create: 'Tạo sản phẩm',
+    edit: 'Cập nhật sản phẩm',
+    view: 'Chi tiết sản phẩm',
   }[mode];
 
   const icon = {
@@ -128,8 +128,8 @@ export function ProductFormSheet({
                   <SheetTitle className="text-xl font-bold tracking-tight text-slate-900">{title}</SheetTitle>
                   <SheetDescription className="mt-1 text-sm text-slate-500">
                     {isView
-                      ? 'Review product master data and tracking policies.'
-                      : 'Configure the core product definition used by downstream warehouse workflows.'}
+                      ? 'Xem thông tin chính và chính sách theo dõi sản phẩm.'
+                      : 'Cấu hình thông tin sản phẩm dùng trong các quy trình kho hàng.'}
                   </SheetDescription>
                 </div>
               </div>
@@ -149,8 +149,8 @@ export function ProductFormSheet({
             {isOptionsLoading ? (
               <div className="flex min-h-[400px] items-center justify-center p-8">
                 <StatePanel
-                  title="Preparing form"
-                  description="Categories, units, and brands are loading."
+                  title="Đang chuẩn bị biểu mẫu"
+                  description="Đang tải danh mục, đơn vị và thương hiệu."
                   icon="hourglass_top"
                 />
               </div>
@@ -158,53 +158,53 @@ export function ProductFormSheet({
               <div className="space-y-6 px-8 py-6">
 
                 {/* ── Basic Information ─────────────────────────────────────── */}
-                <Section title="Basic Information" icon="info">
+                <Section title="Thông tin cơ bản" icon="info">
                   <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Product Name" error={errors.name?.message}>
-                      <input {...register('name')} disabled={isView || isPending} placeholder="Enter product name" className={inputClass(!!errors.name)} />
+                    <Field label="Tên sản phẩm" error={errors.name?.message}>
+                      <input {...register('name')} disabled={isView || isPending} placeholder="Nhập tên sản phẩm" className={inputClass(!!errors.name)} />
                     </Field>
                     <Field label="SKU" error={errors.sku?.message}>
                       <input {...register('sku')} disabled={isView || isPending} placeholder="e.g. PRD-001" className={inputClass(!!errors.sku)} />
                     </Field>
-                    <Field label="Product Type" error={errors.productType?.message}>
+                    <Field label="Loại sản phẩm" error={errors.productType?.message}>
                       <select {...register('productType')} disabled={isView || isPending} className={inputClass(!!errors.productType)}>
-                        <option value="goods">Goods</option>
-                        <option value="material">Material</option>
-                        <option value="consumable">Consumable</option>
+                        <option value="goods">Hàng hóa</option>
+                        <option value="material">Nguyên liệu</option>
+                        <option value="consumable">Vật tư tiêu hao</option>
                       </select>
                     </Field>
-                    <Field label="Status" error={errors.status?.message}>
+                    <Field label="Trạng thái" error={errors.status?.message}>
                       <select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="discontinued">Discontinued</option>
+                        <option value="active">Hoạt động</option>
+                        <option value="inactive">Không hoạt động</option>
+                        <option value="discontinued">Ngừng kinh doanh</option>
                       </select>
                     </Field>
                   </div>
                 </Section>
 
                 {/* ── Classification ────────────────────────────────────────── */}
-                <Section title="Classification" icon="category">
+                <Section title="Phân loại" icon="category">
                   <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Category" error={errors.categoryId?.message}>
+                    <Field label="Danh mục" error={errors.categoryId?.message}>
                       <select {...register('categoryId')} disabled={isView || isPending} className={inputClass(!!errors.categoryId)}>
-                        <option value="">Select category</option>
+                        <option value="">Chọn danh mục</option>
                         {categories.map((item) => (
                           <option key={item.id} value={item.id}>{item.name}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Brand" error={errors.brandId?.message}>
+                    <Field label="Thương hiệu" error={errors.brandId?.message}>
                       <select {...register('brandId')} disabled={isView || isPending} className={inputClass(!!errors.brandId)}>
-                        <option value="">Select brand</option>
+                        <option value="">Chọn thương hiệu</option>
                         {brands.map((item) => (
                           <option key={item.id} value={item.id}>{item.name}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Base Unit" error={errors.unitId?.message}>
+                    <Field label="Đơn vị cơ bản" error={errors.unitId?.message}>
                       <select {...register('unitId')} disabled={isView || isPending} className={inputClass(!!errors.unitId)}>
-                        <option value="">Select unit</option>
+                        <option value="">Chọn đơn vị</option>
                         {units.map((item) => (
                           <option key={item.id} value={item.id}>{item.name}</option>
                         ))}
@@ -214,29 +214,29 @@ export function ProductFormSheet({
                 </Section>
 
                 {/* ── Stock Policy ──────────────────────────────────────────── */}
-                <Section title="Stock Policy" icon="inventory">
+                <Section title="Chính sách tồn kho" icon="inventory">
                   <div className="grid gap-5 md:grid-cols-3">
-                    <Field label="Minimum Stock" error={errors.minStock?.message}>
+                    <Field label="Tồn kho tối thiểu" error={errors.minStock?.message}>
                       <input type="number" min={0} {...register('minStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.minStock)} />
                     </Field>
-                    <Field label="Maximum Stock" error={errors.maxStock?.message}>
+                    <Field label="Tồn kho tối đa" error={errors.maxStock?.message}>
                       <input type="number" min={0} {...register('maxStock', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.maxStock)} />
                     </Field>
                     <div className="flex items-end">
                       <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-500">
-                        Reorder at <span className="font-semibold text-slate-700">{form.watch('minStock') || 0}</span> units
+                        Đặt hàng lại khi còn <span className="font-semibold text-slate-700">{form.watch('minStock') || 0}</span> đơn vị
                       </div>
                     </div>
                   </div>
                 </Section>
 
                 {/* ── Tracking ──────────────────────────────────────────────── */}
-                <Section title="Tracking" icon="qr_code_scanner">
+                <Section title="Theo dõi" icon="qr_code_scanner">
                   <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Production Date" error={errors.productionDate?.message}>
+                    <Field label="Ngày sản xuất" error={errors.productionDate?.message}>
                       <input type="date" {...register('productionDate')} disabled={isView || isPending} className={inputClass(!!errors.productionDate)} />
                     </Field>
-                    <Field label="Expiry Date" error={errors.expiryDate?.message}>
+                    <Field label="Hạn dùng" error={errors.expiryDate?.message}>
                       <input type="date" {...register('expiryDate')} disabled={isView || isPending || !trackedByExpiry} className={inputClass(!!errors.expiryDate)} />
                     </Field>
                   </div>
@@ -244,28 +244,28 @@ export function ProductFormSheet({
                     <label className="flex cursor-pointer items-center gap-3">
                       <input type="checkbox" {...register('trackedByLot')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20" />
                       <div>
-                        <span className="text-sm font-medium text-slate-700">Lot / Batch Tracking</span>
-                        <p className="text-xs text-slate-500">Track products by manufacturing lot</p>
+                        <span className="text-sm font-medium text-slate-700">Theo dõi lô / mẻ</span>
+                        <p className="text-xs text-slate-500">Theo dõi sản phẩm theo lô sản xuất</p>
                       </div>
                     </label>
                     <label className="flex cursor-pointer items-center gap-3">
                       <input type="checkbox" {...register('trackedByExpiry')} disabled={isView || isPending} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20" />
                       <div>
-                        <span className="text-sm font-medium text-slate-700">Expiry Tracking</span>
-                        <p className="text-xs text-slate-500">Monitor product expiration dates</p>
+                        <span className="text-sm font-medium text-slate-700">Theo dõi hạn dùng</span>
+                        <p className="text-xs text-slate-500">Theo dõi ngày hết hạn của sản phẩm</p>
                       </div>
                     </label>
                   </div>
                 </Section>
 
                 {/* ── Additional Details ────────────────────────────────────── */}
-                <Section title="Additional Details" icon="description">
+                <Section title="Thông tin thêm" icon="description">
                   <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Description" error={errors.description?.message}>
-                      <textarea {...register('description')} disabled={isView || isPending} rows={4} placeholder="Product description..." className={`${inputClass(!!errors.description)} min-h-24 resize-none`} />
+                    <Field label="Mô tả" error={errors.description?.message}>
+                      <textarea {...register('description')} disabled={isView || isPending} rows={4} placeholder="Mô tả sản phẩm..." className={`${inputClass(!!errors.description)} min-h-24 resize-none`} />
                     </Field>
-                    <Field label="Storage Conditions" error={errors.storageConditions?.message}>
-                      <textarea {...register('storageConditions')} disabled={isView || isPending} rows={4} placeholder="Temperature, humidity, etc." className={`${inputClass(!!errors.storageConditions)} min-h-24 resize-none`} />
+                    <Field label="Điều kiện lưu trữ" error={errors.storageConditions?.message}>
+                      <textarea {...register('storageConditions')} disabled={isView || isPending} rows={4} placeholder="Nhiệt độ, độ ẩm, v.v." className={`${inputClass(!!errors.storageConditions)} min-h-24 resize-none`} />
                     </Field>
                   </div>
                 </Section>
@@ -280,7 +280,7 @@ export function ProductFormSheet({
               {isView ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <span className="material-symbols-outlined text-[16px]">info</span>
-                  View-only mode
+                  Chế độ xem
                 </div>
               ) : (
                 <div />
@@ -292,7 +292,7 @@ export function ProductFormSheet({
                   disabled={isPending}
                   className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
                 >
-                  {isView ? 'Close' : 'Cancel'}
+                  {isView ? 'Đóng' : 'Huỷ'}
                 </button>
                 {!isView ? (
                   <button
@@ -301,7 +301,7 @@ export function ProductFormSheet({
                     className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isPending && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                    {isPending ? 'Saving...' : 'Save Product'}
+                    {isPending ? 'Đang lưu...' : 'Lưu sản phẩm'}
                   </button>
                 ) : null}
               </div>

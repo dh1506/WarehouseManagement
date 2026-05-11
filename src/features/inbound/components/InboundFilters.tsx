@@ -28,7 +28,7 @@ interface InboundFiltersProps {
 }
 
 const STATUS_OPTIONS: Array<{ value: StockInStatus | 'all'; label: string }> = [
-  { value: 'all',          label: 'All Statuses' },
+  { value: 'all',          label: 'Tất cả trạng thái' },
   { value: 'DRAFT',        label: STOCK_IN_STATUS_LABELS.DRAFT },
   { value: 'PENDING',      label: STOCK_IN_STATUS_LABELS.PENDING },
   { value: 'IN_PROGRESS',  label: STOCK_IN_STATUS_LABELS.IN_PROGRESS },
@@ -90,7 +90,7 @@ export function InboundFilters({
             type="text"
             value={localSearch}
             onChange={(e) => handleSearchInput(e.target.value)}
-            placeholder="Search by order code…"
+            placeholder="Tìm theo mã phiếu..."
             className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-7 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
           />
           <AnimatePresence>
@@ -114,7 +114,7 @@ export function InboundFilters({
           <SupplierSearchSelect
             value={supplierId}
             onValueChange={(id) => onSupplierChange(id)}
-            placeholder="All suppliers"
+            placeholder="Tất cả nhà cung cấp"
             className="h-8 text-xs"
             allowClear
           />
@@ -136,7 +136,7 @@ export function InboundFilters({
         <div className="flex items-center gap-1 shrink-0">
           <label className="relative flex items-center">
             <span className="absolute left-2 text-[10px] font-medium text-slate-400 pointer-events-none select-none leading-none" style={{ top: '4px' }}>
-              FROM
+              TỪ
             </span>
             <input
               type="date"
@@ -152,7 +152,7 @@ export function InboundFilters({
           <span className="text-slate-300 text-sm shrink-0">→</span>
           <label className="relative flex items-center">
             <span className="absolute left-2 text-[10px] font-medium text-slate-400 pointer-events-none select-none leading-none" style={{ top: '4px' }}>
-              TO
+              ĐẾN
             </span>
             <input
               type="date"
@@ -179,7 +179,7 @@ export function InboundFilters({
               className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors shrink-0"
             >
               <span className="material-symbols-outlined text-[13px]">filter_alt_off</span>
-              Clear
+              Xoá bộ lọc
             </motion.button>
           )}
         </AnimatePresence>
@@ -196,7 +196,7 @@ export function InboundFilters({
             className="flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors shrink-0"
           >
             <span className="material-symbols-outlined text-[14px]">add</span>
-            <span className="hidden sm:inline">Create Order</span>
+            <span className="hidden sm:inline">Tạo phiếu nhập</span>
           </motion.button>
         )}
       </div>

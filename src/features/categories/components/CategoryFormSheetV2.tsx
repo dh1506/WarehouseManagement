@@ -94,24 +94,24 @@ export function CategoryFormSheetV2({
         >
           <SheetHeader className="border-b border-slate-200 px-6 py-5">
             <SheetTitle>
-              {isView ? 'Category Details' : editingCategory ? 'Edit Category' : 'Create Category'}
+              {isView ? 'Chi tiết danh mục' : editingCategory ? 'Chỉnh sửa danh mục' : 'Tạo danh mục'}
             </SheetTitle>
             <SheetDescription>
               {isView
-                ? 'Review the full category details and hierarchy relationships.'
-                : 'Create or update a product category within the current hierarchy.'}
+                ? 'Xem toàn bộ thông tin danh mục và quan hệ phân cấp.'
+                : 'Tạo mới hoặc cập nhật danh mục sản phẩm trong cấu trúc hiện tại.'}
             </SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Parent Category" error={errors.parentId?.message}>
+              <Field label="Danh mục cha" error={errors.parentId?.message}>
                 <select
                   {...register('parentId')}
                   disabled={isView || isPending}
                   className={inputClass(Boolean(errors.parentId))}
                 >
-                  <option value="">Root Category</option>
+                  <option value="">Danh mục gốc</option>
                   {parentOptions.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.code} - {category.name}
@@ -120,7 +120,7 @@ export function CategoryFormSheetV2({
                 </select>
               </Field>
 
-              <Field label="Category Name" error={errors.name?.message}>
+              <Field label="Tên danh mục" error={errors.name?.message}>
                 <input
                   {...register('name')}
                   disabled={isView || isPending}
@@ -128,7 +128,7 @@ export function CategoryFormSheetV2({
                 />
               </Field>
 
-              <Field label="Description" error={errors.description?.message} className="md:col-span-2">
+              <Field label="Mô tả" error={errors.description?.message} className="md:col-span-2">
                 <textarea
                   {...register('description')}
                   disabled={isView || isPending}
@@ -141,24 +141,24 @@ export function CategoryFormSheetV2({
             {isView ? (
               <div className="mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
                 {detailQuery.isLoading ? (
-                  <p className="text-sm text-slate-500">Loading category details...</p>
+                  <p className="text-sm text-slate-500">Đang tải thông tin danh mục...</p>
                 ) : detailQuery.isError ? (
-                  <p className="text-sm text-red-600">Unable to load category details.</p>
+                  <p className="text-sm text-red-600">Không thể tải thông tin danh mục.</p>
                 ) : detail ? (
                   <>
-                    <InfoItem label="Parent" value={detail.parentName ? `${detail.parentCode ?? ''} - ${detail.parentName}` : 'Root Category'} />
-                    <InfoItem label="Sub-categories" value={String(detail.childrenCount)} />
-                    <InfoItem label="Total Products" value={String(detail.totalProducts)} />
-                    <InfoItem label="Updated At" value={new Date(detail.updatedAt).toLocaleString('en-US')} />
+                    <InfoItem label="Danh mục cha" value={detail.parentName ? `${detail.parentCode ?? ''} - ${detail.parentName}` : 'Danh mục gốc'} />
+                    <InfoItem label="Danh mục con" value={String(detail.childrenCount)} />
+                    <InfoItem label="Tổng sản phẩm" value={String(detail.totalProducts)} />
+                    <InfoItem label="Cập nhật lúc" value={new Date(detail.updatedAt).toLocaleString('vi-VN')} />
                     <div className="md:col-span-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Child Categories</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Danh mục con</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {detail.childCategories.length > 0 ? detail.childCategories.map((child) => (
                           <span key={child.id} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
                             {child.code} - {child.name}
                           </span>
                         )) : (
-                          <span className="text-sm text-slate-500">No child categories.</span>
+                          <span className="text-sm text-slate-500">Không có danh mục con.</span>
                         )}
                       </div>
                     </div>
@@ -176,7 +176,7 @@ export function CategoryFormSheetV2({
                 disabled={isPending}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
               >
-                {isView ? 'Close' : 'Cancel'}
+                {isView ? 'Đóng' : 'Huỷ'}
               </button>
               {!isView ? (
                 <button
@@ -184,7 +184,7 @@ export function CategoryFormSheetV2({
                   disabled={isPending}
                   className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
                 >
-                  {isPending ? 'Saving...' : 'Save Category'}
+                  {isPending ? 'Đang lưu...' : 'Lưu danh mục'}
                 </button>
               ) : null}
             </div>

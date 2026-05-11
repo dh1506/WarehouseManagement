@@ -163,10 +163,10 @@ export function ProductManagement() {
   );
   const statusFilterOptions = useMemo<FilterSelectOption[]>(
     () => [
-      { value: 'all', label: 'All status' },
-      { value: 'active', label: 'Active' },
-      { value: 'inactive', label: 'Inactive' },
-      { value: 'discontinued', label: 'Discontinued' },
+      { value: 'all', label: 'Tất cả trạng thái' },
+      { value: 'active', label: 'Hoạt động' },
+      { value: 'inactive', label: 'Không hoạt động' },
+      { value: 'discontinued', label: 'Ngừng kinh doanh' },
     ],
     [],
   );
@@ -258,7 +258,7 @@ export function ProductManagement() {
       }
     } catch (error) {
       toast({
-        title: 'Unable to export products',
+        title: 'Không thể xuất sản phẩm',
         description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         variant: 'destructive',
       });
@@ -279,8 +279,8 @@ export function ProductManagement() {
 
     if (isOptionsLoading) {
       toast({
-        title: 'Import is not ready',
-        description: 'Please wait until category, unit, and brand options finish loading.',
+        title: 'Nhập Excel chưa sẵn sàng',
+        description: 'Vui lòng chờ các tùy chọn danh mục, đơn vị và thương hiệu tải xong.',
         variant: 'destructive',
       });
       return;
@@ -305,28 +305,28 @@ export function ProductManagement() {
         } catch (error) {
           importErrors.push({
             rowNumber: item.rowNumber,
-            message: error instanceof Error ? error.message : 'Unable to create product from imported row.',
+            message: error instanceof Error ? error.message : 'Không thể tạo sản phẩm từ dòng đã nhập.',
           });
         }
       }
 
       if (successCount > 0) {
         toast({
-          title: 'Product import completed',
+          title: 'Nhập sản phẩm hoàn thành',
           description: importErrors.length > 0
-            ? `${successCount} products imported, ${importErrors.length} rows failed.`
-            : `${successCount} products imported successfully.`,
+            ? `${successCount} sản phẩm đã nhập, ${importErrors.length} dòng lỗi.`
+            : `Đã nhập thành công ${successCount} sản phẩm.`,
         });
       }
 
       if (importErrors.length > 0) {
         const preview = importErrors
           .slice(0, 3)
-          .map((item) => `Row ${item.rowNumber}: ${item.message}`)
+          .map((item) => `Dòng ${item.rowNumber}: ${item.message}`)
           .join(' | ');
 
         toast({
-          title: successCount > 0 ? 'Some rows could not be imported' : 'Import failed',
+          title: successCount > 0 ? 'Một số dòng không thể nhập' : 'Nhập thất bại',
           description: preview,
           variant: 'destructive',
         });
@@ -334,14 +334,14 @@ export function ProductManagement() {
 
       if (successCount === 0 && importErrors.length === 0) {
         toast({
-          title: 'No products found',
-          description: 'The selected file does not contain any importable product rows.',
+          title: 'Không tìm thấy sản phẩm',
+          description: 'File đã chọn không có dòng sản phẩm hợp lệ để nhập.',
           variant: 'destructive',
         });
       }
     } catch (error) {
       toast({
-        title: 'Unable to import products',
+        title: 'Không thể nhập sản phẩm',
         description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         variant: 'destructive',
       });
@@ -388,13 +388,13 @@ export function ProductManagement() {
     try {
       await discontinueMutation.mutateAsync(deletingProduct.id);
       toast({
-        title: 'Product discontinued',
-        description: `${deletingProduct.name} has been marked as discontinued.`,
+        title: 'Đã ngừng kinh doanh sản phẩm',
+        description: `${deletingProduct.name} đã được đánh dấu ngừng kinh doanh.`,
       });
       closeDeleteDialog();
     } catch (error) {
       toast({
-        title: 'Unable to discontinue product',
+        title: 'Không thể ngừng kinh doanh sản phẩm',
         description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         variant: 'destructive',
       });
@@ -423,13 +423,13 @@ export function ProductManagement() {
     try {
       await statusToggleMutation.mutateAsync({ id: statusTarget.id, status: nextStatus });
       toast({
-        title: 'Product status updated',
-        description: `${statusTarget.name} has been changed to ${nextStatus === 'active' ? 'Active' : 'Inactive'}.`,
+        title: 'Đã cập nhật trạng thái sản phẩm',
+        description: `Trạng thái của ${statusTarget.name} đã được đổi.`,
       });
       closeStatusToggleDialog();
     } catch (error) {
       toast({
-        title: 'Unable to update product status',
+        title: 'Không thể cập nhật trạng thái sản phẩm',
         description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         variant: 'destructive',
       });
@@ -440,8 +440,8 @@ export function ProductManagement() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
-          title="Product Management"
-          description="Manage product master data for inbound, outbound, inventory, and planning workflows."
+          title="Quản lý sản phẩm"
+          description="Quản lý dữ liệu sản phẩm cho nhập kho, xuất kho, tồn kho và quy trình hoạch định."
           actions={(
             <div className="flex flex-wrap items-center gap-3">
               {canCreate && (
@@ -460,7 +460,7 @@ export function ProductManagement() {
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <span className="material-symbols-outlined text-[18px]">upload_file</span>
-                    {isImporting ? 'Importing...' : 'Import'}
+                    {isImporting ? 'Đang nhập...' : 'Nhập Excel'}
                   </button>
                 </>
               )}
@@ -471,7 +471,7 @@ export function ProductManagement() {
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 ease-out hover:bg-primary-container hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                  New Product
+                  Tạo sản phẩm
                 </button>
               )}
             </div>
@@ -489,7 +489,7 @@ export function ProductManagement() {
                     setPage(1);
                     resetSelection();
                   }}
-                  placeholder="Search code, name, or supplier..."
+                  placeholder="Tìm theo mã, tên hoặc nhà cung cấp..."
                 />
               </div>
               <div className="xl:col-span-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -500,7 +500,7 @@ export function ProductManagement() {
                     setPage(1);
                     resetSelection();
                   }}
-                  placeholder="All status"
+                  placeholder="Tất cả trạng thái"
                   options={statusFilterOptions}
                 />
                 <FilterSelect
@@ -510,7 +510,7 @@ export function ProductManagement() {
                     setPage(1);
                     resetSelection();
                   }}
-                  placeholder="All categories"
+                  placeholder="Tất cả danh mục"
                   options={categoryFilterOptions}
                 />
                 <div className="flex items-center gap-3">
@@ -521,7 +521,7 @@ export function ProductManagement() {
                       setPage(1);
                       resetSelection();
                     }}
-                    placeholder="All brands"
+                    placeholder="Tất cả thương hiệu"
                     options={brandFilterOptions}
                   />
                   <button
@@ -529,7 +529,7 @@ export function ProductManagement() {
                     onClick={() => void handleExport()}
                     disabled={!isHeaderChecked && selectedProductsForExport.length === 0}
                     className="inline-flex h-10.5 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-500 transition-all duration-200 ease-out hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
-                    title="Export products"
+                    title="Xuất sản phẩm"
                   >
                     <span className="material-symbols-outlined text-[18px]">download</span>
                   </button>
@@ -541,13 +541,13 @@ export function ProductManagement() {
           <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
             {listQuery.isLoading ? (
               <div className="flex min-h-80 flex-1 items-center justify-center p-8">
-                <StatePanel title="Loading products" description="The system is synchronizing product master data from the API." icon="hourglass_top" />
+                <StatePanel title="Đang tải sản phẩm" description="Hệ thống đang đồng bộ dữ liệu sản phẩm..." icon="hourglass_top" />
               </div>
             ) : listQuery.isError ? (
               <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                 <StatePanel
-                  title="Unable to load products"
-                  description="Please try again to continue managing product master data."
+                  title="Không thể tải sản phẩm"
+                  description="Vui lòng thử lại để tiếp tục quản lý sản phẩm."
                   icon="error"
                   tone="error"
                   action={(
@@ -556,7 +556,7 @@ export function ProductManagement() {
                       onClick={() => void listQuery.refetch()}
                       className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
                     >
-                      Retry
+                      Thử lại
                     </button>
                   )}
                 />
@@ -564,8 +564,8 @@ export function ProductManagement() {
             ) : (listQuery.data?.data.length ?? 0) === 0 ? (
               <div className="flex min-h-80 flex-1 items-center justify-center p-8">
                 <StatePanel
-                  title="No matching products"
-                  description="Create your first product or adjust the current filters."
+                  title="Không tìm thấy sản phẩm"
+                  description="Tạo sản phẩm mới hoặc điều chỉnh bộ lọc."
                   icon="inventory_2"
                   action={canCreate ? (
                     <button
@@ -573,7 +573,7 @@ export function ProductManagement() {
                       onClick={openCreate}
                       className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
                     >
-                      New Product
+                      Tạo sản phẩm
                     </button>
                   ) : null}
                 />
@@ -599,14 +599,14 @@ export function ProductManagement() {
                             disabled={currentProducts.length === 0}
                           />
                         </th>
-                        <th className="px-4 py-3">Product</th>
-                        <th className="px-4 py-3">Category</th>
-                        <th className="px-4 py-3">Unit / Brand</th>
-                        <th className="px-4 py-3">Stock Policy</th>
-                        <th className="px-4 py-3">In Stock</th>
-                        <th className="px-4 py-3">Batches</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
+                        <th className="px-4 py-3">Sản phẩm</th>
+                        <th className="px-4 py-3">Danh mục</th>
+                        <th className="px-4 py-3">ĐVT / Thương hiệu</th>
+                        <th className="px-4 py-3">Chính sách tồn kho</th>
+                        <th className="px-4 py-3">Tồn kho</th>
+                        <th className="px-4 py-3">Lô hàng</th>
+                        <th className="px-4 py-3">Trạng thái</th>
+                        <th className="px-4 py-3 text-right">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -625,7 +625,7 @@ export function ProductManagement() {
                           </td>
                           <td className="px-4 py-2 text-sm text-slate-600">
                             <div>{item.categoryName}</div>
-                            {item.categoryNames.length > 1 ? <div className="mt-0.5 text-xs text-slate-400">+{item.categoryNames.length - 1} more</div> : null}
+                            {item.categoryNames.length > 1 ? <div className="mt-0.5 text-xs text-slate-400">+{item.categoryNames.length - 1} khác</div> : null}
                           </td>
                           <td className="px-4 py-2 text-sm text-slate-600">
                             <div>{item.unitName}</div>
@@ -634,7 +634,7 @@ export function ProductManagement() {
                           <td className="px-4 py-2 text-sm text-slate-600">
                             <div>Min {item.minStock} · Max {item.maxStock}</div>
                             <div className="mt-0.5 text-xs text-slate-400">
-                              {item.trackedByLot ? 'Tracked by lot' : 'No lot tracking'} · {item.trackedByExpiry ? 'Expiry tracking' : 'No expiry tracking'}
+                              {item.trackedByLot ? 'Theo dõi lô' : 'Không theo dõi lô'} · {item.trackedByExpiry ? 'Theo dõi HSD' : 'Không theo dõi HSD'}
                             </div>
                           </td>
                           <td className="px-4 py-2">
@@ -655,7 +655,7 @@ export function ProductManagement() {
                                   <button
                                     type="button"
                                     className="rounded-lg p-2 text-slate-400 transition-colors duration-200 ease-out hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    title="Actions"
+                                    title="Thao tác"
                                   >
                                     <span className="material-symbols-outlined text-[18px]">more_vert</span>
                                   </button>
@@ -663,12 +663,12 @@ export function ProductManagement() {
                                 <DropdownMenuContent align="end" className="w-48">
                                   <DropdownMenuItem onClick={() => openView(item)}>
                                     <span className="material-symbols-outlined text-[16px] text-slate-500">visibility</span>
-                                    View details
+                                    Xem chi tiết
                                   </DropdownMenuItem>
                                   {canEdit && (
                                     <DropdownMenuItem onClick={() => openEdit(item)}>
                                       <span className="material-symbols-outlined text-[16px] text-slate-500">edit</span>
-                                      Edit
+                                      Chỉnh sửa
                                     </DropdownMenuItem>
                                   )}
                                   {canEdit && item.status !== 'discontinued' && (
@@ -681,7 +681,7 @@ export function ProductManagement() {
                                         <span className="material-symbols-outlined text-[16px]">
                                           {item.status === 'active' ? 'block' : 'check_circle'}
                                         </span>
-                                        {item.status === 'active' ? 'Deactivate' : 'Activate'}
+                                        {item.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -694,7 +694,7 @@ export function ProductManagement() {
                                         onClick={() => openDelete(item)}
                                       >
                                         <span className="material-symbols-outlined text-[16px]">delete</span>
-                                        Delete
+                                        Xóa
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -742,15 +742,15 @@ export function ProductManagement() {
           try {
             if (sheetMode === 'edit' && selectedProduct) {
               await updateMutation.mutateAsync({ id: selectedProduct.id, payload });
-              toast({ title: 'Product updated', description: 'The product record has been saved.' });
+              toast({ title: 'Đã cập nhật sản phẩm', description: 'Thông tin sản phẩm đã được lưu.' });
             } else {
               await createMutation.mutateAsync(payload);
-              toast({ title: 'Product created', description: 'The product is now available in the system.' });
+              toast({ title: 'Đã tạo sản phẩm mới', description: 'Sản phẩm mới đã sẵn sàng trong hệ thống.' });
             }
             setIsSheetOpen(false);
           } catch (error) {
             toast({
-              title: 'Unable to save product',
+              title: 'Không thể lưu sản phẩm',
               description: error instanceof Error ? error.message : 'An unexpected error occurred.',
               variant: 'destructive',
             });
@@ -783,10 +783,10 @@ export function ProductManagement() {
               <span className="material-symbols-outlined text-[22px]">delete</span>
             </div>
             <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
-              Delete Product
+              Xóa sản phẩm
             </DialogTitle>
             <DialogDescription className="text-xs leading-7 text-slate-600">
-              Delete is implemented as a soft delete in Sprint 1. <span className="font-semibold text-slate-900">{deletingProduct?.name}</span> will be moved to discontinued status.
+              <span className="font-semibold text-slate-900">{deletingProduct?.name}</span> sẽ được chuyển sang trạng thái ngừng kinh doanh.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 sm:justify-end">
@@ -796,7 +796,7 @@ export function ProductManagement() {
               disabled={discontinueMutation.isPending}
               className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cancel
+              Huỷ
             </button>
             <button
               type="button"
@@ -804,7 +804,7 @@ export function ProductManagement() {
               disabled={discontinueMutation.isPending}
               className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {discontinueMutation.isPending ? 'Deleting...' : 'Delete Product'}
+              {discontinueMutation.isPending ? 'Đang xóa...' : 'Xóa sản phẩm'}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -825,10 +825,10 @@ export function ProductManagement() {
               <span className="material-symbols-outlined text-[22px]">{statusTarget?.status === 'active' ? 'block' : 'check_circle'}</span>
             </div>
             <DialogTitle className="text-[28px] font-semibold leading-none tracking-tight text-slate-900">
-              {statusTarget?.status === 'active' ? 'Deactivate Product' : 'Activate Product'}
+              {statusTarget?.status === 'active' ? 'Vô hiệu hóa sản phẩm' : 'Kích hoạt sản phẩm'}
             </DialogTitle>
             <DialogDescription className="text-xs leading-7 text-slate-600">
-              Are you sure you want to change <span className="font-semibold text-slate-900">{statusTarget?.name}</span> to <span className="font-semibold text-slate-900">{statusTarget?.status === 'active' ? 'Inactive' : 'Active'}</span>?
+              Bạn có chắc muốn đổi trạng thái của <span className="font-semibold text-slate-900">{statusTarget?.name}</span> sang <span className="font-semibold text-slate-900">{statusTarget?.status === 'active' ? 'Không hoạt động' : 'Hoạt động'}</span>?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 sm:justify-end">
@@ -838,7 +838,7 @@ export function ProductManagement() {
               disabled={statusToggleMutation.isPending}
               className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cancel
+              Huỷ
             </button>
             <button
               type="button"
@@ -846,7 +846,7 @@ export function ProductManagement() {
               disabled={statusToggleMutation.isPending}
               className={`rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${statusTarget?.status === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
             >
-              {statusToggleMutation.isPending ? 'Updating...' : statusTarget?.status === 'active' ? 'Deactivate' : 'Activate'}
+              {statusToggleMutation.isPending ? 'Đang cập nhật...' : statusTarget?.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -882,7 +882,7 @@ function StockQtyCell({ productId, minStock }: { productId: string; minStock: nu
       {isLow && (
         <span
           className="material-symbols-outlined text-[14px] text-amber-500"
-          title={`Below minimum stock (${minStock})`}
+          title={`Dưới mức tồn kho tối thiểu (${minStock})`}
         >
           warning
         </span>
@@ -929,10 +929,10 @@ function BatchCountCell({
       : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
 
   const tooltipText = hasCritical
-    ? `${data.criticalExpiryCount} lot(s) critical — expiring ≤ 7 days or expired`
+    ? `${data.criticalExpiryCount} lô sắp/đã hết hạn (≤ 7 ngày)`
     : hasNear
-      ? `${data.nearExpiryCount} lot(s) expiring within 30 days`
-      : `${data.activeLotCount} active lot(s)`;
+      ? `${data.nearExpiryCount} lô sắp hết hạn trong 30 ngày`
+      : `${data.activeLotCount} lô đang hoạt động`;
 
   return (
     <button
@@ -1176,7 +1176,7 @@ function Pagination({
 }) {
   return (
     <div className="flex shrink-0 flex-col gap-3 border-t border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-medium text-slate-500">Showing {pageStart} - {pageEnd} of {totalItems} products</p>
+      <p className="text-sm font-medium text-slate-500">Hiển thị {pageStart} - {pageEnd} trong tổng số {totalItems} sản phẩm</p>
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -1185,7 +1185,7 @@ function Pagination({
           className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <span className="material-symbols-outlined text-[16px]">chevron_left</span>
-          Prev
+          Trước
         </button>
         {[...Array(Math.min(totalPages, 5))].map((_, index) => {
           const targetPage = index + 1;
@@ -1218,7 +1218,7 @@ function Pagination({
           disabled={page === totalPages}
           className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Next
+          Tiếp
           <span className="material-symbols-outlined text-[16px]">chevron_right</span>
         </button>
       </div>

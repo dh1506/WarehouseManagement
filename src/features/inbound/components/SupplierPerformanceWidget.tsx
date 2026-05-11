@@ -25,10 +25,10 @@ export function SupplierPerformanceWidget({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
-              Supplier Performance
+              Hiệu suất nhà cung cấp
             </h3>
             <p className="text-[11px] text-slate-500">
-              On-time delivery rate
+              Tỷ lệ giao hàng đúng hạn
             </p>
           </div>
         </div>
@@ -36,7 +36,7 @@ export function SupplierPerformanceWidget({
           onClick={() => navigate('/supplier-metrics')}
           className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
         >
-          View all vendor metrics
+          Xem tất cả chỉ số
           <ArrowRight className="h-3 w-3" />
         </button>
       </div>
@@ -56,7 +56,7 @@ export function SupplierPerformanceWidget({
       ) : isError ? (
         <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-4">
           <span className="material-symbols-outlined text-slate-400 text-[18px]">cloud_off</span>
-          <span className="text-xs text-slate-500">Data Unavailable</span>
+          <span className="text-xs text-slate-500">Không có dữ liệu</span>
         </div>
       ) : (
         <div className="space-y-3">
@@ -111,7 +111,7 @@ function SupplierBar({
           />
         </div>
         <p className="mt-0.5 text-[10px] text-slate-400">
-          {deliveries} deliveries
+          {deliveries} lượt giao hàng
         </p>
       </div>
     </div>

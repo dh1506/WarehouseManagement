@@ -30,12 +30,18 @@ const STATUS_STYLES: Record<UserItem['status'], { wrapper: string; dot: string }
   Suspended: { wrapper: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
 };
 
+const STATUS_LABELS: Record<UserItem['status'], string> = {
+  Active: 'Hoạt động',
+  Inactive: 'Không hoạt động',
+  Suspended: 'Tạm khóa',
+};
+
 export function StatusBadge({ status }: StatusBadgeProps) {
   const s = STATUS_STYLES[status];
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${s.wrapper}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {status}
+      {STATUS_LABELS[status] ?? status}
     </span>
   );
 }

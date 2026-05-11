@@ -8,10 +8,10 @@ import { useTransitionOutboundStatus } from '../hooks/useOutbound';
 import { OutboundStatusBadge } from './OutboundStatusBadge';
 
 const STATUS_ACTION_LABELS: Partial<Record<OutboundStatus, string>> = {
-  CONFIRMED: 'Confirm Order',
-  PICKING: 'Start Picking',
-  COMPLETED: 'Mark as Completed',
-  CANCELLED: 'Cancel Order',
+  CONFIRMED: 'Xác nhận đơn',
+  PICKING: 'Bắt đầu lấy hàng',
+  COMPLETED: 'Đánh dấu hoàn tất',
+  CANCELLED: 'Huỷ đơn hàng',
 };
 
 const STATUS_ACTION_COLORS: Partial<Record<OutboundStatus, string>> = {
@@ -58,7 +58,7 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
               </span>
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Change Status</h2>
+              <h2 className="text-base font-bold text-slate-900">Chuyển trạng thái</h2>
               <p className="text-xs text-slate-500">{order.code}</p>
             </div>
           </div>
@@ -67,7 +67,7 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
         <div className="px-6 py-5 space-y-4">
           {/* Current status */}
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500 w-20 shrink-0">Current:</span>
+            <span className="text-sm text-slate-500 w-20 shrink-0">Hiện tại:</span>
             <OutboundStatusBadge status={order.status} />
           </div>
 
@@ -75,12 +75,12 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
           {transitions.length === 0 ? (
             <div className="py-4 text-center">
               <p className="text-sm text-slate-400">
-                Status <strong>{OUTBOUND_STATUS_LABELS[order.status]}</strong> has no further steps.
+                Trạng thái <strong>{OUTBOUND_STATUS_LABELS[order.status]}</strong> không còn bước tiếp theo.
               </p>
             </div>
           ) : (
             <div>
-              <p className="text-sm font-semibold text-slate-700 mb-2">Change to:</p>
+              <p className="text-sm font-semibold text-slate-700 mb-2">Chuyển sang:</p>
               <div className="flex flex-col gap-2">
                 {transitions.map((status) => (
                   <button
@@ -120,7 +120,7 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
           {selectedStatus && (
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">
-                Note {selectedStatus === 'CANCELLED' && <span className="text-red-500"> *</span>}
+                Ghi chú {selectedStatus === 'CANCELLED' && <span className="text-red-500"> *</span>}
               </label>
               <textarea
                 rows={2}
@@ -128,8 +128,8 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={
                   selectedStatus === 'CANCELLED'
-                    ? 'Reason for cancellation...'
-                    : 'Additional notes (optional)...'
+                    ? 'Lý do huỷ đơn...'
+                    : 'Ghi chú thêm (tuỳ chọn)...'
                 }
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
@@ -144,7 +144,7 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
             onClick={onClose}
             className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
           >
-            Close
+            Đóng
           </button>
           {selectedStatus && (
             <button
@@ -158,7 +158,7 @@ export function StatusTransitionDialog({ order, onClose }: StatusTransitionDialo
               {mutation.isPending ? (
                 <span className="flex items-center gap-2">
                   <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Processing...
+                  Đang xử lý...
                 </span>
               ) : (
                 (STATUS_ACTION_LABELS[selectedStatus] ?? 'Confirm')

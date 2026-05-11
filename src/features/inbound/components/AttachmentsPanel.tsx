@@ -36,8 +36,8 @@ export function AttachmentsPanel({
       if (!result.success) {
         const firstError = result.error.issues[0]?.message;
         toast({
-          title: 'Invalid file',
-          description: firstError ?? 'File does not meet requirements',
+          title: 'File không hợp lệ',
+          description: firstError ?? 'File không đáp ứng yêu cầu',
           variant: 'destructive',
         });
         return;
@@ -86,7 +86,7 @@ export function AttachmentsPanel({
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-        Attachments
+        Tài liệu đính kèm
       </h3>
 
       {/* Drop Zone */}
@@ -103,10 +103,10 @@ export function AttachmentsPanel({
           receipt_long
         </span>
         <p className="text-sm font-bold text-slate-700">
-          Upload Shipment Receipt
+          Tải lên biên lai giao hàng
         </p>
         <p className="text-xs text-slate-500 mt-1">
-          PDF, JPG, or PNG up to 10MB
+          PDF, JPG hoặc PNG tối đa 10MB
         </p>
         <input
           ref={fileInputRef}
@@ -120,7 +120,7 @@ export function AttachmentsPanel({
           disabled={isUploading}
           className="mt-3 px-4 py-2 rounded-lg bg-slate-100 text-xs font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
         >
-          {isUploading ? 'Uploading...' : 'Select Files'}
+          {isUploading ? 'Đang tải lên...' : 'Chọn file'}
         </button>
 
         {/* Upload Progress */}
@@ -133,7 +133,7 @@ export function AttachmentsPanel({
               />
             </div>
             <p className="text-[10px] text-slate-500 mt-1">
-              {uploadProgress}% uploaded
+              {uploadProgress}% đã tải lên
             </p>
           </div>
         )}

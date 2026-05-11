@@ -52,11 +52,11 @@ function getOccupancyColor(level: BinOccupancyLevel) {
 }
 
 function getLegendLabel(level: BinOccupancyLevel) {
-  if (level === 'empty') return 'Empty';
-  if (level === 'low') return 'Low (1-20%)';
-  if (level === 'partial') return 'Partial (21-60%)';
-  if (level === 'full') return 'Full (61-100%)';
-  return 'Overloaded';
+  if (level === 'empty') return 'Trống';
+  if (level === 'low') return 'Thấp (1-20%)';
+  if (level === 'partial') return 'Một phần (21-60%)';
+  if (level === 'full') return 'Đầy (61-100%)';
+  return 'Quá tải';
 }
 
 function parseBinCoordinate(code: string, fallbackRack: number, fallbackLevel: number, fallbackBin: number) {
@@ -430,16 +430,16 @@ export function ZoneDetail() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            aria-label="Back to Warehouse"
+            aria-label="Quay lại kho hàng"
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50 hover:text-blue-800"
           >
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
           </button>
-          <h1 className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Warehouse Zone {zone.code}</h1>
+          <h1 className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Khu vực kho {zone.code}</h1>
         </div>
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Occupancy</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tỷ lệ lấp đầy</span>
             <span className={`text-xs font-bold ${zoneTone === 'low' ? 'text-amber-700' : zoneTone === 'partial' ? 'text-cyan-700' : zoneTone === 'overloaded' ? 'text-red-700' : 'text-blue-700'}`}>{zone.occupancy}%</span>
             <div className="h-2 w-16 overflow-hidden rounded-full bg-slate-200">
               <div className={`h-full ${getCapacityBarColor(zone.occupancy)}`} style={{ width: `${Math.min(zone.occupancy, 100)}%` }} />
@@ -459,7 +459,7 @@ export function ZoneDetail() {
             <div className="mb-4 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-3">
-                  <p className="text-sm font-semibold text-slate-600">Storage Rack</p>
+                  <p className="text-sm font-semibold text-slate-600">Sơ đồ kệ</p>
                   <div className="flex flex-wrap gap-3">
                     {(['empty', 'low', 'partial', 'full', 'overloaded'] as BinOccupancyLevel[]).map((levelValue) => (
                       <div key={levelValue} className="flex items-center gap-1.5">
@@ -487,7 +487,7 @@ export function ZoneDetail() {
                       className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white shadow-lg sm:w-auto ${hasActiveFilter ? 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' : 'bg-blue-700 shadow-blue-700/20 hover:bg-blue-800'}`}
                     >
                       <span className="material-symbols-outlined text-[20px]">filter_list</span>
-                      View Filters
+                      Bộ lọc
                       {hasActiveFilter ? (
                         <span className="rounded-full bg-white/90 px-2 py-0.5 text-xs font-black text-amber-700">{activeFilterCount}</span>
                       ) : null}
@@ -497,7 +497,7 @@ export function ZoneDetail() {
                       <div className="absolute right-0 z-20 mt-2 w-[320px] rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
                         <div className="space-y-3">
                           <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-                            Category
+                            Danh mục
                             <select
                               value={draftFilterCategoryId}
                               onChange={(event) => {
@@ -508,7 +508,7 @@ export function ZoneDetail() {
                               className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
                               disabled={isCategoryLoading || isCategoryError}
                             >
-                              <option value="">All categories</option>
+                              <option value="">Tất cả danh mục</option>
                               {allowedCategories.map((item) => (
                                 <option key={item.id} value={item.id}>{item.name}</option>
                               ))}
@@ -516,14 +516,14 @@ export function ZoneDetail() {
                           </label>
 
                           <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-                            Assigned Product
+                            Sản phẩm gán
                             <select
                               value={draftFilterProductId}
                               onChange={(event) => setDraftFilterProductId(event.target.value)}
                               className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
                               disabled={isProductLoading || isProductError || filterProducts.length === 0}
                             >
-                              <option value="">All products</option>
+                              <option value="">Tất cả sản phẩm</option>
                               {filterProducts.map((item) => (
                                 <option key={item.id} value={item.id}>{item.sku} - {item.name}</option>
                               ))}
@@ -536,14 +536,14 @@ export function ZoneDetail() {
                               onClick={handleClearFilters}
                               className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
                             >
-                              Clear Filters
+                              Xóa bộ lọc
                             </button>
                             <button
                               type="button"
                               onClick={handleApplyFilters}
                               className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-800"
                             >
-                              Apply
+                              Áp dụng
                             </button>
                           </div>
                         </div>
@@ -590,7 +590,7 @@ export function ZoneDetail() {
                 ) : null}
                 {hasActiveFilter && !hasMatchedBinsInZone ? (
                   <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                    No bins found matching the filter criteria.
+                    Không tìm thấy ô chứa phù hợp với bộ lọc.
                   </p>
                 ) : null}
               </div>
@@ -602,7 +602,7 @@ export function ZoneDetail() {
                   {levelGroups.map((group) => {
                     return (
                       <div key={group.levelCode} className="space-y-2">
-                        <p className="text-center text-xs font-bold text-slate-900">LEVEL {group.levelCode}</p>
+                        <p className="text-center text-xs font-bold text-slate-900">TẦNG {group.levelCode}</p>
                         <div className="overflow-x-auto">
                           <div className="mx-auto flex w-max min-w-full justify-center gap-2 pb-1">
                             {group.items.map(({ bin, coordinate }) => (
@@ -670,7 +670,7 @@ export function ZoneDetail() {
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xs font-extrabold text-slate-900">Bin Inspector</h2>
+                <h2 className="text-xs font-extrabold text-slate-900">Chi tiết ô chứa</h2>
                 <p className="text-xs font-medium text-slate-500">Cấu hình sức chứa theo bin</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
@@ -688,8 +688,8 @@ export function ZoneDetail() {
               >
                 <div className="rounded-2xl bg-slate-100 p-4">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Selection</span>
-                    <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">LEVEL {selectedBin.level}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ô đang chọn</span>
+                    <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">TẦNG {selectedBin.level}</span>
                   </div>
                   <p className="text-sm font-black tracking-tight text-slate-900">BIN {selectedBin.code}</p>
                   {selectedBinTone && getWarningText(selectedBinTone) ? (
@@ -704,10 +704,10 @@ export function ZoneDetail() {
                   <input type="hidden" {...register('items', { valueAsNumber: true })} />
                   <input type="hidden" {...register('productCount', { valueAsNumber: true })} />
                   <input type="hidden" {...register('currentLoad', { valueAsNumber: true })} />
-                  <Field label="Capacity" error={errors.capacity?.message}><input type="number" min={1} step={1} {...register('capacity', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.capacity)} /></Field>
+                  <Field label="Sức chứa" error={errors.capacity?.message}><input type="number" min={1} step={1} {...register('capacity', { valueAsNumber: true })} disabled={!canManage || updateBinMutation.isPending} className={inputClass(!!errors.capacity)} /></Field>
                   <div className="space-y-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                      Current Load
+                      Tải hiện tại
                     </span>
                     <div className={`${inputClass(false)} flex items-center justify-between bg-slate-50 cursor-not-allowed`}>
                       {isInventoryLoading
@@ -721,7 +721,7 @@ export function ZoneDetail() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
-                  <Field label="Category Scope" error={errors.categoryId?.message}>
+                  <Field label="Phạm vi danh mục" error={errors.categoryId?.message}>
                     <select
                       {...categoryField}
                       disabled={!canManage || updateBinMutation.isPending || isCategoryLoading || isCategoryError || allowedCategories.length === 0}
@@ -732,7 +732,7 @@ export function ZoneDetail() {
                         setValue('productId', '', { shouldValidate: true });
                       }}
                     >
-                      <option value="">Select category</option>
+                      <option value="">Chọn danh mục</option>
                       {allowedCategories.map((item) => (
                         <option key={item.id} value={item.id}>{item.name}</option>
                       ))}
@@ -742,7 +742,7 @@ export function ZoneDetail() {
                     {!isCategoryLoading && !isCategoryError && allowedCategories.length === 0 ? <p className="text-[11px] font-medium normal-case tracking-normal text-amber-700">Zone này chưa có danh mục hợp lệ để gán bin.</p> : null}
                   </Field>
 
-                  <Field label="Assigned Product" error={errors.productId?.message}>
+                  <Field label="Sản phẩm gán" error={errors.productId?.message}>
                     <select
                       {...productField}
                       disabled={!canManage || updateBinMutation.isPending || !categoryId || isProductLoading || isProductError || filteredProducts.length === 0}
@@ -753,7 +753,7 @@ export function ZoneDetail() {
                         void trigger('productId');
                       }}
                     >
-                      <option value="">Select product</option>
+                      <option value="">Chọn sản phẩm</option>
                       {filteredProducts.map((item) => (
                         <option key={item.id} value={item.id}>{item.sku} - {item.name}</option>
                       ))}
@@ -772,7 +772,7 @@ export function ZoneDetail() {
 
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
                   <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase text-slate-500">
-                    <span>Occupancy Preview</span>
+                    <span>Xem trước tỷ lệ lấp đầy</span>
                     <span className={occupancy > 100 ? 'text-red-600' : 'text-blue-700'}>{occupancy}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-200">

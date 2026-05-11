@@ -38,7 +38,7 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
               <span className="material-symbols-outlined text-[20px] text-slate-600">package_2</span>
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold text-slate-900">Batch List</DialogTitle>
+              <DialogTitle className="text-base font-semibold text-slate-900">Danh sách lô hàng</DialogTitle>
               <p className="mt-0.5 text-xs text-slate-500">{productName}</p>
             </div>
           </div>
@@ -47,14 +47,14 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
         <div className="max-h-[60vh] overflow-y-auto p-6">
           {isLoading ? (
             <StatePanel
-              title="Loading batches..."
-              description="Fetching lot data from inventory."
+              title="Đang tải lô hàng..."
+              description="Đang lấy dữ liệu lô từ tồn kho."
               icon="hourglass_top"
             />
           ) : isError ? (
             <StatePanel
-              title="Failed to load batches"
-              description="Unable to retrieve lot data. Please try again."
+              title="Không thể tải lô hàng"
+              description="Không thể tải dữ liệu lô. Vui lòng thử lại."
               icon="error"
               tone="error"
               action={(
@@ -63,14 +63,14 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
                   onClick={() => void refetch()}
                   className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
                 >
-                  Retry
+                  Thử lại
                 </button>
               )}
             />
           ) : !data || data.lots.length === 0 ? (
             <StatePanel
-              title="No batches found"
-              description="No lot records are currently associated with this product."
+              title="Không tìm thấy lô hàng"
+              description="Chưa có lô nào được liên kết với sản phẩm này."
               icon="inventory_2"
             />
           ) : (
@@ -79,18 +79,18 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
               <div className="mb-4 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-                  Normal
+                  Bình thường
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-                  Expiring ≤ {EXPIRY_NEAR_DAYS} days
+                  HSD ≤ {EXPIRY_NEAR_DAYS} ngày
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   <span className="inline-block h-2 w-2 rounded-full bg-red-400" />
-                  Critical ≤ {EXPIRY_CRITICAL_DAYS} days / Expired
+                  Nguy cấp ≤ {EXPIRY_CRITICAL_DAYS} ngày / Đã hết hạn
                 </div>
                 <span className="ml-auto text-xs text-slate-400">
-                  {data.lots.length} lot{data.lots.length !== 1 ? 's' : ''} total
+                  Tổng {data.lots.length} lô
                 </span>
               </div>
 
@@ -98,11 +98,11 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      <th className="px-4 py-3">Lot Number</th>
-                      <th className="px-4 py-3">Location</th>
-                      <th className="px-4 py-3">Received</th>
-                      <th className="px-4 py-3">Expiry Date</th>
-                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Mã lô</th>
+                      <th className="px-4 py-3">Vị trí</th>
+                      <th className="px-4 py-3">Ngày nhận</th>
+                      <th className="px-4 py-3">Hạn dùng</th>
+                      <th className="px-4 py-3">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -137,7 +137,7 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
                             {lot.receivedAt
-                              ? new Date(lot.receivedAt).toLocaleDateString()
+                              ? new Date(lot.receivedAt).toLocaleDateString('vi-VN')
                               : '—'}
                           </td>
                           <td className="px-4 py-3 text-sm">
@@ -149,7 +149,7 @@ export function BatchListDialog({ open, onClose, productName, productId }: Batch
                                   : 'text-slate-600'
                             }>
                               {lot.expiredDate
-                                ? new Date(lot.expiredDate).toLocaleDateString()
+                                ? new Date(lot.expiredDate).toLocaleDateString('vi-VN')
                                 : '—'}
                             </span>
                           </td>
@@ -174,20 +174,20 @@ function LotStatusBadge({ status }: { status: ProductLotItem['status'] }) {
   if (status === 'ACTIVE') {
     return (
       <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-        Active
+        Hoạt động
       </span>
     );
   }
   if (status === 'EXPIRED') {
     return (
       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
-        Expired
+        Đã hết hạn
       </span>
     );
   }
   return (
     <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-      Inactive
+      Không hoạt động
     </span>
   );
 }

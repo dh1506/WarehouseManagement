@@ -8,7 +8,7 @@ export function OriginDestinationCard({ data }: OriginDestinationCardProps) {
   return (
     <div className="bg-slate-50 p-5 rounded-xl space-y-4">
       <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-        Origin & Destination
+        Nguồn & Điểm đến
       </h3>
       <div className="space-y-4">
         <div className="flex items-start gap-3">
@@ -18,7 +18,7 @@ export function OriginDestinationCard({ data }: OriginDestinationCardProps) {
             </span>
           </div>
           <div>
-            <p className="text-xs text-slate-500">Supplier Source</p>
+            <p className="text-xs text-slate-500">Nhà cung cấp</p>
             <p className="text-sm font-bold text-slate-900">
               {data.supplierSource}
             </p>
@@ -32,7 +32,7 @@ export function OriginDestinationCard({ data }: OriginDestinationCardProps) {
             </span>
           </div>
           <div>
-            <p className="text-xs text-slate-500">Destination Warehouse</p>
+            <p className="text-xs text-slate-500">Kho nhận hàng</p>
             <p className="text-sm font-bold text-slate-900">
               {data.destinationWarehouse}
             </p>

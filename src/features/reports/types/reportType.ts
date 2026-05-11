@@ -253,9 +253,9 @@ export interface StockOutReportParams extends ReportDateParams {
   product_id?: number;
 }
 
-export interface StockCountReportParams extends ReportDateParams {}
+export interface StockCountReportParams extends ReportDateParams { }
 
-export interface StockDisposalReportParams extends ReportDateParams {}
+export interface StockDisposalReportParams extends ReportDateParams { }
 
 export interface InventoryReportParams {
   page: number;
@@ -272,7 +272,7 @@ export type ReportType =
   | 'STOCK_COUNT'
   | 'STOCK_DISPOSAL'
   | 'INVENTORY'
-  | 'DASHBOARD';
+  | 'DASHBOARD_SUMMARY';
 
 export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   STOCK_IN: 'Stock In',
@@ -280,7 +280,7 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   STOCK_COUNT: 'Stock Count',
   STOCK_DISPOSAL: 'Stock Disposal',
   INVENTORY: 'Inventory',
-  DASHBOARD: 'Dashboard Summary',
+  DASHBOARD_SUMMARY: 'Dashboard Summary',
 };
 
 export interface ReportConfig {

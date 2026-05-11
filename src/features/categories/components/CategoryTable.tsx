@@ -60,7 +60,7 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
         </div>
         <h3 className="text-sm font-bold text-slate-900 mb-1">Chưa có danh mục nào</h3>
         <p className="text-sm text-slate-500 mb-4 text-center max-w-sm">
-          Nhấn "New Category" để tạo danh mục sản phẩm đầu tiên của bạn.
+          Nhấn "Tạo danh mục" để tạo danh mục sản phẩm đầu tiên của bạn.
         </p>
       </div>
     );
@@ -71,12 +71,12 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
       <div className="min-w-[800px]">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-2 p-2 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 bg-white z-10">
-          <div className="col-span-3 pl-8">Category Name</div>
-          <div className="col-span-4">Description</div>
-          <div className="col-span-1">Sub-categories</div>
-          <div className="col-span-1 text-right">Total Products</div>
-          <div className="col-span-2 text-center">Status</div>
-          <div className="col-span-1 text-right">Actions</div>
+          <div className="col-span-3 pl-8">Tên danh mục</div>
+          <div className="col-span-4">Mô tả</div>
+          <div className="col-span-1">Danh mục con</div>
+          <div className="col-span-1 text-right">Sản phẩm</div>
+          <div className="col-span-2 text-center">Trạng thái</div>
+          <div className="col-span-1 text-right">Thao tác</div>
         </div>
 
         {/* Table Body */}
@@ -117,11 +117,11 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
                 </div>
 
                 <div className="col-span-4 text-sm text-slate-500 truncate" title={item.description}>
-                  {item.description || 'No description'}
+                  {item.description || 'Không có mô tả'}
                 </div>
 
                 <div className="col-span-1 text-sm font-medium text-slate-900">
-                  {item.childrenCount} Categories
+                  {item.childrenCount} danh mục con
                 </div>
 
                 <div className="col-span-1 text-sm font-bold text-slate-900 text-right">
@@ -131,23 +131,23 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
                 <div className="col-span-2 flex justify-center">
                   {item.status === 'active' ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide">
-                      Active
+                      Hoạt động
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 uppercase tracking-wide">
-                      Inactive
+                      Không hoạt động
                     </span>
                   )}
                 </div>
 
                 <div className="col-span-1 flex justify-end space-x-2">
-                  <button onClick={() => onView(item)} className="text-slate-400 hover:text-blue-600 transition-colors" title="View">
+                  <button onClick={() => onView(item)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Xem">
                     <span className="material-symbols-outlined text-sm">visibility</span>
                   </button>
-                  <button onClick={() => onEdit(item)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit">
+                  <button onClick={() => onEdit(item)} className="text-slate-400 hover:text-blue-600 transition-colors" title="Chỉnh sửa">
                     <span className="material-symbols-outlined text-sm">edit</span>
                   </button>
-                  <button onClick={() => onDelete(item)} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+                  <button onClick={() => onDelete(item)} className="text-slate-400 hover:text-red-500 transition-colors" title="Xóa">
                     <span className="material-symbols-outlined text-sm">delete</span>
                   </button>
                 </div>

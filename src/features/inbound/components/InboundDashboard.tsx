@@ -73,8 +73,8 @@ export function InboundDashboard() {
         transition={{ duration: 0.3, ease: 'easeOut' }}
       >
         <PageHeader
-          title="Inbound Management"
-          description="Monitor and manage stock-in orders across all stages."
+          title="Quản lý nhập kho"
+          description="Theo dõi và quản lý phiếu nhập kho qua tất cả các giai đoạn."
         />
 
         <KpiCards kpis={kpis} isLoading={isKpiLoading} isError={isKpiError} />

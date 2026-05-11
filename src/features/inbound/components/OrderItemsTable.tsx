@@ -85,16 +85,16 @@ export function OrderItemsTable({
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
               <th className="py-2.5 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[40%]">
-                Product
+                Sản phẩm
               </th>
               <th className="py-2.5 px-4 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[15%]">
-                Qty
+                Số lượng
               </th>
               <th className="py-2.5 px-4 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[18%]">
-                Unit Price
+                Đơn giá
               </th>
               <th className="py-2.5 px-4 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[18%]">
-                Total
+                Thành tiền
               </th>
               <th className="py-2.5 px-4 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[9%]">
               </th>
@@ -123,7 +123,7 @@ export function OrderItemsTable({
                     )}
                     {isDuplicate && (
                       <p className="text-[10px] text-amber-600 mt-0.5">
-                        This product is already in the list.
+                        Sản phẩm này đã có trong danh sách.
                       </p>
                     )}
                   </td>
@@ -178,11 +178,11 @@ export function OrderItemsTable({
             className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Product
+            Thêm sản phẩm
           </button>
         )}
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-sm text-slate-500">Total Value:</span>
+          <span className="text-sm text-slate-500">Tổng giá trị:</span>
           <span className="text-lg font-extrabold text-blue-600 tabular-nums">
             ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </span>

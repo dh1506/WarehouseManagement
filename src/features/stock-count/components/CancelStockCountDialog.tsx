@@ -52,12 +52,12 @@ export function CancelStockCountDialog({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-slate-900">
-                Cancel Audit Ticket
+                Hủy phiếu kiểm kê
               </DialogTitle>
               <DialogDescription className="mt-1 text-sm text-slate-500">
-                Are you sure you want to cancel{' '}
+                Bạn có chắc muốn hủy phiếu{' '}
                 <span className="font-semibold text-slate-700">{stockCountCode}</span>?
-                This action cannot be undone and will be recorded in the audit log.
+                Hành động này không thể hoàn tác và sẽ được ghi vào nhật ký kiểm kê.
               </DialogDescription>
             </div>
           </div>
@@ -71,19 +71,18 @@ export function CancelStockCountDialog({
         >
           <div className="rounded-lg bg-rose-50 border border-rose-100 px-4 py-3">
             <p className="text-xs text-rose-700 leading-relaxed">
-              Cancelling will unlock any inventory locations currently held by this
-              audit. The cancellation reason will be saved as an entry in the audit
-              detail log.
+              Hủy phiếu sẽ mở khóa các vị trí tồn kho đang bị giữ bởi phiếu kiểm kê này.
+              Lý do hủy sẽ được lưu thành một mục trong nhật ký kiểm kê.
             </p>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="cancel-reason" className="text-sm font-medium text-slate-700">
-              Cancellation Reason <span className="text-rose-500">*</span>
+              Lý do hủy <span className="text-rose-500">*</span>
             </Label>
             <Textarea
               id="cancel-reason"
-              placeholder="Describe why this audit is being cancelled…"
+              placeholder="Mô tả lý do hủy phiếu kiểm kê này…"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
@@ -99,7 +98,7 @@ export function CancelStockCountDialog({
                     exit={{ opacity: 0 }}
                     className="text-xs text-rose-500"
                   >
-                    Minimum 5 characters required
+                    Tối thiểu 5 ký tự
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -117,7 +116,7 @@ export function CancelStockCountDialog({
             disabled={isPending}
             className="text-slate-600"
           >
-            Keep Ticket
+            Giữ phiếu
           </Button>
           <Button
             variant="destructive"
@@ -126,7 +125,7 @@ export function CancelStockCountDialog({
             className="gap-2"
           >
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Cancel Ticket
+            Hủy phiếu
           </Button>
         </div>
       </DialogContent>

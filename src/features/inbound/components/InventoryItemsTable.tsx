@@ -20,22 +20,22 @@ export function InventoryItemsTable({
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
               <th className="py-3 px-5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Product & SKU
+                Sản phẩm & SKU
               </th>
               <th className="py-3 px-5 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Ordered
+                SL đặt
               </th>
               <th className="py-3 px-5 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Received
+                Đã nhận
               </th>
               <th className="py-3 px-5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                UoM
+                ĐVT
               </th>
               <th className="py-3 px-5 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Unit Price
+                Đơn giá
               </th>
               <th className="py-3 px-5 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Total
+                Thành tiền
               </th>
             </tr>
           </thead>
@@ -115,7 +115,7 @@ function ItemRow({
             />
             {isOver && (
               <span className="text-[10px] text-rose-500 font-medium">
-                Exceeds ordered qty
+                Vượt số lượng đặt
               </span>
             )}
           </div>

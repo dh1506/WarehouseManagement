@@ -79,15 +79,15 @@ export function CategoryTableV2({
   }, [categories, collapsedIds]);
 
   if (isLoading) {
-    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Loading categories" description="The system is syncing category data from the API." icon="hourglass_top" /></div>;
+    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Đang tải danh mục" description="Hệ thống đang đồng bộ dữ liệu danh mục từ API." icon="hourglass_top" /></div>;
   }
 
   if (isError) {
-    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Unable to load categories" description="Please try again to continue managing categories." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
+    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Không thể tải danh mục" description="Vui lòng thử lại để tiếp tục quản lý danh mục." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
   }
 
   if (treeData.length === 0) {
-    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="No matching categories" description="Create the first category or adjust your search filter." icon="category" /></div>;
+    return <div className="flex h-full min-h-80 items-center justify-center p-8"><StatePanel title="Không tìm thấy danh mục" description="Tạo danh mục đầu tiên hoặc điều chỉnh bộ lọc tìm kiếm." icon="category" /></div>;
   }
 
   return (
@@ -95,11 +95,11 @@ export function CategoryTableV2({
       <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Category Name</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Description</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Sub-categories</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Total Products</th>
-            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Actions</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Tên danh mục</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3">Mô tả</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Danh mục con</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Sản phẩm</th>
+            <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-center">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -148,18 +148,18 @@ export function CategoryTableV2({
                     <div className="min-w-0">
                       <div className="font-semibold text-slate-900">{category.name}</div>
                       <div className="mt-1 text-sm text-slate-500">{category.code}</div>
-                      {category.parentName ? <div className="mt-1 text-xs text-slate-400">Parent: {category.parentName}</div> : null}
+                      {category.parentName ? <div className="mt-1 text-xs text-slate-400">Cha: {category.parentName}</div> : null}
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-sm text-slate-600">{category.description || 'No description'}</td>
+                <td className="px-4 py-4 text-sm text-slate-600">{category.description || 'Không có mô tả'}</td>
                 <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.childrenCount}</td>
                 <td className="px-4 py-4 text-center text-sm font-medium text-slate-700">{category.totalProducts}</td>
                 <td className="px-4 py-4">
                   <div className="flex justify-center gap-2">
-                    <ActionButton icon="visibility" label="View" onClick={() => onView(category)} />
-                    {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(category)} /> : null}
-                    {canDelete ? <ActionButton icon="delete" label="Delete" danger onClick={() => onDelete(category)} /> : null}
+                    <ActionButton icon="visibility" label="Xem" onClick={() => onView(category)} />
+                    {canEdit ? <ActionButton icon="edit" label="Chỉnh sửa" onClick={() => onEdit(category)} /> : null}
+                    {canDelete ? <ActionButton icon="delete" label="Xóa" danger onClick={() => onDelete(category)} /> : null}
                   </div>
                 </td>
               </motion.tr>
@@ -172,7 +172,7 @@ export function CategoryTableV2({
 }
 
 function RetryButton({ onClick }: { onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">Retry</button>;
+  return <button type="button" onClick={onClick} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">Thử lại</button>;
 }
 
 function ActionButton({

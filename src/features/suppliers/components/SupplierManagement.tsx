@@ -110,8 +110,8 @@ export function SupplierManagement() {
       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-6">
           <PageHeader
-            eyebrow="Master Data"
-            title="Supplier Management"
+            eyebrow="Dữ liệu chính"
+            title="Quản lý nhà cung cấp"
             description="Quản lý hồ sơ nhà cung cấp, đầu mối liên hệ và phạm vi sản phẩm đang liên kết."
             actions={
               <>
@@ -188,7 +188,7 @@ export function SupplierManagement() {
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50/80">
                       <tr className="text-left text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                        <th className="px-6 py-4">Supplier</th>
+                        <th className="px-6 py-4">Nhà cung cấp</th>
                         <th className="px-6 py-4">Liên hệ</th>
                         <th className="px-6 py-4">Trạng thái</th>
                         <th className="px-6 py-4">Sản phẩm</th>

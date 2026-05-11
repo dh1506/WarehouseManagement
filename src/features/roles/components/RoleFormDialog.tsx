@@ -81,11 +81,11 @@ export function RoleFormDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => (!isPending ? onOpenChange(nextOpen) : undefined)}>
       <DialogContent className="max-w-md bg-white p-0" showCloseButton={!isPending}>
         <DialogHeader className="border-b border-gray-100 px-5 py-4">
-          <DialogTitle>{isCreate ? 'Tao moi role' : 'Cap nhat role'}</DialogTitle>
+          <DialogTitle>{isCreate ? 'Tạo vai trò mới' : 'Chỉnh sửa vai trò'}</DialogTitle>
           <DialogDescription>
             {isCreate
-              ? 'Them role con thieu trong bo role chuan cua he thong.'
-              : 'Chinh sua mo ta va trang thai hoat dong cua role.'}
+              ? 'Thêm vai trò còn thiếu trong bộ vai trò chuẩn của hệ thống.'
+              : 'Chỉnh sửa mô tả và trạng thái hoạt động của vai trò.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -95,7 +95,7 @@ export function RoleFormDialog({
           className="space-y-4 px-5 py-4"
         >
           <div className="space-y-1.5">
-            <Label htmlFor={`role-name-${mode}`}>Role Name</Label>
+            <Label htmlFor={`role-name-${mode}`}>Tên vai trò</Label>
             {isCreate ? (
               <select
                 id={`role-name-${mode}`}
@@ -122,12 +122,12 @@ export function RoleFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor={`role-description-${mode}`}>Description</Label>
+            <Label htmlFor={`role-description-${mode}`}>Mô tả</Label>
             <Textarea
               id={`role-description-${mode}`}
               {...register('description')}
               disabled={isPending}
-              placeholder="Mo ta ngan ve pham vi quyen cua role"
+              placeholder="Mô tả ngắn về phạm vi quyền của vai trò"
               className="min-h-24"
             />
             {errors.description?.message ? (
@@ -137,9 +137,9 @@ export function RoleFormDialog({
 
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-gray-900">Trang thai role</p>
+              <p className="text-sm font-semibold text-gray-900">Trạng thái vai trò</p>
               <p className="text-xs text-gray-500">
-                {isActive ? 'Role dang duoc phep su dung trong he thong' : 'Role da bi tat va se khong duoc su dung'}
+                {isActive ? 'Vai trò đang được phép sử dụng trong hệ thống' : 'Vai trò đã bị tắt và sẽ không được sử dụng'}
               </p>
             </div>
             <Switch
@@ -152,14 +152,14 @@ export function RoleFormDialog({
 
         <DialogFooter className="rounded-b-xl border-t border-gray-100 bg-gray-50 px-5 py-4">
           <Button variant="outline" disabled={isPending} onClick={() => onOpenChange(false)} type="button">
-            Huy
+            Huỷ
           </Button>
           <Button
             type="submit"
             form={`role-form-${mode}`}
             disabled={isPending || (isCreate && availableRoleNames.length === 0)}
           >
-            {isPending ? 'Dang xu ly...' : isCreate ? 'Tao role' : 'Luu thay doi'}
+            {isPending ? 'Đang xử lý...' : isCreate ? 'Tạo vai trò' : 'Lưu thay đổi'}
           </Button>
         </DialogFooter>
       </DialogContent>

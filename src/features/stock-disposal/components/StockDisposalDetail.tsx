@@ -28,7 +28,7 @@ interface StockDisposalDetailProps {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+  return new Date(iso).toLocaleDateString('vi-VN', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -43,10 +43,10 @@ function formatCurrency(value: number): string {
 
 // ── Status steps for the workflow timeline ─────────────────────────────────────
 const WORKFLOW_STEPS: { status: StockDisposalStatus; label: string; icon: string }[] = [
-  { status: 'DRAFT', label: 'Created (Draft)', icon: 'edit_note' },
-  { status: 'PENDING', label: 'Submitted for Approval', icon: 'send' },
-  { status: 'APPROVED', label: 'Approved', icon: 'verified' },
-  { status: 'COMPLETED', label: 'Completed (Stock Deducted)', icon: 'check_circle' },
+  { status: 'DRAFT', label: 'Đã tạo (Nháp)', icon: 'edit_note' },
+  { status: 'PENDING', label: 'Đã gửi duyệt', icon: 'send' },
+  { status: 'APPROVED', label: 'Đã duyệt', icon: 'verified' },
+  { status: 'COMPLETED', label: 'Hoàn thành (Đã trừ kho)', icon: 'check_circle' },
 ];
 
 const STATUS_ORDER: Record<StockDisposalStatus, number> = {
@@ -97,13 +97,13 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
   const handleSubmit = () => {
     setConfirmDialog({
       open: true,
-      title: 'Submit for Approval',
-      description: 'This will send the ticket for manager approval. The ticket will be locked for editing.',
+      title: 'Gửi duyệt',
+      description: 'Phiếu sẽ được gửi để quản lý phê duyệt. Phiếu sẽ bị khóa chỉnh sửa.',
       variant: 'default',
       action: () => {
         submitMutation.mutate(sd.id, {
-          onSuccess: () => toast({ title: 'Submitted', description: 'Ticket sent for approval.' }),
-          onError: (err) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+          onSuccess: () => toast({ title: 'Đã gửi duyệt', description: 'Phiếu đã được gửi để phê duyệt.' }),
+          onError: (err) => toast({ title: 'Lỗi', description: err.message, variant: 'destructive' }),
         });
       },
     });
@@ -112,13 +112,13 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
   const handleApprove = () => {
     setConfirmDialog({
       open: true,
-      title: 'Approve Ticket',
-      description: 'Confirm approval of this disposal ticket. It can then be completed to deduct stock.',
+      title: 'Duyệt phiếu',
+      description: 'Xác nhận phê duyệt phiếu thanh lý này. Sau đó có thể hoàn thành để trừ kho.',
       variant: 'default',
       action: () => {
         approveMutation.mutate(sd.id, {
-          onSuccess: () => toast({ title: 'Approved', description: 'Ticket has been approved.' }),
-          onError: (err) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+          onSuccess: () => toast({ title: 'Đã duyệt', description: 'Phiếu đã được phê duyệt.' }),
+          onError: (err) => toast({ title: 'Lỗi', description: err.message, variant: 'destructive' }),
         });
       },
     });
@@ -127,13 +127,13 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
   const handleComplete = () => {
     setConfirmDialog({
       open: true,
-      title: 'Complete Disposal',
-      description: `This action will permanently deduct ${totalQty} item(s) from inventory. This cannot be undone.`,
+      title: 'Hoàn thành thanh lý',
+      description: `Thao tác này sẽ trừ vĩnh viễn ${totalQty} mặt hàng khỏi kho. Không thể hoàn tác.`,
       variant: 'destructive',
       action: () => {
         completeMutation.mutate(sd.id, {
-          onSuccess: () => toast({ title: 'Completed', description: 'Stock has been deducted successfully.' }),
-          onError: (err) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+          onSuccess: () => toast({ title: 'Hoàn thành', description: 'Kho đã được trừ thành công.' }),
+          onError: (err) => toast({ title: 'Lỗi', description: err.message, variant: 'destructive' }),
         });
       },
     });
@@ -142,13 +142,13 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
   const handleCancel = () => {
     setConfirmDialog({
       open: true,
-      title: 'Cancel Ticket',
-      description: 'Are you sure you want to cancel this disposal ticket? This action cannot be undone.',
+      title: 'Huỷ phiếu',
+      description: 'Bạn có chắc chắn muốn huỷ phiếu thanh lý này? Thao tác này không thể hoàn tác.',
       variant: 'destructive',
       action: () => {
         cancelMutation.mutate(sd.id, {
-          onSuccess: () => toast({ title: 'Cancelled', description: 'Ticket has been cancelled.' }),
-          onError: (err) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+          onSuccess: () => toast({ title: 'Đã huỷ', description: 'Phiếu đã được huỷ.' }),
+          onError: (err) => toast({ title: 'Lỗi', description: err.message, variant: 'destructive' }),
         });
       },
     });
@@ -180,7 +180,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 className="flex items-center gap-1 text-sm text-slate-500 hover:text-blue-600 transition-colors"
               >
                 <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-                Back
+                Quay lại
               </button>
               <span
                 className={cn(
@@ -195,7 +195,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
             <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900">{sd.code}</h2>
             <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
               <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-              Created on {formatDate(sd.created_at)} by {sd.creator?.full_name ?? 'Unknown'}
+              Tạo lúc {formatDate(sd.created_at)} bởi {sd.creator?.full_name ?? 'Không xác định'}
             </p>
           </div>
 
@@ -209,7 +209,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 disabled={isMutating || details.length === 0}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Submit for Approval
+                Gửi duyệt
               </motion.button>
             )}
             {sd.status === 'PENDING' && canApprove && (
@@ -220,7 +220,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 disabled={isMutating}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Approve
+                Duyệt
               </motion.button>
             )}
             {sd.status === 'APPROVED' && canApprove && (
@@ -231,7 +231,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 disabled={isMutating}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Complete & Deduct Stock
+                Hoàn thành & Trừ kho
               </motion.button>
             )}
             {!isCancelled && sd.status !== 'COMPLETED' && canCancel && (
@@ -242,7 +242,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                 disabled={isMutating}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                Cancel Ticket
+                Huỷ phiếu
               </motion.button>
             )}
           </div>
@@ -261,22 +261,22 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
             >
               <h3 className="text-base font-bold mb-4 flex items-center gap-2 text-slate-800">
                 <span className="material-symbols-outlined text-blue-600 text-[20px]">description</span>
-                Disposal Context
+                Thông tin thanh lý
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ticket Code</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Mã phiếu</p>
                   <p className="text-sm font-semibold text-slate-800 font-mono">{sd.code}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Approver</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Người duyệt</p>
                   <p className="text-sm font-medium text-slate-700">
-                    {sd.approver ? sd.approver.full_name : <span className="text-slate-400 italic">Not yet assigned</span>}
+                    {sd.approver ? sd.approver.full_name : <span className="text-slate-400 italic">Chưa được phân công</span>}
                   </p>
                 </div>
                 {sd.description && (
                   <div className="col-span-full space-y-1">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Description</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Mô tả</p>
                     <p className="text-sm text-slate-600 leading-relaxed">{sd.description}</p>
                   </div>
                 )}
@@ -293,9 +293,9 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
               <div className="p-5 border-b border-slate-100">
                 <h3 className="text-base font-bold flex items-center gap-2 text-slate-800">
                   <span className="material-symbols-outlined text-blue-600 text-[20px]">list_alt</span>
-                  Disposal Items
+                  Mặt hàng thanh lý
                   <span className="ml-auto text-xs font-medium text-slate-400 tabular-nums">
-                    {details.length} line{details.length !== 1 ? 's' : ''}
+                    {details.length} dòng
                   </span>
                 </h3>
               </div>
@@ -304,12 +304,12 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                   <thead>
                     <tr className="bg-slate-50">
                       <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">#</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Product</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Location</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Reason</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">Qty</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">Unit Price</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sản phẩm</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Vị trí</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lý do</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">SL</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">Đơn giá</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">Thành tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -332,8 +332,8 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                               <span className="text-[11px] text-slate-400 font-mono">{detail.product.code}</span>
                               {detail.lot && (
                                 <span className="text-[10px] text-slate-400 mt-0.5">
-                                  Lot: {detail.lot.lot_no}
-                                  {detail.lot.expired_date && ` · Exp: ${new Date(detail.lot.expired_date).toLocaleDateString()}`}
+                                  Lô: {detail.lot.lot_no}
+                                  {detail.lot.expired_date && ` · HSD: ${new Date(detail.lot.expired_date).toLocaleDateString('vi-VN')}`}
                                 </span>
                               )}
                             </div>
@@ -366,7 +366,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                     <tfoot>
                       <tr className="bg-slate-50/70">
                         <td colSpan={4} />
-                        <td className="px-5 py-3 text-right text-xs font-bold text-slate-500 uppercase">Total</td>
+                        <td className="px-5 py-3 text-right text-xs font-bold text-slate-500 uppercase">Tổng cộng</td>
                         <td />
                         <td className="px-5 py-3 text-right text-base font-extrabold text-rose-600">
                           {formatCurrency(totalValue)}
@@ -379,7 +379,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
               {details.length === 0 && (
                 <div className="p-8 text-center">
                   <span className="material-symbols-outlined text-[40px] text-slate-300">inbox</span>
-                  <p className="text-sm text-slate-400 mt-2">No items added yet</p>
+                  <p className="text-sm text-slate-400 mt-2">Chưa có mặt hàng nào</p>
                 </div>
               )}
             </motion.div>
@@ -397,21 +397,21 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="material-symbols-outlined text-blue-200 text-[20px]">analytics</span>
-                  <span className="text-[11px] font-bold tracking-widest uppercase text-blue-200">Summary</span>
+                  <span className="text-[11px] font-bold tracking-widest uppercase text-blue-200">Tổng quan</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-blue-200">Total Items</p>
+                    <p className="text-xs text-blue-200">Tổng mặt hàng</p>
                     <p className="text-2xl font-extrabold">{details.length}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-blue-200">Total Quantity</p>
+                    <p className="text-xs text-blue-200">Tổng số lượng</p>
                     <p className="text-2xl font-extrabold">{totalQty}</p>
                   </div>
                 </div>
                 {totalValue > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/20">
-                    <p className="text-xs text-blue-200">Total Disposal Value</p>
+                    <p className="text-xs text-blue-200">Tổng giá trị thanh lý</p>
                     <p className="text-2xl font-extrabold mt-1">{formatCurrency(totalValue)}</p>
                   </div>
                 )}
@@ -430,7 +430,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
             >
               <h3 className="text-base font-bold mb-5 flex items-center gap-2 text-slate-800">
                 <span className="material-symbols-outlined text-blue-600 text-[20px]">account_tree</span>
-                Approval Workflow
+                Quy trình phê duyệt
               </h3>
               <div className="space-y-6 relative">
                 <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-slate-200" />
@@ -442,8 +442,8 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                       <span className="material-symbols-outlined text-xs text-white" style={{ fontVariationSettings: "'wght' 700" }}>close</span>
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-rose-600">Cancelled</p>
-                      <p className="text-xs text-slate-500">This ticket has been cancelled</p>
+                      <p className="text-sm font-bold text-rose-600">Đã huỷ</p>
+                      <p className="text-xs text-slate-500">Phiếu này đã bị huỷ</p>
                     </div>
                   </div>
                 ) : (
@@ -479,10 +479,10 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                         <div>
                           <p className={cn('text-sm font-bold', isActive ? 'text-blue-600' : 'text-slate-700')}>{step.label}</p>
                           {isActive && (
-                            <p className="text-xs text-blue-500 font-medium mt-0.5">In progress</p>
+                            <p className="text-xs text-blue-500 font-medium mt-0.5">Đang xử lý</p>
                           )}
                           {isDone && (
-                            <p className="text-xs text-slate-400 mt-0.5">Completed</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Hoàn thành</p>
                           )}
                         </div>
                       </motion.div>
@@ -502,7 +502,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
               >
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2 text-slate-800">
                   <span className="material-symbols-outlined text-blue-600 text-[20px]">history</span>
-                  Activity Log
+                  Lịch sử hoạt động
                 </h3>
                 <div className="space-y-4">
                   {history.map((h, i) => {
@@ -545,7 +545,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
             <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isMutating}>Huỷ</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 confirmDialog.action();
@@ -558,7 +558,7 @@ export function StockDisposalDetail({ stockDisposal }: StockDisposalDetailProps)
                   : 'bg-blue-600 hover:bg-blue-700 text-white',
               )}
             >
-              {isMutating ? 'Processing…' : 'Confirm'}
+              {isMutating ? 'Đang xử lý…' : 'Xác nhận'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

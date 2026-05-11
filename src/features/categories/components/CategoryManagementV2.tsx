@@ -113,17 +113,17 @@ export function CategoryManagementV2() {
     try {
       if (editingCategory) {
         await updateMutation.mutateAsync({ id: editingCategory.id, data });
-        toast({ title: 'Category updated', description: 'The category details have been saved.' });
+        toast({ title: 'Đã cập nhật danh mục', description: 'Thông tin danh mục đã được lưu.' });
       } else {
         await createMutation.mutateAsync(data);
-        toast({ title: 'Category created', description: 'The new category is now available in the system.' });
+        toast({ title: 'Đã tạo danh mục mới', description: 'Danh mục mới đã sẵn sàng trong hệ thống.' });
       }
 
       setIsFormOpen(false);
     } catch (error) {
       toast({
-        title: 'Unable to save category',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        title: 'Không thể lưu danh mục',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi không mong muốn.',
         variant: 'destructive',
       });
     }
@@ -136,13 +136,13 @@ export function CategoryManagementV2() {
 
     try {
       await deleteMutation.mutateAsync(deletingCategory.id);
-      toast({ title: 'Category deleted', description: 'The category has been removed from the system.' });
+      toast({ title: 'Đã xóa danh mục', description: 'Danh mục đã được xóa khỏi hệ thống.' });
       setIsDeleteDialogOpen(false);
       setDeletingCategory(null);
     } catch (error) {
       toast({
-        title: 'Unable to delete category',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        title: 'Không thể xóa danh mục',
+        description: error instanceof Error ? error.message : 'Đã xảy ra lỗi không mong muốn.',
         variant: 'destructive',
       });
     }
@@ -156,18 +156,18 @@ export function CategoryManagementV2() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         <PageHeader
-          title="Category Management"
-          description="Manage the hierarchical product category structure that supports product master data and future inventory workflows."
+          title="Quản lý danh mục"
+          description="Quản lý cấu trúc phân cấp danh mục sản phẩm, hỗ trợ dữ liệu sản phẩm và quy trình tồn kho."
           actions={(
             <>
               {canExport ? (
                 <button type="button" onClick={() => void handleExport()} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/15">
-                  Export
+                  Xuất
                 </button>
               ) : null}
               {canCreate ? (
                 <button type="button" onClick={openCreate} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 ease-out hover:bg-primary-container hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
-                  New Category
+                  Tạo danh mục
                 </button>
               ) : null}
             </>
@@ -183,7 +183,7 @@ export function CategoryManagementV2() {
                 setSearchTerm(event.target.value);
                 setPage(1);
               }}
-              placeholder="Search by category code, name, or description..."
+              placeholder="Tìm theo mã, tên hoặc mô tả danh mục..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-4 text-sm outline-none transition-all duration-200 ease-out focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
             />
           </div>
@@ -216,7 +216,7 @@ export function CategoryManagementV2() {
             {total > 0 ? (
               <div className="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm font-medium text-slate-500">
-                  Showing {pageStart} - {pageEnd} of {total} categories
+                  Hiển thị {pageStart} - {pageEnd} trong tổng số {total} danh mục
                 </p>
                 <div className="flex items-center gap-1">
                   <button
@@ -226,7 +226,7 @@ export function CategoryManagementV2() {
                     className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors duration-200 ease-out hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="material-symbols-outlined text-[16px]">chevron_left</span>
-                    Prev
+                    Trước
                   </button>
                   {[...Array(Math.min(totalPages, 5))].map((_, index) => {
                     const targetPage = index + 1;
@@ -259,7 +259,7 @@ export function CategoryManagementV2() {
                     disabled={page === totalPages}
                     className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors duration-200 ease-out hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Next
+                    Tiếp
                     <span className="material-symbols-outlined text-[16px]">chevron_right</span>
                   </button>
                 </div>

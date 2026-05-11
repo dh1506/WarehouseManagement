@@ -58,17 +58,17 @@ export function WarehouseFormDialog({
       <SheetContent className="w-full gap-0 p-0 sm:max-w-xl" showCloseButton={false}>
         <form onSubmit={handleSubmit(async (payload) => { if (!isView) await onSubmit(payload); })} className="flex h-full flex-col">
           <SheetHeader className="border-b border-slate-200 px-6 py-5">
-            <SheetTitle>{mode === 'create' ? 'Create warehouse' : mode === 'edit' ? 'Update warehouse' : 'Warehouse detail'}</SheetTitle>
+            <SheetTitle>{mode === 'create' ? 'Tạo kho hàng' : mode === 'edit' ? 'Cập nhật kho hàng' : 'Chi tiết kho hàng'}</SheetTitle>
             <SheetDescription>Quản lý thông tin vận hành cốt lõi của kho.</SheetDescription>
           </SheetHeader>
           <div className="grid flex-1 gap-4 overflow-y-auto px-6 py-5">
-            <Field label="Code" error={errors.code?.message}><input {...register('code')} disabled={isView || isPending} className={inputClass(!!errors.code)} /></Field>
-            <Field label="Warehouse name" error={errors.name?.message}><input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} /></Field>
-            <Field label="Manager" error={errors.manager?.message}><input {...register('manager')} disabled={isView || isPending} className={inputClass(!!errors.manager)} /></Field>
-            <Field label="Address" error={errors.address?.message}><input {...register('address')} disabled={isView || isPending} className={inputClass(!!errors.address)} /></Field>
-            <Field label="Capacity usage (%)" error={errors.capacityUsage?.message}><input type="number" {...register('capacityUsage', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.capacityUsage)} /></Field>
-            <Field label="Status" error={errors.status?.message}><select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}><option value="operational">Operational</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select></Field>
-            <Field label="Description" error={errors.description?.message}><textarea {...register('description')} disabled={isView || isPending} className={`${inputClass(!!errors.description)} min-h-32 resize-none`} /></Field>
+            <Field label="Mã kho" error={errors.code?.message}><input {...register('code')} disabled={isView || isPending} className={inputClass(!!errors.code)} /></Field>
+            <Field label="Tên kho" error={errors.name?.message}><input {...register('name')} disabled={isView || isPending} className={inputClass(!!errors.name)} /></Field>
+            <Field label="Người quản lý" error={errors.manager?.message}><input {...register('manager')} disabled={isView || isPending} className={inputClass(!!errors.manager)} /></Field>
+            <Field label="Địa chỉ" error={errors.address?.message}><input {...register('address')} disabled={isView || isPending} className={inputClass(!!errors.address)} /></Field>
+            <Field label="Công suất đã dùng (%)" error={errors.capacityUsage?.message}><input type="number" {...register('capacityUsage', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.capacityUsage)} /></Field>
+            <Field label="Trạng thái" error={errors.status?.message}><select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}><option value="operational">Hoạt động</option><option value="maintenance">Bảo trì</option><option value="inactive">Không hoạt động</option></select></Field>
+            <Field label="Mô tả" error={errors.description?.message}><textarea {...register('description')} disabled={isView || isPending} className={`${inputClass(!!errors.description)} min-h-32 resize-none`} /></Field>
           </div>
           <SheetFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">
             <div className="flex w-full items-center justify-end gap-3">
@@ -138,20 +138,20 @@ export function LocationFormDialog({
       <SheetContent className="w-full gap-0 p-0 sm:max-w-xl" showCloseButton={false}>
         <form onSubmit={handleSubmit(async (payload) => { if (!isView) await onSubmit(payload); })} className="flex h-full flex-col">
           <SheetHeader className="border-b border-slate-200 px-6 py-5">
-            <SheetTitle>{mode === 'create' ? 'Create location' : mode === 'edit' ? 'Update location' : 'Location detail'}</SheetTitle>
-            <SheetDescription>Thiết lập zone, rack, level, bin và sức chứa cho vị trí lưu trữ.</SheetDescription>
+            <SheetTitle>{mode === 'create' ? 'Tạo vị trí lưu trữ' : mode === 'edit' ? 'Cập nhật vị trí lưu trữ' : 'Chi tiết vị trí lưu trữ'}</SheetTitle>
+            <SheetDescription>Thiết lập khu vực, kệ, tầng, ô chứa và sức chứa cho vị trí lưu trữ.</SheetDescription>
           </SheetHeader>
           <div className="grid flex-1 gap-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
-            <Field label="Warehouse" error={errors.warehouseId?.message}><select {...register('warehouseId')} disabled={isView || isPending} className={inputClass(!!errors.warehouseId)}><option value="">Select warehouse</option>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-            <Field label="Code" error={errors.code?.message}><input {...register('code')} disabled={isView || isPending} className={inputClass(!!errors.code)} /></Field>
-            <Field label="Zone" error={errors.zone?.message}><input {...register('zone')} disabled={isView || isPending} className={inputClass(!!errors.zone)} /></Field>
-            <Field label="Rack" error={errors.rack?.message}><input {...register('rack')} disabled={isView || isPending} className={inputClass(!!errors.rack)} /></Field>
-            <Field label="Level" error={errors.level?.message}><input {...register('level')} disabled={isView || isPending} className={inputClass(!!errors.level)} /></Field>
-            <Field label="Bin" error={errors.bin?.message}><input {...register('bin')} disabled={isView || isPending} className={inputClass(!!errors.bin)} /></Field>
-            <Field label="Status" error={errors.status?.message}><select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}><option value="active">Active</option><option value="blocked">Blocked</option><option value="inactive">Inactive</option></select></Field>
-            <Field label="Capacity" error={errors.capacity?.message}><input type="number" {...register('capacity', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.capacity)} /></Field>
-            <Field label="Current load" error={errors.currentLoad?.message}><input type="number" {...register('currentLoad', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.currentLoad)} /></Field>
-            <Field label="Product count" error={errors.productCount?.message}><input type="number" {...register('productCount', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.productCount)} /></Field>
+            <Field label="Kho" error={errors.warehouseId?.message}><select {...register('warehouseId')} disabled={isView || isPending} className={inputClass(!!errors.warehouseId)}><option value="">Chọn kho</option>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+            <Field label="Mã vị trí" error={errors.code?.message}><input {...register('code')} disabled={isView || isPending} className={inputClass(!!errors.code)} /></Field>
+            <Field label="Khu vực" error={errors.zone?.message}><input {...register('zone')} disabled={isView || isPending} className={inputClass(!!errors.zone)} /></Field>
+            <Field label="Kệ" error={errors.rack?.message}><input {...register('rack')} disabled={isView || isPending} className={inputClass(!!errors.rack)} /></Field>
+            <Field label="Tầng" error={errors.level?.message}><input {...register('level')} disabled={isView || isPending} className={inputClass(!!errors.level)} /></Field>
+            <Field label="Ô chứa" error={errors.bin?.message}><input {...register('bin')} disabled={isView || isPending} className={inputClass(!!errors.bin)} /></Field>
+            <Field label="Trạng thái" error={errors.status?.message}><select {...register('status')} disabled={isView || isPending} className={inputClass(!!errors.status)}><option value="active">Đang dùng</option><option value="blocked">Bị khóa</option><option value="inactive">Không hoạt động</option></select></Field>
+            <Field label="Sức chứa" error={errors.capacity?.message}><input type="number" {...register('capacity', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.capacity)} /></Field>
+            <Field label="Tải hiện tại" error={errors.currentLoad?.message}><input type="number" {...register('currentLoad', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.currentLoad)} /></Field>
+            <Field label="Số lượng sản phẩm" error={errors.productCount?.message}><input type="number" {...register('productCount', { valueAsNumber: true })} disabled={isView || isPending} className={inputClass(!!errors.productCount)} /></Field>
           </div>
           <SheetFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4">
             <div className="flex w-full items-center justify-end gap-3">

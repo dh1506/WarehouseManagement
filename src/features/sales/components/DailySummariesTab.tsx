@@ -33,7 +33,7 @@ function formatDate(iso: string): string {
 function formatCurrency(value: string): string {
   const num = parseFloat(value);
   if (isNaN(num)) return value;
-  const formatted = new Intl.NumberFormat('en-US', {
+  const formatted = new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(Math.abs(num));
@@ -75,7 +75,7 @@ function Pagination({
       <p className="text-[13px] text-zinc-500">
         Hiển thị <span className="font-medium text-zinc-800">{start}</span> –{' '}
         <span className="font-medium text-zinc-800">{end}</span> trong{' '}
-        <span className="font-medium text-zinc-800">{total.toLocaleString()}</span> kết quả
+        <span className="font-medium text-zinc-800">{total.toLocaleString('vi-VN')}</span> kết quả
       </p>
       <div className="flex items-center gap-1">
         <button

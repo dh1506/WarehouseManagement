@@ -48,12 +48,12 @@ export function ApproveWithVarianceDialog({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-slate-900">
-                Variance Detected — Approval Required
+                Phát hiện chênh lệch — Yêu cầu phê duyệt
               </DialogTitle>
               <DialogDescription className="mt-0.5 text-sm text-slate-500">
-                Ticket <span className="font-mono font-semibold text-slate-700">{stockCountCode}</span> has{' '}
-                {varianceDetails.length} item{varianceDetails.length !== 1 ? 's' : ''} with discrepancies.
-                Approving will permanently adjust inventory.
+                Phiếu <span className="font-mono font-semibold text-slate-700">{stockCountCode}</span> có{' '}
+                {varianceDetails.length} sản phẩm có sai lệch.
+                Việc duyệt sẽ điều chỉnh tồn kho vĩnh viễn.
               </DialogDescription>
             </div>
           </div>
@@ -74,20 +74,20 @@ export function ApproveWithVarianceDialog({
                   <p className="text-sm font-semibold text-slate-800 truncate">{d.product.name}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                     {d.product.code} · {d.location.full_path}
-                    {d.lot && ` · Lot: ${d.lot.lot_no}`}
+                    {d.lot && ` · Lô: ${d.lot.lot_no}`}
                   </p>
                   {d.variance_reason && (
                     <p className="text-[11px] text-slate-500 mt-0.5 italic truncate">
-                      Reason: {d.variance_reason}
+                      Lý do: {d.variance_reason}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0 text-xs">
                   <span className="text-slate-500">
-                    System: <span className="font-semibold text-slate-700">{sys}</span>
+                    Hệ thống: <span className="font-semibold text-slate-700">{sys}</span>
                   </span>
                   <span className="text-slate-500">
-                    Counted: <span className="font-semibold text-slate-700">{cnt ?? '—'}</span>
+                    Thực đếm: <span className="font-semibold text-slate-700">{cnt ?? '—'}</span>
                   </span>
                   <span
                     className={cn(
@@ -114,15 +114,15 @@ export function ApproveWithVarianceDialog({
             ? <CheckSquare className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
             : <Square className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />}
           <p className="text-sm text-slate-700 leading-snug">
-            I acknowledge all{' '}
-            <span className="font-semibold text-amber-700">{varianceDetails.length} variance{varianceDetails.length !== 1 ? 's' : ''}</span>{' '}
-            listed above and confirm that approving this audit will permanently adjust the inventory.
+            Tôi xác nhận tất cả{' '}
+            <span className="font-semibold text-amber-700">{varianceDetails.length} chênh lệch</span>{' '}
+            liệt kê ở trên và đồng ý rằng việc duyệt phiếu này sẽ điều chỉnh tồn kho vĩnh viễn.
           </p>
         </button>
 
         <div className="shrink-0 flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button variant="outline" onClick={onClose} disabled={isPending} className="text-slate-600">
-            Cancel
+            Huỷ
           </Button>
           <Button
             onClick={onConfirm}
@@ -130,7 +130,7 @@ export function ApproveWithVarianceDialog({
             className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
           >
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Approve & Sync Inventory
+            Duyệt & Đồng bộ tồn kho
           </Button>
         </div>
       </DialogContent>

@@ -130,8 +130,8 @@ export function WarehouseManagementV2() {
     <div className="flex h-full flex-col overflow-auto bg-[#fbfbfe] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
         <PageHeader
-          eyebrow="Sprint 1 · Warehouse Structure"
-          title="Warehouse & Locations"
+          eyebrow="Sprint 1 · Cấu trúc kho"
+          title="Kho & Vị trí lưu trữ"
           description="Định nghĩa kho và vị trí lưu trữ theo dữ liệu nền tảng để các sprint giao dịch sau có thể gán hàng vào cấu trúc vật lý ổn định."
           actions={
             <button
@@ -141,7 +141,7 @@ export function WarehouseManagementV2() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              {tab === 'warehouses' ? 'New Warehouse' : 'New Location'}
+              {tab === 'warehouses' ? 'Thêm kho' : 'Thêm vị trí'}
             </button>
           }
         />
@@ -159,8 +159,8 @@ export function WarehouseManagementV2() {
           }}
         >
           <TabsList variant="line" className="rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
-            <TabsTrigger value="warehouses" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Warehouses</TabsTrigger>
-            <TabsTrigger value="locations" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Locations</TabsTrigger>
+            <TabsTrigger value="warehouses" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Kho hàng</TabsTrigger>
+            <TabsTrigger value="locations" className="rounded-xl px-4 py-2 data-active:bg-slate-100">Vị trí</TabsTrigger>
           </TabsList>
 
           <TabsContent value={tab} className="space-y-4">
@@ -172,7 +172,7 @@ export function WarehouseManagementV2() {
                     setSearch(value);
                     setPage(1);
                   }}
-                  placeholder={tab === 'warehouses' ? 'Search warehouse code or name...' : 'Search location code or full path...'}
+                  placeholder={tab === 'warehouses' ? 'Tìm mã hoặc tên kho...' : 'Tìm mã vị trí hoặc đường dẫn đầy đủ...'}
                 />
                 {tab === 'warehouses' ? (
                   <SelectInput
@@ -182,9 +182,9 @@ export function WarehouseManagementV2() {
                       setPage(1);
                     }}
                   >
-                    <option value="all">All status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="inactive">Không hoạt động</option>
                   </SelectInput>
                 ) : (
                   <>
@@ -195,11 +195,11 @@ export function WarehouseManagementV2() {
                         setPage(1);
                       }}
                     >
-                      <option value="all">All occupancy status</option>
-                      <option value="available">Available</option>
-                      <option value="partial">Partial</option>
-                      <option value="full">Full</option>
-                      <option value="maintenance">Maintenance</option>
+                      <option value="all">Tất cả mức lấp đầy</option>
+                      <option value="available">Còn trống</option>
+                      <option value="partial">Một phần</option>
+                      <option value="full">Đầy</option>
+                      <option value="maintenance">Bảo trì</option>
                     </SelectInput>
                     <SelectInput
                       value={storageFilter}
@@ -208,11 +208,11 @@ export function WarehouseManagementV2() {
                         setPage(1);
                       }}
                     >
-                      <option value="all">All storage types</option>
-                      <option value="ambient">Ambient</option>
-                      <option value="chilled">Chilled</option>
-                      <option value="frozen">Frozen</option>
-                      <option value="dry">Dry</option>
+                      <option value="all">Tất cả loại bảo quản</option>
+                      <option value="ambient">Thường</option>
+                      <option value="chilled">Mát lạnh</option>
+                      <option value="frozen">Đông lạnh</option>
+                      <option value="dry">Khô</option>
                     </SelectInput>
                     <SelectInput
                       value={warehouseFilter}
@@ -221,7 +221,7 @@ export function WarehouseManagementV2() {
                         setPage(1);
                       }}
                     >
-                      <option value="">All warehouses</option>
+                      <option value="">Tất cả kho</option>
                       {warehouseOptionsQuery.data?.data.map((item) => (
                         <option key={item.id} value={item.id}>{item.name}</option>
                       ))}
@@ -271,7 +271,7 @@ export function WarehouseManagementV2() {
           try {
             if (warehouseMode === 'edit' && selectedWarehouse) {
               await updateWarehouseMutation.mutateAsync({ id: selectedWarehouse.id, payload });
-              toast({ title: 'Đã cập nhật kho', description: 'Warehouse master đã được lưu.' });
+              toast({ title: 'Đã cập nhật kho', description: 'Thông tin kho đã được lưu.' });
             } else {
               await createWarehouseMutation.mutateAsync(payload);
               toast({ title: 'Đã tạo kho', description: 'Kho mới đã sẵn sàng để gán location.' });
@@ -298,7 +298,7 @@ export function WarehouseManagementV2() {
           try {
             if (locationMode === 'edit' && selectedLocation) {
               await updateLocationMutation.mutateAsync({ id: selectedLocation.id, payload });
-              toast({ title: 'Đã cập nhật vị trí', description: 'Warehouse location đã được lưu.' });
+              toast({ title: 'Đã cập nhật vị trí', description: 'Thông tin vị trí kho đã được lưu.' });
             } else {
               await createLocationMutation.mutateAsync(payload);
               toast({ title: 'Đã tạo vị trí', description: 'Vị trí kho mới đã sẵn sàng sử dụng.' });
@@ -337,15 +337,15 @@ function WarehouseRows({
   onRetry: () => void;
 }) {
   if (isLoading) {
-    return <div className="p-8"><StatePanel title="Đang tải dữ liệu kho" description="Hệ thống đang đồng bộ warehouse master." icon="hourglass_top" /></div>;
+    return <div className="p-8"><StatePanel title="Đang tải dữ liệu kho" description="Hệ thống đang đồng bộ danh sách kho." icon="hourglass_top" /></div>;
   }
 
   if (isError) {
-    return <div className="p-8"><StatePanel title="Không tải được kho" description="Vui lòng thử lại để tiếp tục quản trị warehouse master." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
+    return <div className="p-8"><StatePanel title="Không tải được kho" description="Vui lòng thử lại để tiếp tục quản lý kho." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
   }
 
   if (items.length === 0) {
-    return <div className="p-8"><StatePanel title="Chưa có kho phù hợp" description="Tạo warehouse master đầu tiên để định nghĩa cấu trúc lưu trữ." icon="warehouse" /></div>;
+    return <div className="p-8"><StatePanel title="Chưa có kho phù hợp" description="Tạo kho đầu tiên để định nghĩa cấu trúc lưu trữ." icon="warehouse" /></div>;
   }
 
   return (
@@ -353,11 +353,11 @@ function WarehouseRows({
       <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            <th className="px-4 py-3">Warehouse</th>
-            <th className="px-4 py-3">Locations</th>
-            <th className="px-4 py-3">Timeline</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3 text-right">Actions</th>
+            <th className="px-4 py-3">Kho</th>
+            <th className="px-4 py-3">Vị trí</th>
+            <th className="px-4 py-3">Thời gian</th>
+            <th className="px-4 py-3">Trạng thái</th>
+            <th className="px-4 py-3 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -367,16 +367,16 @@ function WarehouseRows({
                 <div className="font-semibold text-slate-900">{item.name}</div>
                 <div className="mt-1 text-sm text-slate-500">{item.code}</div>
               </td>
-              <td className="px-4 py-4 text-sm text-slate-600">{item.locationCount} locations</td>
+              <td className="px-4 py-4 text-sm text-slate-600">{item.locationCount} vị trí</td>
               <td className="px-4 py-4 text-sm text-slate-600">
-                <div>Created {formatDate(item.createdAt)}</div>
-                <div className="mt-1 text-xs text-slate-400">Updated {formatDate(item.updatedAt)}</div>
+                <div>Tạo lúc {formatDate(item.createdAt)}</div>
+                <div className="mt-1 text-xs text-slate-400">Cập nhật {formatDate(item.updatedAt)}</div>
               </td>
               <td className="px-4 py-4"><StatusBadge status={item.status} /></td>
               <td className="px-4 py-4">
                 <div className="flex justify-end gap-2">
-                  <ActionButton icon="visibility" label="View" onClick={() => onView(item)} />
-                  {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(item)} /> : null}
+                  <ActionButton icon="visibility" label="Xem" onClick={() => onView(item)} />
+                  {canEdit ? <ActionButton icon="edit" label="Sửa" onClick={() => onEdit(item)} /> : null}
                 </div>
               </td>
             </tr>
@@ -407,11 +407,11 @@ function LocationRows({
   onRetry: () => void;
 }) {
   if (isLoading) {
-    return <div className="p-8"><StatePanel title="Đang tải vị trí kho" description="Hệ thống đang đồng bộ warehouse locations." icon="hourglass_top" /></div>;
+    return <div className="p-8"><StatePanel title="Đang tải vị trí kho" description="Hệ thống đang đồng bộ danh sách vị trí." icon="hourglass_top" /></div>;
   }
 
   if (isError) {
-    return <div className="p-8"><StatePanel title="Không tải được vị trí" description="Vui lòng thử lại để tiếp tục quản trị warehouse locations." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
+    return <div className="p-8"><StatePanel title="Không tải được vị trí" description="Vui lòng thử lại để tiếp tục quản lý vị trí kho." icon="error" tone="error" action={<RetryButton onClick={onRetry} />} /></div>;
   }
 
   if (items.length === 0) {
@@ -423,12 +423,12 @@ function LocationRows({
       <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
           <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Warehouse</th>
-            <th className="px-4 py-3">Structure</th>
-            <th className="px-4 py-3">Capacity</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3 text-right">Actions</th>
+            <th className="px-4 py-3">Vị trí</th>
+            <th className="px-4 py-3">Kho</th>
+            <th className="px-4 py-3">Cấu trúc</th>
+            <th className="px-4 py-3">Sức chứa</th>
+            <th className="px-4 py-3">Trạng thái</th>
+            <th className="px-4 py-3 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -443,8 +443,8 @@ function LocationRows({
                 <div className="mt-1 text-xs text-slate-400">{item.warehouseCode}</div>
               </td>
               <td className="px-4 py-4 text-sm text-slate-600">
-                Zone {item.zoneCode || '-'} · Aisle {item.aisleCode || '-'} · Rack {item.rackCode || '-'}
-                <div className="mt-1 text-xs text-slate-400">Level {item.levelCode || '-'} · Bin {item.binCode || '-'} · {item.storageCondition}</div>
+                Khu vực {item.zoneCode || '-'} · Lối {item.aisleCode || '-'} · Kệ {item.rackCode || '-'}
+                <div className="mt-1 text-xs text-slate-400">Tầng {item.levelCode || '-'} · Ô {item.binCode || '-'} · {item.storageCondition}</div>
               </td>
               <td className="px-4 py-4 text-sm text-slate-600">
                 <div>{item.currentWeight ?? 0} / {item.maxWeight ?? 0} kg</div>
@@ -458,8 +458,8 @@ function LocationRows({
               </td>
               <td className="px-4 py-4">
                 <div className="flex justify-end gap-2">
-                  <ActionButton icon="visibility" label="View" onClick={() => onView(item)} />
-                  {canEdit ? <ActionButton icon="edit" label="Edit" onClick={() => onEdit(item)} /> : null}
+                  <ActionButton icon="visibility" label="Xem" onClick={() => onView(item)} />
+                  {canEdit ? <ActionButton icon="edit" label="Sửa" onClick={() => onEdit(item)} /> : null}
                 </div>
               </td>
             </tr>
@@ -487,7 +487,7 @@ function ActionButton({ icon, label, onClick }: { icon: string; label: string; o
 }
 
 function Pagination({ page, totalPages, totalItems, onChange }: { page: number; totalPages: number; totalItems: number; onChange: (page: number) => void }) {
-  return <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-500">Total {totalItems} items</p><div className="flex items-center gap-2"><button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Prev</button><span className="text-sm font-medium text-slate-700">{page} / {totalPages}</span><button type="button" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Next</button></div></div>;
+  return <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-500">Tổng {totalItems} mục</p><div className="flex items-center gap-2"><button type="button" onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Trước</button><span className="text-sm font-medium text-slate-700">{page} / {totalPages}</span><button type="button" onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 disabled:opacity-40">Sau</button></div></div>;
 }
 
 function formatDate(value: string) {

@@ -55,7 +55,7 @@ const STATUS_COLORS: Record<LocationApiItem['location_status'], string> = {
 export function WarehouseLocationSelect({
   value,
   onValueChange,
-  placeholder = 'Search warehouse location…',
+  placeholder = 'Tìm vị trí kho...',
   disabled,
   className,
 }: WarehouseLocationSelectProps) {
@@ -138,13 +138,13 @@ export function WarehouseLocationSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Type to filter locations…"
+            placeholder="Nhập để lọc vị trí..."
             value={search}
             onValueChange={handleSearchChange}
           />
           <CommandList className="max-h-56">
             <CommandEmpty>
-              {isLoading ? 'Loading…' : 'No locations found.'}
+              {isLoading ? 'Đang tải...' : 'Không tìm thấy vị trí.'}
             </CommandEmpty>
             <CommandGroup>
               {locations.map((loc) => (

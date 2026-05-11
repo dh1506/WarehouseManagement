@@ -60,7 +60,7 @@ function StatusBadge({ status }: { status: StockCountStatus }) {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+  return new Date(iso).toLocaleDateString('vi-VN', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -110,14 +110,14 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleStart = () => {
     startMutation.mutate(stockCount.id, {
-      onSuccess: () => toast({ title: 'Audit started', description: 'Status changed to Counting.' }),
+      onSuccess: () => toast({ title: 'Đã bắt đầu kiểm kê', description: 'Trạng thái đã chuyển sang Đang kiểm kê.' }),
       onError: (err) => {
         const msg = (err as Error).message ?? '';
         const isConflict = /conflict|overlap|already counting|in progress/i.test(msg);
         toast({
-          title: 'Failed to start',
+          title: 'Không thể bắt đầu',
           description: isConflict
-            ? 'Cannot start — another audit is already counting one or more overlapping locations. Complete or cancel that audit first, then try again.'
+            ? 'Không thể bắt đầu — một phiếu kiểm kê khác đang đếm một hoặc nhiều vị trí trùng lặp. Hãy hoàn thành hoặc hủy phiếu đó trước, rồi thử lại.'
             : msg,
           variant: 'destructive',
         });
@@ -127,8 +127,8 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
 
   const handleComplete = () => {
     completeMutation.mutate(stockCount.id, {
-      onSuccess: () => toast({ title: 'Audit completed', description: 'Ready for manager approval.' }),
-      onError: (err) => toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' }),
+      onSuccess: () => toast({ title: 'Kiểm kê hoàn tất', description: 'Sẵn sàng để quản lý phê duyệt.' }),
+      onError: (err) => toast({ title: 'Thất bại', description: (err as Error).message, variant: 'destructive' }),
     });
   };
 
@@ -145,11 +145,11 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
     approveMutation.mutate(stockCount.id, {
       onSuccess: () => {
         setApproveOpen(false);
-        toast({ title: 'Audit approved', description: 'Inventory has been updated.' });
+        toast({ title: 'Đã duyệt kiểm kê', description: 'Tồn kho đã được cập nhật.' });
       },
       onError: (err) => {
         setApproveOpen(false);
-        toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' });
+        toast({ title: 'Thất bại', description: (err as Error).message, variant: 'destructive' });
       },
     });
   };
@@ -158,11 +158,11 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
     cancelMutation.mutate({ id: stockCount.id, reason }, {
       onSuccess: () => {
         setCancelOpen(false);
-        toast({ title: 'Audit cancelled', description: 'Ticket has been cancelled and the reason has been recorded in the audit log.' });
+        toast({ title: 'Đã hủy kiểm kê', description: 'Phiếu đã được hủy và lý do đã được ghi vào nhật ký kiểm kê.' });
       },
       onError: (err) => {
         setCancelOpen(false);
-        toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' });
+        toast({ title: 'Thất bại', description: (err as Error).message, variant: 'destructive' });
       },
     });
   };
@@ -202,7 +202,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
               className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">All Audits</span>
+              <span className="hidden sm:inline">Tất cả phiếu kiểm kê</span>
             </motion.button>
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -272,7 +272,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-all disabled:opacity-50"
                 >
                   <Ban className="h-3.5 w-3.5" />
-                  Cancel
+                  Hủy
                 </motion.button>
               )}
 
@@ -295,7 +295,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   ) : (
                     <PlayCircle className="h-4 w-4" />
                   )}
-                  Start Counting
+                  Bắt đầu kiểm kê
                 </motion.button>
               )}
 
@@ -314,8 +314,8 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   title={
                     !canComplete
                       ? unconfirmedVariances.length > 0
-                        ? `${unconfirmedVariances.length} unconfirmed variance(s)`
-                        : 'Count all items first'
+                        ? `${unconfirmedVariances.length} chênh lệch chưa xác nhận`
+                        : 'Hãy đếm đủ tất cả sản phẩm trước'
                       : undefined
                   }
                   className={cn(
@@ -331,7 +331,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   ) : (
                     <CheckCircle2 className="h-4 w-4" />
                   )}
-                  Complete Audit
+                  Hoàn tất kiểm kê
                 </motion.button>
               )}
 
@@ -354,7 +354,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  Approve & Sync Inventory
+                  Duyệt & Đồng bộ tồn kho
                 </motion.button>
               )}
             </AnimatePresence>
@@ -370,28 +370,28 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
         >
           <InfoCard
             icon="person"
-            label="Created by"
+            label="Tạo bởi"
             value={stockCount.creator.full_name}
             sub={formatDate(stockCount.created_at)}
           />
           <InfoCard
             icon="verified_user"
-            label="Approved by"
+            label="Duyệt bởi"
             value={stockCount.approver?.full_name ?? '—'}
-            sub={stockCount.approver ? 'Inventory updated' : 'Pending approval'}
+            sub={stockCount.approver ? 'Tồn kho đã cập nhật' : 'Chờ phê duyệt'}
             dimmed={!stockCount.approver}
           />
           <InfoCard
             icon="inventory_2"
-            label="Total items"
+            label="Tổng sản phẩm"
             value={String(totalItems)}
-            sub={`${countedItems} counted`}
+            sub={`${countedItems} đã đếm`}
           />
           {/* Progress card */}
           <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <span className="material-symbols-outlined text-[16px] text-slate-400">bar_chart</span>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Progress</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tiến độ</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -425,7 +425,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
               >
                 <span className="material-symbols-outlined text-blue-500 text-[20px]">lock</span>
                 <p className="text-sm font-medium text-blue-800">
-                  Inventory transactions for all items in this audit are locked until counting is completed or cancelled.
+                  Giao dịch tồn kho cho tất cả sản phẩm trong phiếu này bị khóa cho đến khi kiểm kê hoàn tất hoặc bị hủy.
                 </p>
               </motion.div>
             )}
@@ -442,7 +442,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
               >
                 <span className="material-symbols-outlined text-slate-400 text-[20px]">pending</span>
                 <p className="text-sm font-medium text-slate-600">
-                  {totalItems - countedItems} item{totalItems - countedItems !== 1 ? 's' : ''} still need to be counted before you can complete the audit.
+                  Còn {totalItems - countedItems} sản phẩm cần đếm trước khi có thể hoàn tất kiểm kê.
                 </p>
               </motion.div>
             )}
@@ -459,8 +459,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
               >
                 <span className="material-symbols-outlined text-amber-500 text-[20px]">warning</span>
                 <p className="text-sm font-medium text-amber-800">
-                  {unconfirmedVariances.length} item{unconfirmedVariances.length !== 1 ? 's have' : ' has'} a
-                  variance that needs a reason before you can complete the audit.
+                  {unconfirmedVariances.length} sản phẩm có chênh lệch cần được ghi lý do trước khi hoàn tất kiểm kê.
                 </p>
               </motion.div>
             )}
@@ -490,17 +489,17 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
             >
               <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px] text-emerald-500">sync</span>
-                Inventory Adjustments Applied
+                Điều chỉnh tồn kho đã áp dụng
               </h3>
               <div className="rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden">
                 <table className="w-full text-sm border-collapse">
                   <thead className="bg-slate-50/80 border-b border-slate-100">
                     <tr>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Product</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Location</th>
-                      <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">Type</th>
-                      <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Qty</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Applied by</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sản phẩm</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Vị trí</th>
+                      <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">Loại</th>
+                      <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">SL</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Áp dụng bởi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">

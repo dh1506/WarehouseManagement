@@ -252,9 +252,9 @@ export function UserManagement() {
   );
   const statusOptions = useMemo<FilterOption[]>(
     () => [
-      { value: 'Active', label: 'Active' },
-      { value: 'Inactive', label: 'Inactive' },
-      { value: 'Suspended', label: 'Suspended' },
+      { value: 'Active', label: 'Hoạt động' },
+      { value: 'Inactive', label: 'Không hoạt động' },
+      { value: 'Suspended', label: 'Tạm khóa' },
     ],
     [],
   );
@@ -403,7 +403,7 @@ export function UserManagement() {
         transition={{ duration: 0.25 }}
       >
         <div>
-          <h2 className="text-base font-bold tracking-tight text-gray-900">User Management</h2>
+          <h2 className="text-base font-bold tracking-tight text-gray-900">Quản lý người dùng</h2>
         </div>
         {canCreateUser ? (
           <button
@@ -411,7 +411,7 @@ export function UserManagement() {
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-blue-800 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 active:translate-y-px"
           >
             <span className="material-symbols-outlined text-[18px]" data-icon="person_add">person_add</span>
-            Add User
+            Thêm người dùng
           </button>
         ) : null}
       </motion.div>
@@ -430,7 +430,7 @@ export function UserManagement() {
               type="text"
               value={searchInput}
               onChange={handleSearch}
-              placeholder="Search by name, email, or username..."
+              placeholder="Tìm theo tên, email hoặc tên đăng nhập..."
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-12 pr-4 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-primary/30 focus-visible:outline-none"
             />
           </div>
@@ -438,7 +438,7 @@ export function UserManagement() {
             <HybridFilterSelect
               id="role-filter"
               value={roleFilter}
-              placeholder="All Roles"
+              placeholder="Tất cả vai trò"
               options={roleOptions}
               onChange={(nextValue) => {
                 setRoleFilter(nextValue);
@@ -450,7 +450,7 @@ export function UserManagement() {
             <HybridFilterSelect
               id="status-filter"
               value={statusFilter}
-              placeholder="All Status"
+              placeholder="Tất cả trạng thái"
               options={statusOptions}
               onChange={(nextValue) => {
                 setStatusFilter((nextValue || '') as UserItem['status'] | '');
@@ -505,7 +505,7 @@ export function UserManagement() {
           <div className="flex-none rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm sm:px-4 sm:py-2.5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-gray-500 font-medium">
-                Showing {(page - 1) * PAGE_LIMIT + 1} – {Math.min(page * PAGE_LIMIT, data?.total ?? 0)} of {data?.total ?? 0} users
+                Hiển thị {(page - 1) * PAGE_LIMIT + 1} – {Math.min(page * PAGE_LIMIT, data?.total ?? 0)} trong tổng số {data?.total ?? 0} người dùng
               </p>
               <div className="flex flex-wrap items-center gap-1">
                 <button
@@ -514,7 +514,7 @@ export function UserManagement() {
                   className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <span className="material-symbols-outlined text-[16px]" data-icon="chevron_left">chevron_left</span>
-                  Prev
+                  Trước
                 </button>
                 {[...Array(Math.min(totalPages, 5))].map((_, i) => {
                   const p = i + 1;
@@ -542,7 +542,7 @@ export function UserManagement() {
                   disabled={page === totalPages}
                   className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Next
+                  Tiếp
                   <span className="material-symbols-outlined text-[16px]" data-icon="chevron_right">chevron_right</span>
                 </button>
               </div>

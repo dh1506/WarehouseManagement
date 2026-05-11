@@ -118,20 +118,20 @@ export function ImportCenterTab() {
       setFile(null);
       setSuccessCount(result.successCount);
       toast({
-        title: 'Import thành công',
+        title: 'Nhập liệu thành công',
         description: `Đã đồng bộ ${result.successCount} giao dịch thành công`,
       });
     } catch (raw: unknown) {
       const apiErr = raw as SalesImportApiError;
       const errors: SalesImportError[] = apiErr?.data?.errors ?? [];
       const msg =
-        apiErr?.message ?? 'Import thất bại. Vui lòng kiểm tra lại file và thử lại.';
+        apiErr?.message ?? 'Nhập liệu thất bại. Vui lòng kiểm tra lại file và thử lại.';
 
       setErrorBannerMsg(msg);
       setImportErrors(errors);
 
       if (errors.length === 0) {
-        toast({ title: 'Import thất bại', description: msg, variant: 'destructive' });
+        toast({ title: 'Nhập liệu thất bại', description: msg, variant: 'destructive' });
       }
     }
   };
@@ -164,7 +164,7 @@ export function ImportCenterTab() {
         {/* Page description */}
         <div>
           <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 leading-7">
-            Import Center
+            Trung tâm nhập liệu
           </h2>
           <p className="text-[13px] text-zinc-500 mt-1">
             Tải lên file Excel chứa dữ liệu giao dịch bán hàng để đồng bộ vào hệ thống.
@@ -184,7 +184,7 @@ export function ImportCenterTab() {
             >
               <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-[14px] font-semibold text-emerald-800">Import thành công</p>
+                <p className="text-[14px] font-semibold text-emerald-800">Nhập liệu thành công</p>
                 <p className="text-[13px] text-emerald-700 mt-0.5">
                   Đã đồng bộ{' '}
                   <span className="font-bold">{successCount.toLocaleString()}</span> giao dịch
@@ -214,7 +214,7 @@ export function ImportCenterTab() {
             >
               <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-[14px] font-semibold text-red-800">Import thất bại do có dữ liệu không hợp lệ</p>
+                <p className="text-[14px] font-semibold text-red-800">Nhập liệu thất bại do có dữ liệu không hợp lệ</p>
                 <p className="text-[13px] text-red-600/80 mt-0.5">
                   Toàn bộ tiến trình đã được hoàn tác (Rollback). Vui lòng kiểm tra lỗi bên
                   dưới, sửa file và thử lại.
@@ -313,10 +313,10 @@ export function ImportCenterTab() {
               {isLocked ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Đang xử lý...
+                  Đang nhập...
                 </>
               ) : (
-                'Import dữ liệu'
+                'Nhập dữ liệu'
               )}
             </Button>
           </div>

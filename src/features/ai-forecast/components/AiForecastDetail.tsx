@@ -102,7 +102,7 @@ function WeatherCard({ data }: { data: AiForecastDetailType['weather_data'] }) {
 
   return (
     <div className="flex flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Weather Snapshot</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thời tiết</p>
       <div className="flex items-center gap-2 mt-1">
         <span className="material-symbols-outlined text-[28px] text-slate-600">{icon}</span>
         <div>
@@ -124,7 +124,7 @@ function EventCard({ event }: { event: AiForecastDetailType['event'] }) {
   return (
     <div className="flex flex-col gap-1 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
-        Promotion Event
+        Sự kiện khuyến mãi
       </p>
       <p className="mt-1 font-semibold text-indigo-900">{event.program_name}</p>
       <div className="mt-1 flex flex-wrap gap-1">
@@ -146,12 +146,12 @@ function EventCard({ event }: { event: AiForecastDetailType['event'] }) {
         ))}
       </div>
       <p className="mt-1 text-xs text-indigo-600">
-        {new Date(event.start_date).toLocaleDateString('en-US', {
+        {new Date(event.start_date).toLocaleDateString('vi-VN', {
           month: 'short',
           day: 'numeric',
         })}
         {' → '}
-        {new Date(event.end_date).toLocaleDateString('en-US', {
+        {new Date(event.end_date).toLocaleDateString('vi-VN', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
@@ -192,11 +192,11 @@ function AiInsightsPanel({
           <span className="material-symbols-outlined text-[18px]">smart_toy</span>
         </div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-slate-900">AI Insights</p>
+          <p className="text-sm font-semibold text-slate-900">Phân tích AI</p>
           <p className="text-xs text-slate-500">
             {isFallback
-              ? 'Gemini was unavailable — fallback averages were used'
-              : `Gemini analysis · ${aiResponse?.results.length ?? 0} products evaluated`}
+              ? 'Gemini không khả dụng — đã dùng trung bình dự phòng'
+              : `Phân tích Gemini · ${aiResponse?.results.length ?? 0} sản phẩm đã đánh giá`}
           </p>
         </div>
         <span
@@ -210,10 +210,10 @@ function AiInsightsPanel({
         <div className="border-t p-4">
           {isFallback || !aiResponse ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-semibold text-amber-800">Fallback mode was used</p>
+              <p className="text-sm font-semibold text-amber-800">Đã dùng chế độ dự phòng</p>
               <p className="mt-1 text-xs text-amber-700">
-                Gemini AI was unreachable. Forecasts were calculated as a 30-day rolling average.
-                No confidence scores or notes are available for this run.
+                Gemini AI không thể kết nối. Dự báo được tính theo trung bình động 30 ngày.
+                Không có điểm tin cậy hoặc ghi chú nào cho lần chạy này.
               </p>
             </div>
           ) : (
@@ -272,7 +272,7 @@ function AiInsightsPanel({
                       {note ? (
                         <p className="mt-1 text-xs text-slate-600 leading-relaxed">{note}</p>
                       ) : (
-                        <p className="mt-1 text-xs text-slate-400 italic">No note provided.</p>
+                        <p className="mt-1 text-xs text-slate-400 italic">Không có ghi chú.</p>
                       )}
                     </div>
                   </div>
@@ -346,7 +346,7 @@ function ResultRow({ result, onApprove, onReject, onSetActual }: ResultRowProps)
                 className="h-7 border-emerald-300 text-emerald-700 hover:bg-emerald-50 px-2"
                 onClick={() => onApprove(result)}
               >
-                Approve
+                Duyệt
               </Button>
               <Button
                 size="sm"
@@ -354,7 +354,7 @@ function ResultRow({ result, onApprove, onReject, onSetActual }: ResultRowProps)
                 className="h-7 border-rose-300 text-rose-700 hover:bg-rose-50 px-2"
                 onClick={() => onReject(result)}
               >
-                Reject
+                Từ chối
               </Button>
             </>
           )}
@@ -364,7 +364,7 @@ function ResultRow({ result, onApprove, onReject, onSetActual }: ResultRowProps)
             className="h-7 text-slate-600 px-2"
             onClick={() => onSetActual(result)}
           >
-            {result.actual_qty !== null ? 'Update Actual' : 'Set Actual'}
+            {result.actual_qty !== null ? 'Cập nhật thực tế' : 'Nhập thực tế'}
           </Button>
         </div>
       </TableCell>
@@ -410,8 +410,8 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
     return (
       <div className="flex h-full items-center justify-center bg-[#fbfbfe]">
         <StatePanel
-          title="Loading forecast"
-          description="Fetching forecast details and per-product results."
+          title="Đang tải dự báo"
+          description="Đang lấy chi tiết dự báo và kết quả theo từng sản phẩm."
           icon="hourglass_top"
         />
       </div>
@@ -422,13 +422,13 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
     return (
       <div className="flex h-full items-center justify-center bg-[#fbfbfe]">
         <StatePanel
-          title="Forecast not found"
-          description="This forecast may have been removed or the ID is invalid."
+          title="Không tìm thấy dự báo"
+          description="Dự báo này có thể đã bị xoá hoặc ID không hợp lệ."
           icon="error"
           tone="error"
           action={
             <Button variant="outline" onClick={() => navigate('/ai-forecast')}>
-              Back to list
+              Quay lại danh sách
             </Button>
           }
         />

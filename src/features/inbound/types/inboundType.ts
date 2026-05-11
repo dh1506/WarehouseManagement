@@ -139,8 +139,8 @@ export const STOCK_IN_STATUS_LABELS: Record<StockInStatus, string> = {
 };
 
 // ── Helper: compute total value for a StockIn row ───────────────────────────
-export function computeStockInTotalValue(details: StockInDetail[]): number {
-  return details.reduce((sum, d) => {
+export function computeStockInTotalValue(details: StockInDetail[] | undefined | null): number {
+  return (details ?? []).reduce((sum, d) => {
     const price = d.unit_price ? Number(d.unit_price) : 0;
     const qty = Number(d.expected_quantity);
     return sum + price * qty;

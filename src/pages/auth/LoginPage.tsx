@@ -31,12 +31,12 @@ export function LoginPage() {
               </div>
               <div className="max-w-xl">
                 <h1 className="text-5xl font-extrabold text-white leading-tight mb-6">
-                  Warehouse <br />
-                  <span className="text-secondary-fixed">Management</span>
+                  Quản lý <br />
+                  <span className="text-secondary-fixed">Kho hàng</span>
                 </h1>
                 <p className="text-on-primary-container text-lg leading-relaxed opacity-90 font-medium">
-                  The Predictive Architect interface provides unparalleled foresight
-                  into your warehouse operations using real-time AI modeling.
+                  Hệ thống quản lý kho thông minh, tích hợp dự báo AI theo thời gian thực
+                  giúp tối ưu hoá toàn bộ quy trình vận hành.
                 </p>
               </div>
             </div>
@@ -49,11 +49,11 @@ export function LoginPage() {
                     bolt
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-on-primary-container">
-                    Efficiency Rate
+                    Hiệu suất hoạt động
                   </span>
                 </div>
                 <div className="text-3xl font-bold text-white">+24.8%</div>
-                <div className="text-xs text-secondary-fixed mt-1">AI Optimized Peak Flow</div>
+                <div className="text-xs text-secondary-fixed mt-1">Tối ưu hoá bởi AI</div>
               </div>
 
               <div className="bg-white/10 backdrop-blur-xl border border-white/10 p-6 rounded-xl w-64">
@@ -62,11 +62,11 @@ export function LoginPage() {
                     query_stats
                   </span>
                   <span className="text-xs font-bold uppercase tracking-widest text-on-primary-container">
-                    Forecast Accuracy
+                    Độ chính xác dự báo
                   </span>
                 </div>
                 <div className="text-3xl font-bold text-white">99.2%</div>
-                <div className="text-xs text-secondary-fixed mt-1">Real-time Node Analysis</div>
+                <div className="text-xs text-secondary-fixed mt-1">Phân tích thời gian thực</div>
               </div>
             </div>
           </div>
@@ -91,8 +91,8 @@ export function LoginPage() {
             {/* Footer Links (Pushed to bottom) */}
             <div className="mt-4 pt-8 border-t border-outline-variant/15 text-center flex-none">
               <p className="text-sm text-on-surface-variant">
-                Authorized personnel only. <br />
-                <span className="text-xs opacity-60 mt-2 block italic">WMS Enterprise AI v4.2.0 • Secure Gateway</span>
+                Chỉ dành cho nhân sự được uỷ quyền. <br />
+                <span className="text-xs opacity-60 mt-2 block italic">WMS Enterprise AI v4.2.0 • Cổng bảo mật</span>
               </p>
             </div>
           </div>

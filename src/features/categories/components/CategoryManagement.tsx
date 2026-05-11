@@ -104,19 +104,19 @@ export function CategoryManagement() {
           <div className="flex justify-between items-end mb-8 flex-shrink-0">
             <div>
               <nav className="flex text-xs text-slate-500 font-semibold tracking-wider uppercase mb-2">
-                <a className="hover:text-slate-900" href="#">Inventory</a>
+                <a className="hover:text-slate-900" href="#">Tồn kho</a>
                 <span className="mx-2"><span className="material-symbols-outlined text-[10px]">chevron_right</span></span>
-                <span className="text-slate-800">Product Categories</span>
+                <span className="text-slate-800">Danh mục sản phẩm</span>
               </nav>
-              <h2 className="text-xs font-bold text-slate-900 tracking-tight">Category Management</h2>
-              <p className="text-slate-500 mt-1">Organize and manage global inventory hierarchy</p>
+              <h2 className="text-xs font-bold text-slate-900 tracking-tight">Quản lý danh mục</h2>
+              <p className="text-slate-500 mt-1">Tổ chức và quản lý cấu trúc hàng tồn kho</p>
             </div>
             <div className="flex space-x-3 items-center">
               <div className="relative mr-4">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
                 <input
                   type="text"
-                  placeholder="Search categories..."
+                  placeholder="Tìm danh mục..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9 pr-3 py-2 border border-slate-200 rounded-md leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm w-64"
@@ -127,13 +127,13 @@ export function CategoryManagement() {
                 onClick={handleExport}
                 className="px-4 py-2 border border-slate-200 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-sm flex items-center transition-colors"
               >
-                <span className="material-symbols-outlined mr-2 text-slate-400 text-sm">download</span> Export
+                <span className="material-symbols-outlined mr-2 text-slate-400 text-sm">download</span> Xuất
               </button>
               <button
                 onClick={handleOpenCreate}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-800 hover:bg-blue-900 flex items-center transition-colors"
               >
-                <span className="material-symbols-outlined mr-2 text-sm">add</span> New Category
+                <span className="material-symbols-outlined mr-2 text-sm">add</span> Tạo danh mục
               </button>
             </div>
           </div>
@@ -151,7 +151,7 @@ export function CategoryManagement() {
             {/* Pagination Box */}
             <div className="px-6 py-2 border-t border-slate-200 flex items-center justify-between bg-white flex-shrink-0">
               <span className="text-sm text-slate-500">
-                Showing {allCategories.length} of {totalCategories} categories
+                Hiển thị {allCategories.length} trong tổng số {totalCategories} danh mục
               </span>
               <div className="flex space-x-1">
                 <button
@@ -159,7 +159,7 @@ export function CategoryManagement() {
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   className="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 font-medium disabled:opacity-50"
                 >
-                  Previous
+                  Trước
                 </button>
                 <button className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded font-medium">{page}</button>
                 <button
@@ -167,7 +167,7 @@ export function CategoryManagement() {
                   onClick={() => setPage(p => p + 1)}
                   className="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 font-medium disabled:opacity-50"
                 >
-                  Next
+                  Tiếp
                 </button>
               </div>
             </div>
@@ -180,8 +180,8 @@ export function CategoryManagement() {
                     <span className="material-symbols-outlined" data-icon="info">info</span>
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-900">Data Locked</p>
-                    <p className="text-xs text-slate-500">The table is currently locked while viewing/editing a category to ensure data consistency.</p>
+                    <p className="text-sm font-bold text-slate-900">Dữ liệu đang khóa</p>
+                    <p className="text-xs text-slate-500">Bảng đang bị khóa trong khi xem/chỉnh sửa danh mục để đảm bảo tính nhất quán dữ liệu.</p>
                   </div>
                 </div>
               </div>

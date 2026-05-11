@@ -80,7 +80,7 @@ export function WarehouseZoneSelect({
   value,
   onValueChange,
   categoryId,
-  placeholder = 'Select warehouse zone…',
+  placeholder = 'Chọn khu vực kho...',
   disabled,
   className,
 }: WarehouseZoneSelectProps) {
@@ -204,7 +204,7 @@ export function WarehouseZoneSelect({
                     ? 'bg-emerald-50 text-emerald-700'
                     : 'bg-rose-50 text-rose-600',
                 )}>
-                  {value.availableCount} avail.
+                  {value.availableCount} khả dụng
                 </span>
               </>
             ) : (
@@ -218,17 +218,17 @@ export function WarehouseZoneSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search zones…"
+            placeholder="Tìm khu vực..."
             value={search}
             onValueChange={handleSearchChange}
           />
           <CommandList className="max-h-60">
             <CommandEmpty>
               {isLoading
-                ? 'Loading zones…'
+                ? 'Đang tải khu vực...'
                 : categoryId
-                ? 'No zones found for this category.'
-                : 'No zones found.'}
+                ? 'Không tìm thấy khu vực cho danh mục này.'
+                : 'Không tìm thấy khu vực.'}
             </CommandEmpty>
             <CommandGroup>
               {zones.map((zone) => (

@@ -225,7 +225,7 @@ export function UserProfile() {
                   {isUploadingAvatar ? (
                     <span className="material-symbols-outlined text-lg text-primary animate-spin">progress_activity</span>
                   ) : user?.avatar ? (
-                    <img src={user.avatar} alt="User Avatar" className="w-full h-full object-cover" />
+                    <img src={user.avatar} alt="Ảnh đại diện" className="w-full h-full object-cover" />
                   ) : (
                     <span className="material-symbols-outlined text-lg text-primary/30" style={{ fontVariationSettings: "'FILL' 1" }}>
                       person

@@ -23,6 +23,48 @@ function unwrap<T>(response: unknown): T {
   return res.data;
 }
 
+function parseRecipientEmails(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((email) => String(email).trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((email) => String(email).trim()).filter(Boolean);
+      }
+    } catch {
+      // Fall back to comma-separated text.
+    }
+
+    return trimmed
+      .split(',')
+      .map((email) => email.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function formatRecipientEmails(value: unknown): string {
+  return parseRecipientEmails(value).join(', ');
+}
+
+function normalizeReportConfig<T extends { recipient_emails: unknown }>(config: T) {
+  return {
+    ...config,
+    recipient_emails: parseRecipientEmails(config.recipient_emails),
+  };
+}
+
+function serializeRecipientEmails(value: unknown): string {
+  return formatRecipientEmails(value);
+}
+
 // ── Dashboard Summary ─────────────────────────────────────────────────────────
 
 export async function getDashboardSummary(
@@ -103,27 +145,35 @@ export async function getInventoryReport(
 
 export async function getReportConfigs(): Promise<ReportConfig[]> {
   const response = await apiClient.get('/api/reports/configs');
-  return unwrap<ReportConfig[]>(response);
+  return unwrap<ReportConfig[]>(response).map(normalizeReportConfig);
 }
 
 export async function getReportConfigById(id: number): Promise<ReportConfig> {
   const response = await apiClient.get(`/api/reports/configs/${id}`);
-  return unwrap<ReportConfig>(response);
+  return normalizeReportConfig(unwrap<ReportConfig>(response));
 }
 
 export async function createReportConfig(
   payload: CreateReportConfigPayload,
 ): Promise<ReportConfig> {
-  const response = await apiClient.post('/api/reports/configs', payload);
-  return unwrap<ReportConfig>(response);
+  const response = await apiClient.post('/api/reports/configs', {
+    ...payload,
+    recipient_emails: serializeRecipientEmails(payload.recipient_emails),
+  });
+  return normalizeReportConfig(unwrap<ReportConfig>(response));
 }
 
 export async function updateReportConfig(
   id: number,
   payload: UpdateReportConfigPayload,
 ): Promise<ReportConfig> {
-  const response = await apiClient.patch(`/api/reports/configs/${id}`, payload);
-  return unwrap<ReportConfig>(response);
+  const response = await apiClient.patch(`/api/reports/configs/${id}`, {
+    ...payload,
+    recipient_emails: payload.recipient_emails
+      ? serializeRecipientEmails(payload.recipient_emails)
+      : payload.recipient_emails,
+  });
+  return normalizeReportConfig(unwrap<ReportConfig>(response));
 }
 
 export async function deleteReportConfig(id: number): Promise<void> {

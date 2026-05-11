@@ -169,7 +169,7 @@ export function ZoneMapEmbed({
     return (
       <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-xs">Loading zone map…</span>
+        <span className="text-xs">Đang tải bản đồ kho...</span>
       </div>
     );
   }
@@ -178,7 +178,7 @@ export function ZoneMapEmbed({
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-6 text-slate-400">
         <MapPin className="h-8 w-8 text-slate-200" />
-        <p className="text-xs font-medium">No map data for zone {zoneCode}</p>
+        <p className="text-xs font-medium">Không có dữ liệu bản đồ cho khu vực {zoneCode}</p>
       </div>
     );
   }
@@ -197,10 +197,10 @@ export function ZoneMapEmbed({
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
             Zone {matched.zone.code}
           </span>
-          <span className="text-[10px] text-slate-400">· {matched.zone.name || 'Storage area'}</span>
+          <span className="text-[10px] text-slate-400">· {matched.zone.name || 'Khu lưu trữ'}</span>
         </div>
         <span className="text-[10px] font-semibold text-slate-400">
-          {bins.length} bins
+          {bins.length} ô kệ
         </span>
       </div>
 

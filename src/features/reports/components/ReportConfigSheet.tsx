@@ -25,6 +25,33 @@ interface ReportConfigSheetProps {
   editing?: ReportConfig | null;
 }
 
+function normalizeRecipientEmails(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((email) => String(email).trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((email) => String(email).trim()).filter(Boolean);
+      }
+    } catch {
+      // Fall back to comma-separated text.
+    }
+
+    return trimmed
+      .split(',')
+      .map((email) => email.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 const CRON_PRESETS = [
   { label: 'Hàng ngày lúc 8:00', value: '0 8 * * *' },
   { label: 'Hàng tuần Thứ 2 lúc 8:00', value: '0 8 * * 1' },
@@ -83,7 +110,7 @@ export function ReportConfigSheet({ open, onClose, editing }: ReportConfigSheetP
         reset({
           name: editing.name,
           report_type: editing.report_type,
-          recipient_emails_raw: editing.recipient_emails.join(', '),
+          recipient_emails_raw: normalizeRecipientEmails(editing.recipient_emails).join(', '),
           schedule_cron: editing.schedule_cron,
           is_active: editing.is_active,
         });

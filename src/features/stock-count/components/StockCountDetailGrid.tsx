@@ -22,7 +22,7 @@ function formatQty(raw: string | null): string {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // Compute variance client-side (no server round-trip — per NFR 2)
@@ -132,7 +132,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
               next.delete(detail.id);
               return next;
             });
-            toast({ title: 'Save failed', description: (err as Error).message, variant: 'destructive' });
+            toast({ title: 'Lưu thất bại', description: (err as Error).message, variant: 'destructive' });
           },
         },
       );
@@ -158,10 +158,10 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
       {
         onSuccess: () => {
           setConfirmOpen(false);
-          toast({ title: 'Variance confirmed', description: 'Reasons saved successfully.' });
+          toast({ title: 'Đã xác nhận chênh lệch', description: 'Lý do đã được lưu thành công.' });
         },
         onError: (err) => {
-          toast({ title: 'Confirm failed', description: (err as Error).message, variant: 'destructive' });
+          toast({ title: 'Xác nhận thất bại', description: (err as Error).message, variant: 'destructive' });
         },
       },
     );
@@ -190,7 +190,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
             />
           </div>
           <span className="text-xs font-semibold text-slate-600 whitespace-nowrap tabular-nums">
-            {totalCounted}/{totalItems} counted
+            {totalCounted}/{totalItems} đã đếm
           </span>
         </div>
 
@@ -207,7 +207,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
               className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors"
             >
               <AlertCircle className="h-3.5 w-3.5" />
-              Confirm {unconfirmedVariances.length} variance{unconfirmedVariances.length !== 1 ? 's' : ''}
+              Xác nhận {unconfirmedVariances.length} chênh lệch
             </motion.button>
           )}
         </AnimatePresence>
@@ -220,34 +220,34 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
             <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-sm border-b border-slate-100">
               <tr>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 w-8">#</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Product</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Location</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Lot</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sản phẩm</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Vị trí</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Lô</th>
                 {canSeeSystemQty && (
                   <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    T0 Qty
+                    SL hệ thống
                   </th>
                 )}
                 <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Counted Qty
+                  SL thực đếm
                 </th>
                 {canSeeSystemQty && (
                   <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Variance
+                    Chênh lệch
                   </th>
                 )}
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">
-                  Counter
+                  Người đếm
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden xl:table-cell">
-                  Counted At
+                  Thời gian đếm
                 </th>
                 <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Status
+                  Trạng thái
                 </th>
                 {isCounting && canRecord && (
                   <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Actions
+                    Thao tác
                   </th>
                 )}
               </tr>
@@ -315,7 +315,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                             <p className="text-xs font-mono text-slate-700">{detail.lot.lot_no}</p>
                             {detail.lot.expired_date && (
                               <p className="text-[11px] text-slate-400">
-                                Exp: {formatDate(detail.lot.expired_date)}
+                                HSD: {formatDate(detail.lot.expired_date)}
                               </p>
                             )}
                           </div>
@@ -440,7 +440,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                                 className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                               >
                                 {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                                Save
+                                Lưu
                               </motion.button>
                             )}
                             {needsConfirm && (
@@ -449,7 +449,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                                 className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-amber-600 transition-colors"
                               >
                                 <AlertCircle className="h-3 w-3" />
-                                Reason
+                                Lý do
                               </button>
                             )}
                           </div>
@@ -464,7 +464,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                   <td colSpan={9} className="py-14 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <span className="material-symbols-outlined text-[40px] text-slate-300">inventory</span>
-                      <p className="text-sm text-slate-500">No items in this audit</p>
+                      <p className="text-sm text-slate-500">Không có sản phẩm nào trong phiếu kiểm kê này</p>
                     </div>
                   </td>
                 </tr>

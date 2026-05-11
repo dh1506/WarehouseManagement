@@ -50,11 +50,11 @@ function ForecastStatusBadge({ status }: { status: AiForecastStatus }) {
 
 function formatMonth(isoDate: string): string {
   const d = new Date(isoDate);
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 }
 
 function formatDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleString('en-US', {
+  return new Date(isoDate).toLocaleString('vi-VN', {
     month: 'short',
     day: '2-digit',
     year: 'numeric',
@@ -104,7 +104,7 @@ function ForecastRow({ item, onView }: { item: AiForecast; onView: (id: number) 
       <TableCell className="text-slate-500 text-sm">{formatDate(item.created_at)}</TableCell>
       <TableCell>
         <Button size="sm" variant="outline" onClick={() => onView(item.id)}>
-          View
+          Xem
         </Button>
       </TableCell>
     </TableRow>
@@ -156,17 +156,17 @@ export function AiForecastList() {
       <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
         {/* Header */}
         <PageHeader
-          title="AI Forecast"
-          description="Gemini-powered demand forecasting with per-product confidence and suggested order quantities."
+          title="Dự báo AI"
+          description="Dự báo nhu cầu bằng Gemini AI với độ tin cậy theo từng sản phẩm và số lượng đặt hàng đề xuất."
           actions={
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setEventsOpen(true)}>
                 <span className="material-symbols-outlined mr-1.5 text-[16px]">event</span>
-                Manage Events
+                Quản lý sự kiện
               </Button>
               <Button type="button" onClick={() => setTriggerOpen(true)}>
                 <span className="material-symbols-outlined mr-1.5 text-[16px]">smart_toy</span>
-                Trigger Forecast
+                Kích hoạt dự báo
               </Button>
             </div>
           }
@@ -176,22 +176,22 @@ export function AiForecastList() {
         {query.data && (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <KpiCard
-              label="Total Forecasts"
+              label="Tổng dự báo"
               value={query.data.total}
               colorClass="border-slate-200 bg-white text-slate-900"
             />
             <KpiCard
-              label="Completed (page)"
+              label="Hoàn thành (trang)"
               value={completedCount}
               colorClass="border-emerald-200 bg-emerald-50 text-emerald-900"
             />
             <KpiCard
-              label="Running (page)"
+              label="Đang chạy (trang)"
               value={runningCount}
               colorClass="border-blue-200 bg-blue-50 text-blue-900"
             />
             <KpiCard
-              label="Fallback (page)"
+              label="Dự phòng (trang)"
               value={fallbackCount}
               colorClass="border-amber-200 bg-amber-50 text-amber-900"
             />
@@ -203,7 +203,7 @@ export function AiForecastList() {
           <div className="flex flex-wrap gap-3">
             <Input
               className="w-36"
-              placeholder="Month (YYYY-MM)"
+              placeholder="Tháng (YYYY-MM)"
               value={draftFilters.forecast_month}
               onChange={(e) =>
                 setDraftFilters((prev) => ({ ...prev, forecast_month: e.target.value }))
@@ -219,22 +219,22 @@ export function AiForecastList() {
               }
             >
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="All statuses" />
+                <SelectValue placeholder="Tất cả trạng thái" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__ALL__">All statuses</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="RUNNING">Running</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="__ALL__">Tất cả trạng thái</SelectItem>
+                <SelectItem value="PENDING">Chờ xử lý</SelectItem>
+                <SelectItem value="RUNNING">Đang chạy</SelectItem>
+                <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                <SelectItem value="FAILED">Thất bại</SelectItem>
               </SelectContent>
             </Select>
             <Button type="button" onClick={applyFilters}>
-              Apply
+              Áp dụng
             </Button>
             {isFiltered && (
               <Button type="button" variant="ghost" onClick={clearFilters}>
-                Clear
+                Xoá bộ lọc
               </Button>
             )}
           </div>
@@ -249,8 +249,8 @@ export function AiForecastList() {
           {query.isLoading && (
             <div className="p-6">
               <StatePanel
-                title="Loading forecasts"
-                description="Fetching forecast history from the server."
+                title="Đang tải dự báo"
+                description="Đang lấy lịch sử dự báo từ máy chủ."
                 icon="hourglass_top"
               />
             </div>
@@ -259,13 +259,13 @@ export function AiForecastList() {
           {query.isError && (
             <div className="p-6">
               <StatePanel
-                title="Failed to load forecasts"
-                description="Check your connection and try again."
+                title="Không thể tải dự báo"
+                description="Kiểm tra kết nối và thử lại."
                 icon="error"
                 tone="error"
                 action={
                   <Button variant="outline" onClick={() => void query.refetch()}>
-                    Retry
+                    Thử lại
                   </Button>
                 }
               />
@@ -278,13 +278,13 @@ export function AiForecastList() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Forecast Month</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Products</TableHead>
-                      <TableHead>Triggered By</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>AI Source</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead>Tháng dự báo</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead>Sản phẩm</TableHead>
+                      <TableHead>Người kích hoạt</TableHead>
+                      <TableHead>Sự kiện</TableHead>
+                      <TableHead>Nguồn AI</TableHead>
+                      <TableHead>Ngày tạo</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -293,8 +293,8 @@ export function AiForecastList() {
                       <TableRow>
                         <TableCell colSpan={8} className="h-24 text-center text-slate-500">
                           {isFiltered
-                            ? 'No forecasts match the current filters.'
-                            : 'No forecasts yet. Trigger your first AI forecast above.'}
+                            ? 'Không có dự báo nào khớp với bộ lọc hiện tại.'
+                            : 'Chưa có dự báo nào. Hãy kích hoạt dự báo AI đầu tiên ở trên.'}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -314,7 +314,7 @@ export function AiForecastList() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between border-t px-4 py-3">
                   <p className="text-sm text-slate-500">
-                    Page {page} of {totalPages} · {query.data.total} total
+                    Trang {page} / {totalPages} · {query.data.total} tổng cộng
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -323,7 +323,7 @@ export function AiForecastList() {
                       disabled={page <= 1 || query.isFetching}
                       onClick={() => setPage((p) => p - 1)}
                     >
-                      Previous
+                      Trước
                     </Button>
                     <Button
                       size="sm"
@@ -331,7 +331,7 @@ export function AiForecastList() {
                       disabled={page >= totalPages || query.isFetching}
                       onClick={() => setPage((p) => p + 1)}
                     >
-                      Next
+                      Tiếp
                     </Button>
                   </div>
                 </div>

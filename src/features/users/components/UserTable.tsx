@@ -132,12 +132,12 @@ export function UserTable({
                   className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary/30 disabled:cursor-not-allowed"
                 />
               </th>
-              <th className="px-6 py-3.5">User Name</th>
-              <th className="px-6 py-3.5 text-center">Role</th>
-              <th className="px-6 py-3.5">Full Name</th>
+              <th className="px-6 py-3.5">Tên đăng nhập</th>
+              <th className="px-6 py-3.5 text-center">Vai trò</th>
+              <th className="px-6 py-3.5">Họ và tên</th>
               <th className="px-6 py-3.5">Email</th>
-              <th className="px-6 py-3.5 text-center">Status</th>
-              <th className="px-6 py-3.5 text-center">Actions</th>
+              <th className="px-6 py-3.5 text-center">Trạng thái</th>
+              <th className="px-6 py-3.5 text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -148,7 +148,7 @@ export function UserTable({
                   <tr>
                     <td colSpan={7} className="px-6 py-16 text-center text-gray-400">
                       <span className="material-symbols-outlined mb-3 block text-lg opacity-40 sm:text-xl" data-icon="person_search">person_search</span>
-                      <p className="font-medium">No users found</p>
+                      <p className="font-medium">Không tìm thấy người dùng</p>
                     </td>
                   </tr>
                 )

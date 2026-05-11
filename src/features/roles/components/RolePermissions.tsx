@@ -226,7 +226,7 @@ export function RolePermissions() {
 
     if (!canUpdateRolePermissions) {
       toast({
-        title: 'Access denied',
+        title: 'Truy cập bị từ chối',
         description: 'Bạn chỉ có quyền xem, không thể lưu thay đổi phân quyền.',
         variant: 'destructive',
       });
@@ -288,7 +288,7 @@ export function RolePermissions() {
   // ── Role dialog helpers ────────────────────────────────────────────────────
   const openCreateRoleDialog = () => {
     if (!canCreateRole) {
-      toast({ title: 'Access denied', description: 'Bạn không có quyền tạo role mới.', variant: 'destructive' });
+      toast({ title: 'Truy cập bị từ chối', description: 'Bạn không có quyền tạo vai trò mới.', variant: 'destructive' });
       return;
     }
     setRoleDialogMode('create');
@@ -299,7 +299,7 @@ export function RolePermissions() {
 
   const openEditRoleDialog = (role: Role) => {
     if (!canUpdateRolePermissions) {
-      toast({ title: 'Access denied', description: 'Bạn không có quyền chỉnh sửa role.', variant: 'destructive' });
+      toast({ title: 'Truy cập bị từ chối', description: 'Bạn không có quyền chỉnh sửa vai trò.', variant: 'destructive' });
       return;
     }
     setRoleDialogMode('edit');
@@ -352,7 +352,7 @@ export function RolePermissions() {
       });
       toast({
         title: 'Đổi trạng thái thành công',
-        description: `Role ${updated.name} đã chuyển sang ${nextStatus ? 'Active' : 'Inactive'}.`,
+        description: `Vai trò ${updated.name} đã chuyển sang ${nextStatus ? 'Hoạt động' : 'Vô hiệu'}.`,
       });
       setStatusTarget(null);
     } catch (error) {
@@ -375,7 +375,7 @@ export function RolePermissions() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col p-3 gap-3">
       <div className="flex flex-col gap-0.5">
-        <h2 className="text-base font-bold tracking-tight text-gray-900">Roles &amp; Permissions Management</h2>
+        <h2 className="text-base font-bold tracking-tight text-gray-900">Quản lý vai trò &amp; phân quyền</h2>
       </div>
 
       <div className="flex-1 flex gap-4 min-h-0">
@@ -389,12 +389,12 @@ export function RolePermissions() {
           <div className={`pointer-events-none sticky top-0 z-20 h-3 w-full bg-linear-to-b from-gray-50 to-transparent transition-opacity duration-200 ${showRoleTopFade ? 'opacity-100' : 'opacity-0'}`} />
 
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2">Role Hierarchy</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2">Cấp bậc vai trò</span>
             <button
               onClick={openCreateRoleDialog}
               disabled={!canCreateRole || isRoleMutationPending}
               className="rounded p-1 text-primary transition-all duration-200 ease-out hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
-              title={!canCreateRole ? 'Bạn không có quyền tạo role mới.' : 'Thêm role mới'}
+              title={!canCreateRole ? 'Bạn không có quyền tạo vai trò mới.' : 'Thêm vai trò mới'}
             >
               <span className="material-symbols-outlined text-[20px]">add</span>
             </button>
@@ -421,7 +421,7 @@ export function RolePermissions() {
                         <div className={`w-2 h-2 rounded-full transition-colors ${isSelected ? 'bg-primary' : role.colorClass || 'bg-slate-300 group-hover:bg-primary/50'}`} />
                         <span className={`font-bold ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>{role.name}</span>
                         <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${role.isActive ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {role.isActive ? 'Active' : 'Inactive'}
+                          {role.isActive ? 'Hoạt động' : 'Vô hiệu'}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 leading-relaxed">{role.description}</p>
@@ -429,13 +429,13 @@ export function RolePermissions() {
                     <div className="mt-3 flex justify-end gap-2">
                       <button onClick={() => openEditRoleDialog(role)} disabled={!canUpdateRolePermissions || isRoleMutationPending}
                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition-all duration-200 ease-out hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45">
-                        <span className="material-symbols-outlined text-[16px]">edit</span>Edit
+                        <span className="material-symbols-outlined text-[16px]">edit</span>Sửa
                       </button>
                       <button onClick={() => setStatusTarget(role)} disabled={!canUpdateRolePermissions || isRoleMutationPending}
                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition-all duration-200 ease-out hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
-                        title={role.isActive ? 'Inactivate role' : 'Activate role'}>
+                        title={role.isActive ? 'Vô hiệu hóa vai trò' : 'Kích hoạt vai trò'}>
                         <span className="material-symbols-outlined text-[16px]">{role.isActive ? 'block' : 'check_circle'}</span>
-                        {role.isActive ? 'Inactivate' : 'Activate'}
+                        {role.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
                       </button>
                     </div>
                   </div>
@@ -453,9 +453,9 @@ export function RolePermissions() {
           <div className="p-4 bg-slate-50 flex items-center justify-between border-b border-gray-100">
             <div>
               <h3 className="text-sm font-bold text-gray-900">
-                Module Permissions Matrix: <span className="text-primary">{selectedRole?.name ?? '—'}</span>
+                Ma trận phân quyền: <span className="text-primary">{selectedRole?.name ?? '—'}</span>
               </h3>
-              <p className="text-sm text-gray-500">Each row represents a sidebar page and controls all its underlying modules.</p>
+              <p className="text-sm text-gray-500">Mỗi hàng đại diện cho một trang trong menu và kiểm soát tất cả các module bên dưới.</p>
             </div>
           </div>
 
@@ -465,11 +465,11 @@ export function RolePermissions() {
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-teal-600" />
-                  <span className="text-sm font-medium text-slate-700">{activePagesCount} Active Pages</span>
+                  <span className="text-sm font-medium text-slate-700">{activePagesCount} trang đang bật</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-sm font-medium text-slate-700">{highRiskPagesCount} High-risk Permissions</span>
+                  <span className="text-sm font-medium text-slate-700">{highRiskPagesCount} quyền rủi ro cao</span>
                 </div>
               </div>
               <div className="relative shrink-0">
@@ -482,7 +482,7 @@ export function RolePermissions() {
                   type="text"
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
-                  placeholder="Filter pages..."
+                  placeholder="Lọc trang..."
                   className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64 bg-slate-50 placeholder-slate-400"
                 />
               </div>
@@ -507,11 +507,11 @@ export function RolePermissions() {
               <table className="min-w-150 w-full border-collapse text-left">
                 <thead>
                   <tr className="sticky top-0 z-10 bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400 font-semibold">
-                    <th className="py-4 px-6 w-2/5">Sidebar Page</th>
-                    <th className="py-4 px-4 text-center">View</th>
-                    <th className="py-4 px-4 text-center">Create</th>
-                    <th className="py-4 px-4 text-center">Edit</th>
-                    <th className="py-4 px-4 text-center">Delete / Deactivate</th>
+                    <th className="py-4 px-6 w-2/5">Trang</th>
+                    <th className="py-4 px-4 text-center">Xem</th>
+                    <th className="py-4 px-4 text-center">Tạo</th>
+                    <th className="py-4 px-4 text-center">Sửa</th>
+                    <th className="py-4 px-4 text-center">Xóa / Vô hiệu hóa</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -584,7 +584,7 @@ export function RolePermissions() {
           <div className="p-2 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-500 text-sm">
               <span className="material-symbols-outlined text-sm">shield</span>
-              <span>Role: <span className="font-bold">{selectedRole?.name ?? '—'}</span></span>
+              <span>Vai trò: <span className="font-bold">{selectedRole?.name ?? '—'}</span></span>
             </div>
             <div className="flex gap-2">
               <button
@@ -592,7 +592,7 @@ export function RolePermissions() {
                 disabled={!hasChanges || isInteractionDisabled}
                 className="rounded-xl px-6 py-3 font-bold text-gray-500 transition-all duration-200 ease-out hover:bg-gray-200/50 disabled:opacity-50"
               >
-                Discard Changes
+                Huỷ thay đổi
               </button>
               <button
                 onClick={() => void handleSave()}
@@ -600,7 +600,7 @@ export function RolePermissions() {
                 className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all duration-200 ease-out hover:bg-blue-800 active:scale-[0.99] disabled:opacity-75"
               >
                 {updateMutation.isPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
-                Save Access
+                Lưu phân quyền
               </button>
             </div>
           </div>
@@ -611,14 +611,14 @@ export function RolePermissions() {
       <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{roleDialogMode === 'create' ? 'Create New Role' : 'Edit Role'}</DialogTitle>
+            <DialogTitle>{roleDialogMode === 'create' ? 'Tạo vai trò mới' : 'Chỉnh sửa vai trò'}</DialogTitle>
             <DialogDescription>
               {roleDialogMode === 'create' ? 'Thêm role mới để phân quyền cho nhóm người dùng.' : 'Cập nhật thông tin role hiện có.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Role Name</label>
+              <label className="text-sm font-semibold text-slate-700">Tên vai trò</label>
               <input
                 value={roleForm.name}
                 onChange={(e) => setRoleForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -627,7 +627,7 @@ export function RolePermissions() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Description</label>
+              <label className="text-sm font-semibold text-slate-700">Mô tả</label>
               <textarea
                 rows={3}
                 value={roleForm.description}
@@ -637,26 +637,26 @@ export function RolePermissions() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Status</label>
+              <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
               <select
                 value={roleForm.isActive ? 'active' : 'inactive'}
                 onChange={(e) => setRoleForm((prev) => ({ ...prev, isActive: e.target.value === 'active' }))}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="active">Hoạt động</option>
+                <option value="inactive">Vô hiệu</option>
               </select>
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setIsRoleDialogOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button onClick={() => setIsRoleDialogOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Huỷ</button>
             <button
               onClick={() => void handleRoleSubmit()}
               disabled={isRoleMutationPending}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {isRoleMutationPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
-              {roleDialogMode === 'create' ? 'Create Role' : 'Save Changes'}
+              {roleDialogMode === 'create' ? 'Tạo vai trò' : 'Lưu thay đổi'}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -666,22 +666,22 @@ export function RolePermissions() {
       <Dialog open={!!statusTarget} onOpenChange={(open) => !open && setStatusTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{statusTarget?.isActive ? 'Inactivate Role' : 'Activate Role'}</DialogTitle>
+            <DialogTitle>{statusTarget?.isActive ? 'Vô hiệu hóa vai trò' : 'Kích hoạt vai trò'}</DialogTitle>
             <DialogDescription>
               {statusTarget
-                ? `Bạn có chắc muốn chuyển role ${statusTarget.name} sang trạng thái ${statusTarget.isActive ? 'Inactive' : 'Active'}?`
+                ? `Bạn có chắc muốn chuyển vai trò ${statusTarget.name} sang trạng thái ${statusTarget.isActive ? 'Vô hiệu' : 'Hoạt động'}?`
                 : ''}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <button onClick={() => setStatusTarget(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button onClick={() => setStatusTarget(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Huỷ</button>
             <button
               onClick={() => void handleConfirmToggleStatus()}
               disabled={isRoleMutationPending}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {isRoleMutationPending && <span className="material-symbols-outlined animate-spin text-sm">sync</span>}
-              Confirm
+              Xác nhận
             </button>
           </DialogFooter>
         </DialogContent>

@@ -71,6 +71,15 @@ const TRANSACTION_TYPE_CONFIG: Record<TransactionType, {
   },
 };
 
+const TRANSACTION_TYPE_FALLBACK = {
+  label: 'Không xác định',
+  shortLabel: 'UNK',
+  color: 'bg-slate-100 text-slate-600',
+  bgCard: 'bg-slate-100',
+  borderCard: 'border-slate-300',
+  icon: ClipboardList,
+};
+
 const PAGE_SIZES = [10, 25, 50] as const;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -149,8 +158,8 @@ function StatCard({
 
 // ── Type Badge ──────────────────────────────────────────────────────────────
 
-function TypeBadge({ type }: { type: TransactionType }) {
-  const cfg = TRANSACTION_TYPE_CONFIG[type];
+function TypeBadge({ type }: { type: TransactionType | string | null | undefined }) {
+  const cfg = TRANSACTION_TYPE_CONFIG[type as TransactionType] ?? TRANSACTION_TYPE_FALLBACK;
   const Icon = cfg.icon;
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase', cfg.color)}>
@@ -198,7 +207,7 @@ function TransactionRow({
             {tx.creator ? getInitials(creatorName) : 'SY'}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-slate-800 truncate max-w-[140px]">{creatorName}</div>
+            <div className="text-sm font-medium text-slate-800 truncate max-w-35">{creatorName}</div>
           </div>
         </div>
       </TableCell>
@@ -206,14 +215,14 @@ function TransactionRow({
       {/* Type & detail */}
       <TableCell className="whitespace-nowrap">
         <TypeBadge type={tx.transaction_type} />
-        <div className="text-xs text-slate-400 mt-1 max-w-[200px] truncate">
+        <div className="text-xs text-slate-400 mt-1 max-w-50 truncate">
           {tx.note ?? tx.reference_id ?? '—'}
         </div>
       </TableCell>
 
       {/* Product */}
       <TableCell className="whitespace-nowrap">
-        <div className="text-sm font-medium text-slate-700 max-w-[160px] truncate">
+        <div className="text-sm font-medium text-slate-700 max-w-40 truncate">
           {tx.product.name}
         </div>
         <div className="text-xs text-slate-400 font-mono">{tx.product.code}</div>
@@ -241,7 +250,7 @@ function TransactionRow({
 
       {/* Location */}
       <TableCell className="whitespace-nowrap">
-        <div className="text-xs text-slate-500 max-w-[130px] truncate" title={tx.location.full_path}>
+        <div className="text-xs text-slate-500 max-w-32.5 truncate" title={tx.location.full_path}>
           {tx.location.warehouse?.name ?? '—'}
         </div>
       </TableCell>

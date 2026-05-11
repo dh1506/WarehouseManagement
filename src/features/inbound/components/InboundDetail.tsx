@@ -42,8 +42,8 @@ export function InboundDetail() {
   const handleApprove = useCallback(() => {
     if (!data) return;
     approveMutation.mutate(data.id, {
-      onSuccess: () => toast({ title: 'Approved', description: 'Order status changed to Pending Approval.' }),
-      onError: (e) => toast({ title: 'Approve failed', description: (e as Error).message, variant: 'destructive' }),
+      onSuccess: () => toast({ title: 'Đã duyệt', description: 'Trạng thái đơn hàng đã chuyển sang Chờ duyệt.' }),
+      onError: (e) => toast({ title: 'Duyệt thất bại', description: (e as Error).message, variant: 'destructive' }),
     });
   }, [data, approveMutation, toast]);
 
@@ -56,12 +56,12 @@ export function InboundDetail() {
     recordMutation.mutate({ details }, {
       onSuccess: () => {
         toast({
-          title: 'Receipt recorded',
-          description: 'Received quantities saved. Warehouse Hub occupancy updates after the Complete step.',
+          title: 'Đã lưu biên nhận',
+          description: 'Số lượng thực nhận đã được lưu. Công suất Warehouse Hub sẽ cập nhật sau bước Hoàn tất.',
         });
         setReceivedQtys({});
       },
-      onError: (e) => toast({ title: 'Record failed', description: (e as Error).message, variant: 'destructive' }),
+      onError: (e) => toast({ title: 'Lưu thất bại', description: (e as Error).message, variant: 'destructive' }),
     });
   }, [data, receivedQtys, recordMutation, toast]);
 
@@ -69,27 +69,27 @@ export function InboundDetail() {
     if (!discReason.trim()) return;
     discrepancyMutation.mutate({ reason: discReason }, {
       onSuccess: () => {
-        toast({ title: 'Discrepancy reported', description: 'Discrepancy record created.' });
+        toast({ title: 'Đã báo cáo sai lệch', description: 'Bản ghi sai lệch đã được tạo.' });
         setShowDiscForm(false);
         setDiscReason('');
       },
-      onError: (e) => toast({ title: 'Failed', description: (e as Error).message, variant: 'destructive' }),
+      onError: (e) => toast({ title: 'Thất bại', description: (e as Error).message, variant: 'destructive' }),
     });
   }, [discReason, discrepancyMutation, toast]);
 
   const handleComplete = useCallback(() => {
     if (!data) return;
     completeMutation.mutate(data.id, {
-      onSuccess: () => toast({ title: 'Completed', description: 'Stock-in order has been finalised.' }),
-      onError: (e) => toast({ title: 'Complete failed', description: (e as Error).message, variant: 'destructive' }),
+      onSuccess: () => toast({ title: 'Hoàn tất', description: 'Phiếu nhập kho đã được hoàn tất.' }),
+      onError: (e) => toast({ title: 'Hoàn tất thất bại', description: (e as Error).message, variant: 'destructive' }),
     });
   }, [data, completeMutation, toast]);
 
   if (!id || isNaN(numId)) {
-    return <StatePanel tone="error" title="Invalid ID" description="No valid order ID in URL." />;
+    return <StatePanel tone="error" title="ID không hợp lệ" description="Không có mã đơn hàng hợp lệ trong URL." />;
   }
-  if (isLoading) return <StatePanel title="Loading order..." description="Please wait while order data is loading." />;
-  if (isError || !data) return <StatePanel tone="error" title="Load failed" description="Could not fetch order details." />;
+  if (isLoading) return <StatePanel title="Đang tải đơn hàng..." description="Vui lòng chờ trong khi dữ liệu đơn hàng đang được tải." />;
+  if (isError || !data) return <StatePanel tone="error" title="Tải thất bại" description="Không thể lấy chi tiết đơn hàng." />;
 
   const totalValue = computeStockInTotalValue(data.details);
 
@@ -108,13 +108,13 @@ export function InboundDetail() {
             className="flex items-center gap-1 text-xs text-slate-500 mb-1 hover:text-slate-700 transition-colors"
           >
             <span className="material-symbols-outlined text-sm">arrow_back</span>
-            <span className="uppercase tracking-widest font-medium">Inbound Management</span>
+            <span className="uppercase tracking-widest font-medium">Quản lý nhập kho</span>
           </button>
           <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">{data.code}</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Location: <span className="font-semibold text-slate-700">{data.location.full_path}</span>
+            Vị trí: <span className="font-semibold text-slate-700">{data.location.full_path}</span>
             {' '}·{' '}
-            Created by <span className="font-semibold text-slate-700">{data.creator.full_name}</span>
+            Tạo bởi <span className="font-semibold text-slate-700">{data.creator.full_name}</span>
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export function InboundDetail() {
           {/* CEO: Approve — only on DRAFT */}
           {canApprove && data.status === 'DRAFT' && (
             <ActionButton
-              label="Approve"
+              label="Duyệt phiếu"
               icon="approval"
               color="blue"
               loading={approveMutation.isPending}
@@ -134,7 +134,7 @@ export function InboundDetail() {
           {/* Manager/Staff: Record Receipt — on PENDING or IN_PROGRESS */}
           {canRecord && (data.status === 'PENDING' || data.status === 'IN_PROGRESS') && (
             <ActionButton
-              label="Save Receipt"
+              label="Lưu biên nhận"
               icon="save"
               color="slate"
               loading={recordMutation.isPending}
@@ -145,7 +145,7 @@ export function InboundDetail() {
           {/* Manager/Staff: Report Discrepancy — on IN_PROGRESS */}
           {canRecord && data.status === 'IN_PROGRESS' && (
             <ActionButton
-              label="Report Discrepancy"
+              label="Báo cáo sai lệch"
               icon="warning"
               color="amber"
               loading={false}
@@ -156,7 +156,7 @@ export function InboundDetail() {
           {/* CEO: Complete — on IN_PROGRESS or DISCREPANCY (no pending discrepancies) */}
           {canApprove && (data.status === 'IN_PROGRESS' || data.status === 'DISCREPANCY') && (
             <ActionButton
-              label="Complete"
+              label="Hoàn tất"
               icon="task_alt"
               color="emerald"
               loading={completeMutation.isPending}
@@ -175,11 +175,11 @@ export function InboundDetail() {
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <p className="text-sm font-semibold text-amber-800">Report Discrepancy</p>
+          <p className="text-sm font-semibold text-amber-800">Báo cáo sai lệch</p>
           <textarea
             value={discReason}
             onChange={(e) => setDiscReason(e.target.value)}
-            placeholder="Describe the discrepancy (min. 5 characters)…"
+            placeholder="Mô tả sai lệch (tối thiểu 5 ký tự)…"
             rows={3}
             className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 resize-none"
           />
@@ -188,7 +188,7 @@ export function InboundDetail() {
               onClick={() => { setShowDiscForm(false); setDiscReason(''); }}
               className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors"
             >
-              Cancel
+              Huỷ
             </button>
             <button
               onClick={handleDiscrepancy}
@@ -196,7 +196,7 @@ export function InboundDetail() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors disabled:opacity-50"
             >
               {discrepancyMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Submit
+              Gửi
             </button>
           </div>
         </motion.div>
@@ -214,8 +214,8 @@ export function InboundDetail() {
         {/* Left: Items table */}
         <div className="col-span-12 xl:col-span-8 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900">Order Items</h3>
-            <span className="text-xs text-slate-500 font-medium">{data.details.length} product(s)</span>
+            <h3 className="text-lg font-bold text-slate-900">Danh sách sản phẩm</h3>
+            <span className="text-xs text-slate-500 font-medium">{data.details.length} sản phẩm</span>
           </div>
           <ItemsTable
             details={data.details}
@@ -232,8 +232,8 @@ export function InboundDetail() {
               canResolve={canApprove}
               onResolve={(discId, action_taken) =>
                 resolveMutation.mutate({ discId, payload: { action_taken } }, {
-                  onSuccess: () => toast({ title: 'Discrepancy resolved' }),
-                  onError: (e) => toast({ title: 'Resolve failed', description: (e as Error).message, variant: 'destructive' }),
+                  onSuccess: () => toast({ title: 'Đã giải quyết sai lệch' }),
+                  onError: (e) => toast({ title: 'Giải quyết thất bại', description: (e as Error).message, variant: 'destructive' }),
                 })
               }
               isResolving={resolveMutation.isPending}
@@ -309,11 +309,11 @@ function ItemsTable({
       <table className="w-full min-w-140 border-collapse">
         <thead className="border-b border-slate-100 bg-slate-50">
           <tr>
-            <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Product</th>
-            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Expected Qty</th>
-            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Received Qty</th>
-            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Unit</th>
-            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Unit Price</th>
+            <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sản phẩm</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">SL dự kiến</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">SL thực nhận</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Đơn vị</th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Đơn giá</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
@@ -382,18 +382,18 @@ function DiscrepancyList({
 
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
-      <p className="text-sm font-bold text-amber-800">Discrepancy Records</p>
+      <p className="text-sm font-bold text-amber-800">Danh sách sai lệch</p>
       {discrepancies.map((d) => (
         <div key={d.id} className="rounded-lg bg-white border border-amber-100 p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-0.5">
               <p className="text-xs text-slate-500">
-                Expected <span className="font-semibold text-slate-700">{Number(d.expected_qty).toLocaleString()}</span>
-                {' '}· Actual <span className="font-semibold text-slate-700">{Number(d.actual_qty).toLocaleString()}</span>
+                Dự kiến <span className="font-semibold text-slate-700">{Number(d.expected_qty).toLocaleString()}</span>
+                {' '}· Thực tế <span className="font-semibold text-slate-700">{Number(d.actual_qty).toLocaleString()}</span>
               </p>
               <p className="text-sm text-slate-700">{d.reason}</p>
               {d.action_taken && (
-                <p className="text-xs text-emerald-600">Resolution: {d.action_taken}</p>
+                <p className="text-xs text-emerald-600">Giải pháp: {d.action_taken}</p>
               )}
             </div>
             <span className={cn(
@@ -412,7 +412,7 @@ function DiscrepancyList({
                   type="text"
                   value={actionText}
                   onChange={(e) => setActionText(e.target.value)}
-                  placeholder="Describe action taken (min. 5 chars)…"
+                  placeholder="Mô tả hành động đã thực hiện (tối thiểu 5 ký tự)…"
                   className="w-full h-8 rounded-md border border-slate-200 bg-white px-2 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                 />
                 <div className="flex gap-1.5 justify-end">

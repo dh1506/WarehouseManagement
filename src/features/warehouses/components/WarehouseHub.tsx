@@ -225,7 +225,7 @@ export function WarehouseHub() {
       } else {
         await createHubMutation.mutateAsync(payload);
       }
-      toast({ title: 'Đã lưu kho', description: 'Warehouse hub đã được cập nhật.' });
+      toast({ title: 'Đã lưu kho', description: 'Kho hàng đã được cập nhật.' });
       setWarehouseDialogOpen(false);
     } catch (error) {
       toast({
@@ -257,7 +257,7 @@ export function WarehouseHub() {
         await createZoneMutation.mutateAsync({ warehouseId: zoneWarehouseId, payload });
       }
 
-      toast({ title: 'Đã lưu khu vực', description: 'Zone configuration đã được cập nhật.' });
+      toast({ title: 'Đã lưu khu vực', description: 'Cấu hình khu vực đã được cập nhật.' });
       setZoneDialogOpen(false);
     } catch (error) {
       toast({
@@ -295,7 +295,7 @@ export function WarehouseHub() {
   if (hubsQuery.isLoading) {
     return (
       <div className="flex-1 p-8">
-        <StatePanel title="Đang tải Warehouse Hub" description="Hệ thống đang đồng bộ dữ liệu kho." icon="hourglass_top" />
+        <StatePanel title="Đang tải kho hàng" description="Hệ thống đang đồng bộ dữ liệu kho." icon="hourglass_top" />
       </div>
     );
   }
@@ -303,7 +303,7 @@ export function WarehouseHub() {
   if (hubsQuery.isError) {
     return (
       <div className="flex-1 p-8">
-        <StatePanel title="Không tải được Warehouse Hub" description="Vui lòng thử lại sau." icon="error" tone="error" />
+        <StatePanel title="Không tải được kho hàng" description="Vui lòng thử lại sau." icon="error" tone="error" />
       </div>
     );
   }
@@ -312,7 +312,7 @@ export function WarehouseHub() {
     <div className="flex h-full flex-col gap-3 overflow-y-auto bg-[#fbfbfe] p-3 sm:p-4 lg:p-5">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-base font-bold tracking-tight text-slate-900">Warehouse Hub</h2>
+          <h2 className="text-base font-bold tracking-tight text-slate-900">Quản lý kho</h2>
         </div>
         <div className="flex flex-wrap gap-3">
           {canManage ? (
@@ -322,7 +322,7 @@ export function WarehouseHub() {
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-600/25"
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              Add Warehouse
+              Thêm kho
             </button>
           ) : null}
           {canManage ? (
@@ -333,7 +333,7 @@ export function WarehouseHub() {
               className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="material-symbols-outlined text-sm">add_circle</span>
-              Add Zone
+              Thêm khu vực
             </button>
           ) : null}
         </div>
@@ -344,22 +344,22 @@ export function WarehouseHub() {
         <input
           value={structureSearch}
           onChange={(event) => setStructureSearch(event.target.value)}
-          placeholder="Search warehouses or zones by code/name/type..."
+          placeholder="Tìm kho hoặc khu vực theo mã/tên/loại..."
           className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition-all duration-200 ease-out hover:border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
         />
       </div>
 
       {filteredHubs.length === 0 ? (
         <StatePanel
-          title={hubs.length === 0 ? 'No warehouse hubs found' : 'No matching warehouses'}
-          description={hubs.length === 0 ? 'Create your first warehouse hub to start managing zones.' : 'Try adjusting your search keyword.'}
+          title={hubs.length === 0 ? 'Không tìm thấy kho hàng' : 'Không có kho phù hợp'}
+          description={hubs.length === 0 ? 'Tạo kho hàng đầu tiên để bắt đầu quản lý khu vực.' : 'Thử điều chỉnh từ khóa tìm kiếm.'}
           icon="warehouse"
         />
       ) : (
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
           <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Warehouses</h3>
+              <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Kho hàng</h3>
               <span className="text-xs font-semibold text-slate-500">{filteredHubs.length}</span>
             </div>
             <div
@@ -394,21 +394,21 @@ export function WarehouseHub() {
                           <p className="text-xs text-slate-600">{warehouse.code}</p>
                         </div>
                         {selectedHub?.id === warehouse.id ? (
-                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Active</span>
+                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Đang dùng</span>
                         ) : null}
                       </div>
 
                       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                         <div className="rounded-lg bg-slate-100 px-2 py-1.5">
-                          <p className="text-[10px] uppercase text-slate-500">Zones</p>
+                          <p className="text-[10px] uppercase text-slate-500">Khu vực</p>
                           <p className="text-xs font-bold text-slate-900">{warehouse.totalZones}</p>
                         </div>
                         <div className="rounded-lg bg-slate-100 px-2 py-1.5">
-                          <p className="text-[10px] uppercase text-slate-500">Locations</p>
+                          <p className="text-[10px] uppercase text-slate-500">Vị trí</p>
                           <p className="text-xs font-bold text-slate-900">{warehouse.totalLocations}</p>
                         </div>
                         <div className="rounded-lg bg-slate-100 px-2 py-1.5">
-                          <p className="text-[10px] uppercase text-slate-500">Usage</p>
+                          <p className="text-[10px] uppercase text-slate-500">Sử dụng</p>
                           <p className={`text-xs font-bold ${getCapacityTextClass(warehouse.usedCapacity)}`}>{warehouse.usedCapacity}%</p>
                         </div>
                       </div>
@@ -474,8 +474,8 @@ export function WarehouseHub() {
             {!selectedHub ? (
               <div className="p-6">
                 <StatePanel
-                  title="No warehouse selected"
-                  description="Select a warehouse on the left to view its zones."
+                  title="Chưa chọn kho"
+                  description="Chọn một kho ở bên trái để xem các khu vực."
                   icon="grid_view"
                 />
               </div>
@@ -483,8 +483,8 @@ export function WarehouseHub() {
               <>
                 <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Zones in {selectedHub.name}</h3>
-                    <p className="text-sm text-slate-600">Code: {selectedHub.code} · {selectedHub.totalZones} zones</p>
+                    <h3 className="text-base font-bold text-slate-900">Khu vực trong {selectedHub.name}</h3>
+                    <p className="text-sm text-slate-600">Mã: {selectedHub.code} · {selectedHub.totalZones} khu vực</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {canManage ? (
@@ -493,7 +493,7 @@ export function WarehouseHub() {
                         onClick={() => openCreateZoneForWarehouse(selectedHub)}
                         className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:opacity-90"
                       >
-                        Add Zone
+                        Thêm khu vực
                       </button>
                     ) : null}
                     {canManage ? (
@@ -502,7 +502,7 @@ export function WarehouseHub() {
                         onClick={() => openWarehouseDialog('edit', selectedHub)}
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-100"
                       >
-                        Edit Warehouse
+                        Chỉnh sửa kho
                       </button>
                     ) : null}
                   </div>
@@ -529,8 +529,8 @@ export function WarehouseHub() {
                     return [zone.code, zone.name, zone.type].some((value) => value.toLowerCase().includes(normalizedStructureSearch));
                   }).length === 0 ? (
                     <StatePanel
-                      title={selectedHub.zones.length === 0 ? 'No zones found' : 'No matching zones'}
-                      description={selectedHub.zones.length === 0 ? 'Create the first zone for this warehouse.' : 'Try adjusting your search keyword.'}
+                      title={selectedHub.zones.length === 0 ? 'Không tìm thấy khu vực' : 'Không có khu vực phù hợp'}
+                      description={selectedHub.zones.length === 0 ? 'Tạo khu vực đầu tiên cho kho này.' : 'Thử điều chỉnh từ khóa tìm kiếm.'}
                       icon="grid_view"
                     />
                   ) : (
@@ -599,11 +599,11 @@ export function WarehouseHub() {
 
                               <div className="space-y-2 text-sm text-slate-600">
                                 <p className="flex items-center justify-between border-b border-slate-200 pb-2">
-                                  <span>Occupancy</span>
+                                  <span>Tỷ lệ lấp đầy</span>
                                   <span className={`font-extrabold ${getCapacityTextClass(zone.occupancy)}`}>{zone.occupancy}%</span>
                                 </p>
-                                <p className="flex items-center justify-between border-b border-slate-200 pb-2"><span>Storage Slots</span><span className="font-extrabold text-blue-700">{zone.binCount}</span></p>
-                                <p className="flex items-center justify-between"><span>Allowed Categories</span><span className="font-semibold text-slate-900">{zone.allowedCategoryIds.length}</span></p>
+                                <p className="flex items-center justify-between border-b border-slate-200 pb-2"><span>Số ô chứa</span><span className="font-extrabold text-blue-700">{zone.binCount}</span></p>
+                                <p className="flex items-center justify-between"><span>Danh mục cho phép</span><span className="font-semibold text-slate-900">{zone.allowedCategoryIds.length}</span></p>
                                 {zoneWarning ? (
                                   <p className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900">
                                     <span className="material-symbols-outlined text-[13px]">warning</span>
@@ -657,7 +657,7 @@ export function WarehouseHub() {
 
       <DeleteDialog
         open={!!deleteTarget}
-        title={deleteTarget?.kind === 'warehouse' ? 'Xóa warehouse' : 'Xóa zone'}
+        title={deleteTarget?.kind === 'warehouse' ? 'Xóa kho hàng' : 'Xóa khu vực'}
         description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.name ?? ''}" không?`}
         isPending={deleteHubMutation.isPending || deleteZoneMutation.isPending}
         onClose={() => setDeleteTarget(null)}
@@ -718,12 +718,12 @@ function WarehouseHubFormDialog({
       <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-xl" showCloseButton={false}>
         <form className="flex h-full flex-col" onSubmit={handleSubmit(async (payload) => { await onSubmit(payload); })}>
           <SheetHeader className="border-b border-slate-200 px-6 py-5">
-            <SheetTitle>{mode === 'create' ? 'Create Warehouse Hub' : 'Edit Warehouse Hub'}</SheetTitle>
+            <SheetTitle>{mode === 'create' ? 'Tạo kho hàng' : 'Chỉnh sửa kho hàng'}</SheetTitle>
             <SheetDescription>Thiết lập thông tin cơ bản và phạm vi danh mục cho warehouse hub.</SheetDescription>
           </SheetHeader>
           <div className="grid gap-3 overflow-y-auto px-6 py-5">
-            <Field label="Code" error={errors.code?.message}><input {...register('code')} disabled={isPending} className={inputClass(!!errors.code)} /></Field>
-            <Field label="Name" error={errors.name?.message}><input {...register('name')} disabled={isPending} className={inputClass(!!errors.name)} /></Field>
+            <Field label="Mã kho" error={errors.code?.message}><input {...register('code')} disabled={isPending} className={inputClass(!!errors.code)} /></Field>
+            <Field label="Tên kho" error={errors.name?.message}><input {...register('name')} disabled={isPending} className={inputClass(!!errors.name)} /></Field>
             <CategoryMultiSelect
               label="Danh mục được phép bảo quản"
               options={categoryOptions}
@@ -810,7 +810,7 @@ function WarehouseZoneFormDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen && !isPending) onClose(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? 'Create Zone' : 'Edit Zone'}</DialogTitle>
+          <DialogTitle>{mode === 'create' ? 'Tạo khu vực' : 'Chỉnh sửa khu vực'}</DialogTitle>
           <DialogDescription>Cấu hình zone theo rack, level, bin và phạm vi danh mục được phép lưu trữ.</DialogDescription>
         </DialogHeader>
         <form className="grid gap-2.5" onSubmit={handleSubmit(async (payload) => { await onSubmit(payload); })}>
@@ -821,19 +821,19 @@ function WarehouseZoneFormDialog({
           ) : null}
           <div className="grid grid-cols-2 gap-3">
             {mode === 'edit' ? (
-              <Field label="Zone Code">
+              <Field label="Mã khu vực">
                 <div className={`${inputClass(false)} flex items-center bg-slate-50 text-slate-500 select-none`}>{zone?.code ?? ''}</div>
               </Field>
             ) : (
-              <Field label="Zone Code" error={errors.code?.message}><input {...register('code')} disabled={isPending} className={inputClass(!!errors.code)} /></Field>
+              <Field label="Mã khu vực" error={errors.code?.message}><input {...register('code')} disabled={isPending} className={inputClass(!!errors.code)} /></Field>
             )}
-            <Field label="Zone Type" error={errors.type?.message}><input {...register('type')} disabled={isPending} className={inputClass(!!errors.type)} /></Field>
+            <Field label="Loại khu vực" error={errors.type?.message}><input {...register('type')} disabled={isPending} className={inputClass(!!errors.type)} /></Field>
           </div>
-          <Field label="Zone Name" error={errors.name?.message}><input {...register('name')} disabled={isPending} className={inputClass(!!errors.name)} /></Field>
+          <Field label="Tên khu vực" error={errors.name?.message}><input {...register('name')} disabled={isPending} className={inputClass(!!errors.name)} /></Field>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Racks" error={errors.racks?.message}><input type="number" {...register('racks', { valueAsNumber: true })} disabled={isPending} className={inputClass(!!errors.racks)} /></Field>
-            <Field label="Levels" error={errors.levels?.message}><input type="number" {...register('levels', { valueAsNumber: true })} disabled={isPending} className={inputClass(!!errors.levels)} /></Field>
-            <Field label="Bins" error={errors.bins?.message}><input type="number" {...register('bins', { valueAsNumber: true })} disabled={isPending} className={inputClass(!!errors.bins)} /></Field>
+            <Field label="Kệ (Racks)" error={errors.racks?.message}><input type="number" {...register('racks', { valueAsNumber: true })} disabled={isPending} className={inputClass(!!errors.racks)} /></Field>
+            <Field label="Tầng (Levels)" error={errors.levels?.message}><input type="number" {...register('levels', { valueAsNumber: true })} disabled={isPending} className={inputClass(!!errors.levels)} /></Field>
+            <Field label="Ô (Bins)" error={errors.bins?.message}><input type="number" {...register('bins', { valueAsNumber: true })} disabled={isPending} className={inputClass(!!errors.bins)} /></Field>
           </div>
           <CategoryMultiSelect
             label="Danh mục hợp lệ trong zone"

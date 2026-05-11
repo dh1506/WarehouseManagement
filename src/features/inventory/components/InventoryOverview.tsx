@@ -124,7 +124,7 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
         <span className="material-symbols-outlined text-[12px]">warning</span>
-        Low Stock
+        Tồn kho thấp
       </span>
     );
   }
@@ -132,7 +132,7 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
         <span className="material-symbols-outlined text-[12px]">schedule</span>
-        Expiring Soon
+        Sắp hết hạn
       </span>
     );
   }
@@ -140,7 +140,7 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
         <span className="material-symbols-outlined text-[12px]">arrow_upward</span>
-        Overstock
+        Tồn kho dư
       </span>
     );
   }
@@ -148,21 +148,21 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
         <span className="material-symbols-outlined text-[12px]">lock</span>
-        Hold
+        Tạm giữ
       </span>
     );
   }
   if (row.onHand === 0) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-        Out of Stock
+        Hết hàng
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
       <span className="material-symbols-outlined text-[12px]">check_circle</span>
-      Normal
+      Bình thường
     </span>
   );
 }
@@ -171,18 +171,18 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
 
 function LotStatusBadge({ hasHold, expiry }: { hasHold: boolean; expiry: string | null }) {
   if (hasHold) {
-    return <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">Hold</span>;
+    return <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">Tạm giữ</span>;
   }
   if (expiry) {
     const daysLeft = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
     if (daysLeft <= 0) {
-      return <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">Expired</span>;
+      return <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">Hết hạn</span>;
     }
     if (daysLeft <= 30) {
-      return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">Expiring ({daysLeft}d)</span>;
+      return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">Sắp hết hạn ({daysLeft} ngày)</span>;
     }
   }
-  return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">Available</span>;
+  return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">Còn hàng</span>;
 }
 
 // ── Detail Rows (lazy-loaded per expanded product) ────────────────────────────
@@ -210,7 +210,7 @@ function ProductDetailRows({
         >
           <div className="px-6 py-3">
             <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-blue-700">
-              Actual Inventory Allocation
+              Phân bổ tồn kho thực tế
             </p>
 
             {isLoading && (
@@ -334,12 +334,12 @@ function SkuTableRow({
             <span className="text-sm font-medium text-slate-800">{row.productName}</span>
           </div>
           {row.trackedByLot && (
-            <span className="mt-0.5 text-[10px] text-slate-400">Tracked by lot</span>
+            <span className="mt-0.5 text-[10px] text-slate-400">Theo dõi theo lô</span>
           )}
         </td>
         <td className="py-3 pr-4 text-xs text-slate-500">
           {row.minStock > 0 || row.maxStock > 0
-            ? `Min ${row.minStock} / Max ${row.maxStock > 0 ? row.maxStock : '∞'}`
+            ? `Tối thiểu ${row.minStock} / Tối đa ${row.maxStock > 0 ? row.maxStock : '∞'}`
             : '—'
           }
         </td>
@@ -448,14 +448,14 @@ export function InventoryOverview() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f8f9fb] px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex w-full min-h-0 flex-1 flex-col gap-4">
         <PageHeader
-          title="Inventory Overview"
-          description="Central ledger for SKU inventory health — on-hand, available, allocation, and lot tracking."
+          title="Tổng quan tồn kho"
+          description="Bảng tổng hợp sức khoẻ tồn kho theo SKU — tồn thực tế, khả dụng, phân bổ và theo dõi lô hàng."
         />
 
         {/* ── Zone 1: KPI Widgets ─────────────────────────────────────────── */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KpiWidget
-            label="Active Products"
+            label="Sản phẩm đang hoạt động"
             value={data?.activeProductCount ?? 0}
             icon="inventory_2"
             tone="emerald"
@@ -463,7 +463,7 @@ export function InventoryOverview() {
             onClick={() => handleWidgetClick('all')}
           />
           <KpiWidget
-            label="Low Stock Alerts"
+            label="Cảnh báo tồn kho thấp"
             value={data?.lowStockCount ?? 0}
             icon="production_quantity_limits"
             tone="amber"
@@ -471,7 +471,7 @@ export function InventoryOverview() {
             onClick={() => handleWidgetClick('lowStock')}
           />
           <KpiWidget
-            label="Expiring Soon"
+            label="Sắp hết hạn"
             value={data?.expiringSoonCount ?? 0}
             icon="schedule"
             tone="rose"
@@ -479,7 +479,7 @@ export function InventoryOverview() {
             onClick={() => handleWidgetClick('expiringSoon')}
           />
           <KpiWidget
-            label="Blocked / Hold"
+            label="Bị chặn / Tạm giữ"
             value={data?.blockedCount ?? 0}
             icon="lock"
             tone="slate"
@@ -514,10 +514,10 @@ export function InventoryOverview() {
 
           <Select value={warehouseId || 'all'} onValueChange={handleWarehouseChange}>
             <SelectTrigger className="h-9 w-48">
-              <SelectValue placeholder="All warehouses" />
+              <SelectValue placeholder="Tất cả kho" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All warehouses</SelectItem>
+              <SelectItem value="all">Tất cả kho</SelectItem>
               {(data?.warehouseOptions ?? []).map((wh) => (
                 <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
               ))}
@@ -599,7 +599,7 @@ export function InventoryOverview() {
                     <thead>
                       <tr className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur">
                         <th className="py-3 pl-4 pr-2 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          SKU Code
+                          Mã SKU
                         </th>
                         <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Tên sản phẩm
@@ -608,13 +608,13 @@ export function InventoryOverview() {
                           Min / Max
                         </th>
                         <th className="py-3 pr-4 text-right text-[11px] font-bold uppercase tracking-wider text-blue-600">
-                          Available
+                          Khả dụng
                         </th>
                         <th className="py-3 pr-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          On-hand
+                          Tồn thực tế
                         </th>
                         <th className="py-3 pr-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Allocated
+                          Đã phân bổ
                         </th>
                         <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Trạng thái

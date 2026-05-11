@@ -87,10 +87,10 @@ export function CategoryFormSheet({
         <div className="px-8 py-8 flex items-center justify-between flex-shrink-0">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 tracking-tight font-headline">
-              {isView ? 'Category Details' : isEdit ? 'Edit Category' : 'Create Category'}
+              {isView ? 'Chi tiết danh mục' : isEdit ? 'Chỉnh sửa danh mục' : 'Tạo danh mục'}
             </h3>
             <p className="text-sm text-slate-500 mt-1.5 font-medium">
-              {isView ? 'View detailed product taxonomy parameters' : 'Define product taxonomy parameters'}
+              {isView ? 'Xem các tham số phân loại sản phẩm' : 'Cấu hình tham số phân loại sản phẩm'}
             </p>
           </div>
           <button 
@@ -108,34 +108,34 @@ export function CategoryFormSheet({
             {/* Category Name */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">
-                Category Name {!isView && <span className="text-red-600 font-body">*</span>}
+                Tên danh mục {!isView && <span className="text-red-600 font-body">*</span>}
               </label>
-              <input 
+              <input
                 disabled={isView}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-blue-600/20 transition-all placeholder:text-slate-400 font-medium disabled:opacity-80" 
-                placeholder="e.g. Micro-controllers" 
+                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-blue-600/20 transition-all placeholder:text-slate-400 font-medium disabled:opacity-80"
+                placeholder="VD: Vi điều khiển" 
                 type="text" 
               />
             </div>
 
             {/* Description */}
             <div className="space-y-2.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Description</label>
-              <textarea 
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Mô tả</label>
+              <textarea
                 disabled={isView}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-blue-600/20 transition-all placeholder:text-slate-400 resize-none font-medium leading-relaxed disabled:opacity-80" 
-                placeholder="Detailed purpose and storage requirements..." 
+                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3.5 text-sm focus:ring-2 focus:ring-blue-600/20 transition-all placeholder:text-slate-400 resize-none font-medium leading-relaxed disabled:opacity-80"
+                placeholder="Mục đích sử dụng và yêu cầu lưu trữ..." 
                 rows={4}
               />
             </div>
 
             {/* Parent Category */}
             <div className="space-y-2.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Parent Category</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Danh mục cha</label>
               <div className="relative group flex items-center bg-slate-50 rounded-xl px-4 py-3.5">
                 <select
                   disabled={isView}
@@ -143,7 +143,7 @@ export function CategoryFormSheet({
                   onChange={(e) => setParentId(e.target.value)}
                   className="w-full bg-transparent border-none text-sm focus:ring-0 cursor-pointer font-medium p-0 outline-none appearance-none disabled:opacity-80 text-slate-900"
                 >
-                  <option value="">— Null (Root Category) —</option>
+                  <option value="">— Không có (Danh mục gốc) —</option>
                   {parentOptions.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -152,7 +152,7 @@ export function CategoryFormSheet({
               </div>
               <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-2">
                 <span className="material-symbols-outlined text-[14px]">info</span>
-                Affects sub-metrics structure. Auto increments child count.
+                Ảnh hưởng đến cấu trúc phân cấp. Tự động tăng số danh mục con.
               </p>
             </div>
 
@@ -163,8 +163,8 @@ export function CategoryFormSheet({
                   <span className="material-symbols-outlined text-xs">{status === 'active' ? 'toggle_on' : 'toggle_off'}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-900">Active Status</p>
-                  <p className="text-[11px] text-slate-500 font-medium">Enable category for associations</p>
+                  <p className="text-sm font-bold text-slate-900">Trạng thái hoạt động</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Cho phép liên kết với sản phẩm</p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -181,15 +181,15 @@ export function CategoryFormSheet({
 
             {/* Iconography Preview Section */}
             <div className="space-y-4 pt-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Iconography</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Biểu tượng</label>
               
               <div className="flex items-center gap-6 p-5 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                 <div className="w-16 h-16 rounded-2xl bg-blue-800 text-white flex items-center justify-center shadow-xl shadow-blue-800/25 transform -rotate-3 hover:rotate-0 transition-transform flex-shrink-0">
                   <span className="material-symbols-outlined text-xs">{icon}</span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-slate-900 mb-1">Category Glyph</p>
-                  <p className="text-[11px] text-slate-500 font-medium leading-tight">Visual identifier for navigation menus and inventory labels.</p>
+                  <p className="text-sm font-bold text-slate-900 mb-1">Biểu tượng danh mục</p>
+                  <p className="text-[11px] text-slate-500 font-medium leading-tight">Nhận diện trực quan trên menu điều hướng và nhãn kho.</p>
                 </div>
               </div>
 
@@ -228,15 +228,15 @@ export function CategoryFormSheet({
               {isPending && (
                 <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
               )}
-              {isEdit ? 'Save Changes' : 'Save Category'}
+              {isEdit ? 'Lưu thay đổi' : 'Lưu danh mục'}
             </button>
           )}
-          <button 
+          <button
             type="button"
             onClick={onClose}
             className={`px-8 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 hover:text-slate-900 transition-all active:scale-[0.98] ${isView ? 'flex-1' : ''}`}
           >
-            {isView ? 'Close' : 'Discard'}
+            {isView ? 'Đóng' : 'Huỷ'}
           </button>
         </div>
       </SheetContent>

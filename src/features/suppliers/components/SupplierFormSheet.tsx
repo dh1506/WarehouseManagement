@@ -223,7 +223,7 @@ export function SupplierFormSheet({
                                 </p>
                                 <p className="mt-1 text-xs text-slate-500">
                                   {product.productType} · {product.productStatus}
-                                  {product.supplierSku ? ` · Supplier SKU: ${product.supplierSku}` : ''}
+                                  {product.supplierSku ? ` · Mã NCC: ${product.supplierSku}` : ''}
                                 </p>
                               </div>
                               <div className="text-xs font-medium text-slate-500 sm:text-right">

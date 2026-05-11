@@ -39,7 +39,7 @@ const PROGRESS_COLORS: Record<StockCountStatus, string> = {
 };
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function getProgress(sc: StockCount): number {
@@ -61,10 +61,10 @@ function KpiStrip({ data }: { data: StockCount[] | undefined }) {
   };
 
   const cards = [
-    { label: 'Total Audits', value: stats.total, icon: 'fact_check', iconBg: 'bg-slate-100 text-slate-600' },
-    { label: 'In Progress', value: stats.counting, icon: 'pending_actions', iconBg: 'bg-blue-50 text-blue-600' },
-    { label: 'Pending Approval', value: stats.completed, icon: 'rule', iconBg: 'bg-violet-50 text-violet-600' },
-    { label: 'Approved', value: stats.approved, icon: 'verified', iconBg: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Tổng kiểm kê', value: stats.total, icon: 'fact_check', iconBg: 'bg-slate-100 text-slate-600' },
+    { label: 'Đang xử lý', value: stats.counting, icon: 'pending_actions', iconBg: 'bg-blue-50 text-blue-600' },
+    { label: 'Chờ duyệt', value: stats.completed, icon: 'rule', iconBg: 'bg-violet-50 text-violet-600' },
+    { label: 'Đã duyệt', value: stats.approved, icon: 'verified', iconBg: 'bg-emerald-50 text-emerald-600' },
   ];
 
   return (
@@ -155,8 +155,8 @@ export function StockCountList() {
         className="shrink-0 space-y-4 px-4 pt-4 pb-3 md:px-6 md:pt-6"
       >
         <PageHeader
-          title="Stock Count Audits"
-          description="Manage and track inventory cycle counts."
+          title="Kiểm kê kho"
+          description="Quản lý và theo dõi các phiếu kiểm kê kho."
           actions={
             canCreate ? (
               <motion.button
@@ -166,8 +166,8 @@ export function StockCountList() {
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create New Ticket</span>
-                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">Tạo phiếu mới</span>
+                <span className="sm:hidden">Mới</span>
               </motion.button>
             ) : null
           }
@@ -184,7 +184,7 @@ export function StockCountList() {
               type="text"
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search ticket code…"
+              placeholder="Tìm kiếm mã phiếu…"
               className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
             />
           </div>
@@ -202,7 +202,7 @@ export function StockCountList() {
             )}
           >
             <SlidersHorizontal className="h-4 w-4" />
-            Filters
+            Bộ lọc
             {hasActiveFilters && (
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                 {[search, status, type, scopeType].filter(Boolean).length}
@@ -226,7 +226,7 @@ export function StockCountList() {
                   onChange={(e) => handleStatusChange(e.target.value as StockCountStatus | '')}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
                 >
-                  <option value="">All Statuses</option>
+                  <option value="">Tất cả trạng thái</option>
                   {(Object.keys(STOCK_COUNT_STATUS_LABELS) as StockCountStatus[]).map((s) => (
                     <option key={s} value={s}>{STOCK_COUNT_STATUS_LABELS[s]}</option>
                   ))}
@@ -238,9 +238,9 @@ export function StockCountList() {
                   onChange={(e) => handleTypeChange(e.target.value as StockCountType | '')}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
                 >
-                  <option value="">All Types</option>
-                  <option value="PERIODIC">Periodic</option>
-                  <option value="AD_HOC">Ad Hoc</option>
+                  <option value="">Tất cả loại</option>
+                  <option value="PERIODIC">Định kỳ</option>
+                  <option value="AD_HOC">Đột xuất</option>
                 </select>
 
                 {/* Scope filter */}
@@ -249,7 +249,7 @@ export function StockCountList() {
                   onChange={(e) => handleScopeChange(e.target.value as StockCountScopeType | '')}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
                 >
-                  <option value="">All Scopes</option>
+                  <option value="">Tất cả phạm vi</option>
                   {(Object.keys(STOCK_COUNT_SCOPE_LABELS) as StockCountScopeType[]).map((s) => (
                     <option key={s} value={s}>{STOCK_COUNT_SCOPE_LABELS[s]}</option>
                   ))}
@@ -269,7 +269,7 @@ export function StockCountList() {
                       className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all"
                     >
                       <X className="h-3.5 w-3.5" />
-                      Clear
+                      Xóa bộ lọc
                     </motion.button>
                   )}
                 </AnimatePresence>
@@ -287,22 +287,22 @@ export function StockCountList() {
               <thead className="sticky top-0 z-10 bg-white border-b border-slate-100">
                 <tr>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Ticket Code
+                    Mã phiếu
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Type / Scope
+                    Loại / Phạm vi
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">
-                    Created by
+                    Tạo bởi
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Progress
+                    Tiến độ
                   </th>
                   <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Status
+                    Trạng thái
                   </th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">
-                    Created
+                    Ngày tạo
                   </th>
                 </tr>
               </thead>
@@ -324,9 +324,9 @@ export function StockCountList() {
                     <td colSpan={6} className="py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <span className="material-symbols-outlined text-[40px] text-rose-300">error</span>
-                        <p className="text-sm font-medium text-slate-600">Failed to load audit tickets</p>
+                        <p className="text-sm font-medium text-slate-600">Không thể tải danh sách phiếu kiểm kê</p>
                         <p className="text-xs text-rose-500 max-w-xs">
-                          {(error as { message?: string })?.message ?? 'An unexpected error occurred.'}
+                          {(error as { message?: string })?.message ?? 'Đã xảy ra lỗi không mong muốn.'}
                         </p>
                       </div>
                     </td>
@@ -336,9 +336,9 @@ export function StockCountList() {
                     <td colSpan={6} className="py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <span className="material-symbols-outlined text-[44px] text-slate-300">fact_check</span>
-                        <p className="text-sm font-medium text-slate-500">No audit tickets found</p>
+                        <p className="text-sm font-medium text-slate-500">Không tìm thấy phiếu kiểm kê</p>
                         <p className="text-xs text-slate-400">
-                          {hasActiveFilters ? 'Try adjusting your filters' : 'Create your first audit ticket to get started'}
+                          {hasActiveFilters ? 'Thử điều chỉnh bộ lọc của bạn' : 'Tạo phiếu kiểm kê đầu tiên để bắt đầu'}
                         </p>
                       </div>
                     </td>
@@ -368,11 +368,11 @@ export function StockCountList() {
                 className="shrink-0 flex flex-col gap-2 border-t border-slate-100 bg-white px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between"
               >
                 <p className="text-xs text-slate-500">
-                  Showing{' '}
+                  Hiển thị{' '}
                   <span className="font-semibold text-slate-700">{startItem}–{endItem}</span>
-                  {' '}of{' '}
+                  {' '}{'/'}{' '}
                   <span className="font-semibold text-slate-700">{totalItems}</span>
-                  {' '}tickets
+                  {' '}phiếu
                 </p>
                 <div className="flex items-center gap-1">
                   <PaginationButton
@@ -456,7 +456,7 @@ function StockCountRow({
           {STOCK_COUNT_SCOPE_LABELS[sc.scope_type] ?? sc.scope_type}
         </p>
         <p className="text-[11px] text-slate-400 mt-0.5">
-          {sc.type === 'PERIODIC' ? 'Periodic' : 'Ad Hoc'}
+          {sc.type === 'PERIODIC' ? 'Định kỳ' : 'Đột xuất'}
           {sc.description && ` · ${sc.description.slice(0, 30)}${sc.description.length > 30 ? '…' : ''}`}
         </p>
       </td>

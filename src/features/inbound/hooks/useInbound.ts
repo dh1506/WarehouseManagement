@@ -86,7 +86,11 @@ export function useApproveStockIn() {
     mutationFn: approveStockIn,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
-      queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
+      if (data.details && data.location) {
+        queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.detail(data.id) });
+      }
     },
   });
 }
@@ -102,7 +106,11 @@ export function useCompleteStockIn() {
     mutationFn: completeStockIn,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
-      queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
+      if (data.details && data.location) {
+        queryClient.setQueryData(STOCK_IN_KEYS.detail(data.id), data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.detail(data.id) });
+      }
       // Invalidate warehouse layout data so zone map reflects finalized inventory
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });

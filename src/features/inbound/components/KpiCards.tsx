@@ -57,7 +57,7 @@ function ErrorCard({ label }: { label: string }) {
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">{label}</p>
       <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-4">
         <span className="material-symbols-outlined text-slate-400 text-[18px]">cloud_off</span>
-        <span className="text-xs text-slate-500">Data unavailable</span>
+        <span className="text-xs text-slate-500">Không có dữ liệu</span>
       </div>
     </div>
   );
@@ -75,7 +75,7 @@ export function KpiCards({ kpis, isLoading, isError }: KpiCardsProps) {
   if (isError) {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {['Total Orders', 'Pending Approval', 'Receiving', 'Completed'].map((l) => (
+        {['Tổng phiếu nhập', 'Chờ duyệt', 'Đang nhận hàng', 'Hoàn thành'].map((l) => (
           <ErrorCard key={l} label={l} />
         ))}
       </div>
@@ -86,30 +86,30 @@ export function KpiCards({ kpis, isLoading, isError }: KpiCardsProps) {
     {
       icon: 'inventory_2',
       iconBg: 'bg-slate-100 text-slate-600',
-      label: 'Total Orders',
+      label: 'Tổng phiếu nhập',
       value: kpis?.total ?? 0,
-      subtitle: 'all time',
+      subtitle: 'tất cả thời gian',
     },
     {
       icon: 'pending_actions',
       iconBg: 'bg-violet-50 text-violet-600',
-      label: 'Pending Approval',
+      label: 'Chờ duyệt',
       value: kpis?.pending ?? 0,
-      subtitle: 'awaiting CEO approval',
+      subtitle: 'đang chờ phê duyệt',
     },
     {
       icon: 'local_shipping',
       iconBg: 'bg-blue-50 text-blue-600',
-      label: 'Receiving',
+      label: 'Đang nhận hàng',
       value: (kpis?.inProgress ?? 0) + (kpis?.discrepancy ?? 0),
-      subtitle: `${kpis?.discrepancy ?? 0} with discrepancy`,
+      subtitle: `${kpis?.discrepancy ?? 0} có sai lệch`,
     },
     {
       icon: 'task_alt',
       iconBg: 'bg-emerald-50 text-emerald-600',
-      label: 'Completed',
+      label: 'Hoàn thành',
       value: kpis?.completed ?? 0,
-      subtitle: `${kpis?.draft ?? 0} still in draft`,
+      subtitle: `${kpis?.draft ?? 0} vẫn ở trạng thái nháp`,
     },
   ];
 

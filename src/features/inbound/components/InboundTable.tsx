@@ -79,31 +79,31 @@ export function InboundTable({
           <thead className="sticky top-0 z-20 bg-white border-b border-slate-100">
             <tr>
               <th className="sticky left-0 z-30 bg-white px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Order Code
+                Mã phiếu
               </th>
               <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Supplier
+                Nhà cung cấp
               </th>
               <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Location
+                Vị trí
               </th>
               <th className="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Products
+                Sản phẩm
               </th>
               {canSeeValue && (
                 <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Total Value
+                  Tổng giá trị
                 </th>
               )}
               <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Created Date
+                Ngày tạo
               </th>
               <th className="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Status
+                Trạng thái
               </th>
               {canSubmit && (
                 <th className="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Actions
+                  Thao tác
                 </th>
               )}
             </tr>
@@ -132,9 +132,9 @@ export function InboundTable({
                 <td colSpan={colSpan} className="py-14 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <span className="material-symbols-outlined text-[40px] text-rose-300">error</span>
-                    <p className="text-sm font-medium text-slate-600">Failed to load orders</p>
+                    <p className="text-sm font-medium text-slate-600">Không thể tải dữ liệu</p>
                     <p className="text-xs text-rose-500 max-w-xs">
-                      {(error as { message?: string })?.message ?? 'An unexpected error occurred.'}
+                      {(error as { message?: string })?.message ?? 'Đã xảy ra lỗi không xác định.'}
                     </p>
                   </div>
                 </td>
@@ -144,8 +144,8 @@ export function InboundTable({
                 <td colSpan={colSpan} className="py-14 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <span className="material-symbols-outlined text-[40px] text-slate-300">inbox</span>
-                    <p className="text-sm font-medium text-slate-500">No orders found</p>
-                    <p className="text-xs text-slate-400">Try adjusting your search or filters</p>
+                    <p className="text-sm font-medium text-slate-500">Không tìm thấy phiếu nào</p>
+                    <p className="text-xs text-slate-400">Hãy thay đổi bộ lọc hoặc từ khoá tìm kiếm</p>
                   </div>
                 </td>
               </tr>
@@ -180,11 +180,11 @@ export function InboundTable({
             className="shrink-0 flex flex-col gap-2 border-t border-slate-100 bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
           >
             <p className="text-xs text-slate-500">
-              Showing{' '}
+              Hiển thị{' '}
               <span className="font-semibold text-slate-700">{startItem}–{endItem}</span>
-              {' '}of{' '}
+              {' '}trong tổng số{' '}
               <span className="font-semibold text-slate-700">{totalItems}</span>
-              {' '}orders
+              {' '}phiếu
             </p>
             <div className="flex items-center gap-1">
               <PaginationButton
@@ -336,7 +336,7 @@ function StockInRow({
                 {isSubmitting
                   ? <Loader2 className="h-3 w-3 animate-spin" />
                   : <span className="material-symbols-outlined text-[12px]">send</span>}
-                Submit
+                Gửi duyệt
               </motion.button>
             ) : (
               <motion.span
@@ -390,7 +390,7 @@ function PaginationButton({ onClick, disabled, icon }: {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+  return new Date(iso).toLocaleDateString('vi-VN', {
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }

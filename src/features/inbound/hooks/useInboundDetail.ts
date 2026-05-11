@@ -33,7 +33,11 @@ export function useRecordReceipt(id: number) {
   return useMutation<StockIn, Error, RecordReceiptPayload>({
     mutationFn: (payload) => recordReceipt(id, payload),
     onSuccess: (data) => {
-      queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      if (data.details && data.location) {
+        queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.detail(id) });
+      }
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
     },
   });
@@ -46,7 +50,11 @@ export function useCreateDiscrepancy(id: number) {
   return useMutation<StockIn, Error, CreateDiscrepancyPayload>({
     mutationFn: (payload) => createDiscrepancy(id, payload),
     onSuccess: (data) => {
-      queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      if (data.details) {
+        queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.detail(id) });
+      }
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
     },
   });
@@ -63,7 +71,11 @@ export function useResolveDiscrepancy(id: number) {
   >({
     mutationFn: ({ discId, payload }) => resolveDiscrepancy(id, discId, payload),
     onSuccess: (data) => {
-      queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      if (data.details && data.location) {
+        queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.detail(id) });
+      }
       queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.all });
     },
   });
@@ -76,8 +88,11 @@ export function useAllocateLots(id: number) {
   return useMutation<StockIn, Error, AllocateLotPayload>({
     mutationFn: (payload) => allocateLots(id, payload),
     onSuccess: (data) => {
-      queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
-      // Invalidate warehouse layout data so zone map reflects new inventory
+      if (data.details && data.location) {
+        queryClient.setQueryData(STOCK_IN_KEYS.detail(id), data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: STOCK_IN_KEYS.detail(id) });
+      }
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });
     },

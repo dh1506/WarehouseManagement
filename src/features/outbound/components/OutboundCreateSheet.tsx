@@ -24,15 +24,15 @@ import {
 
 const lineSchema = z.object({
   categoryId: z.string().optional().default(''),
-  productId: z.string().min(1, 'Product is required'),
-  quantity: z.coerce.number().gt(0, 'Quantity must be > 0'),
+  productId: z.string().min(1, 'Sản phẩm là bắt buộc'),
+  quantity: z.coerce.number().gt(0, 'Số lượng phải lớn hơn 0'),
 });
 
 const createSheetSchema = z.object({
   type: z.enum(['SALES', 'RETURN_TO_SUPPLIER']).default('SALES'),
-  reference_number: z.string().max(50, 'Reference number must be <= 50 characters').optional().default(''),
-  description: z.string().max(255, 'Notes must be <= 255 characters').optional().default(''),
-  details: z.array(lineSchema).min(1, 'Please add at least one product'),
+  reference_number: z.string().max(50, 'Số tham chiếu không được quá 50 ký tự').optional().default(''),
+  description: z.string().max(255, 'Ghi chú không được quá 255 ký tự').optional().default(''),
+  details: z.array(lineSchema).min(1, 'Vui lòng thêm ít nhất một sản phẩm'),
 });
 
 type CreateSheetValues = z.infer<typeof createSheetSchema>;
@@ -193,7 +193,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       if (duplicateProductIds.has(line.productId)) {
         setError(`details.${index}.productId`, {
           type: 'manual',
-          message: 'Product already exists in the list. Please merge quantities.',
+          message: 'Sản phẩm đã tồn tại trong danh sách. Vui lòng gộp số lượng.',
         });
       } else if (errors.details?.[index]?.productId?.type === 'manual') {
         clearErrors(`details.${index}.productId`);
@@ -294,7 +294,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
   const onSubmit = async (values: CreateSheetValues) => {
     if (values.details.length === 0) {
-      setError('details', { type: 'manual', message: 'Please add at least one product' });
+      setError('details', { type: 'manual', message: 'Vui lòng thêm ít nhất một sản phẩm' });
       highlightAndScrollToFirstError();
       return;
     }
@@ -316,8 +316,8 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
     if (!preferredLocationId) {
       toast({
-        title: 'Cannot create ticket',
-        description: 'Cannot determine warehouse location from selected product inventory.',
+        title: 'Không thể tạo phiếu',
+        description: 'Không xác định được vị trí kho từ tồn kho sản phẩm đã chọn.',
         variant: 'destructive',
       });
       return;
@@ -375,9 +375,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
             <SheetHeader className="border-b border-slate-100 px-6 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <SheetTitle>Create New Outbound Ticket</SheetTitle>
+                  <SheetTitle>Tạo phiếu xuất kho mới</SheetTitle>
                   <SheetDescription>
-                    Create a draft outbound ticket for submit/approval flow.
+                    Tạo phiếu xuất nháp để gửi duyệt theo luồng phê duyệt.
                   </SheetDescription>
                 </div>
                 <button
@@ -396,30 +396,30 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
             >
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
                 <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200">
-                  <h3 className="mb-4 text-sm font-bold text-slate-800">General Information</h3>
+                  <h3 className="mb-4 text-sm font-bold text-slate-800">Thông tin chung</h3>
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="outbound-ticket-type" className="mb-1.5 block text-xs font-semibold text-slate-500">
-                        Ticket Type <span className="text-red-500">*</span>
+                        Loại phiếu <span className="text-red-500">*</span>
                       </label>
                       <select
                         id="outbound-ticket-type"
                         {...register('type')}
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
                       >
-                        <option value="SALES">Sales (SALES)</option>
-                        <option value="RETURN_TO_SUPPLIER">Return to Supplier (RETURN_TO_SUPPLIER)</option>
+                        <option value="SALES">Xuất bán (SALES)</option>
+                        <option value="RETURN_TO_SUPPLIER">Trả NCC (RETURN_TO_SUPPLIER)</option>
                       </select>
                     </div>
 
                     <div>
-                      <label htmlFor="outbound-reference-number" className="mb-1.5 block text-xs font-semibold text-slate-500">Reference Number</label>
+                      <label htmlFor="outbound-reference-number" className="mb-1.5 block text-xs font-semibold text-slate-500">Số tham chiếu</label>
                       <input
                         id="outbound-reference-number"
                         {...register('reference_number')}
                         maxLength={50}
                         className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.reference_number ? 'border-red-400 outbound-sheet-error' : 'border-slate-200'}`}
-                        placeholder="e.g. SO-2026-001"
+                        placeholder="VD: SO-2026-001"
                       />
                       {errors.reference_number ? (
                         <p className="mt-1 text-xs text-red-500">{errors.reference_number.message}</p>
@@ -427,14 +427,14 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     </div>
 
                     <div>
-                      <label htmlFor="outbound-notes" className="mb-1.5 block text-xs font-semibold text-slate-500">Notes</label>
+                      <label htmlFor="outbound-notes" className="mb-1.5 block text-xs font-semibold text-slate-500">Ghi chú</label>
                       <textarea
                         id="outbound-notes"
                         {...register('description')}
                         maxLength={255}
                         rows={3}
                         className={`w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.description ? 'border-red-400 outbound-sheet-error' : 'border-slate-200'}`}
-                        placeholder="Optional notes..."
+                        placeholder="Ghi chú tuỳ chọn..."
                       />
                       {errors.description ? (
                         <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
@@ -445,14 +445,14 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
                 <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200">
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-slate-800">Outbound Product List</h3>
+                    <h3 className="text-sm font-bold text-slate-800">Danh sách sản phẩm xuất</h3>
                     <button
                       type="button"
                       onClick={() => append({ categoryId: '', productId: '', quantity: 0 })}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                     >
                       <span className="material-symbols-outlined text-[14px]">add</span>
-                      Add Product
+                      Thêm sản phẩm
                     </button>
                   </div>
 
@@ -463,7 +463,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   <div className="space-y-3">
                     {fields.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-400">
-                        No product rows yet. Click Add Product.
+                        Chưa có sản phẩm. Nhấn Thêm sản phẩm.
                       </div>
                     ) : null}
 
@@ -489,12 +489,12 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                       return (
                         <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-3 transition-all duration-200 animate-in fade-in-0 slide-in-from-bottom-1 hover:border-slate-300">
                           <div className="mb-3 flex items-center justify-between">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Row {index + 1}</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dòng {index + 1}</p>
                             <button
                               type="button"
                               onClick={() => remove(index)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
-                              title="Delete row"
+                              title="Xoá dòng"
                             >
                               <span className="material-symbols-outlined text-[18px]">delete</span>
                             </button>
@@ -502,7 +502,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                             <div>
-                              <label htmlFor={categoryFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">Category</label>
+                              <label htmlFor={categoryFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">Danh mục</label>
                               <select
                                 id={categoryFieldId}
                                 value={line?.categoryId ?? ''}
@@ -514,7 +514,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                                 }}
                                 className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm"
                               >
-                                <option value="">All categories</option>
+                                <option value="">Tất cả danh mục</option>
                                 {categories.map((category) => (
                                   <option key={category.id} value={category.id}>{category.name}</option>
                                 ))}
@@ -523,7 +523,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
                             <div>
                               <label htmlFor={productFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">
-                                Product <span className="text-red-500">*</span>
+                                Sản phẩm <span className="text-red-500">*</span>
                               </label>
                               <div className={lineErrors?.productId ? 'outbound-sheet-error rounded-md' : ''}>
                                 <ProductSearchSelect
@@ -536,7 +536,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                                   }}
                                   categoryId={line?.categoryId || undefined}
                                   excludeIds={excludeProductIds}
-                                  placeholder="Select product"
+                                  placeholder="Chọn sản phẩm"
                                 />
                               </div>
                               {lineErrors?.productId ? (
@@ -545,23 +545,23 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                             </div>
 
                             <div>
-                              <p className="mb-1 block text-[11px] font-semibold text-slate-500">Available</p>
+                              <p className="mb-1 block text-[11px] font-semibold text-slate-500">Khả dụng</p>
                               <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-semibold text-slate-700">
                                 {lineProductId
                                   ? (!inventory
-                                    ? 'Loading...'
+                                    ? 'Đang tải...'
                                     : inventory?.loading
-                                      ? 'Loading...'
+                                      ? 'Đang tải...'
                                       : inventory?.error
-                                        ? 'Unavailable'
-                                        : availableQty.toLocaleString('en-US'))
+                                        ? 'Không khả dụng'
+                                        : availableQty.toLocaleString('vi-VN'))
                                   : '—'}
                               </div>
                             </div>
 
                             <div>
                               <label htmlFor={quantityFieldId} className="mb-1 block text-[11px] font-semibold text-slate-500">
-                                Outbound Qty <span className="text-red-500">*</span>
+                                Số lượng xuất <span className="text-red-500">*</span>
                               </label>
                               <input
                                 id={quantityFieldId}
@@ -605,7 +605,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                     onClick={requestClose}
                     className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                   >
-                    Cancel
+                    Huỷ
                   </button>
                   <button
                     type="submit"
@@ -618,7 +618,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                         Đang lưu...
                       </>
                     ) : (
-                      'Save Outbound Ticket'
+                      'Lưu phiếu xuất'
                     )}
                   </button>
                 </div>
@@ -631,15 +631,15 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>You have unsaved data.</AlertDialogTitle>
+            <AlertDialogTitle>Bạn có dữ liệu chưa lưu.</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to close and cancel this operation?
+              Bạn có chắc muốn đóng và huỷ thao tác này không?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
             <AlertDialogAction onClick={forceClose} className="bg-red-600 hover:bg-red-700">
-              Exit Without Saving
+              Thoát không lưu
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
