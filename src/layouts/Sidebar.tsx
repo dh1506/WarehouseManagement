@@ -1,30 +1,28 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { useUiStore } from '@/store/uiStore';
 import { hasPageAccessFromPermissionNames } from '@/lib/pageAccess';
 
-const NAV_ROUTES: { to: string; icon: string; key: string; end?: boolean }[] = [
-  { to: '/', icon: 'dashboard', key: 'dashboard', end: true },
-  { to: '/admin/warehouses', icon: 'warehouse', key: 'warehouseHub' },
-  { to: '/admin/categories', icon: 'category', key: 'category' },
-  { to: '/admin/product-settings', icon: 'straighten', key: 'productSettings' },
-  { to: '/admin/products', icon: 'inventory_2', key: 'products' },
-  { to: '/inbound', icon: 'move_to_inbox', key: 'inbound' },
-  { to: '/outbound', icon: 'local_shipping', key: 'outbound' },
-  { to: '/inventory', icon: 'widgets', key: 'inventory' },
-  { to: '/inventory/transactions', icon: 'history', key: 'auditLog' },
-  { to: '/stock-count', icon: 'fact_check', key: 'stockCount' },
-  { to: '/stock-disposal', icon: 'delete_sweep', key: 'stockDisposal' },
-  { to: '/ai-forecast', icon: 'auto_awesome', key: 'aiForecast' },
-  { to: '/sales-data', icon: 'bar_chart', key: 'salesData' },
-  { to: '/reports', icon: 'monitoring', key: 'reports' },
-  { to: '/admin/users', icon: 'manage_accounts', key: 'userManagement' },
-  { to: '/admin/role-permissions', icon: 'security', key: 'roles' },
+const NAV_ROUTES: { to: string; icon: string; label: string; end?: boolean }[] = [
+  { to: '/', icon: 'dashboard', label: 'Bảng điều khiển', end: true },
+  { to: '/admin/warehouses', icon: 'warehouse', label: 'Trung tâm kho' },
+  { to: '/admin/categories', icon: 'category', label: 'Danh mục' },
+  { to: '/admin/product-settings', icon: 'straighten', label: 'Cài đặt sản phẩm' },
+  { to: '/admin/products', icon: 'inventory_2', label: 'Sản phẩm' },
+  { to: '/inbound', icon: 'move_to_inbox', label: 'Quản lý nhập kho' },
+  { to: '/outbound', icon: 'local_shipping', label: 'Quản lý xuất kho' },
+  { to: '/inventory', icon: 'widgets', label: 'Tồn kho' },
+  { to: '/inventory/transactions', icon: 'history', label: 'Nhật ký kiểm toán' },
+  { to: '/stock-count', icon: 'fact_check', label: 'Kiểm kê' },
+  { to: '/stock-disposal', icon: 'delete_sweep', label: 'Thanh lý hàng' },
+  { to: '/ai-forecast', icon: 'auto_awesome', label: 'Dự báo AI' },
+  { to: '/sales-data', icon: 'bar_chart', label: 'Dữ liệu bán hàng' },
+  { to: '/reports', icon: 'monitoring', label: 'Báo cáo' },
+  { to: '/admin/users', icon: 'manage_accounts', label: 'Quản lý người dùng' },
+  { to: '/admin/role-permissions', icon: 'security', label: 'Vai trò & Phân quyền' },
 ];
 
 export function Sidebar() {
-  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -35,8 +33,7 @@ export function Sidebar() {
   const permissionNames = user?.permissions ?? [];
   const roleName = user?.role ?? '';
 
-  const navItems = NAV_ROUTES.map((r) => ({ ...r, label: t(`nav.${r.key}`) }));
-  const visibleNavItems = navItems.filter((item) =>
+  const visibleNavItems = NAV_ROUTES.filter((item) =>
     hasPageAccessFromPermissionNames(item.to, permissionNames, roleName),
   );
 
@@ -49,18 +46,18 @@ export function Sidebar() {
     <aside
       className={`
         bg-white border-r border-gray-100 flex-col justify-between
-        hidden md:flex flex-shrink-0 overflow-hidden
-        transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+        hidden md:flex shrink-0 overflow-hidden
+        transition-[width] duration-300 ease-in-out
         ${collapsed ? 'w-16' : 'w-64'}
       `}
     >
       <div className="flex flex-col h-full">
 
         {/* ── Logo & Toggle ─────────────────────────────────────────────────── */}
-        <div className="relative h-20 flex items-center justify-between px-3 border-b border-gray-50 flex-shrink-0 overflow-hidden">
+        <div className="relative h-20 flex items-center justify-between px-3 border-b border-gray-50 shrink-0 overflow-hidden">
           {/* Wrapper chứa icon và text, sẽ fade và co lại khi thu nhỏ để chừa chỗ cho hamburger menu ở giữa */}
           <div className={`flex items-center gap-3 min-w-0 transition-opacity duration-300 ${collapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-sm shrink-0">
               <span className="material-symbols-outlined text-white text-lg" data-icon="auto_awesome">
                 auto_awesome
               </span>
@@ -78,7 +75,7 @@ export function Sidebar() {
           <button
             onClick={toggleSidebar}
             title={collapsed ? 'Mở rộng sidebar' : 'Thu nhỏ sidebar'}
-            className={`absolute transition-all duration-300 p-2 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30 flex-shrink-0 ${collapsed ? 'left-1/2 -translate-x-1/2' : 'right-3'
+            className={`absolute transition-all duration-300 p-2 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0 ${collapsed ? 'left-1/2 -translate-x-1/2' : 'right-3'
               }`}
           >
             <span className="material-symbols-outlined text-[24px]" >
@@ -111,7 +108,7 @@ export function Sidebar() {
               {({ isActive }) => (
                 <>
                   <span
-                    className={`material-symbols-outlined text-[20px] flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
+                    className={`material-symbols-outlined text-[20px] shrink-0 transition-colors duration-200 ${isActive ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
                       }`}
                     data-icon={item.icon}
                   >
@@ -120,7 +117,7 @@ export function Sidebar() {
 
                   {/* Label — ẩn khi thu nhỏ */}
                   <span
-                    className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${collapsed ? 'w-0 opacity-0 pointer-events-none' : 'w-auto opacity-100'
+                    className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'w-0 opacity-0 pointer-events-none' : 'w-auto opacity-100'
                       }`}
                   >
                     {item.label}
@@ -152,7 +149,7 @@ export function Sidebar() {
 
 
         {/* ── User Profile ──────────────────────────────────────────────────── */}
-        <div className="p-3 border-t border-gray-100 flex-shrink-0">
+        <div className="p-3 border-t border-gray-100 shrink-0">
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2`}>
             {/* NavLink cho Profile */}
             <NavLink
@@ -166,14 +163,14 @@ export function Sidebar() {
             >
               {/* Avatar — luôn hiển thị */}
               <div
-                className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0"
+                className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0"
               >
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
 
               {/* Name + Role — ẩn khi thu nhỏ */}
               <div
-                className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] min-w-0 ${collapsed ? 'w-0 opacity-0 ml-0' : 'flex-1 opacity-100 ml-3'
+                className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${collapsed ? 'w-0 opacity-0 ml-0' : 'flex-1 opacity-100 ml-3'
                   }`}
               >
                 <p className="text-sm font-semibold text-gray-900 truncate whitespace-nowrap">
@@ -190,7 +187,7 @@ export function Sidebar() {
               <button
                 onClick={handleLogout}
                 title="Đăng xuất"
-                className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 p-1 rounded-md hover:bg-red-50"
+                className="text-gray-400 hover:text-red-500 transition-colors shrink-0 p-1 rounded-md hover:bg-red-50"
               >
                 <span className="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
               </button>

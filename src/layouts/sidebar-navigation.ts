@@ -12,7 +12,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/',
     icon: 'dashboard',
-    label: 'Dashboard',
+    label: 'Bảng điều khiển',
     end: true,
     permissionModule: 'dashboard',
     pageDescription: 'Trang tổng quan vận hành và KPI hệ thống.',
@@ -20,7 +20,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/warehouses',
     icon: 'warehouse',
-    label: 'Warehouse Hub',
+    label: 'Trung tâm kho',
     permissionModule: 'warehouses',
     permissionAliases: ['warehouse'],
     pageDescription: 'Quản lý sơ đồ kho, zone và năng lực lưu trữ.',
@@ -28,7 +28,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/categories',
     icon: 'category',
-    label: 'Category',
+    label: 'Danh mục',
     permissionModule: 'categories',
     permissionAliases: ['category'],
     pageDescription: 'Quản lý danh mục ngành hàng và phân loại sản phẩm.',
@@ -36,7 +36,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/product-settings',
     icon: 'straighten',
-    label: 'Product Settings',
+    label: 'Cài đặt sản phẩm',
     permissionModule: 'references',
     permissionAliases: ['product-settings', 'product_settings', 'reference-settings'],
     pageDescription: 'Thiết lập đơn vị tính, thương hiệu và dữ liệu tham chiếu sản phẩm.',
@@ -44,7 +44,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/products',
     icon: 'inventory_2',
-    label: 'Products',
+    label: 'Sản phẩm',
     permissionModule: 'products',
     permissionAliases: ['product'],
     pageDescription: 'Quản lý product master và thông tin mặt hàng.',
@@ -52,7 +52,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/suppliers',
     icon: 'local_shipping',
-    label: 'Suppliers',
+    label: 'Nhà cung cấp',
     permissionModule: 'suppliers',
     permissionAliases: ['supplier'],
     pageDescription: 'Quản lý hồ sơ nhà cung cấp và đầu mối liên hệ mua hàng.',
@@ -60,14 +60,14 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/inventory',
     icon: 'widgets',
-    label: 'Inventory',
+    label: 'Tồn kho',
     permissionModule: 'inventory',
     pageDescription: 'Theo dõi tồn kho, vị trí hàng và biến động số lượng.',
   },
   {
     to: '/ai-forecast',
     icon: 'auto_awesome',
-    label: 'AI Forecast',
+    label: 'Dự báo AI',
     permissionModule: 'ai-forecast',
     permissionAliases: ['ai_forecast', 'forecast'],
     pageDescription: 'Phân tích và dự báo nhu cầu bằng AI.',
@@ -75,7 +75,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/users',
     icon: 'manage_accounts',
-    label: 'User Managerment',
+    label: 'Quản lý người dùng',
     permissionModule: 'users',
     permissionAliases: ['user'],
     pageDescription: 'Quản lý người dùng, trạng thái tài khoản và thông tin hồ sơ.',
@@ -83,7 +83,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/role-permissions',
     icon: 'security',
-    label: 'Roles',
+    label: 'Vai trò & Phân quyền',
     permissionModule: 'roles',
     permissionAliases: ['role'],
     pageDescription: 'Cấu hình vai trò và ma trận phân quyền theo module.',
@@ -91,7 +91,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/admin/advanced-permission',
     icon: 'admin_panel_settings',
-    label: 'Advanced Permissions',
+    label: 'Phân quyền nâng cao',
     permissionModule: 'permissions',
     permissionAliases: ['advanced-permissions', 'advanced_permissions'],
     pageDescription: 'Thiết lập logic quyền nâng cao và kiểm soát truy cập mở rộng.',
