@@ -43,6 +43,23 @@ apiClient.interceptors.request.use(
 
     config.params = normalizeRequestLimit(config.params) as typeof config.params;
 
+    // For FormData payloads the browser must set Content-Type itself so it
+    // can append the required multipart boundary token.
+    //
+    // Why `false` and not `delete`:
+    //   dispatchRequest (runs AFTER interceptors) calls
+    //   headers.setContentType('application/x-www-form-urlencoded', false).
+    //   The second arg `false` means "only set if not already present".
+    //   After a plain delete the key is gone, so "not present" → it re-adds.
+    //   Setting the value to `false` keeps the key alive with a sentinel;
+    //   AxiosHeaders.setContentType(…, false) sees the existing `false` and
+    //   skips the override. toJSON() also excludes `false` values, so nothing
+    //   reaches xhr.setRequestHeader — the browser then auto-injects
+    //   "multipart/form-data; boundary=<uuid>" from the FormData body.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      config.headers.set('Content-Type', false);
+    }
+
     return config;
   },
   (error) => {

@@ -19,8 +19,10 @@ function unwrap<T>(response: unknown): T {
 export async function importSalesBatch(file: File): Promise<SalesImportResult> {
   const formData = new FormData();
   formData.append('file', file);
+  // Content-Type is deleted by the apiClient request interceptor for all
+  // FormData bodies, allowing the browser to inject the correct
+  // multipart/form-data; boundary=... header automatically.
   const response = await apiClient.post('/api/sales/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 60_000,
   });
   return unwrap<SalesImportResult>(response);
@@ -40,7 +42,10 @@ export async function getSalesTransactions(
   if (params.product_id) query.product_id = params.product_id;
 
   const response = await apiClient.get('/api/sales/transactions', { params: query });
-  return unwrap<SalesTransactionListResponse>(response);
+  // The interceptor already returns response.data (the full JSON body).
+  // BE sends { success, data: [...], meta: {...} } at the top level, which
+  // directly matches SalesTransactionListResponse — no further unwrap needed.
+  return response as unknown as SalesTransactionListResponse;
 }
 
 // ── GET /api/sales/summaries ──────────────────────────────────────────────────
@@ -57,5 +62,7 @@ export async function getSalesDailySummaries(
   if (params.product_id) query.product_id = params.product_id;
 
   const response = await apiClient.get('/api/sales/summaries', { params: query });
-  return unwrap<SalesDailySummaryListResponse>(response);
+  // Same shape as transactions — BE returns { success, data: [...], meta: {...} }
+  // at the top level; return directly without unwrap.
+  return response as unknown as SalesDailySummaryListResponse;
 }
