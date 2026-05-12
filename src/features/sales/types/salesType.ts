@@ -22,7 +22,7 @@ export interface SalesTransaction {
   transaction_type: SalesTransactionType;
   transaction_date: string; // ISO datetime
   product_id: number;
-  quantity: number;
+  quantity: string; // Decimal serialised as string by Prisma
   unit_price: string; // Decimal as string
   promo_discount_amount: string;
   net_amount: string;

@@ -189,7 +189,8 @@ function TransactionRow({
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03, duration: 0.2 }}
-      className="hover:bg-slate-50/80 transition-colors group"
+      onClick={() => onViewDetail(tx.id)}
+      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
     >
       {/* Timestamp */}
       <TableCell className="whitespace-nowrap">
@@ -258,7 +259,7 @@ function TransactionRow({
       {/* Action */}
       <TableCell className="whitespace-nowrap text-right">
         <button
-          onClick={() => onViewDetail(tx.id)}
+          onClick={(e) => { e.stopPropagation(); onViewDetail(tx.id); }}
           className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
           aria-label="Xem chi tiết"
         >
@@ -615,11 +616,9 @@ export function TransactionHistory() {
             </Table>
           </div>
 
-        </div>
-
-        {/* ── Pagination ─────────────────────────────────────────────────── */}
-        {pagination && pagination.total > 0 && (
-          <div className="flex items-center justify-between px-1 py-1 shrink-0">
+          {/* ── Pagination ─────────────────────────────────────────────────── */}
+          {pagination && pagination.total > 0 && (
+          <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-100 shrink-0">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -682,13 +681,14 @@ export function TransactionHistory() {
                 <span className="hidden sm:inline">Sau</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
-            </div>
 
-            <span className="text-xs text-slate-400 tabular-nums">
-              Trang {page} / {totalPages}
-            </span>
+              <span className="text-xs text-slate-400 tabular-nums">
+                Trang {page} / {totalPages}
+              </span>
+            </div>
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── Detail Sheet ───────────────────────────────────────────────── */}

@@ -11,7 +11,7 @@ const NAV_ROUTES: { to: string; icon: string; label: string; end?: boolean }[] =
   { to: '/admin/products', icon: 'inventory_2', label: 'Sản phẩm' },
   { to: '/inbound', icon: 'move_to_inbox', label: 'Quản lý nhập kho' },
   { to: '/outbound', icon: 'local_shipping', label: 'Quản lý xuất kho' },
-  { to: '/inventory', icon: 'widgets', label: 'Tồn kho' },
+  { to: '/inventory', icon: 'widgets', label: 'Tồn kho', end: true },
   { to: '/inventory/transactions', icon: 'history', label: 'Nhật ký kiểm toán' },
   { to: '/stock-count', icon: 'fact_check', label: 'Kiểm kê' },
   { to: '/stock-disposal', icon: 'delete_sweep', label: 'Thanh lý hàng' },

@@ -195,16 +195,6 @@ export function ImportCenterTab() {
       </AnimatePresence>
 
       <div className="flex flex-col gap-6 max-w-3xl">
-        {/* Page description */}
-        <div>
-          <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 leading-7">
-            Trung tâm nhập liệu
-          </h2>
-          <p className="text-[13px] text-zinc-500 mt-1">
-            Tải lên file Excel chứa dữ liệu giao dịch bán hàng để đồng bộ vào hệ thống.
-          </p>
-        </div>
-
         {/* Success banner */}
         <AnimatePresence>
           {successCount !== null && (
@@ -474,7 +464,7 @@ export function ImportCenterTab() {
               </div>
               <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[580px]">
+                  <table className="w-full text-left border-collapse min-w-145">
                     <thead>
                       <tr className="bg-zinc-50 border-b border-zinc-200">
                         <th className="px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase text-zinc-500 w-14">

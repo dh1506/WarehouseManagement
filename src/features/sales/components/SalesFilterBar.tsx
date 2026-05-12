@@ -78,10 +78,10 @@ export function SalesFilterBar({ filters, onChange, onApply }: SalesFilterBarPro
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="flex flex-col sm:flex-row sm:items-start gap-3 flex-wrap"
+      className="flex flex-row items-center gap-3 flex-wrap"
     >
-      {/* Date range */}
-      <div className="flex flex-col xs:flex-row items-start xs:items-center gap-2">
+      {/* Date range — always a single horizontal row */}
+      <div className="flex flex-row items-center gap-2">
         <div className="relative flex items-center">
           <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
           <input
@@ -91,10 +91,10 @@ export function SalesFilterBar({ filters, onChange, onApply }: SalesFilterBarPro
             onChange={handleStartDate}
             onKeyDown={handleKeyDown}
             aria-label="Ngày bắt đầu"
-            className="h-9 pl-8 pr-3 text-[13px] bg-white border border-zinc-200 rounded text-zinc-800 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 transition-colors w-[148px]"
+            className="h-9 pl-8 pr-3 text-[13px] bg-white border border-zinc-200 rounded text-zinc-800 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-300 transition-colors w-35"
           />
         </div>
-        <span className="text-[12px] text-zinc-400 font-medium hidden xs:block">→</span>
+        <span className="text-[12px] text-zinc-400 font-medium">→</span>
         <div className="relative flex items-center">
           <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
           <input
@@ -105,18 +105,13 @@ export function SalesFilterBar({ filters, onChange, onApply }: SalesFilterBarPro
             onKeyDown={handleKeyDown}
             aria-label="Ngày kết thúc"
             className={[
-              'h-9 pl-8 pr-3 text-[13px] bg-white border rounded text-zinc-800 focus:outline-none focus:ring-1 transition-colors w-[148px]',
+              'h-9 pl-8 pr-3 text-[13px] bg-white border rounded text-zinc-800 focus:outline-none focus:ring-1 transition-colors w-35',
               isEndDateError
                 ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
                 : 'border-zinc-200 focus:border-zinc-400 focus:ring-zinc-300',
             ].join(' ')}
           />
         </div>
-        {isEndDateError && (
-          <p className="text-[11px] text-red-500 xs:hidden">
-            Ngày kết thúc phải sau ngày bắt đầu
-          </p>
-        )}
       </div>
 
       {/* Location combobox */}
@@ -196,7 +191,7 @@ export function SalesFilterBar({ filters, onChange, onApply }: SalesFilterBarPro
       </Button>
 
       {isEndDateError && (
-        <p className="text-[11px] text-red-500 hidden xs:block self-center">
+        <p className="text-[11px] text-red-500 self-center">
           Ngày kết thúc phải sau ngày bắt đầu
         </p>
       )}
