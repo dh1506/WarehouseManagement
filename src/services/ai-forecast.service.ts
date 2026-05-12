@@ -1,7 +1,14 @@
 import axios from 'axios';
 import { prisma } from '../config/db.config';
 import { AppError } from '../utils/app-error';
-import { genAI, GEMINI_MODEL, AI_MAX_RETRIES, AI_RETRY_DELAY_MS, AI_REQUEST_TIMEOUT_MS } from '../config/gemini.config';
+import {
+  getGeminiClient,
+  GEMINI_TOTAL_KEYS,
+  GEMINI_MODEL,
+  AI_MAX_RETRIES,
+  AI_RETRY_DELAY_MS,
+  AI_REQUEST_TIMEOUT_MS,
+} from '../config/gemini.config';
 import { sendMapeAlertEmail, type MapeAlertItem } from '../utils/email.util';
 import type { Prisma } from '../generated';
 
@@ -25,6 +32,45 @@ interface ForecastResultItem {
 
 interface GeminiAiResponse {
   results: ForecastResultItem[];
+}
+
+/** Mức ưu tiên nhập hàng dựa trên stock-out risk */
+type StockPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'STABLE';
+
+/** Đề xuất nhập hàng cho 1 sản phẩm (response trả về client) */
+interface ForecastRecommendation {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  product_categories: string[];
+  current_stock: number;
+  incoming_stock: number;
+  safe_stock: number;
+  forecast_demand: number;
+  suggested_order: number;
+  reasoning: string;
+  confidence_level: string;
+  priority: StockPriority;
+}
+
+/** Tóm tắt tổng quan 1 lần dự báo */
+interface ForecastSummary {
+  forecast_id: number;
+  status: string;
+  is_fallback: boolean;
+  total_products: number;
+  products_need_order: number;
+  products_stable: number;
+  total_suggested_qty: number;
+  weather_context: string;
+  event_impact: string | null;
+}
+
+/** Response hoàn chỉnh cho triggerForecast và getForecastDetail */
+export interface TriggerForecastResponse {
+  summary: ForecastSummary;
+  urgent_orders: ForecastRecommendation[];
+  stable_products: ForecastRecommendation[];
 }
 
 // =============================================
@@ -101,41 +147,103 @@ const calcMape = (forecast: number, actual: number): number | null => {
 };
 
 /**
- * Gọi Gemini AI với retry tối đa AI_MAX_RETRIES lần
+ * Gọi Gemini AI với cơ chế auto-swap API key.
+ * Luồng: retry AI_MAX_RETRIES lần trên key hiện tại → nếu fail → swap sang key tiếp theo.
+ * Chỉ throw khi TẤT CẢ key đều fail.
  */
 const callGeminiWithRetry = async (prompt: string): Promise<GeminiAiResponse> => {
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= AI_MAX_RETRIES; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+  for (let keyIndex = 0; keyIndex < GEMINI_TOTAL_KEYS; keyIndex++) {
+    const client = getGeminiClient(keyIndex);
+    console.log(`[AI Forecast] Sử dụng API key #${keyIndex + 1}/${GEMINI_TOTAL_KEYS}`);
 
-      const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-        },
-      });
+    for (let attempt = 1; attempt <= AI_MAX_RETRIES; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
 
-      clearTimeout(timer);
+        const model = client.getGenerativeModel({ model: GEMINI_MODEL });
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+          },
+        });
 
-      const text = result.response.text() ?? '';
-      // Trích xuất JSON từ response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Gemini không trả về JSON hợp lệ');
+        clearTimeout(timer);
 
-      return JSON.parse(jsonMatch[0]) as GeminiAiResponse;
-    } catch (err) {
-      lastError = err;
-      console.warn(`[AI Forecast] Lần thử ${attempt}/${AI_MAX_RETRIES} thất bại:`, err);
-      if (attempt < AI_MAX_RETRIES) await delay(AI_RETRY_DELAY_MS * attempt);
+        const text = result.response.text() ?? '';
+        // Trích xuất JSON từ response
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Gemini không trả về JSON hợp lệ');
+
+        return JSON.parse(jsonMatch[0]) as GeminiAiResponse;
+      } catch (err) {
+        lastError = err;
+        console.warn(
+          `[AI Forecast] Key #${keyIndex + 1} - Lần thử ${attempt}/${AI_MAX_RETRIES} thất bại:`,
+          err
+        );
+        if (attempt < AI_MAX_RETRIES) await delay(AI_RETRY_DELAY_MS * attempt);
+      }
+    }
+
+    // Key hiện tại fail hết → log và chuyển sang key tiếp theo
+    if (keyIndex < GEMINI_TOTAL_KEYS - 1) {
+      console.warn(`[AI Forecast] Key #${keyIndex + 1} fail sau ${AI_MAX_RETRIES} lần. Tự động swap sang key #${keyIndex + 2}...`);
     }
   }
 
   throw lastError;
+};
+
+/**
+ * Tính mức ưu tiên nhập hàng dựa trên stock-out risk.
+ * So sánh lượng hàng khả dụng (tồn kho + đang về) với nhu cầu dự báo.
+ */
+const calcPriority = (
+  currentStock: number,
+  incomingStock: number,
+  forecastQty: number,
+  suggestedOrder: number
+): StockPriority => {
+  if (suggestedOrder === 0) return 'STABLE';
+  const available = currentStock + incomingStock;
+  const coverage = forecastQty > 0 ? available / forecastQty : 1;
+  if (coverage < 0.25) return 'CRITICAL'; // Đủ dùng < 1 tuần
+  if (coverage < 0.5) return 'HIGH';      // Đủ dùng < 2 tuần
+  if (coverage < 0.75) return 'MEDIUM';   // Đủ dùng < 3 tuần
+  return 'LOW';
+};
+
+/**
+ * Format confidence từ số (0-1) sang chuỗi dễ đọc
+ */
+const formatConfidence = (confidence: number | undefined): string => {
+  if (confidence === undefined || confidence === null) return 'N/A';
+  const pct = Math.round(confidence * 100);
+  if (pct >= 80) return `High (${pct}%)`;
+  if (pct >= 50) return `Medium (${pct}%)`;
+  return `Low (${pct}%)`;
+};
+
+/**
+ * Tạo weather context string từ WeatherData
+ */
+const buildWeatherContext = (w: WeatherData): string => {
+  const conditionMap: Record<string, string> = {
+    Clear: 'trời nắng', Rain: 'trời mưa', Clouds: 'trời nhiều mây',
+    Drizzle: 'mưa phùn', Thunderstorm: 'giông bão', Snow: 'tuyết',
+    Mist: 'sương mù', Haze: 'sương mù nhẹ', Unknown: 'không xác định',
+  };
+  const condText = conditionMap[w.condition] ?? w.condition;
+  const tempNote = w.temperature >= 33 ? 'Ưu tiên đồ uống giải nhiệt'
+    : w.temperature >= 28 ? 'Thời tiết nóng, nhu cầu đồ uống tăng nhẹ'
+    : w.temperature <= 20 ? 'Thời tiết lạnh, nhu cầu đồ ấm tăng'
+    : 'Thời tiết ôn hòa';
+  return `Dự báo ${condText} (${w.temperature}°C), độ ẩm ${w.humidity}% - ${tempNote}`;
 };
 
 /**
@@ -219,22 +327,35 @@ export const listForecastEvents = async () => {
 };
 
 /**
- * Trigger dự báo AI thủ công
+ * Trigger dự báo AI thủ công.
+ * Trả về TriggerForecastResponse với summary + recommendations phân nhóm.
  */
 export const triggerForecast = async (params: {
   forecast_month: string;
   event_id?: number;
   city?: string;
   triggeredBy: number;
-}) => {
+}): Promise<TriggerForecastResponse> => {
   const { forecast_month, event_id, city, triggeredBy } = params;
   const forecastMonthDate = new Date(`${forecast_month}-01`);
   const cityName = city ?? process.env.DEFAULT_CITY ?? 'Ho Chi Minh City';
 
-  // 1. Lấy danh sách sản phẩm và tồn kho
+  // 1. Lấy danh sách sản phẩm, tồn kho, và thông tin danh mục
   const inventories = await prisma.inventory.findMany({
     include: {
-      product: { select: { id: true, code: true, name: true, safe_stock: true } },
+      product: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          safe_stock: true,
+          product_type: true,
+          description: true,
+          categories: {
+            select: { category: { select: { name: true } } },
+          },
+        },
+      },
       location: { select: { id: true, warehouse_id: true } },
     },
   });
@@ -291,7 +412,7 @@ export const triggerForecast = async (params: {
     ? await prisma.aiForecastEvent.findUnique({ where: { id: event_id } })
     : null;
 
-  // 6. Xây dựng input snapshot (masked)
+  // 6. Xây dựng input snapshot (masked) - bổ sung category, type, description
   const inputPayload = {
     forecast_month,
     weather: weatherData,
@@ -299,6 +420,7 @@ export const triggerForecast = async (params: {
       ? {
           program_name: event.program_name,
           promotion_types: event.promotion_types,
+          applicable_products: event.applicable_products,
           channels: event.channels,
           expected_target: event.expected_target,
           start_date: event.start_date,
@@ -310,6 +432,9 @@ export const triggerForecast = async (params: {
         product_id: inv.product_id,
         product_code: inv.product.code,
         product_name: inv.product.name,
+        product_type: inv.product.product_type,
+        product_description: inv.product.description ?? '',
+        product_categories: inv.product.categories.map((c) => c.category.name),
         current_stock: Number(inv.quantity),
         safe_stock: Number(inv.product.safe_stock ?? 0),
         incoming_stock: incomingMap.get(inv.product_id) ?? 0,
@@ -332,7 +457,7 @@ export const triggerForecast = async (params: {
     },
   });
 
-  // 8. Gọi Gemini AI (với retry và fallback)
+  // 8. Gọi Gemini AI (auto-swap key + fallback)
   let forecastResults: ForecastResultItem[];
   let isFallback = false;
   let fallbackReason: string | null = null;
@@ -346,13 +471,14 @@ export const triggerForecast = async (params: {
     forecastResults = aiResponse.results;
   } catch (err) {
     isFallback = true;
-    fallbackReason = `AI thất bại sau ${AI_MAX_RETRIES} lần thử: ${String(err)}`;
-    console.error('[AI Forecast] Dùng fallback forecast:', fallbackReason);
+    fallbackReason = `AI thất bại sau ${AI_MAX_RETRIES} lần thử x ${GEMINI_TOTAL_KEYS} key: ${String(err)}`;
+    console.error('[AI Forecast] Tất cả API key đều fail. Dùng fallback forecast:', fallbackReason);
     forecastResults = await calcFallbackForecast(productIds, warehouseLocationId);
   }
 
-  // 9. Lưu kết quả và tính suggested_order_qty
+  // 9. Lưu kết quả vào DB và build response
   const inventoryMap = new Map(inventories.map((inv) => [inv.product_id, inv]));
+  const aiResultMap = new Map(forecastResults.map((r) => [r.product_id, r]));
 
   const resultCreateData: Prisma.AiForecastResultCreateManyInput[] = forecastResults.map((r) => {
     const inv = inventoryMap.get(r.product_id);
@@ -387,38 +513,112 @@ export const triggerForecast = async (params: {
     },
   });
 
-  return prisma.aiForecast.findUnique({
-    where: { id: forecast.id },
-    include: { results: { include: { product: { select: { id: true, code: true, name: true } } } } },
+  // 11. Build response tập trung vào quyết định nhập hàng
+  const recommendations: ForecastRecommendation[] = resultCreateData.map((r) => {
+    const inv = inventoryMap.get(r.product_id);
+    const aiDetail = aiResultMap.get(r.product_id);
+    const suggested = Number(r.suggested_order_qty);
+
+    return {
+      product_id: r.product_id,
+      product_code: inv?.product.code ?? '',
+      product_name: inv?.product.name ?? '',
+      product_categories: inv?.product.categories.map((c) => c.category.name) ?? [],
+      current_stock: Number(r.current_stock),
+      incoming_stock: Number(r.incoming_stock),
+      safe_stock: Number(r.safe_stock),
+      forecast_demand: Number(r.forecast_qty),
+      suggested_order: suggested,
+      reasoning: aiDetail?.note ?? 'Tính toán dựa trên lịch sử bán hàng',
+      confidence_level: formatConfidence(aiDetail?.confidence),
+      priority: calcPriority(
+        Number(r.current_stock),
+        Number(r.incoming_stock),
+        Number(r.forecast_qty),
+        suggested
+      ),
+    };
   });
+
+  // Phân nhóm: cần nhập gấp vs ổn định
+  const urgentOrders = recommendations.filter((r) => r.suggested_order > 0);
+  const stableProducts = recommendations.filter((r) => r.suggested_order === 0);
+
+  // Sắp xếp urgent theo priority: CRITICAL > HIGH > MEDIUM > LOW
+  const priorityOrder: Record<StockPriority, number> = {
+    CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, STABLE: 4,
+  };
+  urgentOrders.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  // Build event impact string
+  let eventImpact: string | null = null;
+  if (event) {
+    const promoTypes = Array.isArray(event.promotion_types)
+      ? (event.promotion_types as string[]).join(', ')
+      : String(event.promotion_types);
+    eventImpact = `Chương trình "${event.program_name}" (${promoTypes}) - Dự kiến ảnh hưởng nhu cầu`;
+    if (event.expected_target) {
+      eventImpact += ` | Mục tiêu: ${event.expected_target}`;
+    }
+  }
+
+  return {
+    summary: {
+      forecast_id: forecast.id,
+      status: 'COMPLETED',
+      is_fallback: isFallback,
+      total_products: recommendations.length,
+      products_need_order: urgentOrders.length,
+      products_stable: stableProducts.length,
+      total_suggested_qty: urgentOrders.reduce((sum, r) => sum + r.suggested_order, 0),
+      weather_context: buildWeatherContext(weatherData),
+      event_impact: eventImpact,
+    },
+    urgent_orders: urgentOrders,
+    stable_products: stableProducts,
+  };
 };
 
 /**
- * Tạo prompt gửi Gemini AI
+ * Tạo prompt gửi Gemini AI.
+ * Prompt được thiết kế để AI hiểu ngữ cảnh sự kiện, danh mục sản phẩm,
+ * và trả về giải thích bằng ngôn ngữ "người bán hàng".
  */
 const buildGeminiPrompt = (input: Record<string, unknown>): string => {
   return `
-Bạn là hệ thống AI dự báo nhu cầu hàng hóa cho chuỗi F&B tại Việt Nam.
+Bạn là trợ lý AI tư vấn nhập hàng cho chuỗi F&B tại Việt Nam.
+Vai trò: Giúp người quản lý kho quyết định nhập bao nhiêu hàng cho tháng tới.
 
 Dữ liệu đầu vào:
 ${JSON.stringify(input, null, 2)}
 
 Nhiệm vụ: Dự báo số lượng bán ra trong tháng ${input['forecast_month']} cho từng sản phẩm.
 
-Hướng dẫn:
-- Phân tích mối liên hệ giữa thời tiết và nhu cầu (VD: trời nóng tăng đồ uống lạnh 20-30%)
-- Xét tác động của sự kiện khuyến mãi đến nhu cầu
-- Dựa trên doanh số tháng trước (prev_month_sales) làm baseline
-- Chỉ trả về JSON thuần, không giải thích thêm
+Hướng dẫn QUAN TRỌNG:
+1. Dựa trên doanh số tháng trước (prev_month_sales) làm baseline chính.
+2. Phân tích thời tiết: Trời nóng (>30°C) → tăng đồ uống lạnh 20-30%, trời lạnh (<22°C) → tăng đồ nóng.
+3. Sự kiện khuyến mãi:
+   - Nếu có sự kiện (event != null), XEM KỸ trường "applicable_products" và "promotion_types".
+   - CHỈ TĂNG dự báo cho sản phẩm LIÊN QUAN đến chương trình. Xác định bằng cách đối chiếu product_categories và product_type với mô tả applicable_products.
+   - VÍ DỤ: Nếu chương trình "Combo nước giải khát" → chỉ tăng forecast cho SP có danh mục đồ uống.
+   - Sản phẩm KHÔNG liên quan đến chương trình → giữ nguyên hoặc chỉ điều chỉnh theo thời tiết.
+4. Nếu prev_month_sales = 0, dự báo dựa trên sản phẩm tương tự cùng danh mục.
+
+Quy tắc cho kết quả:
+- forecast_qty: Phải là SỐ NGUYÊN DƯƠNG (làm tròn lên).
+- confidence: Số từ 0 đến 1, thể hiện độ tin cậy.
+- note: Giải thích ngắn gọn bằng TIẾNG VIỆT, dùng ngôn ngữ người bán hàng.
+  VD tốt: "Tăng 25% do nắng nóng + KM combo", "Giữ nguyên, không bị ảnh hưởng KM".
+  VD xấu: "Forecast increased by weather factor 1.25 multiplied by promotion factor".
 
 Định dạng JSON phản hồi (BẮT BUỘC):
 {
   "results": [
     {
       "product_id": <number>,
-      "forecast_qty": <number - số lượng dự báo cho cả tháng>,
+      "forecast_qty": <number - số lượng dự báo cho CẢ THÁNG, số nguyên dương>,
       "confidence": <number 0-1 - độ tin cậy>,
-      "note": "<string - lý do ngắn>"
+      "note": "<string - lý do ngắn gọn bằng tiếng Việt>"
     }
   ]
 }
@@ -464,9 +664,10 @@ export const listForecastHistory = async (query: {
 };
 
 /**
- * Lấy chi tiết 1 forecast + kết quả từng sản phẩm
+ * Lấy chi tiết 1 forecast + kết quả từng sản phẩm.
+ * Trả về TriggerForecastResponse với summary + recommendations phân nhóm.
  */
-export const getForecastDetail = async (id: number) => {
+export const getForecastDetail = async (id: number): Promise<TriggerForecastResponse> => {
   const forecast = await prisma.aiForecast.findUnique({
     where: { id },
     include: {
@@ -474,7 +675,16 @@ export const getForecastDetail = async (id: number) => {
       event: true,
       results: {
         include: {
-          product: { select: { id: true, code: true, name: true } },
+          product: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              categories: {
+                select: { category: { select: { name: true } } },
+              },
+            },
+          },
           reviewer: { select: { id: true, full_name: true } },
         },
         orderBy: { product_id: 'asc' },
@@ -482,7 +692,79 @@ export const getForecastDetail = async (id: number) => {
     },
   });
   if (!forecast) throw new AppError('Không tìm thấy bản ghi dự báo', 404);
-  return forecast;
+
+  // Trích xuất AI raw response để lấy note/confidence
+  const aiRaw = forecast.ai_raw_response as { results?: ForecastResultItem[] } | null;
+  const aiResultMap = new Map(
+    (aiRaw?.results ?? []).map((r) => [r.product_id, r])
+  );
+
+  // Đọc weather data
+  const weatherData = (forecast.weather_data as WeatherData | null) ?? {
+    city: 'Unknown', temperature: 30, condition: 'Unknown', humidity: 70,
+  };
+
+  // Build recommendations từ kết quả đã lưu
+  const recommendations: ForecastRecommendation[] = forecast.results.map((r) => {
+    const aiDetail = aiResultMap.get(r.product_id);
+    const suggested = Number(r.suggested_order_qty);
+
+    return {
+      product_id: r.product_id,
+      product_code: r.product.code,
+      product_name: r.product.name,
+      product_categories: r.product.categories.map((c) => c.category.name),
+      current_stock: Number(r.current_stock),
+      incoming_stock: Number(r.incoming_stock),
+      safe_stock: Number(r.safe_stock),
+      forecast_demand: Number(r.forecast_qty),
+      suggested_order: suggested,
+      reasoning: aiDetail?.note ?? 'Tính toán dựa trên lịch sử bán hàng',
+      confidence_level: formatConfidence(aiDetail?.confidence),
+      priority: calcPriority(
+        Number(r.current_stock),
+        Number(r.incoming_stock),
+        Number(r.forecast_qty),
+        suggested
+      ),
+    };
+  });
+
+  const urgentOrders = recommendations.filter((r) => r.suggested_order > 0);
+  const stableProducts = recommendations.filter((r) => r.suggested_order === 0);
+
+  const priorityOrder: Record<StockPriority, number> = {
+    CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, STABLE: 4,
+  };
+  urgentOrders.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  // Build event impact
+  let eventImpact: string | null = null;
+  if (forecast.event) {
+    const promoTypes = Array.isArray(forecast.event.promotion_types)
+      ? (forecast.event.promotion_types as string[]).join(', ')
+      : String(forecast.event.promotion_types);
+    eventImpact = `Chương trình "${forecast.event.program_name}" (${promoTypes})`;
+    if (forecast.event.expected_target) {
+      eventImpact += ` | Mục tiêu: ${forecast.event.expected_target}`;
+    }
+  }
+
+  return {
+    summary: {
+      forecast_id: forecast.id,
+      status: forecast.status,
+      is_fallback: forecast.is_fallback,
+      total_products: recommendations.length,
+      products_need_order: urgentOrders.length,
+      products_stable: stableProducts.length,
+      total_suggested_qty: urgentOrders.reduce((sum, r) => sum + r.suggested_order, 0),
+      weather_context: buildWeatherContext(weatherData),
+      event_impact: eventImpact,
+    },
+    urgent_orders: urgentOrders,
+    stable_products: stableProducts,
+  };
 };
 
 /**
