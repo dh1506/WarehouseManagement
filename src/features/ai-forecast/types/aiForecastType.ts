@@ -53,6 +53,59 @@ export const CHANNEL_LABELS: Record<ForecastChannel, string> = {
   OTHER:    'Other',
 };
 
+// ── Forecast Response Types (matches BE TriggerForecastResponse) ──────────────
+
+export type StockPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'STABLE';
+
+export const PRIORITY_LABELS: Record<StockPriority, string> = {
+  CRITICAL: 'Nguy cấp',
+  HIGH:     'Cao',
+  MEDIUM:   'Trung bình',
+  LOW:      'Thấp',
+  STABLE:   'Ổn định',
+};
+
+export const PRIORITY_STYLES: Record<StockPriority, { bg: string; text: string; ring: string }> = {
+  CRITICAL: { bg: 'bg-rose-50',    text: 'text-rose-700',    ring: 'ring-rose-200' },
+  HIGH:     { bg: 'bg-orange-50',  text: 'text-orange-700',  ring: 'ring-orange-200' },
+  MEDIUM:   { bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-amber-200' },
+  LOW:      { bg: 'bg-blue-50',    text: 'text-blue-700',    ring: 'ring-blue-200' },
+  STABLE:   { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200' },
+};
+
+export interface ForecastSummary {
+  forecast_id: number;
+  status: string;
+  is_fallback: boolean;
+  total_products: number;
+  products_need_order: number;
+  products_stable: number;
+  total_suggested_qty: number;
+  weather_context: string;
+  event_impact: string | null;
+}
+
+export interface ForecastRecommendation {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  product_categories: string[];
+  current_stock: number;
+  incoming_stock: number;
+  safe_stock: number;
+  forecast_demand: number;
+  suggested_order: number;
+  reasoning: string;
+  confidence_level: string;
+  priority: StockPriority;
+}
+
+export interface TriggerForecastResponse {
+  summary: ForecastSummary;
+  urgent_orders: ForecastRecommendation[];
+  stable_products: ForecastRecommendation[];
+}
+
 // ── Nested Entity Types ───────────────────────────────────────────────────────
 
 export interface ForecastUser {

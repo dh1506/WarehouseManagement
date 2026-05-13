@@ -8,6 +8,7 @@ import type {
   AiForecastQueryParams,
   AiForecastResult,
   AiRetrainBatch,
+  TriggerForecastResponse,
 } from '@/features/ai-forecast/types/aiForecastType';
 import type { CreateEventInput, ReviewResultInput, TriggerForecastInput } from '@/features/ai-forecast/schemas/aiForecastSchemas';
 
@@ -30,11 +31,11 @@ export async function createForecastEvent(body: CreateEventInput): Promise<AiFor
 
 // ── Forecast Core ─────────────────────────────────────────────────────────────
 
-export async function triggerForecast(body: TriggerForecastInput): Promise<AiForecast> {
+export async function triggerForecast(body: TriggerForecastInput): Promise<TriggerForecastResponse> {
   const response = await apiClient.post('/api/ai-forecasts/trigger', body, {
     timeout: 120_000, // Gemini AI call may take up to 2 min
   });
-  return unwrap<AiForecast>(response);
+  return unwrap<TriggerForecastResponse>(response);
 }
 
 export async function getForecastHistory(params: AiForecastQueryParams): Promise<AiForecastListResponse> {
@@ -49,9 +50,9 @@ export async function getForecastHistory(params: AiForecastQueryParams): Promise
   return unwrap<AiForecastListResponse>(response);
 }
 
-export async function getForecastDetail(id: number): Promise<AiForecastDetail> {
+export async function getForecastDetail(id: number): Promise<TriggerForecastResponse> {
   const response = await apiClient.get(`/api/ai-forecasts/${id}`);
-  return unwrap<AiForecastDetail>(response);
+  return unwrap<TriggerForecastResponse>(response);
 }
 
 // ── Results & Feedback ────────────────────────────────────────────────────────

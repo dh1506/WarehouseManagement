@@ -64,17 +64,17 @@ export function useTriggerForecast() {
 
   return useMutation({
     mutationFn: (body: TriggerForecastInput) => triggerForecast(body),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       void queryClient.invalidateQueries({ queryKey: AI_FORECAST_KEYS.lists() });
-      const monthLabel = new Date(data.forecast_month).toLocaleDateString('en-US', {
+      const monthLabel = new Date(`${variables.forecast_month}-01`).toLocaleDateString('vi-VN', {
         month: 'long',
         year: 'numeric',
       });
       toast({
-        title: data.is_fallback ? 'Forecast completed (fallback)' : 'Forecast completed',
-        description: data.is_fallback
-          ? `⚠ Gemini unavailable — fallback averages used for ${monthLabel}.`
-          : `AI forecast for ${monthLabel} saved successfully.`,
+        title: data.summary.is_fallback ? 'Dự báo hoàn thành (dự phòng)' : 'Dự báo hoàn thành',
+        description: data.summary.is_fallback
+          ? `⚠ Gemini không khả dụng — đã dùng trung bình 30 ngày cho ${monthLabel}.`
+          : `Dự báo AI cho ${monthLabel} đã lưu thành công.`,
       });
     },
     onError: (err: Error) => {

@@ -84,7 +84,7 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
     setErrors({});
     triggerMutation.mutate(parsed.data, {
       onSuccess: (data) => {
-        onSuccess?.(data.id);
+        onSuccess?.(data.summary.forecast_id);
         onClose();
       },
     });
