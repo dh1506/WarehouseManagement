@@ -58,6 +58,7 @@ interface AllocRow {
   rowId: string;
   location_id: number | null;
   location_code: string;
+  location_status?: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
   lot_no: string;
   quantity: number | '';
   production_date: string;
@@ -73,15 +74,18 @@ interface AllocateLotsSheetProps {
   onClose: () => void;
   stockInId: number;
   details: StockInDetail[];
+  defaultLocationId?: number;
+  defaultLocationCode?: string;
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
-function makeRow(): AllocRow {
+function makeRow(defaults?: { location_id: number; location_code: string }): AllocRow {
   return {
     rowId: Math.random().toString(36).slice(2),
-    location_id: null,
-    location_code: '',
+    location_id: defaults?.location_id ?? null,
+    location_code: defaults?.location_code ?? '',
+    location_status: undefined,
     lot_no: '',
     quantity: '',
     production_date: '',
@@ -105,6 +109,7 @@ function calcRemaining(detail: StockInDetail): number {
 interface LocationOption {
   id: number;
   code: string;
+  status?: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
 }
 
 interface LocationComboboxProps {
@@ -194,12 +199,14 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                 {/* Group 1 — locations that already hold this SKU (AC02 priority) */}
                 {(existingLocs?.length ?? 0) > 0 && (
                   <CommandGroup heading="Đã có hàng cùng SKU (ưu tiên)">
-                    {existingLocs!.map((loc) => (
+                    {existingLocs!.map((loc) => {
+                      const locStatus = (allLocsRaw ?? []).find((l) => l.id === loc.locationId)?.location_status;
+                      return (
                       <CommandItem
                         key={loc.locationId}
                         value={loc.locationCode}
                         onSelect={() => {
-                          onSelect({ id: loc.locationId, code: loc.locationCode });
+                          onSelect({ id: loc.locationId, code: loc.locationCode, status: locStatus });
                           setOpen(false);
                           setSearch('');
                         }}
@@ -220,7 +227,8 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                           {loc.available.toLocaleString()} khả dụng
                         </span>
                       </CommandItem>
-                    ))}
+                      );
+                    })}
                   </CommandGroup>
                 )}
 
@@ -236,7 +244,7 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                         key={loc.id}
                         value={loc.location_code}
                         onSelect={() => {
-                          onSelect({ id: loc.id, code: loc.location_code });
+                          onSelect({ id: loc.id, code: loc.location_code, status: loc.location_status });
                           setOpen(false);
                           setSearch('');
                         }}
@@ -285,6 +293,8 @@ export function AllocateLotsSheet({
   onClose,
   stockInId,
   details,
+  defaultLocationId,
+  defaultLocationCode,
 }: AllocateLotsSheetProps) {
   const { toast } = useToast();
   const allocateMutation = useAllocateLots(stockInId);
@@ -299,15 +309,19 @@ export function AllocateLotsSheet({
   const [formState, setFormState] = useState<FormState>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reset form each time the sheet opens
+  // Reset form each time the sheet opens; pre-fill each row with the stock-in's
+  // default warehouse location so the user sees a concrete starting point (AC01).
   useEffect(() => {
     if (!open) return;
+    const locDefaults = defaultLocationId && defaultLocationCode
+      ? { location_id: defaultLocationId, location_code: defaultLocationCode }
+      : undefined;
     const fresh: FormState = Object.fromEntries(
       details
         .filter((d) => Number(d.received_quantity) > 0)
         .map((d) => {
           const rem = calcRemaining(d);
-          return [d.id, rem > 0 ? [makeRow()] : []];
+          return [d.id, rem > 0 ? [makeRow(locDefaults)] : []];
         }),
     );
     setFormState(fresh);
@@ -374,6 +388,8 @@ export function AllocateLotsSheet({
       for (const row of rows) {
         if (!row.location_id) {
           newErrors[`loc_${detail.id}_${row.rowId}`] = 'Chưa chọn vị trí lưu kho.';
+        } else if (row.location_status === 'FULL') {
+          newErrors[`loc_${detail.id}_${row.rowId}`] = 'Vị trí này đã đầy (FULL) — vui lòng chọn vị trí khác.';
         }
         if (!row.lot_no.trim()) {
           newErrors[`lot_${detail.id}_${row.rowId}`] = 'Chưa nhập mã lô.';
@@ -687,6 +703,7 @@ export function AllocateLotsSheet({
                                       updateRow(detail.id, row.rowId, {
                                         location_id: loc.id,
                                         location_code: loc.code,
+                                        location_status: loc.status,
                                       });
                                       clearError(`loc_${detail.id}_${row.rowId}`);
                                     }}

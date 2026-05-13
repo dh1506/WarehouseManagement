@@ -1,4 +1,4 @@
-import { Fragment, useState, useCallback } from 'react';
+import { Fragment, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { usePermission } from '@/hooks/usePermission';
@@ -361,6 +361,8 @@ export function InboundDetail() {
         onClose={() => setShowAllocateSheet(false)}
         stockInId={data.id}
         details={data.details}
+        defaultLocationId={data.location.id}
+        defaultLocationCode={data.location.location_code}
       />
     </>
   );
@@ -691,6 +693,22 @@ function InfoCard({
   canSeeValue: boolean;
   totalValue: number;
 }) {
+  // Collect unique allocated storage locations from all lots (AC02)
+  const allocatedLocations = useMemo(() => {
+    const seen = new Set<number>();
+    const result: { id: number; path: string }[] = [];
+    for (const detail of data.details) {
+      for (const lot of detail.lots) {
+        const loc = lot.product_lot.inventory.location;
+        if (!seen.has(loc.id)) {
+          seen.add(loc.id);
+          result.push({ id: loc.id, path: loc.full_path });
+        }
+      }
+    }
+    return result;
+  }, [data.details]);
+
   const rows: Array<{ label: string; value: string }> = [
     { label: 'Order Code', value: data.code },
     { label: 'Status',     value: STOCK_IN_STATUS_LABELS[data.status] },
@@ -729,6 +747,24 @@ function InfoCard({
             <dd className="truncate text-right font-medium text-slate-800">{value}</dd>
           </div>
         ))}
+
+        {/* AC02 — actual allocated storage locations (distinct from default receipt location) */}
+        {allocatedLocations.length > 0 && (
+          <div className="flex justify-between gap-2 border-t border-slate-100 pt-2 text-sm">
+            <dt className="shrink-0 text-slate-500">Vị trí lưu kho</dt>
+            <dd className="flex flex-col items-end gap-0.5">
+              {allocatedLocations.map((loc) => (
+                <span
+                  key={loc.id}
+                  className="truncate text-right text-xs font-semibold text-indigo-600"
+                >
+                  {loc.path}
+                </span>
+              ))}
+            </dd>
+          </div>
+        )}
+
         {canSeeValue && totalValue > 0 && (
           <div className="flex justify-between gap-2 border-t border-slate-100 pt-2 text-sm">
             <dt className="text-slate-500">Total Value</dt>

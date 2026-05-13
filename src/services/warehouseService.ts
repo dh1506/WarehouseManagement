@@ -673,6 +673,15 @@ function buildInventoryAssignmentMap(
   return map;
 }
 
+function buildLocationQuantityMap(inventories: InventoryApiItem[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  inventories.forEach((inv) => {
+    const locationId = String(inv.warehouse_location_id);
+    map[locationId] = (map[locationId] ?? 0) + (Number(inv.quantity) || 0);
+  });
+  return map;
+}
+
 async function syncLocationCategoryScope(locationIds: string[], categoryIds: string[]): Promise<void> {
   const normalizedCategoryIds = normalizeIdList(categoryIds);
 
@@ -754,6 +763,7 @@ function toZoneBin(
   levelMap: Record<string, number>,
   assignment: BinAssignmentValue | undefined,
   fallbackIndex: number,
+  inventoryQuantity?: number,
 ): Bin {
   const normalizedRack = location.rack.trim().toUpperCase();
   const normalizedBin = location.bin.trim().toUpperCase();
@@ -763,7 +773,11 @@ function toZoneBin(
   const shelf = binMap[normalizedBin] ?? (fallbackIndex % 10) + 1;
   const level = levelMap[normalizedLevel] ?? 1;
   const capacity = location.capacity > 0 ? location.capacity : 1;
-  const currentLoad = Math.max(0, location.currentLoad);
+  // Prefer inventory-based quantity over potentially stale location.currentLoad (current_weight DB field
+  // is not updated by completeStockIn — only Inventory.quantity is incremented).
+  const currentLoad = inventoryQuantity !== undefined
+    ? Math.max(0, inventoryQuantity)
+    : Math.max(0, location.currentLoad);
   const occupancy = Math.min(999, Math.round((currentLoad / capacity) * 100));
 
   return {
@@ -792,6 +806,7 @@ function toZone(
   warehouseCategoryIds: string[],
   locationCategoryMap: Record<string, string[]>,
   inventoryAssignmentMap: Record<string, BinAssignmentValue>,
+  locationQuantityMap: Record<string, number> = {},
 ): Zone {
   const normalizedZoneCode = zoneCodeKey(zoneCode);
   const zoneMetadata = getZoneMetadataFallback(warehouseId, normalizedZoneCode);
@@ -811,7 +826,7 @@ function toZone(
   const allowedCategoryIds = zoneAllowedCategoryIds.length > 0 ? zoneAllowedCategoryIds : fallbackZoneCategoryIds;
 
   const bins = locations.map((location, index) => {
-    return toZoneBin(location, rackMap, binMap, levelMap, inventoryAssignmentMap[location.id], index);
+    return toZoneBin(location, rackMap, binMap, levelMap, inventoryAssignmentMap[location.id], index, locationQuantityMap[location.id]);
   });
   const binCount = bins.length;
   const rows = Math.max(1, rackCodes.length || Math.ceil(Math.sqrt(Math.max(1, binCount))));
@@ -845,6 +860,7 @@ function toHub(
   locations: WarehouseLocationItem[],
   locationCategoryMap: Record<string, string[]>,
   inventoryAssignmentMap: Record<string, BinAssignmentValue>,
+  locationQuantityMap: Record<string, number> = {},
 ): WarehouseHub {
   const persistedWarehouseCategoryIds = normalizeIdList(
     locations.flatMap((location) => locationCategoryMap[location.id] ?? []),
@@ -869,6 +885,7 @@ function toHub(
       warehouseCategoryIds,
       locationCategoryMap,
       inventoryAssignmentMap,
+      locationQuantityMap,
     ))
     .sort((left, right) => left.code.localeCompare(right.code));
 
@@ -1133,6 +1150,7 @@ export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
   ]);
   const locationCategoryMap = buildLocationAllowedCategoryMap(allowedCategoryRules, activeLocationIdSet);
   const inventoryAssignmentMap = buildInventoryAssignmentMap(inventories, locationCategoryMap);
+  const locationQuantityMap = buildLocationQuantityMap(inventories);
 
   return warehouses
     .filter((warehouse) => warehouse.status !== 'inactive')
@@ -1140,7 +1158,7 @@ export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
       const locationList = activeLocations.filter(
         (location) => location.warehouseId === warehouse.id,
       );
-      return toHub(warehouse, locationList, locationCategoryMap, inventoryAssignmentMap);
+      return toHub(warehouse, locationList, locationCategoryMap, inventoryAssignmentMap, locationQuantityMap);
     });
 }
 
@@ -1187,12 +1205,14 @@ export async function updateWarehouseHub(id: string, payload: WarehouseHubFormVa
   const locationCategoryMap = buildLocationAllowedCategoryMap(allowedCategoryRules);
   const inventories = await fetchAllInventories();
   const inventoryAssignmentMap = buildInventoryAssignmentMap(inventories, locationCategoryMap);
+  const locationQuantityMap = buildLocationQuantityMap(inventories);
 
   const hub = toHub(
     warehouse,
     locationResult.data.filter((location) => location.status === 'active'),
     locationCategoryMap,
     inventoryAssignmentMap,
+    locationQuantityMap,
   );
 
   if (activeLocationIds.length === 0) {
@@ -1265,6 +1285,7 @@ export async function createWarehouseZone(warehouseId: string, payload: Warehous
   const locationCategoryMap = buildLocationAllowedCategoryMap(locationCategoryRules);
   const inventories = await fetchAllInventories();
   const inventoryAssignmentMap = buildInventoryAssignmentMap(inventories, locationCategoryMap);
+  const locationQuantityMap = buildLocationQuantityMap(inventories);
   const zone = toZone(
     warehouseId,
     zoneCode,
@@ -1272,6 +1293,7 @@ export async function createWarehouseZone(warehouseId: string, payload: Warehous
     warehouseCategoryScope,
     locationCategoryMap,
     inventoryAssignmentMap,
+    locationQuantityMap,
   );
   return {
     ...zone,
@@ -1438,6 +1460,7 @@ export async function updateWarehouseZone(
   const locationCategoryMap = buildLocationAllowedCategoryMap(locationCategoryRules);
   const inventories = await fetchAllInventories();
   const inventoryAssignmentMap = buildInventoryAssignmentMap(inventories, locationCategoryMap);
+  const locationQuantityMap = buildLocationQuantityMap(inventories);
   const zone = toZone(
     warehouseId,
     currentZoneCode,
@@ -1445,6 +1468,7 @@ export async function updateWarehouseZone(
     warehouseCategoryScope,
     locationCategoryMap,
     inventoryAssignmentMap,
+    locationQuantityMap,
   );
   return {
     ...zone,
@@ -1556,13 +1580,12 @@ export async function getZoneBins(warehouseId: string, zoneId: string): Promise<
   ]);
   const locationIdSet = new Set(locationIds);
   const locationCategoryMap = buildLocationAllowedCategoryMap(allRules, locationIdSet);
-  const inventoryAssignmentMap = buildInventoryAssignmentMap(
-    allInventories.filter((item) => locationIdSet.has(String(item.warehouse_location_id))),
-    locationCategoryMap,
-  );
+  const zoneInventories = allInventories.filter((item) => locationIdSet.has(String(item.warehouse_location_id)));
+  const inventoryAssignmentMap = buildInventoryAssignmentMap(zoneInventories, locationCategoryMap);
+  const locationQuantityMap = buildLocationQuantityMap(zoneInventories);
 
   return zoneLocations.map((location, index) => {
-    return toZoneBin(location, rackMap, binMap, levelMap, inventoryAssignmentMap[location.id], index);
+    return toZoneBin(location, rackMap, binMap, levelMap, inventoryAssignmentMap[location.id], index, locationQuantityMap[location.id]);
   });
 }
 
