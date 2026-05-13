@@ -44,6 +44,16 @@ function formatDate(value: string): string {
   });
 }
 
+function normalizeDisplayQuantity(type: TransactionType, qty: number): number {
+  if (type === 'OUT' && qty > 0) {
+    return -qty;
+  }
+  if (type === 'IN' && qty < 0) {
+    return Math.abs(qty);
+  }
+  return qty;
+}
+
 function InfoRow({ icon: Icon, label, value }: { icon: typeof Package; label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 py-3">
@@ -71,6 +81,7 @@ export function TransactionDetailSheet({ transactionId, open, onOpenChange }: Tr
 
   const typeCfg = data ? TYPE_CONFIG[data.transaction_type] : null;
   const TypeIcon = typeCfg?.icon ?? Package;
+  const displayQty = data ? normalizeDisplayQuantity(data.transaction_type, Number(data.base_quantity)) : 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -128,9 +139,9 @@ export function TransactionDetailSheet({ transactionId, open, onOpenChange }: Tr
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Số lượng</p>
                   <p className={cn(
                     'text-xl font-extrabold tabular-nums',
-                    Number(data.base_quantity) >= 0 ? 'text-emerald-600' : 'text-rose-600',
+                    displayQty >= 0 ? 'text-emerald-600' : 'text-rose-600',
                   )}>
-                    {Number(data.base_quantity) > 0 ? '+' : ''}{Number(data.base_quantity).toLocaleString()}
+                    {displayQty > 0 ? '+' : ''}{displayQty.toLocaleString()}
                   </p>
                 </div>
                 <div>

@@ -120,6 +120,21 @@ function KpiWidget({
 // ── Status Badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ row }: { row: InventorySkuRow }) {
+  if (row.onHand < 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+        <span className="material-symbols-outlined text-[12px]">error</span>
+        Âm tồn
+      </span>
+    );
+  }
+  if (row.onHand === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+        Hết hàng
+      </span>
+    );
+  }
   if (row.isLowStock) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
@@ -152,13 +167,6 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
       </span>
     );
   }
-  if (row.onHand === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-        Hết hàng
-      </span>
-    );
-  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
       <span className="material-symbols-outlined text-[12px]">check_circle</span>
@@ -169,7 +177,13 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
 
 // ── Lot Status Badge ──────────────────────────────────────────────────────────
 
-function LotStatusBadge({ hasHold, expiry }: { hasHold: boolean; expiry: string | null }) {
+function LotStatusBadge({ hasHold, expiry, onHand }: { hasHold: boolean; expiry: string | null; onHand: number }) {
+  if (onHand < 0) {
+    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">Âm tồn</span>;
+  }
+  if (onHand === 0) {
+    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Hết hàng</span>;
+  }
   if (hasHold) {
     return <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">Tạm giữ</span>;
   }
@@ -269,11 +283,11 @@ function DetailTable({ rows }: { rows: InventoryDetailRow[] }) {
                 : <span className="text-slate-400">—</span>
               }
             </td>
-            <td className="py-1.5 text-right font-bold text-slate-900">
+            <td className={`py-1.5 text-right font-bold ${row.onHand < 0 ? 'text-red-600' : 'text-slate-900'}`}>
               {row.onHand.toLocaleString()}
             </td>
             <td className="py-1.5 pl-3">
-              <LotStatusBadge hasHold={row.hasHoldLot} expiry={row.earliestExpiry} />
+              <LotStatusBadge hasHold={row.hasHoldLot} expiry={row.earliestExpiry} onHand={row.onHand} />
             </td>
           </tr>
         ))}

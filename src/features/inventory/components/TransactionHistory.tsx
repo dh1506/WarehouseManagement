@@ -114,6 +114,16 @@ function getAvatarColor(id: number): string {
   return AVATAR_COLORS[id % AVATAR_COLORS.length];
 }
 
+function normalizeDisplayQuantity(type: TransactionType | null | undefined, qty: number): number {
+  if (type === 'OUT' && qty > 0) {
+    return -qty;
+  }
+  if (type === 'IN' && qty < 0) {
+    return Math.abs(qty);
+  }
+  return qty;
+}
+
 // ── KPI Stat Card ───────────────────────────────────────────────────────────
 
 function StatCard({
@@ -183,6 +193,7 @@ function TransactionRow({
   const { date, time } = formatDateTime(tx.transaction_date);
   const creatorName = tx.creator?.full_name ?? 'Hệ thống';
   const qty = Number(tx.base_quantity);
+  const displayQty = normalizeDisplayQuantity(tx.transaction_type, qty);
 
   return (
     <motion.tr
@@ -233,9 +244,9 @@ function TransactionRow({
       <TableCell className="whitespace-nowrap text-right">
         <span className={cn(
           'text-sm font-bold tabular-nums',
-          qty > 0 ? 'text-emerald-600' : qty < 0 ? 'text-rose-600' : 'text-slate-500',
+          displayQty > 0 ? 'text-emerald-600' : displayQty < 0 ? 'text-rose-600' : 'text-slate-500',
         )}>
-          {qty > 0 ? '+' : ''}{qty.toLocaleString()}
+          {displayQty > 0 ? '+' : ''}{displayQty.toLocaleString()}
         </span>
       </TableCell>
 
@@ -618,75 +629,75 @@ export function TransactionHistory() {
 
           {/* ── Pagination ─────────────────────────────────────────────────── */}
           {pagination && pagination.total > 0 && (
-          <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-100 shrink-0">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => handlePageChange(page - 1)}
-                className="gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Trước</span>
-              </Button>
+            <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => handlePageChange(page - 1)}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Trước</span>
+                </Button>
 
-              {/* Page buttons */}
-              <div className="hidden sm:flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum: number;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (page <= 3) {
-                    pageNum = i + 1;
-                  } else if (page >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = page - 2 + i;
-                  }
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={pageNum === page ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handlePageChange(pageNum)}
-                      className="w-8 h-8 p-0 text-xs"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                {totalPages > 5 && page < totalPages - 2 && (
-                  <>
-                    <span className="px-1 text-slate-400">…</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(totalPages)}
-                      className="w-8 h-8 p-0 text-xs"
-                    >
-                      {totalPages}
-                    </Button>
-                  </>
-                )}
+                {/* Page buttons */}
+                <div className="hidden sm:flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        className="w-8 h-8 p-0 text-xs"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  {totalPages > 5 && page < totalPages - 2 && (
+                    <>
+                      <span className="px-1 text-slate-400">…</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages)}
+                        className="w-8 h-8 p-0 text-xs"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => handlePageChange(page + 1)}
+                  className="gap-1"
+                >
+                  <span className="hidden sm:inline">Sau</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <span className="text-xs text-slate-400 tabular-nums">
+                  Trang {page} / {totalPages}
+                </span>
               </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => handlePageChange(page + 1)}
-                className="gap-1"
-              >
-                <span className="hidden sm:inline">Sau</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-
-              <span className="text-xs text-slate-400 tabular-nums">
-                Trang {page} / {totalPages}
-              </span>
             </div>
-          </div>
           )}
         </div>
       </div>

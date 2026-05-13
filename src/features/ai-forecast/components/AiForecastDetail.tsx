@@ -33,16 +33,75 @@ interface AiForecastDetailProps {
   id: number;
 }
 
+interface AiPredictionSummary {
+  forecast_id: number;
+  status: string;
+  is_fallback: boolean;
+  total_products: number;
+  products_need_order: number;
+  products_stable: number;
+  total_suggested_qty: number;
+  weather_context?: string;
+  event_impact?: string;
+}
+
+interface AiPredictionProduct {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  product_categories: string[];
+  current_stock: number;
+  incoming_stock: number;
+  safe_stock: number;
+  forecast_demand: number;
+  suggested_order: number;
+  reasoning?: string;
+  confidence_level?: string;
+  priority?: string;
+}
+
+interface AiPredictionPayload {
+  summary: AiPredictionSummary;
+  urgent_orders: AiPredictionProduct[];
+  stable_products: AiPredictionProduct[];
+}
+
+function parseAiPredictionPayload(raw: unknown): AiPredictionPayload | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const root = raw as { data?: unknown };
+  const data = (root.data ?? raw) as Partial<AiPredictionPayload>;
+  if (!data.summary || typeof data.summary !== 'object') return null;
+  const summary = data.summary as AiPredictionSummary;
+  if (!Number.isFinite(summary.total_products ?? NaN)) return null;
+  return {
+    summary,
+    urgent_orders: Array.isArray(data.urgent_orders) ? data.urgent_orders as AiPredictionProduct[] : [],
+    stable_products: Array.isArray(data.stable_products) ? data.stable_products as AiPredictionProduct[] : [],
+  };
+}
+
+function parseAverageTemperature(text: string | undefined): number | null {
+  if (!text) return null;
+  const matches = Array.from(text.matchAll(/(-?\d+(?:\.\d+)?)\s*°C/gi));
+  if (matches.length === 0) return null;
+  const values = matches.map((m) => Number(m[1])).filter((v) => Number.isFinite(v));
+  if (values.length === 0) return null;
+  const avg = values.reduce((s, v) => s + v, 0) / values.length;
+  return Math.round(avg * 10) / 10;
+}
+
 // ── Sub-badges ────────────────────────────────────────────────────────────────
 
-function ForecastStatusBadge({ status }: { status: AiForecastStatus }) {
-  const s = FORECAST_STATUS_STYLES[status];
+function ForecastStatusBadge({ status }: { status?: AiForecastStatus | null }) {
+  const normalized = (status && status in FORECAST_STATUS_STYLES ? status : 'PENDING') as AiForecastStatus;
+  const s = FORECAST_STATUS_STYLES[normalized];
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${s.bg} ${s.text} ${s.ring}`}
     >
       <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {FORECAST_STATUS_LABELS[status]}
+      {FORECAST_STATUS_LABELS[normalized]}
     </span>
   );
 }
@@ -161,6 +220,160 @@ function EventCard({ event }: { event: AiForecastDetailType['event'] }) {
   );
 }
 
+// ── AI Prediction Summary ───────────────────────────────────────────────────
+
+function AiPredictionSummaryPanel({ raw }: { raw: unknown }) {
+  const payload = useMemo(() => parseAiPredictionPayload(raw), [raw]);
+
+  if (!payload) return null;
+
+  const avgTemp = parseAverageTemperature(payload.summary.weather_context);
+
+  const statItems = [
+    { label: 'Tổng sản phẩm', value: payload.summary.total_products, color: 'text-slate-900' },
+    { label: 'Cần nhập', value: payload.summary.products_need_order, color: 'text-rose-700' },
+    { label: 'Ổn định', value: payload.summary.products_stable, color: 'text-emerald-700' },
+    { label: 'SL đề xuất', value: payload.summary.total_suggested_qty, color: 'text-indigo-700' },
+  ];
+
+  const renderProductRow = (item: AiPredictionProduct, tone: 'urgent' | 'stable') => {
+    const stockTone = item.current_stock < 0 ? 'text-rose-700' : item.current_stock === 0 ? 'text-slate-500' : 'text-slate-800';
+    const badgeTone = tone === 'urgent'
+      ? 'bg-rose-50 text-rose-700 ring-rose-200'
+      : 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+
+    return (
+      <div key={item.product_id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold text-slate-900">
+              {item.product_code} · {item.product_name}
+            </p>
+            {item.product_categories.length > 0 && (
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                {item.product_categories.join(', ')}
+              </p>
+            )}
+          </div>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${badgeTone}`}>
+            {item.priority ?? (tone === 'urgent' ? 'URGENT' : 'STABLE')}
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-4">
+          <div>
+            <p className="text-[10px] uppercase text-slate-400">Tồn hiện tại</p>
+            <p className={`font-semibold ${stockTone}`}>{item.current_stock.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase text-slate-400">Tồn an toàn</p>
+            <p className="font-semibold text-slate-800">{item.safe_stock.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase text-slate-400">Dự báo</p>
+            <p className="font-semibold text-slate-800">{item.forecast_demand.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase text-slate-400">Đề xuất nhập</p>
+            <p className="font-semibold text-slate-900">{item.suggested_order.toLocaleString()}</p>
+          </div>
+        </div>
+        {(item.reasoning || item.confidence_level) && (
+          <div className="mt-2 text-xs text-slate-600">
+            {item.confidence_level && (
+              <span className="font-semibold text-slate-700">{item.confidence_level}</span>
+            )}
+            {item.confidence_level && item.reasoning ? <span className="text-slate-400"> · </span> : null}
+            {item.reasoning && <span>{item.reasoning}</span>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Tổng quan dự báo AI</h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Trạng thái: {payload.summary.status} · ID #{payload.summary.forecast_id}
+            </p>
+          </div>
+          {payload.summary.is_fallback && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+              <span className="material-symbols-outlined text-[12px]">warning</span>
+              Fallback
+            </span>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {statItems.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+              <p className={`mt-1 text-lg font-bold ${item.color}`}>{item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        {(payload.summary.weather_context || payload.summary.event_impact) && (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {payload.summary.weather_context && (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Bối cảnh thời tiết</p>
+                <p className="mt-1 text-xs text-slate-700 leading-relaxed">{payload.summary.weather_context}</p>
+                {avgTemp !== null && (
+                  <p className="mt-1 text-xs font-semibold text-slate-800">Nhiệt độ trung bình: {avgTemp}°C</p>
+                )}
+              </div>
+            )}
+            {payload.summary.event_impact && (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-500">Tác động sự kiện</p>
+                <p className="mt-1 text-xs text-indigo-700 leading-relaxed">{payload.summary.event_impact}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 p-4 lg:grid-cols-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-rose-500 text-[18px]">priority_high</span>
+            <h4 className="text-sm font-semibold text-slate-900">Cần nhập gấp</h4>
+            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+              {payload.urgent_orders.length}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-col gap-3">
+            {payload.urgent_orders.length === 0 ? (
+              <p className="text-xs text-slate-500">Không có sản phẩm cần nhập gấp.</p>
+            ) : (
+              payload.urgent_orders.map((item) => renderProductRow(item, 'urgent'))
+            )}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-emerald-500 text-[18px]">check_circle</span>
+            <h4 className="text-sm font-semibold text-slate-900">Ổn định</h4>
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              {payload.stable_products.length}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-col gap-3">
+            {payload.stable_products.length === 0 ? (
+              <p className="text-xs text-slate-500">Chưa có sản phẩm ổn định.</p>
+            ) : (
+              payload.stable_products.map((item) => renderProductRow(item, 'stable'))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── AI Insights Panel ─────────────────────────────────────────────────────────
 
 function AiInsightsPanel({
@@ -244,24 +457,22 @@ function AiInsightsPanel({
                         <div className="mt-1.5 flex items-center gap-2">
                           <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${
-                                confidence >= 70
+                              className={`h-full rounded-full ${confidence >= 70
                                   ? 'bg-emerald-500'
                                   : confidence >= 45
                                     ? 'bg-amber-500'
                                     : 'bg-rose-500'
-                              }`}
+                                }`}
                               style={{ width: `${confidence}%` }}
                             />
                           </div>
                           <span
-                            className={`text-xs font-semibold w-10 text-right ${
-                              confidence >= 70
+                            className={`text-xs font-semibold w-10 text-right ${confidence >= 70
                                 ? 'text-emerald-700'
                                 : confidence >= 45
                                   ? 'text-amber-700'
                                   : 'text-rose-700'
-                            }`}
+                              }`}
                           >
                             {confidence.toFixed(0)}%
                           </span>
@@ -315,9 +526,8 @@ function ResultRow({ result, onApprove, onReject, onSetActual }: ResultRowProps)
       </TableCell>
       <TableCell className="text-right">
         <span
-          className={`font-semibold ${
-            Number(result.suggested_order_qty) > 0 ? 'text-slate-900' : 'text-slate-400'
-          }`}
+          className={`font-semibold ${Number(result.suggested_order_qty) > 0 ? 'text-slate-900' : 'text-slate-400'
+            }`}
         >
           {Number(result.suggested_order_qty).toLocaleString()}
         </span>
@@ -394,17 +604,19 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
 
   const forecast = query.data;
 
+  const results = forecast?.results ?? [];
+
   const canRetrain = useMemo(() => {
-    if (!forecast?.results) return false;
-    return forecast.results.some(
+    if (results.length === 0) return false;
+    return results.some(
       (r) =>
         r.review_status !== 'PENDING' &&
         r.actual_qty !== null &&
         !r.is_retrain_submitted,
     );
-  }, [forecast?.results]);
+  }, [results]);
 
-  const pendingCount = forecast?.results.filter((r) => r.review_status === 'PENDING').length ?? 0;
+  const pendingCount = results.filter((r) => r.review_status === 'PENDING').length;
 
   if (query.isLoading) {
     return (
@@ -463,7 +675,7 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
               <ForecastStatusBadge status={forecast.status} />
             </span>
           }
-          description={`Triggered by ${forecast.triggered_user.full_name} · ${forecast.results.length} products · ${pendingCount} pending review`}
+          description={`Triggered by ${forecast.triggered_user?.full_name ?? 'Hệ thống'} · ${results.length} products · ${pendingCount} pending review`}
           actions={
             <div className="flex gap-2">
               {canRetrain && (
@@ -515,10 +727,13 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
           <EventCard event={forecast.event} />
         </div>
 
+        {/* AI Prediction Summary */}
+        <AiPredictionSummaryPanel raw={forecast.ai_raw_response as unknown} />
+
         {/* AI Insights Panel */}
         <AiInsightsPanel
           aiResponse={forecast.ai_raw_response}
-          results={forecast.results}
+          results={results}
           isFallback={forecast.is_fallback}
         />
 
@@ -529,7 +744,7 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
               <h3 className="text-sm font-semibold text-slate-900">
                 Forecast Results
                 <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                  {forecast.results.length}
+                  {results.length}
                 </span>
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
@@ -554,14 +769,14 @@ export function AiForecastDetail({ id }: AiForecastDetailProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {forecast.results.length === 0 ? (
+                {results.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="h-20 text-center text-slate-500">
                       No results for this forecast run.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  forecast.results.map((result) => (
+                  results.map((result) => (
                     <ResultRow
                       key={result.id}
                       result={result}
