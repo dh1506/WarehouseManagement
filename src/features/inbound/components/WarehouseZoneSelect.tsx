@@ -51,7 +51,7 @@ interface AllowedCategoryItem {
 
 interface AllowedCategoryResponse {
   locationAllowedCategories: AllowedCategoryItem[];
-  pagination: { total: number };
+  pagination: { total: number; total_pages: number };
 }
 
 // ── Public option type ────────────────────────────────────────────────────────
@@ -115,27 +115,41 @@ export function WarehouseZoneSelect({
   });
 
   // ── Fetch allowed location_ids for category (if provided) ─────────────────
-  const { data: allowedIds } = useQuery<Set<number>>({
+  // Enabled as soon as categoryId is set so data is ready before the popover opens.
+  // Fetches all pages to avoid missing locations beyond the first page.
+  const { data: allowedIds, isLoading: allowedLoading } = useQuery<Set<number>>({
     queryKey: ['location-allowed-categories', categoryId],
     queryFn: async () => {
-      const res = await apiClient.get('/api/location-allowed-categories', {
-        params: {
-          category_id: Number(categoryId),
-          is_allowed: true,
-          limit: 500,
-          page: 1,
-        },
-      });
-      const items = (res as unknown as ApiResponse<AllowedCategoryResponse>).data.locationAllowedCategories;
-      return new Set(items.map((i) => i.location_id));
+      const all: AllowedCategoryItem[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages) {
+        const res = await apiClient.get('/api/location-allowed-categories', {
+          params: {
+            category_id: Number(categoryId),
+            is_allowed: true,
+            limit: 200,
+            page,
+          },
+        });
+        const body = (res as unknown as ApiResponse<AllowedCategoryResponse>).data;
+        all.push(...body.locationAllowedCategories);
+        totalPages = body.pagination.total_pages ?? 1;
+        page += 1;
+      }
+
+      return new Set(all.map((i) => i.location_id));
     },
     staleTime: 60_000,
-    enabled: open && !!categoryId,
+    enabled: !!categoryId,
   });
 
   // ── Build zone list from locations ────────────────────────────────────────
   const zones = useMemo<ZoneOption[]>(() => {
     if (!locData) return [];
+    // Wait for allowed-IDs before filtering — prevents flash of all zones during load
+    if (categoryId && allowedIds === undefined) return [];
 
     // Map: zone_code → array of locations
     const map = new Map<string, LocationRaw[]>();
@@ -178,7 +192,7 @@ export function WarehouseZoneSelect({
     });
   }, [locData, allowedIds, categoryId]);
 
-  const isLoading = locLoading;
+  const isLoading = locLoading || (!!categoryId && allowedLoading);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

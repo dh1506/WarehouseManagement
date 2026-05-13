@@ -92,6 +92,12 @@ The 4 KPI cards (Completed/Running/Fallback) on `AiForecastList` are computed fr
 
 ---
 
+### KI-20: Stock-in create vẫn cần `warehouse_location_id`
+
+BE contract `POST /api/stock-ins` yêu cầu `warehouse_location_id`. FE đã tự gán vị trí đại diện theo kho/danh mục, nhưng nếu doanh nghiệp muốn tạo phiếu ở cấp kho (không gán vị trí), cần mở rộng contract BE để nhận `warehouse_id` hoặc cho phép `warehouse_location_id` null.
+
+---
+
 ### KI-10: Lot source is inventory-aggregated, not dedicated lot search API
 
 Lot options are deduped from `/api/inventories` rows.

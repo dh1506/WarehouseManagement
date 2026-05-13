@@ -219,6 +219,9 @@ export function useCreateWarehouseZone() {
       createWarehouseZone(warehouseId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      // Zone category scopes changed — drop all per-category allowed-location caches
+      // so WarehouseZoneSelect picks up the new mappings immediately.
+      queryClient.invalidateQueries({ queryKey: ['location-allowed-categories'] });
     },
   });
 }
@@ -231,6 +234,9 @@ export function useUpdateWarehouseZone() {
       updateWarehouseZone(warehouseId, zoneId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
+      // Zone category scopes changed — drop all per-category allowed-location caches
+      // so WarehouseZoneSelect picks up the new mappings immediately.
+      queryClient.invalidateQueries({ queryKey: ['location-allowed-categories'] });
     },
   });
 }

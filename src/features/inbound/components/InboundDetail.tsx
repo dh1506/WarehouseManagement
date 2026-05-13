@@ -122,6 +122,23 @@ export function InboundDetail() {
         });
         return;
       }
+
+      // FEFO guard — block completion if any committed lot has expired (F&B §16)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (const lot of detail.lots) {
+        if (lot.product_lot.expired_date) {
+          const expiry = new Date(lot.product_lot.expired_date);
+          if (expiry <= today) {
+            toast({
+              title: 'Lô hàng đã hết hạn',
+              description: `Lô "${lot.product_lot.lot_no}" (${detail.product.name}) hết hạn ${expiry.toLocaleDateString('vi-VN')} — không thể nhập kho.`,
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+      }
     }
 
     completeMutation.mutate(data.id, {
@@ -437,7 +454,7 @@ function ItemsTable({
 }) {
   return (
     <div className="overflow-auto rounded-xl border border-slate-100 bg-white shadow-sm">
-      <table className="w-full min-w-[680px] border-collapse">
+      <table className="w-full min-w-170 border-collapse">
         <thead className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50">
           <tr>
             <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -454,6 +471,9 @@ function ItemsTable({
             </th>
             <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Đơn giá
+            </th>
+            <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Thành tiền
             </th>
             <th className="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Phân bổ lô
@@ -511,6 +531,14 @@ function ItemsTable({
                   <td className="px-4 py-2.5 text-right text-sm tabular-nums text-slate-600">
                     {d.unit_price ? `$${Number(d.unit_price).toFixed(2)}` : '—'}
                   </td>
+                  <td className="px-4 py-2.5 text-right text-sm tabular-nums text-slate-700">
+                    {d.unit_price && Number(d.received_quantity) > 0
+                      ? `$${(Number(d.received_quantity) * Number(d.unit_price)).toLocaleString(
+                          undefined,
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                        )}`
+                      : '—'}
+                  </td>
                   <td className="px-4 py-2.5 text-center">
                     {lotStatus === 'na' && (
                       <span className="text-xs text-slate-400">—</span>
@@ -539,7 +567,7 @@ function ItemsTable({
                 {/* Lot chips sub-row — only when lots have been allocated */}
                 {d.lots.length > 0 && (
                   <tr className="bg-slate-50/30">
-                    <td colSpan={6} className="px-4 pb-3 pt-0">
+                    <td colSpan={7} className="px-4 pb-3 pt-0">
                       <div className="flex flex-wrap gap-1.5 border-l-2 border-indigo-200 pl-2">
                         {d.lots.map((lot) => (
                           <span
@@ -693,6 +721,12 @@ function InfoCard({
   canSeeValue: boolean;
   totalValue: number;
 }) {
+  // Parse [REF: xxx] prefix serialised into description by CreatePurchaseOrderSheet
+  const REF_RE = /^\[REF:\s*([^\]]+)\]\n?/;
+  const refMatch = data.description ? REF_RE.exec(data.description) : null;
+  const referenceNo = refMatch ? refMatch[1].trim() : null;
+  const notes = data.description ? data.description.replace(REF_RE, '').trim() || null : null;
+
   // Collect unique allocated storage locations from all lots (AC02)
   const allocatedLocations = useMemo(() => {
     const seen = new Set<number>();
@@ -711,6 +745,7 @@ function InfoCard({
 
   const rows: Array<{ label: string; value: string }> = [
     { label: 'Order Code', value: data.code },
+    ...(referenceNo ? [{ label: 'Số tham chiếu', value: referenceNo }] : []),
     { label: 'Status',     value: STOCK_IN_STATUS_LABELS[data.status] },
     { label: 'Location',   value: data.location.full_path },
     {
@@ -774,10 +809,10 @@ function InfoCard({
           </div>
         )}
       </dl>
-      {data.description && (
+      {notes && (
         <div className="border-t border-slate-100 pt-2">
           <p className="mb-1 text-xs font-semibold text-slate-500">Notes</p>
-          <p className="text-sm text-slate-700">{data.description}</p>
+          <p className="text-sm text-slate-700">{notes}</p>
         </div>
       )}
     </div>

@@ -6,13 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { X, Loader2, Plus, Trash2, Minus } from 'lucide-react';
 import { useCreateStockIn } from '../hooks/useInbound';
-import { WarehouseZoneSelect } from './WarehouseZoneSelect';
-import type { ZoneOption } from './WarehouseZoneSelect';
-import { ZoneMapEmbed } from './ZoneMapEmbed';
 import { SupplierSearchSelect } from './SupplierSearchSelect';
 import { ProductSearchSelect } from './ProductSearchSelect';
 import type { ProductOption } from './ProductSearchSelect';
 import { getProductCategories } from '@/services/categoryApiService';
+import { getWarehouses } from '@/services/warehouseMasterService';
+import apiClient from '@/services/apiClient';
+import type { ApiResponse } from '@/types/api';
 import {
   Select,
   SelectContent,
@@ -24,6 +24,30 @@ import {
 interface CreatePurchaseOrderSheetProps {
   open: boolean;
   onClose: () => void;
+}
+
+interface LocationRaw {
+  id: number;
+  location_code: string;
+  full_path: string;
+  location_status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
+  zone_code: string | null;
+  warehouse: { name: string; code: string };
+}
+
+interface LocationListResponse {
+  locations: LocationRaw[];
+  pagination: { total: number };
+}
+
+interface AllowedCategoryItem {
+  location_id: number;
+  is_allowed: boolean;
+}
+
+interface AllowedCategoryResponse {
+  locationAllowedCategories: AllowedCategoryItem[];
+  pagination: { total: number; total_pages: number };
 }
 
 // ── Item row ──────────────────────────────────────────────────────────────────
@@ -51,27 +75,29 @@ function clamp(val: number, min = 1): number {
 }
 
 export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderSheetProps) {
-  const { toast }    = useToast();
-  const navigate     = useNavigate();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const createMutation = useCreateStockIn();
 
   // ── Form state ───────────────────────────────────────────────────────────
   const [locationCategoryId, setLocationCategoryId] = useState('');
-  const [zone, setZone]             = useState<ZoneOption | null>(null);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState('');
   const [supplierName, setSupplierName] = useState('');
-  const [description, setDescription]  = useState('');
-  const [items, setItems]              = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
-  const [errors, setErrors]            = useState<Record<string, string>>({});
+  const [referenceNo, setReferenceNo] = useState('');
+  const [description, setDescription] = useState('');
+  const [items, setItems] = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
 
   // ── Reset on open ────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
       setLocationCategoryId('');
-      setZone(null);
+      setSelectedWarehouseId(null);
       setSupplierId('');
       setSupplierName('');
+      setReferenceNo('');
       setDescription('');
       setItems([{ ...EMPTY_ITEM }]);
       setErrors({});
@@ -87,6 +113,82 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     enabled: open,
   });
   const categories = categoriesRes?.data ?? [];
+
+  const { data: warehouseData, isLoading: warehousesLoading } = useQuery({
+    queryKey: ['warehouses', 'options', 'inbound'],
+    queryFn: () => getWarehouses({ page: 1, pageSize: 100 }),
+    staleTime: 60_000,
+    enabled: open,
+  });
+  const warehouses = warehouseData?.data ?? [];
+
+  const { data: locationsData, isLoading: locationsLoading } = useQuery<LocationRaw[]>({
+    queryKey: ['warehouse-locations', 'inbound', selectedWarehouseId],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/warehouses/locations/search', {
+        params: {
+          page: 1,
+          limit: 500,
+          warehouse_id: selectedWarehouseId ?? undefined,
+        },
+      });
+      return (response as unknown as ApiResponse<LocationListResponse>).data.locations;
+    },
+    staleTime: 60_000,
+    enabled: open && selectedWarehouseId !== null,
+  });
+
+  const { data: allowedLocationIds, isLoading: allowedLoading } = useQuery<Set<number>>({
+    queryKey: ['location-allowed-categories', 'inbound', locationCategoryId],
+    queryFn: async () => {
+      const all: AllowedCategoryItem[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages) {
+        const res = await apiClient.get('/api/location-allowed-categories', {
+          params: {
+            category_id: Number(locationCategoryId),
+            is_allowed: true,
+            limit: 200,
+            page,
+          },
+        });
+        const body = (res as unknown as ApiResponse<AllowedCategoryResponse>).data;
+        all.push(...body.locationAllowedCategories);
+        totalPages = body.pagination.total_pages ?? 1;
+        page += 1;
+      }
+
+      return new Set(all.map((i) => i.location_id));
+    },
+    staleTime: 60_000,
+    enabled: !!locationCategoryId,
+  });
+
+  const eligibleLocations = useMemo(() => {
+    if (!locationsData) return [];
+    if (locationCategoryId && allowedLocationIds === undefined) return [];
+    const filteredByCategory = locationCategoryId && allowedLocationIds
+      ? locationsData.filter((loc) => allowedLocationIds.has(loc.id))
+      : locationsData;
+    return filteredByCategory.filter((loc) => loc.location_status !== 'MAINTENANCE');
+  }, [locationsData, allowedLocationIds, locationCategoryId]);
+
+  const representativeLocation = useMemo(() => {
+    const available = eligibleLocations.filter((loc) => loc.location_status === 'AVAILABLE');
+    return available[0] ?? eligibleLocations[0] ?? null;
+  }, [eligibleLocations]);
+
+  const locationStats = useMemo(() => {
+    const zoneSet = new Set(eligibleLocations.map((loc) => loc.zone_code).filter(Boolean));
+    const availableCount = eligibleLocations.filter((loc) => loc.location_status === 'AVAILABLE').length;
+    return {
+      zoneCount: zoneSet.size,
+      availableCount,
+      totalCount: eligibleLocations.length,
+    };
+  }, [eligibleLocations]);
 
   // ── Item handlers ────────────────────────────────────────────────────────
   const handleProductSelect = useCallback(
@@ -159,7 +261,12 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
   // ── Validation ───────────────────────────────────────────────────────────
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!zone) newErrors.location = 'Warehouse zone is required';
+    if (!selectedWarehouseId) newErrors.warehouseId = 'Kho lưu trữ là bắt buộc';
+    if (selectedWarehouseId && !representativeLocation) {
+      newErrors.location = locationCategoryId
+        ? 'Kho đã chọn chưa có khu vực phù hợp với danh mục này'
+        : 'Kho đã chọn chưa có vị trí phù hợp để nhận hàng';
+    }
     if (!supplierId) newErrors.supplierId = 'Supplier is required';
     const validItems = items.filter((it) => it.product_id > 0);
     if (validItems.length === 0) {
@@ -173,16 +280,19 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [zone, supplierId, items]);
+  }, [selectedWarehouseId, representativeLocation, locationCategoryId, supplierId, items]);
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(() => {
     if (!validate()) return;
     const payload = {
-      warehouse_location_id: zone!.representativeLocationId,
+      warehouse_location_id: representativeLocation!.id,
 
       supplier_id: Number(supplierId),
-      description: description.trim() || undefined,
+      description: [
+        referenceNo.trim() ? `[REF: ${referenceNo.trim()}]` : '',
+        description.trim(),
+      ].filter(Boolean).join('\n') || undefined,
       details: items
         .filter((it) => it.product_id > 0)
         .map((it) => ({
@@ -201,7 +311,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
         toast({ title: 'Tạo phiếu thất bại', description: (e as Error).message, variant: 'destructive' });
       },
     });
-  }, [validate, zone, supplierId, description, items, createMutation, toast, onClose, navigate]);
+  }, [validate, representativeLocation, supplierId, description, items, createMutation, toast, onClose, navigate]);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const totalValue = useMemo(
@@ -258,15 +368,15 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Danh mục sản phẩm
-                    <span className="ml-1 text-slate-400 font-normal">(lọc khu vực)</span>
+                    <span className="ml-1 text-slate-400 font-normal">(lọc kho phù hợp)</span>
                   </label>
                   <Select
                     value={locationCategoryId || '__all__'}
                     onValueChange={(v) => {
                       const id = v === '__all__' ? '' : v;
                       setLocationCategoryId(id);
-                      // reset zone when category changes
-                      setZone(null);
+                      setSelectedWarehouseId(null);
+                      setErrors((p) => ({ ...p, warehouseId: '', location: '' }));
                     }}
                   >
                     <SelectTrigger className="h-9 border-slate-200 text-sm">
@@ -283,42 +393,63 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                   </Select>
                 </div>
 
-                {/* Step 2: Warehouse Zone */}
+                {/* Step 2: Warehouse */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Khu vực kho <span className="text-rose-500">*</span>
+                    Kho lưu trữ <span className="text-rose-500">*</span>
                   </label>
-                  <WarehouseZoneSelect
-                    value={zone}
-                    onValueChange={(opt) => {
-                      setZone(opt);
-                      setErrors((p) => { const n = { ...p }; delete n.location; return n; });
+                  <Select
+                    value={selectedWarehouseId ? String(selectedWarehouseId) : ''}
+                    onValueChange={(v) => {
+                      const nextId = v ? Number(v) : null;
+                      setSelectedWarehouseId(nextId);
+                      setErrors((p) => { const n = { ...p }; delete n.warehouseId; delete n.location; return n; });
                     }}
-                    categoryId={locationCategoryId || undefined}
-                    placeholder={
-                      locationCategoryId
-                        ? 'Select zone for this category…'
-                        : 'Select warehouse zone…'
-                    }
-                  />
-                  {errors.location && <p className="text-[11px] text-rose-500 mt-1">{errors.location}</p>}
-                  {zone && (
-                    <>
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="text-[11px] text-blue-600 mt-1 mb-2"
-                      >
-                        Zone <span className="font-semibold">{zone.zone_code}</span>
-                        {' · '}{zone.warehouseName}
-                        {' · '}
-                        <span className={zone.availableCount > 0 ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-semibold'}>
-                          {zone.availableCount} vị trí khả dụng
-                        </span>
-                      </motion.p>
-                      <ZoneMapEmbed zoneCode={zone.zone_code} compact />
-                    </>
+                  >
+                    <SelectTrigger className="h-9 border-slate-200 text-sm">
+                      <SelectValue placeholder={warehousesLoading ? 'Đang tải kho…' : 'Chọn kho lưu trữ…'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map((wh) => (
+                        <SelectItem key={wh.id} value={String(wh.id)}>
+                          {wh.name} ({wh.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.warehouseId && <p className="text-[11px] text-rose-500 mt-1">{errors.warehouseId}</p>}
+                  {selectedWarehouseId && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-500"
+                    >
+                      {locationsLoading || allowedLoading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Đang kiểm tra vị trí phù hợp…</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <p>
+                            Hệ thống sẽ tự chọn vị trí đại diện để tạo phiếu. Phân bổ chi tiết sẽ thực hiện ở bước nhận hàng.
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wider">
+                            <span className="rounded-full bg-white px-2 py-0.5 text-slate-500">
+                              {locationStats.zoneCount} khu vực
+                            </span>
+                            <span className={cn(
+                              'rounded-full bg-white px-2 py-0.5 font-semibold',
+                              locationStats.availableCount > 0 ? 'text-emerald-600' : 'text-rose-500',
+                            )}>
+                              {locationStats.availableCount}/{locationStats.totalCount} vị trí khả dụng
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
                   )}
+                  {errors.location && <p className="text-[11px] text-rose-500 mt-1">{errors.location}</p>}
                 </div>
 
                 {/* Supplier */}
@@ -345,6 +476,32 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                       Đã chọn: <span className="font-medium text-slate-600">{supplierName}</span>
                     </motion.p>
                   )}
+                </div>
+              </div>
+
+              {/* Reference No + Receipt Date */}
+              <div className="col-span-2 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Số tham chiếu
+                    <span className="ml-1 font-normal text-slate-400">(tuỳ chọn)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={referenceNo}
+                    onChange={(e) => setReferenceNo(e.target.value)}
+                    placeholder="VD: PO-2024-001"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Ngày nhập kho
+                  </label>
+                  <div className="flex h-9 items-center rounded-lg border border-slate-100 bg-slate-50 px-3 text-sm text-slate-500">
+                    {new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    <span className="ml-2 text-[10px] text-slate-400">(tự động)</span>
+                  </div>
                 </div>
               </div>
 

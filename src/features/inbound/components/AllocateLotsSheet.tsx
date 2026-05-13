@@ -35,6 +35,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { OccupancyBadge } from '@/components/OccupancyBadge';
+import { CapacityProgress } from '@/components/CapacityProgress';
 
 // ── Raw API shape for location search ────────────────────────────────────────
 
@@ -45,6 +47,9 @@ interface LocationRaw {
   location_status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
   zone_code: string | null;
   warehouse: { name: string; code: string };
+  // Optional capacity fields — present when BE search endpoint returns them
+  capacity?: number;
+  current_load?: number;
 }
 
 interface LocationListResponse {
@@ -59,7 +64,10 @@ interface AllocRow {
   location_id: number | null;
   location_code: string;
   location_status?: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
+  location_capacity?: number;
+  location_current_load?: number;
   lot_no: string;
+  supplier_lot: string;  // display-only — not in AllocateLotPayload (BE gap)
   quantity: number | '';
   production_date: string;
   expired_date: string;
@@ -86,7 +94,10 @@ function makeRow(defaults?: { location_id: number; location_code: string }): All
     location_id: defaults?.location_id ?? null,
     location_code: defaults?.location_code ?? '',
     location_status: undefined,
+    location_capacity: undefined,
+    location_current_load: undefined,
     lot_no: '',
+    supplier_lot: '',
     quantity: '',
     production_date: '',
     expired_date: '',
@@ -101,15 +112,34 @@ function calcRemaining(detail: StockInDetail): number {
   return Math.max(0, Number(detail.received_quantity) - sumAlreadyAllocated(detail));
 }
 
+// Today as YYYY-MM-DD in local time — used for min/max date attributes and validation
+function todayStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+// Remaining shelf life in days from today; null when date is empty
+function shelfLifeDays(expiredDate: string): number | null {
+  if (!expiredDate) return null;
+  const expiry = new Date(expiredDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 // ── LocationCombobox ──────────────────────────────────────────────────────────
-// Renders a searchable location picker.  Locations that already contain the
-// same product SKU are shown first (AC02 — prioritise same-SKU, available-
-// capacity locations).
+// Searchable location picker.
+// AC02 — locations that already hold this SKU are surfaced first.
 
 interface LocationOption {
   id: number;
   code: string;
   status?: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
+  capacity?: number;
+  current_load?: number;
 }
 
 interface LocationComboboxProps {
@@ -122,14 +152,14 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  // AC02 — locations already holding this SKU (queried only while popover is open)
+  // AC02 — locations already holding this SKU
   const { data: existingLocs, isLoading: existingLoading } = useProductLocationInventory(
     String(productId),
     '',
     open,
   );
 
-  // All locations (fallback + full-text search)
+  // All locations via full-text search
   const { data: allLocsRaw, isLoading: allLoading } = useQuery({
     queryKey: ['warehouse-locations', 'alloc-search', search],
     queryFn: async () => {
@@ -147,7 +177,6 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
     [existingLocs],
   );
 
-  // Locations that do NOT already contain this SKU — shown as secondary group
   const otherLocs = useMemo(
     () => (allLocsRaw ?? []).filter((l) => !existingLocIds.has(l.id)),
     [allLocsRaw, existingLocIds],
@@ -200,33 +229,39 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                 {(existingLocs?.length ?? 0) > 0 && (
                   <CommandGroup heading="Đã có hàng cùng SKU (ưu tiên)">
                     {existingLocs!.map((loc) => {
-                      const locStatus = (allLocsRaw ?? []).find((l) => l.id === loc.locationId)?.location_status;
+                      const allLocData = (allLocsRaw ?? []).find((l) => l.id === loc.locationId);
                       return (
-                      <CommandItem
-                        key={loc.locationId}
-                        value={loc.locationCode}
-                        onSelect={() => {
-                          onSelect({ id: loc.locationId, code: loc.locationCode, status: locStatus });
-                          setOpen(false);
-                          setSearch('');
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            'mr-1.5 h-3.5 w-3.5 shrink-0',
-                            value?.id === loc.locationId ? 'opacity-100' : 'opacity-0',
-                          )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-xs font-medium text-slate-800">{loc.locationCode}</span>
-                          {loc.warehouseName && (
-                            <span className="ml-1 text-[10px] text-slate-400">· {loc.warehouseName}</span>
-                          )}
-                        </div>
-                        <span className="ml-2 shrink-0 text-[10px] font-semibold text-emerald-600">
-                          {loc.available.toLocaleString()} khả dụng
-                        </span>
-                      </CommandItem>
+                        <CommandItem
+                          key={loc.locationId}
+                          value={loc.locationCode}
+                          onSelect={() => {
+                            onSelect({
+                              id: loc.locationId,
+                              code: loc.locationCode,
+                              status: allLocData?.location_status,
+                              capacity: allLocData?.capacity,
+                              current_load: allLocData?.current_load,
+                            });
+                            setOpen(false);
+                            setSearch('');
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-1.5 h-3.5 w-3.5 shrink-0',
+                              value?.id === loc.locationId ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-medium text-slate-800">{loc.locationCode}</span>
+                            {loc.warehouseName && (
+                              <span className="ml-1 text-[10px] text-slate-400">· {loc.warehouseName}</span>
+                            )}
+                          </div>
+                          <span className="ml-2 shrink-0 text-[10px] font-semibold text-emerald-600">
+                            {loc.available.toLocaleString()} khả dụng
+                          </span>
+                        </CommandItem>
                       );
                     })}
                   </CommandGroup>
@@ -244,7 +279,13 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                         key={loc.id}
                         value={loc.location_code}
                         onSelect={() => {
-                          onSelect({ id: loc.id, code: loc.location_code, status: loc.location_status });
+                          onSelect({
+                            id: loc.id,
+                            code: loc.location_code,
+                            status: loc.location_status,
+                            capacity: loc.capacity,
+                            current_load: loc.current_load,
+                          });
                           setOpen(false);
                           setSearch('');
                         }}
@@ -305,17 +346,17 @@ export function AllocateLotsSheet({
     [details],
   );
 
-  // Allocation form rows, keyed by detail.id
   const [formState, setFormState] = useState<FormState>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form each time the sheet opens; pre-fill each row with the stock-in's
-  // default warehouse location so the user sees a concrete starting point (AC01).
+  // default warehouse location so the user sees a concrete starting point.
   useEffect(() => {
     if (!open) return;
-    const locDefaults = defaultLocationId && defaultLocationCode
-      ? { location_id: defaultLocationId, location_code: defaultLocationCode }
-      : undefined;
+    const locDefaults =
+      defaultLocationId && defaultLocationCode
+        ? { location_id: defaultLocationId, location_code: defaultLocationCode }
+        : undefined;
     const fresh: FormState = Object.fromEntries(
       details
         .filter((d) => Number(d.received_quantity) > 0)
@@ -357,7 +398,6 @@ export function AllocateLotsSheet({
     [],
   );
 
-  // Clear a specific error key
   const clearError = useCallback((...keys: string[]) => {
     setErrors((prev) => {
       const next = { ...prev };
@@ -366,10 +406,15 @@ export function AllocateLotsSheet({
     });
   }, []);
 
-  // ── Validation (AC04, AC05) ──────────────────────────────────────────────────
+  // ── Validation ──────────────────────────────────────────────────────────────
+  // AC03 — lot_no, production_date, expired_date all required; expired_date > today
+  // AC04 — at least one allocation row per received detail
+  // AC05 — new rows total == remaining quantity (±0.001 tolerance)
+  // AC08 — quantity <= remaining location capacity (when capacity data available)
 
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
+    const today = todayStr();
 
     for (const detail of activeDetails) {
       const rem = calcRemaining(detail);
@@ -384,35 +429,80 @@ export function AllocateLotsSheet({
         continue;
       }
 
-      let totalNewQty = 0;
+      // Duplicate lot_no + location_id within same product
+      const seenLotLoc = new Set<string>();
       for (const row of rows) {
+        if (row.lot_no.trim() && row.location_id) {
+          const key = `${row.lot_no.trim()}::${row.location_id}`;
+          if (seenLotLoc.has(key)) {
+            newErrors[`dup_${detail.id}`] =
+              `Lô "${row.lot_no.trim()}" và vị trí đã nhập trùng — hãy gộp lại thành 1 dòng.`;
+            break;
+          }
+          seenLotLoc.add(key);
+        }
+      }
+
+      let totalNewQty = 0;
+
+      for (const row of rows) {
+        // Location required + not FULL
         if (!row.location_id) {
           newErrors[`loc_${detail.id}_${row.rowId}`] = 'Chưa chọn vị trí lưu kho.';
         } else if (row.location_status === 'FULL') {
-          newErrors[`loc_${detail.id}_${row.rowId}`] = 'Vị trí này đã đầy (FULL) — vui lòng chọn vị trí khác.';
+          newErrors[`loc_${detail.id}_${row.rowId}`] =
+            'Vị trí này đã đầy (FULL) — vui lòng chọn vị trí khác.';
         }
+
+        // Lot no required
         if (!row.lot_no.trim()) {
           newErrors[`lot_${detail.id}_${row.rowId}`] = 'Chưa nhập mã lô.';
         }
+
+        // Quantity > 0
         if (row.quantity === '' || Number(row.quantity) <= 0) {
           newErrors[`qty_${detail.id}_${row.rowId}`] = 'Số lượng phải > 0.';
         } else {
           totalNewQty += Number(row.quantity);
+
+          // AC08 — capacity check (numeric capacity graceful fallback)
+          if (row.location_capacity && row.location_capacity > 0) {
+            const remaining = row.location_capacity - (row.location_current_load ?? 0);
+            if (Number(row.quantity) > remaining) {
+              newErrors[`cap_${detail.id}_${row.rowId}`] =
+                `Vượt công suất: vị trí chỉ còn ${remaining.toLocaleString()} chỗ trống.`;
+            }
+          }
+        }
+
+        // Production date — required (§11.4 F&B mandatory)
+        if (!row.production_date) {
+          newErrors[`mfg_${detail.id}_${row.rowId}`] = 'Ngày sản xuất là bắt buộc.';
+        }
+
+        // Expiry date — required AND must be > today (§11.4, AC03)
+        if (!row.expired_date) {
+          newErrors[`exp_${detail.id}_${row.rowId}`] = 'Ngày hết hạn là bắt buộc.';
+        } else if (row.expired_date <= today) {
+          newErrors[`exp_${detail.id}_${row.rowId}`] =
+            'Ngày hết hạn phải sau ngày hôm nay.';
         }
       }
 
-      // AC05 — new rows total must equal the remaining (unallocated) amount
-      if (
-        !newErrors[`detail_${detail.id}`] &&
-        Object.keys(newErrors).filter((k) =>
+      // AC05 — new rows total must equal remaining unallocated amount
+      const hasRowLevelErrors = Object.keys(newErrors).some(
+        (k) =>
           k.startsWith(`loc_${detail.id}`) ||
           k.startsWith(`lot_${detail.id}`) ||
           k.startsWith(`qty_${detail.id}`),
-        ).length === 0 &&
+      );
+      if (
+        !newErrors[`detail_${detail.id}`] &&
+        !newErrors[`dup_${detail.id}`] &&
+        !hasRowLevelErrors &&
         Math.abs(totalNewQty - rem) > 0.001
       ) {
-        newErrors[`detail_${detail.id}`] =
-          `Tổng số lượng (${totalNewQty.toLocaleString()}) phải bằng số lượng còn lại cần phân bổ (${rem.toLocaleString()}).`;
+        newErrors[`detail_${detail.id}`] = `Tổng số lượng (${totalNewQty.toLocaleString()}) phải bằng số lượng còn lại cần phân bổ (${rem.toLocaleString()}).`;
       }
     }
 
@@ -437,7 +527,7 @@ export function AllocateLotsSheet({
           location_id: row.location_id!,
           lot_no: row.lot_no.trim(),
           quantity: Number(row.quantity),
-          // BE schema uses z.string().datetime() — must be full ISO 8601, not YYYY-MM-DD
+          // BE schema uses z.string().datetime() — convert YYYY-MM-DD to full ISO 8601
           production_date: row.production_date
             ? `${row.production_date}T00:00:00.000Z`
             : undefined,
@@ -497,7 +587,7 @@ export function AllocateLotsSheet({
 
         {/* Sheet panel */}
         <motion.div
-          className="relative flex h-full w-[580px] max-w-full flex-col bg-white shadow-2xl"
+          className="relative flex h-full w-145 max-w-full flex-col bg-white shadow-2xl"
           initial={{ x: '100%' }}
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
@@ -508,7 +598,7 @@ export function AllocateLotsSheet({
             <div>
               <h2 className="text-lg font-bold text-slate-900">Phân bổ lô hàng</h2>
               <p className="mt-0.5 text-xs text-slate-500">
-                Chỉ định vị trí lưu kho và mã lô cho từng sản phẩm đã nhận
+                Chỉ định vị trí, mã lô, ngày sản xuất và hạn sử dụng cho từng sản phẩm
               </p>
             </div>
             <button
@@ -534,7 +624,7 @@ export function AllocateLotsSheet({
             {activeDetails.length > 0 && allFullyAllocated && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-                <p className="text-sm text-emerald-700 font-medium">
+                <p className="text-sm font-medium text-emerald-700">
                   Tất cả sản phẩm đã được phân bổ lô đầy đủ.
                 </p>
               </div>
@@ -542,7 +632,7 @@ export function AllocateLotsSheet({
 
             {/* Per-detail allocation form */}
             {activeDetails.map((detail) => {
-              const receivedQty = Number(detail.received_quantity);
+              const receivedQty  = Number(detail.received_quantity);
               const allocatedQty = sumAlreadyAllocated(detail);
               const remainingQty = calcRemaining(detail);
               const isFullyAllocated = remainingQty <= 0;
@@ -599,7 +689,7 @@ export function AllocateLotsSheet({
                   </div>
 
                   <div className="space-y-3 px-4 py-3">
-                    {/* Existing lots — read-only */}
+                    {/* Existing lots — read-only chips */}
                     {detail.lots.length > 0 && (
                       <div>
                         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -633,7 +723,7 @@ export function AllocateLotsSheet({
                       </p>
                     ) : (
                       <>
-                        {/* Remaining progress indicator */}
+                        {/* Remaining qty progress indicator */}
                         <div className="flex items-center justify-between">
                           <p className="text-[11px] text-slate-500">
                             Cần phân bổ thêm:{' '}
@@ -651,9 +741,9 @@ export function AllocateLotsSheet({
                               {detail.product.base_uom.code}
                             </span>
                           </p>
-                          {errors[`detail_${detail.id}`] && (
-                            <p className="text-[11px] font-medium text-rose-500">
-                              {errors[`detail_${detail.id}`]}
+                          {(errors[`detail_${detail.id}`] || errors[`dup_${detail.id}`]) && (
+                            <p className="max-w-55 text-right text-[11px] font-medium text-rose-500">
+                              {errors[`detail_${detail.id}`] ?? errors[`dup_${detail.id}`]}
                             </p>
                           )}
                         </div>
@@ -661,153 +751,262 @@ export function AllocateLotsSheet({
                         {/* Allocation row forms */}
                         <div className="space-y-2">
                           <AnimatePresence initial={false}>
-                            {rows.map((row, rowIdx) => (
-                              <motion.div
-                                key={row.rowId}
-                                layout
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.15 }}
-                                className="group space-y-2 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5"
-                              >
-                                {/* Row header */}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                    Dòng {rowIdx + 1}
-                                  </span>
-                                  {rows.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeRow(detail.id, row.rowId)}
-                                      className="rounded p-0.5 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
-                                </div>
+                            {rows.map((row, rowIdx) => {
+                              // Sum of all rows for this detail that target the same location
+                              const totalPendingForLoc = rows
+                                .filter((r) => r.location_id === row.location_id)
+                                .reduce(
+                                  (acc, r) => acc + (r.quantity !== '' ? Number(r.quantity) : 0),
+                                  0,
+                                );
 
-                                {/* Location picker (AC02) */}
-                                <div>
-                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                    Vị trí lưu kho <span className="text-rose-500">*</span>
-                                  </label>
-                                  <LocationCombobox
-                                    productId={detail.product_id}
-                                    value={
-                                      row.location_id
-                                        ? { id: row.location_id, code: row.location_code }
-                                        : null
-                                    }
-                                    onSelect={(loc) => {
-                                      updateRow(detail.id, row.rowId, {
-                                        location_id: loc.id,
-                                        location_code: loc.code,
-                                        location_status: loc.status,
-                                      });
-                                      clearError(`loc_${detail.id}_${row.rowId}`);
-                                    }}
-                                  />
-                                  {errors[`loc_${detail.id}_${row.rowId}`] && (
-                                    <p className="mt-0.5 text-[10px] text-rose-500">
-                                      {errors[`loc_${detail.id}_${row.rowId}`]}
-                                    </p>
-                                  )}
-                                </div>
+                              const hasCapacity =
+                                !!row.location_id &&
+                                !!row.location_capacity &&
+                                row.location_capacity > 0;
 
-                                {/* Lot no + Quantity */}
-                                <div className="grid grid-cols-2 gap-2">
+                              const occupancyPct =
+                                hasCapacity
+                                  ? ((row.location_current_load ?? 0) / row.location_capacity!) * 100
+                                  : undefined;
+
+                              return (
+                                <motion.div
+                                  key={row.rowId}
+                                  layout
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="group space-y-2 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5"
+                                >
+                                  {/* Row header */}
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                      Dòng {rowIdx + 1}
+                                    </span>
+                                    {rows.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeRow(detail.id, row.rowId)}
+                                        className="rounded p-0.5 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {/* ── Location picker (AC02) ── */}
                                   <div>
                                     <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Mã lô <span className="text-rose-500">*</span>
+                                      Vị trí lưu kho <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <LocationCombobox
+                                          productId={detail.product_id}
+                                          value={
+                                            row.location_id
+                                              ? { id: row.location_id, code: row.location_code }
+                                              : null
+                                          }
+                                          onSelect={(loc) => {
+                                            updateRow(detail.id, row.rowId, {
+                                              location_id: loc.id,
+                                              location_code: loc.code,
+                                              location_status: loc.status,
+                                              location_capacity: loc.capacity,
+                                              location_current_load: loc.current_load,
+                                            });
+                                            clearError(`loc_${detail.id}_${row.rowId}`);
+                                          }}
+                                        />
+                                      </div>
+                                      {/* OccupancyBadge — AC07 location colour status */}
+                                      {row.location_id && (
+                                        <OccupancyBadge
+                                          occupancyPct={occupancyPct}
+                                          locationStatus={row.location_status}
+                                        />
+                                      )}
+                                    </div>
+                                    {errors[`loc_${detail.id}_${row.rowId}`] && (
+                                      <p className="mt-0.5 text-[10px] text-rose-500">
+                                        {errors[`loc_${detail.id}_${row.rowId}`]}
+                                      </p>
+                                    )}
+                                    {/* CapacityProgress — AC08 occupancy visualisation */}
+                                    {hasCapacity && (
+                                      <div className="mt-1.5">
+                                        <CapacityProgress
+                                          capacity={row.location_capacity!}
+                                          currentLoad={row.location_current_load ?? 0}
+                                          pendingQty={totalPendingForLoc}
+                                        />
+                                      </div>
+                                    )}
+                                    {errors[`cap_${detail.id}_${row.rowId}`] && (
+                                      <p className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-rose-500">
+                                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                                        {errors[`cap_${detail.id}_${row.rowId}`]}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* ── Lot no + Quantity ── */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                        Mã lô <span className="text-rose-500">*</span>
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={row.lot_no}
+                                        onChange={(e) => {
+                                          updateRow(detail.id, row.rowId, { lot_no: e.target.value });
+                                          clearError(
+                                            `lot_${detail.id}_${row.rowId}`,
+                                            `dup_${detail.id}`,
+                                          );
+                                        }}
+                                        placeholder="VD: LOT-2024-001"
+                                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
+                                      />
+                                      {errors[`lot_${detail.id}_${row.rowId}`] && (
+                                        <p className="mt-0.5 text-[10px] text-rose-500">
+                                          {errors[`lot_${detail.id}_${row.rowId}`]}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                        Số lượng <span className="text-rose-500">*</span>
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={row.quantity}
+                                        onChange={(e) => {
+                                          updateRow(detail.id, row.rowId, {
+                                            quantity:
+                                              e.target.value === '' ? '' : Number(e.target.value),
+                                          });
+                                          clearError(
+                                            `qty_${detail.id}_${row.rowId}`,
+                                            `detail_${detail.id}`,
+                                            `cap_${detail.id}_${row.rowId}`,
+                                          );
+                                        }}
+                                        min={0.001}
+                                        step="any"
+                                        placeholder="0"
+                                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-right text-xs tabular-nums outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
+                                      />
+                                      {errors[`qty_${detail.id}_${row.rowId}`] && (
+                                        <p className="mt-0.5 text-[10px] text-rose-500">
+                                          {errors[`qty_${detail.id}_${row.rowId}`]}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* ── Supplier lot — display only; not sent to BE (gap) ── */}
+                                  <div>
+                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                      Lô nhà cung cấp{' '}
+                                      <span className="ml-1 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-normal text-amber-600 ring-1 ring-amber-200">
+                                        Chờ BE
+                                      </span>
                                     </label>
                                     <input
                                       type="text"
-                                      value={row.lot_no}
-                                      onChange={(e) => {
-                                        updateRow(detail.id, row.rowId, { lot_no: e.target.value });
-                                        clearError(`lot_${detail.id}_${row.rowId}`);
-                                      }}
-                                      placeholder="VD: LOT-2024-001"
-                                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
-                                    />
-                                    {errors[`lot_${detail.id}_${row.rowId}`] && (
-                                      <p className="mt-0.5 text-[10px] text-rose-500">
-                                        {errors[`lot_${detail.id}_${row.rowId}`]}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Số lượng <span className="text-rose-500">*</span>
-                                    </label>
-                                    <input
-                                      type="number"
-                                      value={row.quantity}
-                                      onChange={(e) => {
+                                      value={row.supplier_lot}
+                                      onChange={(e) =>
                                         updateRow(detail.id, row.rowId, {
-                                          quantity:
-                                            e.target.value === '' ? '' : Number(e.target.value),
-                                        });
-                                        clearError(
-                                          `qty_${detail.id}_${row.rowId}`,
-                                          `detail_${detail.id}`,
-                                        );
-                                      }}
-                                      min={0.001}
-                                      step="any"
-                                      placeholder="0"
-                                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-right text-xs tabular-nums outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
+                                          supplier_lot: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Mã lô theo nhà cung cấp (tuỳ chọn)"
+                                      className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500 outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
                                     />
-                                    {errors[`qty_${detail.id}_${row.rowId}`] && (
-                                      <p className="mt-0.5 text-[10px] text-rose-500">
-                                        {errors[`qty_${detail.id}_${row.rowId}`]}
-                                      </p>
-                                    )}
                                   </div>
-                                </div>
 
-                                {/* Optional dates */}
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      NSX{' '}
-                                      <span className="font-normal normal-case text-slate-400">
-                                        (tuỳ chọn)
-                                      </span>
-                                    </label>
-                                    <input
-                                      type="date"
-                                      value={row.production_date}
-                                      onChange={(e) =>
-                                        updateRow(detail.id, row.rowId, {
-                                          production_date: e.target.value,
-                                        })
-                                      }
-                                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
-                                    />
+                                  {/* ── Dates — required for F&B (§11.4) ── */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                        NSX <span className="text-rose-500">*</span>
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={row.production_date}
+                                        max={todayStr()}
+                                        onChange={(e) => {
+                                          updateRow(detail.id, row.rowId, {
+                                            production_date: e.target.value,
+                                          });
+                                          clearError(`mfg_${detail.id}_${row.rowId}`);
+                                        }}
+                                        className={cn(
+                                          'h-8 w-full rounded-lg border bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100',
+                                          errors[`mfg_${detail.id}_${row.rowId}`]
+                                            ? 'border-rose-300'
+                                            : 'border-slate-200',
+                                        )}
+                                      />
+                                      {errors[`mfg_${detail.id}_${row.rowId}`] && (
+                                        <p className="mt-0.5 text-[10px] text-rose-500">
+                                          {errors[`mfg_${detail.id}_${row.rowId}`]}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                        HSD <span className="text-rose-500">*</span>
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={row.expired_date}
+                                        min={todayStr()}
+                                        onChange={(e) => {
+                                          updateRow(detail.id, row.rowId, {
+                                            expired_date: e.target.value,
+                                          });
+                                          clearError(`exp_${detail.id}_${row.rowId}`);
+                                        }}
+                                        className={cn(
+                                          'h-8 w-full rounded-lg border bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100',
+                                          errors[`exp_${detail.id}_${row.rowId}`]
+                                            ? 'border-rose-300'
+                                            : 'border-slate-200',
+                                        )}
+                                      />
+                                      {errors[`exp_${detail.id}_${row.rowId}`] && (
+                                        <p className="mt-0.5 text-[10px] text-rose-500">
+                                          {errors[`exp_${detail.id}_${row.rowId}`]}
+                                        </p>
+                                      )}
+                                      {/* Remaining shelf-life chip — shown once a valid future date is entered */}
+                                      {(() => {
+                                        const days = shelfLifeDays(row.expired_date);
+                                        if (days === null || days <= 0) return null;
+                                        return (
+                                          <span
+                                            className={cn(
+                                              'mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                                              days <= 30
+                                                ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                                                : 'bg-slate-50 text-slate-500 ring-slate-200',
+                                            )}
+                                          >
+                                            Còn {days} ngày
+                                          </span>
+                                        );
+                                      })()}
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      HSD{' '}
-                                      <span className="font-normal normal-case text-slate-400">
-                                        (tuỳ chọn)
-                                      </span>
-                                    </label>
-                                    <input
-                                      type="date"
-                                      value={row.expired_date}
-                                      onChange={(e) =>
-                                        updateRow(detail.id, row.rowId, {
-                                          expired_date: e.target.value,
-                                        })
-                                      }
-                                      className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
-                                    />
-                                  </div>
-                                </div>
-                              </motion.div>
-                            ))}
+                                </motion.div>
+                              );
+                            })}
                           </AnimatePresence>
                         </div>
 

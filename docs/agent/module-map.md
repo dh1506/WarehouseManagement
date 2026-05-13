@@ -132,3 +132,9 @@
 - `src/features/inbound/components/WarehouseLocationSelect.tsx`
 - `src/components/PageHeader.tsx`
 - `src/hooks/use-toast.ts`
+
+---
+
+## Inbound Module
+
+- `src/features/inbound/components/CreatePurchaseOrderSheet.tsx` — chọn kho + tự gán `warehouse_location_id` đại diện theo danh mục; phân bổ vị trí chi tiết thực hiện ở bước nhận hàng

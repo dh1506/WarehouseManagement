@@ -115,3 +115,14 @@
 4. Add pagination to `GET /api/ai-forecasts/events` if event list grows large
 5. Consider adding a dedicated analytics endpoint to the BE for global status counts (currently KPI cards show page-level counts only)
 6. Retire orphaned files: `useAiForecastInsights.ts` and `AiForecastDashboard.tsx` in a cleanup sprint
+
+---
+
+## Sprint: Inbound Create Flow — 2026-05-13
+
+### Status: IMPLEMENTED (FE) ✅
+
+## Completed Tasks
+
+- [x] Create stock-in form chọn kho theo danh mục, tự gán `warehouse_location_id` đại diện
+- [x] Hiển thị trạng thái kho phù hợp và cảnh báo khi không có vị trí hợp lệ
