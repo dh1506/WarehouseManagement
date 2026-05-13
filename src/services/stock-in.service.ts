@@ -158,33 +158,32 @@ export const createStockIn = async (userId: number, data: CreateStockInInput) =>
     throw new AppError("Nhà cung cấp không tồn tại", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
-    // Generate Mã SI (Sequence có thể đếm theo số record hiện tại hoặc config)
-    const count = await tx.stockIn.count();
-    const code = generateStockInCode(count + 1);
+  // Đếm số lượng record hiện tại để sinh mã
+  const count = await prisma.stockIn.count();
+  const code = generateStockInCode(count + 1);
 
-    const stockIn = await tx.stockIn.create({
-      data: {
-        code,
-        warehouse_location_id,
-        supplier_id,
-        description: description ?? null,
-        created_by: userId,
-        status: "DRAFT",
-        details: {
-          create: details.map((d) => ({
-            product: { connect: { id: d.product_id } },
-            expected_quantity: d.expected_quantity,
-            unit_price: d.unit_price ?? null,
-            received_quantity: 0,
-          })),
-        },
+  // Dùng prisma trực tiếp (không dùng tx) để audit log extension được kích hoạt
+  const stockIn = await prisma.stockIn.create({
+    data: {
+      code,
+      warehouse_location_id,
+      supplier_id,
+      description: description ?? null,
+      created_by: userId,
+      status: "DRAFT",
+      details: {
+        create: details.map((d) => ({
+          product: { connect: { id: d.product_id } },
+          expected_quantity: d.expected_quantity,
+          unit_price: d.unit_price ?? null,
+          received_quantity: 0,
+        })),
       },
-      select: stockInSelectFields,
-    });
-
-    return stockIn;
+    },
+    select: stockInSelectFields,
   });
+
+  return stockIn;
 };
 
 /**
@@ -222,7 +221,8 @@ export const recordReceipt = async (id: number, data: RecordReceiptInput) => {
     throw new AppError("Không thể cập nhật phiếu đã hoàn tất hoặc hủy", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  // Cập nhật chi tiết trong transaction (sub-operations)
+  await prisma.$transaction(async (tx) => {
     for (const updateDetail of data.details) {
       const detail = stockIn.details.find(
         (d) => d.id === updateDetail.stock_in_detail_id
@@ -240,17 +240,18 @@ export const recordReceipt = async (id: number, data: RecordReceiptInput) => {
         data: { received_quantity: updateDetail.received_quantity },
       });
     }
-
-    const updatedStockIn = await tx.stockIn.update({
-      where: { id },
-      data: {
-        status: "IN_PROGRESS",
-      },
-      select: stockInSelectFields,
-    });
-
-    return updatedStockIn;
   });
+
+  // Cập nhật trạng thái phiếu nhập bằng prisma trực tiếp để audit log extension được kích hoạt
+  const updatedStockIn = await prisma.stockIn.update({
+    where: { id },
+    data: {
+      status: "IN_PROGRESS",
+    },
+    select: stockInSelectFields,
+  });
+
+  return updatedStockIn;
 };
 
 /**
@@ -282,25 +283,25 @@ export const createDiscrepancy = async (
     throw new AppError("Số lượng không có chênh lệch", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const discrepancy = await tx.stockInDiscrepancy.create({
-      data: {
-        stock_in_id: id,
-        reported_by: reporterId,
-        expected_qty: new Prisma.Decimal(expectedQty),
-        actual_qty: new Prisma.Decimal(actualQty),
-        reason: data.reason,
-        status: "PENDING",
-      },
-    });
-
-    await tx.stockIn.update({
-      where: { id },
-      data: { status: "DISCREPANCY" },
-    });
-
-    return discrepancy;
+  // Tạo biên bản chênh lệch
+  const discrepancy = await prisma.stockInDiscrepancy.create({
+    data: {
+      stock_in_id: id,
+      reported_by: reporterId,
+      expected_qty: new Prisma.Decimal(expectedQty),
+      actual_qty: new Prisma.Decimal(actualQty),
+      reason: data.reason,
+      status: "PENDING",
+    },
   });
+
+  // Cập nhật trạng thái phiếu nhập bằng prisma trực tiếp để audit log extension được kích hoạt
+  await prisma.stockIn.update({
+    where: { id },
+    data: { status: "DISCREPANCY" },
+  });
+
+  return discrepancy;
 };
 
 /**
@@ -323,24 +324,23 @@ export const resolveDiscrepancy = async (
     throw new AppError("Biên bản chênh lệch đã được xử lý", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const resolved = await tx.stockInDiscrepancy.update({
-      where: { id: discId },
-      data: {
-        status: "RESOLVED",
-        resolved_by: resolverId,
-        action_taken: data.action_taken,
-      },
-    });
-
-    // Quay lại IN_PROGRESS cho stockin
-    await tx.stockIn.update({
-      where: { id },
-      data: { status: "IN_PROGRESS" },
-    });
-
-    return resolved;
+  // Cập nhật biên bản chênh lệch
+  const resolved = await prisma.stockInDiscrepancy.update({
+    where: { id: discId },
+    data: {
+      status: "RESOLVED",
+      resolved_by: resolverId,
+      action_taken: data.action_taken,
+    },
   });
+
+  // Quay lại IN_PROGRESS cho stockin - dùng prisma trực tiếp để audit log extension được kích hoạt
+  await prisma.stockIn.update({
+    where: { id },
+    data: { status: "IN_PROGRESS" },
+  });
+
+  return resolved;
 };
 
 /**
@@ -357,7 +357,8 @@ export const allocateLots = async (id: number, data: AllocateLotsInput) => {
     throw new AppError("Chỉ có thể phân bổ khi phiếu đang IN_PROGRESS", 400);
   }
 
-  return prisma.$transaction(async (tx) => {
+  // Phân bổ lô hàng trong transaction (sub-operations)
+  await prisma.$transaction(async (tx) => {
     for (const alloc of data.allocations) {
       const detail = stockIn.details.find(
         (d) => d.id === alloc.stock_in_detail_id
@@ -415,11 +416,12 @@ export const allocateLots = async (id: number, data: AllocateLotsInput) => {
         },
       });
     }
+  });
 
-    return prisma.stockIn.findUnique({
-      where: { id },
-      select: stockInSelectFields,
-    });
+  // Trả về dữ liệu phiếu nhập sau khi phân bổ
+  return prisma.stockIn.findUnique({
+    where: { id },
+    select: stockInSelectFields,
   });
 };
 
@@ -450,12 +452,21 @@ export const completeStockIn = async (id: number, userId: number) => {
     throw new AppError("Vẫn còn biên bản chênh lệch chưa giải quyết", 400);
   }
 
-  // 2. Validate expected vs received nếu không có biên bản
+  // 2. Validate expected vs received nếu không có biên bản và kiểm tra phân bổ lô
   let isDiff = false;
   for (const detail of stockIn.details) {
     if (Number(detail.expected_quantity) !== Number(detail.received_quantity)) {
       isDiff = true;
       break;
+    }
+
+    // Đảm bảo số lượng đã phân bổ lô (allocated) phải bằng với số lượng đã nhận (received_quantity)
+    const totalAllocated = detail.lots.reduce((acc, lot) => acc + Number(lot.quantity), 0);
+    if (totalAllocated !== Number(detail.received_quantity)) {
+      throw new AppError(
+        `Sản phẩm ${detail.product.code} chưa được phân bổ lô đầy đủ. Đã nhận: ${detail.received_quantity}, Đã phân bổ: ${totalAllocated}`,
+        400
+      );
     }
   }
 
@@ -475,7 +486,8 @@ export const completeStockIn = async (id: number, userId: number) => {
   }
 
   // 4. Hoàn tất & Ghi nhận tồn kho
-  return prisma.$transaction(async (tx) => {
+  // Cập nhật tồn kho và ghi nhận giao dịch trong transaction (sub-operations)
+  await prisma.$transaction(async (tx) => {
     for (const detail of stockIn.details) {
       for (const mapLot of detail.lots) {
         const qty = Number(mapLot.quantity);
@@ -503,20 +515,21 @@ export const completeStockIn = async (id: number, userId: number) => {
             base_quantity: new Prisma.Decimal(qty),
             balance_after: inventory.quantity, // Value post-update
             reference_type: "STOCK_IN",
-            reference_id: stockIn.id.toString(),
+            reference_id: stockIn.code,
             reference_line_id: detail.id.toString(),
             created_by: userId,
           },
         });
       }
     }
-
-    const completed = await tx.stockIn.update({
-      where: { id },
-      data: { status: "COMPLETED" },
-      select: stockInSelectFields,
-    });
-
-    return completed;
   });
+
+  // Cập nhật trạng thái phiếu nhập bằng prisma trực tiếp để audit log extension được kích hoạt
+  const completed = await prisma.stockIn.update({
+    where: { id },
+    data: { status: "COMPLETED" },
+    select: stockInSelectFields,
+  });
+
+  return completed;
 };
