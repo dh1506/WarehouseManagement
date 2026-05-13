@@ -41,11 +41,23 @@ function hasPendingDiscrepancies(stockIn: StockIn): boolean {
 function isCompleteBlocked(stockIn: StockIn): boolean {
   const status: StockInStatus = stockIn.status;
 
-  // Block nếu status là DISCREPANCY
   if (status === 'DISCREPANCY') return true;
-
-  // Block nếu còn discrepancy PENDING
   if (hasPendingDiscrepancies(stockIn)) return true;
+
+  // AC03/AC04 — every detail with received qty must have at least one lot allocated
+  // AC05 — total allocated quantity must equal received quantity
+  for (const detail of stockIn.details) {
+    const received = Number(detail.received_quantity);
+    if (received <= 0) continue;
+
+    if (detail.lots.length === 0) return true;
+
+    const totalAllocated = detail.lots.reduce(
+      (acc, lot) => acc + Number(lot.quantity),
+      0,
+    );
+    if (Math.abs(totalAllocated - received) > 0.001) return true;
+  }
 
   return false;
 }
@@ -58,6 +70,24 @@ function getCompleteBlockReason(stockIn: StockIn): string {
   if (hasPendingDiscrepancies(stockIn)) {
     return 'Không thể hoàn tất: Còn sai lệch chưa được giải quyết.';
   }
+
+  for (const detail of stockIn.details) {
+    const received = Number(detail.received_quantity);
+    if (received <= 0) continue;
+
+    if (detail.lots.length === 0) {
+      return `Sản phẩm "${detail.product.name}" chưa được phân bổ lô. Vui lòng phân bổ lô hàng trước khi hoàn tất.`;
+    }
+
+    const totalAllocated = detail.lots.reduce(
+      (acc, lot) => acc + Number(lot.quantity),
+      0,
+    );
+    if (Math.abs(totalAllocated - received) > 0.001) {
+      return `Sản phẩm "${detail.product.name}": số lượng phân bổ (${totalAllocated.toLocaleString()}) không khớp số lượng đã nhận (${received.toLocaleString()}).`;
+    }
+  }
+
   return '';
 }
 
