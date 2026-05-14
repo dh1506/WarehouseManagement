@@ -40,6 +40,7 @@ type StockPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'STABLE';
 
 /** Đề xuất nhập hàng cho 1 sản phẩm (response trả về client) */
 interface ForecastRecommendation {
+  result_id: number;
   product_id: number;
   product_code: string;
   product_name: string;
@@ -502,6 +503,13 @@ export const triggerForecast = async (params: {
 
   await prisma.aiForecastResult.createMany({ data: resultCreateData });
 
+  // Lấy lại kết quả đã lưu để lấy ID
+  const savedResults = await prisma.aiForecastResult.findMany({
+    where: { forecast_id: forecast.id },
+    select: { id: true, product_id: true }
+  });
+  const savedResultMap = new Map(savedResults.map(r => [r.product_id, r.id]));
+
   // 10. Update AiForecast thành COMPLETED
   await prisma.aiForecast.update({
     where: { id: forecast.id },
@@ -521,6 +529,7 @@ export const triggerForecast = async (params: {
     const suggested = Number(r.suggested_order_qty);
 
     return {
+      result_id: savedResultMap.get(r.product_id) ?? 0,
       product_id: r.product_id,
       product_code: inv?.product.code ?? '',
       product_name: inv?.product.name ?? '',
@@ -711,6 +720,7 @@ export const getForecastDetail = async (id: number): Promise<TriggerForecastResp
     const suggested = Number(r.suggested_order_qty);
 
     return {
+      result_id: r.id,
       product_id: r.product_id,
       product_code: r.product.code,
       product_name: r.product.name,
