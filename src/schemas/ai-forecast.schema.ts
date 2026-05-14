@@ -53,23 +53,28 @@ export const triggerForecastSchema = z.object({
 // Zod Schema: Review Forecast Result (Approve/Reject)
 // =============================================
 
-export const reviewForecastResultSchema = z.object({
-  params: z.object({
-    id: z.string().regex(/^\d+$/, 'ID phải là số nguyên dương'),
-  }),
+export const bulkReviewForecastResultsSchema = z.object({
   body: z.object({
-    action: z.enum(['APPROVE', 'REJECT'], {
-      message: 'action là bắt buộc (APPROVE hoặc REJECT)'
-    }),
-    reject_reason: z.string().min(10, 'Lý do từ chối phải có ít nhất 10 ký tự').optional(),
-  }).superRefine((data, ctx) => {
-    if (data.action === 'REJECT' && !data.reject_reason) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'reject_reason là bắt buộc khi từ chối',
-        path: ['reject_reason'],
+    items: z.array(
+      z.object({
+        result_id: z.number().int().positive('result_id phải là số nguyên dương'),
+        action: z.enum(['APPROVE', 'REJECT'], {
+          message: 'action là bắt buộc (APPROVE hoặc REJECT)',
+        }),
+        reject_reason: z.string().min(10, 'Lý do từ chối phải có ít nhất 10 ký tự').optional(),
+      })
+    ).min(1, 'Phải có ít nhất 1 kết quả để review')
+    .superRefine((items, ctx) => {
+      items.forEach((item, index) => {
+        if (item.action === 'REJECT' && !item.reject_reason) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'reject_reason là bắt buộc khi từ chối',
+            path: [index, 'reject_reason'],
+          });
+        }
       });
-    }
+    }),
   }),
 });
 
@@ -105,13 +110,13 @@ export const listForecastResultsSchema = z.object({
 // Zod Schema: Update Actual Qty (để tính MAPE)
 // =============================================
 
-export const updateActualQtySchema = z.object({
-  params: z.object({
-    id: z.string().regex(/^\d+$/, 'ID phải là số nguyên dương'),
-  }),
+export const bulkUpdateActualQtySchema = z.object({
   body: z.object({
-    actual_qty: z
-      .number()
-      .min(0, 'actual_qty phải >= 0'),
+    items: z.array(
+      z.object({
+        result_id: z.number().int().positive('result_id phải là số nguyên dương'),
+        actual_qty: z.number().min(0, 'actual_qty phải >= 0'),
+      })
+    ).min(1, 'Phải có ít nhất 1 kết quả để cập nhật'),
   }),
 });

@@ -46,18 +46,18 @@ router.get('/:id', aiForecastController.getForecastDetail);
 // AI Forecast Results & Feedback
 // =============================================
 
-// Phê duyệt hoặc Từ chối 1 kết quả
+// Phê duyệt hoặc Từ chối nhiều kết quả (Bulk Review)
 router.post(
-  '/results/:id/review',
-  validateRequest(schemas.reviewForecastResultSchema),
-  aiForecastController.reviewForecastResult
+  '/bulk-review',
+  validateRequest(schemas.bulkReviewForecastResultsSchema),
+  aiForecastController.bulkReviewForecastResults
 );
 
-// Cập nhật số lượng thực tế (để tính MAPE)
+// Cập nhật số lượng thực tế (để tính MAPE) cho nhiều kết quả (Bulk Actual)
 router.post(
-  '/results/:id/actual',
-  validateRequest(schemas.updateActualQtySchema),
-  aiForecastController.updateActualQty
+  '/bulk-actual',
+  validateRequest(schemas.bulkUpdateActualQtySchema),
+  aiForecastController.bulkUpdateActualQty
 );
 
 // =============================================
