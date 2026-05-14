@@ -10,6 +10,7 @@ import {
   AI_REQUEST_TIMEOUT_MS,
 } from '../config/gemini.config';
 import { sendMapeAlertEmail, type MapeAlertItem } from '../utils/email.util';
+import { createStockIn } from './stock-in.service';
 import type { Prisma } from '../generated';
 
 // =============================================
@@ -768,88 +769,187 @@ export const getForecastDetail = async (id: number): Promise<TriggerForecastResp
 };
 
 /**
- * Approve hoặc Reject 1 kết quả dự báo
+ * Phê duyệt / Từ chối nhiều kết quả dự báo (Bulk Review)
  */
-export const reviewForecastResult = async (
-  resultId: number,
-  action: 'APPROVE' | 'REJECT',
-  reviewedBy: number,
-  rejectReason?: string
+export const bulkReviewForecastResults = async (
+  items: { result_id: number; action: 'APPROVE' | 'REJECT'; reject_reason?: string }[],
+  reviewedBy: number
 ) => {
-  const result = await prisma.aiForecastResult.findUnique({ where: { id: resultId } });
-  if (!result) throw new AppError('Không tìm thấy kết quả dự báo', 404);
-  if (result.review_status !== 'PENDING') {
-    throw new AppError('Kết quả này đã được xét duyệt trước đó', 400);
-  }
-  if (action === 'REJECT' && !rejectReason) {
-    throw new AppError('Vui lòng cung cấp lý do từ chối', 400);
+  const results = await prisma.aiForecastResult.findMany({
+    where: { id: { in: items.map((i) => i.result_id) } },
+    include: { product: { include: { productSuppliers: true } } },
+  });
+
+  if (results.length !== items.length) {
+    throw new AppError('Một số kết quả dự báo không tồn tại', 404);
   }
 
-  return prisma.aiForecastResult.update({
-    where: { id: resultId },
-    data: {
-      review_status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
-      reject_reason: action === 'REJECT' ? (rejectReason ?? null) : null,
-      reviewed_by: reviewedBy,
-      reviewed_at: new Date(),
-    },
-  });
+  const resultStatusMap = new Map(results.map((r) => [r.id, r.review_status]));
+  if (Array.from(resultStatusMap.values()).some((status) => status !== 'PENDING')) {
+    throw new AppError('Một số kết quả đã được xét duyệt trước đó', 400);
+  }
+
+  const approvedResults: typeof results = [];
+
+  // Validate items & gather approved ones
+  for (const item of items) {
+    if (item.action === 'REJECT' && !item.reject_reason) {
+      throw new AppError(`Vui lòng cung cấp lý do từ chối cho kết quả ID ${item.result_id}`, 400);
+    }
+    if (item.action === 'APPROVE') {
+      const dbResult = results.find((r) => r.id === item.result_id);
+      if (dbResult) approvedResults.push(dbResult);
+    }
+  }
+
+  // Nếu có sản phẩm được duyệt, kiểm tra supplier và chuẩn bị tạo phiếu nhập
+  const stockInPayloads = new Map<number, {
+    warehouse_location_id: number;
+    details: { product_id: number; expected_quantity: number }[];
+  }>();
+
+  if (approvedResults.length > 0) {
+    for (const res of approvedResults) {
+      const suppliers = res.product.productSuppliers;
+      if (suppliers.length === 0) {
+        throw new AppError(
+          `Sản phẩm ${res.product.code} chưa được gán nhà cung cấp nào. Vui lòng cập nhật nhà cung cấp trước khi duyệt.`,
+          400
+        );
+      }
+
+      // Ưu tiên nhà cung cấp chính (is_primary = true), nếu không lấy nhà cung cấp đầu tiên
+      const primarySupplier = suppliers.find((s) => s.is_primary) || suppliers[0];
+      const supplierId = primarySupplier!.supplier_id;
+
+      if (!stockInPayloads.has(supplierId)) {
+        stockInPayloads.set(supplierId, {
+          warehouse_location_id: res.warehouse_location_id,
+          details: [],
+        });
+      }
+
+      stockInPayloads.get(supplierId)!.details.push({
+        product_id: res.product_id,
+        expected_quantity: Number(res.suggested_order_qty),
+      });
+    }
+  }
+
+  // Thực hiện update status trong transaction
+  await prisma.$transaction(
+    items.map((item) =>
+      prisma.aiForecastResult.update({
+        where: { id: item.result_id },
+        data: {
+          review_status: item.action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+          reject_reason: item.action === 'REJECT' ? (item.reject_reason ?? null) : null,
+          reviewed_by: reviewedBy,
+          reviewed_at: new Date(),
+        },
+      })
+    )
+  );
+
+  // Tạo phiếu nhập cho các sản phẩm được approve
+  const createdStockIns = [];
+  for (const [supplierId, payload] of stockInPayloads.entries()) {
+    const stockIn = await createStockIn(reviewedBy, {
+      warehouse_location_id: payload.warehouse_location_id,
+      supplier_id: supplierId,
+      description: 'Hệ thống tự động tạo phiếu nhập từ đề xuất AI Forecast',
+      details: payload.details,
+    });
+    createdStockIns.push(stockIn.code);
+  }
+
+  return {
+    updated_count: items.length,
+    created_stock_ins: createdStockIns,
+  };
 };
 
 /**
- * Cập nhật actual_qty và tính MAPE sau khi có doanh số thực tế
+ * Cập nhật actual_qty và tính MAPE cho nhiều kết quả cùng lúc
  */
-export const updateActualAndCalcMape = async (resultId: number, actualQty: number) => {
-  const result = await prisma.aiForecastResult.findUnique({
-    where: { id: resultId },
+export const bulkUpdateActualAndCalcMape = async (
+  items: { result_id: number; actual_qty: number }[]
+) => {
+  const resultIds = items.map((i) => i.result_id);
+  const results = await prisma.aiForecastResult.findMany({
+    where: { id: { in: resultIds } },
     include: { product: { select: { id: true, code: true, name: true } }, forecast: true },
   });
-  if (!result) throw new AppError('Không tìm thấy kết quả dự báo', 404);
 
-  const mape = calcMape(Number(result.forecast_qty), actualQty);
-  let alertLevel: 'WARNING' | 'CRITICAL' | null = null;
-  if (mape !== null) {
-    if (mape > MAPE_CRITICAL_THRESHOLD) alertLevel = 'CRITICAL';
-    else if (mape > MAPE_WARNING_THRESHOLD) alertLevel = 'WARNING';
+  if (results.length !== items.length) {
+    throw new AppError('Một số kết quả dự báo không tồn tại', 404);
   }
 
-  const updated = await prisma.aiForecastResult.update({
-    where: { id: resultId },
-    data: {
-      actual_qty: actualQty,
-      mape_score: mape,
-      mape_alert_level: alertLevel,
-    },
-  });
+  const warningItems: MapeAlertItem[] = [];
+  const criticalItems: MapeAlertItem[] = [];
+  const normalItems: MapeAlertItem[] = [];
+  let forecastId: number | null = null;
+  let forecastMonthStr: string = '';
 
-  // Gửi email cảnh báo nếu vượt threshold
-  if (alertLevel) {
-    const forecastMonthStr = result.forecast.forecast_month.toLocaleDateString('vi-VN', {
+  const updatePromises = items.map((item) => {
+    const result = results.find((r) => r.id === item.result_id)!;
+    forecastId = result.forecast_id;
+    forecastMonthStr = result.forecast.forecast_month.toLocaleDateString('vi-VN', {
       month: '2-digit',
       year: 'numeric',
     });
+
+    const mape = calcMape(Number(result.forecast_qty), item.actual_qty);
+    let alertLevel: 'WARNING' | 'CRITICAL' | null = null;
+
+    if (mape !== null) {
+      if (mape > MAPE_CRITICAL_THRESHOLD) alertLevel = 'CRITICAL';
+      else if (mape > MAPE_WARNING_THRESHOLD) alertLevel = 'WARNING';
+    }
+
     const alertItem: MapeAlertItem = {
       productId: result.product_id,
       productCode: result.product.code,
       productName: result.product.name,
       forecastQty: Number(result.forecast_qty),
-      actualQty,
-      mapeScore: mape!,
-      alertLevel,
+      actualQty: item.actual_qty,
+      mapeScore: mape ?? 0,
+      alertLevel: alertLevel || 'WARNING', // Placeholder for normal items which don't have level
     };
-    const dashboardUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/ai-forecasts/${result.forecast_id}`;
 
-    // Gửi async, không block response
+    if (alertLevel === 'CRITICAL') criticalItems.push(alertItem);
+    else if (alertLevel === 'WARNING') warningItems.push(alertItem);
+    else if (mape !== null) normalItems.push(alertItem);
+
+    return prisma.aiForecastResult.update({
+      where: { id: item.result_id },
+      data: {
+        actual_qty: item.actual_qty,
+        mape_score: mape,
+        mape_alert_level: alertLevel,
+      },
+    });
+  });
+
+  const updatedResults = await prisma.$transaction(updatePromises);
+
+  // Gửi 1 email duy nhất tổng hợp tất cả
+  if (forecastId !== null && (warningItems.length > 0 || criticalItems.length > 0 || normalItems.length > 0)) {
+    const dashboardUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/ai-forecasts/${forecastId}`;
+
+    // Truyền thêm normalItems qua tham số tuỳ chỉnh
     void sendMapeAlertEmail({
       forecastMonth: `Tháng ${forecastMonthStr}`,
-      forecastId: result.forecast_id,
-      warningItems: alertLevel === 'WARNING' ? [alertItem] : [],
-      criticalItems: alertLevel === 'CRITICAL' ? [alertItem] : [],
+      forecastId,
+      warningItems,
+      criticalItems,
       dashboardUrl,
-    }).catch((e) => console.error('[Email] Lỗi gửi MAPE alert:', e));
+      // @ts-ignore - ta sẽ update sendMapeAlertEmail payload type sau
+      normalItems, 
+    }).catch((e) => console.error('[Email] Lỗi gửi bulk MAPE alert:', e));
   }
 
-  return updated;
+  return updatedResults;
 };
 
 /**

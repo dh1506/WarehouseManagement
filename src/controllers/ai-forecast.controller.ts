@@ -82,42 +82,39 @@ export const getForecastDetail = catchAsync(async (req: Request, res: Response) 
 });
 
 /**
- * Phê duyệt / Từ chối một kết quả dự báo
+ * Phê duyệt / Từ chối nhiều kết quả dự báo (Bulk Review)
  */
-export const reviewForecastResult = catchAsync(async (req: Request, res: Response) => {
-  const resultId = parseInt(req.params.id as string);
+export const bulkReviewForecastResults = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   if (!userId) throw new Error('User ID not found in request');
 
-  const { action, reject_reason } = req.body;
+  const { items } = req.body as {
+    items: { result_id: number; action: 'APPROVE' | 'REJECT'; reject_reason?: string }[];
+  };
 
-  const updatedResult = await aiForecastService.reviewForecastResult(
-    resultId,
-    action,
-    userId,
-    reject_reason
-  );
+  const reviewResult = await aiForecastService.bulkReviewForecastResults(items, userId);
 
   res.status(200).json({
     success: true,
-    data: updatedResult,
-    message: `Đã ${action === 'APPROVE' ? 'phê duyệt' : 'từ chối'} kết quả dự báo`,
+    data: reviewResult,
+    message: 'Đã xử lý phê duyệt/từ chối danh sách kết quả dự báo',
   });
 });
 
 /**
- * Cập nhật số lượng bán thực tế và tính MAPE
+ * Cập nhật số lượng bán thực tế và tính MAPE cho nhiều kết quả
  */
-export const updateActualQty = catchAsync(async (req: Request, res: Response) => {
-  const resultId = parseInt(req.params.id as string);
-  const { actual_qty } = req.body;
+export const bulkUpdateActualQty = catchAsync(async (req: Request, res: Response) => {
+  const { items } = req.body as {
+    items: { result_id: number; actual_qty: number }[];
+  };
 
-  const updatedResult = await aiForecastService.updateActualAndCalcMape(resultId, actual_qty);
+  const updatedResults = await aiForecastService.bulkUpdateActualAndCalcMape(items);
 
   res.status(200).json({
     success: true,
-    data: updatedResult,
-    message: 'Cập nhật số lượng thực tế và tính MAPE thành công',
+    data: updatedResults,
+    message: 'Cập nhật số lượng thực tế và tính MAPE cho danh sách thành công',
   });
 });
 

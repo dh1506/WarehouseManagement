@@ -47,6 +47,7 @@ export interface MapeAlertEmailPayload {
   forecastId: number;
   warningItems: MapeAlertItem[];
   criticalItems: MapeAlertItem[];
+  normalItems?: MapeAlertItem[];
   dashboardUrl: string;
 }
 
@@ -59,7 +60,7 @@ export interface MapeAlertEmailPayload {
  * @param payload Dữ liệu cảnh báo
  */
 export const sendMapeAlertEmail = async (payload: MapeAlertEmailPayload): Promise<void> => {
-  const { forecastMonth, forecastId, warningItems, criticalItems, dashboardUrl } = payload;
+  const { forecastMonth, forecastId, warningItems, criticalItems, normalItems = [], dashboardUrl } = payload;
 
   const recipientEmail = process.env.EMAIL_ALERT_RECIPIENT;
   if (!recipientEmail) {
@@ -68,12 +69,13 @@ export const sendMapeAlertEmail = async (payload: MapeAlertEmailPayload): Promis
   }
 
   const totalAlertsCount = warningItems.length + criticalItems.length;
-  if (totalAlertsCount === 0) return;
+  const totalItemsCount = totalAlertsCount + normalItems.length;
+  if (totalItemsCount === 0) return;
 
   // Render bảng HTML cho từng nhóm cảnh báo
-  const renderTable = (items: MapeAlertItem[], level: 'WARNING' | 'CRITICAL'): string => {
+  const renderTable = (items: MapeAlertItem[], level: 'WARNING' | 'CRITICAL' | 'NORMAL'): string => {
     if (items.length === 0) return '<p>Không có cảnh báo.</p>';
-    const color = level === 'CRITICAL' ? '#DC2626' : '#D97706';
+    const color = level === 'CRITICAL' ? '#DC2626' : level === 'WARNING' ? '#D97706' : '#10B981';
     const rows = items
       .map(
         (item) => `
@@ -137,6 +139,17 @@ export const sendMapeAlertEmail = async (payload: MapeAlertEmailPayload): Promis
           <div style="background:#fffbeb;border-left:4px solid #D97706;padding:16px;margin:16px 0;border-radius:4px;">
             <h3 style="color:#D97706;margin:0 0 12px;">⚠️ WARNING - MAPE &gt; 10% (${warningItems.length} sản phẩm)</h3>
             ${renderTable(warningItems, 'WARNING')}
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          normalItems.length > 0
+            ? `
+          <div style="background:#f0fdf4;border-left:4px solid #10B981;padding:16px;margin:16px 0;border-radius:4px;">
+            <h3 style="color:#10B981;margin:0 0 12px;">✅ BÌNH THƯỜNG - MAPE &le; 10% (${normalItems.length} sản phẩm)</h3>
+            ${renderTable(normalItems, 'NORMAL')}
           </div>
         `
             : ''
