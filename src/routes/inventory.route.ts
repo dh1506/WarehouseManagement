@@ -30,26 +30,11 @@ router.get(
   inventoryController.getInventories,
 );
 
-router.get(
-  "/:id",
-  validateRequest(inventoryParamSchema),
-  inventoryController.getInventoryById,
-);
-
 router.post(
   "/",
+  requirePermission("inventory:create"),
   validateRequest(createInventorySchema),
   inventoryController.createInventory,
-);
-router.put(
-  "/:id",
-  validateRequest(updateInventorySchema),
-  inventoryController.updateInventory,
-);
-router.delete(
-  "/:id",
-  validateRequest(inventoryParamSchema),
-  inventoryController.deleteInventory,
 );
 
 /**
@@ -86,6 +71,27 @@ router.post(
   requirePermission("inventory:update"),
   validateRequest(inventoryClosingSchema),
   inventoryController.closePeriod,
+);
+
+router.get(
+  "/:id",
+  requirePermission("inventory:read"),
+  validateRequest(inventoryParamSchema),
+  inventoryController.getInventoryById,
+);
+
+router.put(
+  "/:id",
+  requirePermission("inventory:update"),
+  validateRequest(updateInventorySchema),
+  inventoryController.updateInventory,
+);
+
+router.delete(
+  "/:id",
+  requirePermission("inventory:delete"),
+  validateRequest(inventoryParamSchema),
+  inventoryController.deleteInventory,
 );
 
 export default router;
