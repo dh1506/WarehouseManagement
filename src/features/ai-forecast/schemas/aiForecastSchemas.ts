@@ -51,7 +51,7 @@ export const reviewResultSchema = z
 
 export const updateActualSchema = z.object({
   actual_qty: z
-    .number({ invalid_type_error: 'Must be a number' })
+    .number({ message: 'Must be a number' })
     .min(0, 'Cannot be negative'),
 });
 

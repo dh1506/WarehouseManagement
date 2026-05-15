@@ -1,16 +1,17 @@
 import apiClient from '@/services/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type {
-  AiForecast,
-  AiForecastDetail,
   AiForecastEvent,
   AiForecastListResponse,
   AiForecastQueryParams,
   AiForecastResult,
   AiRetrainBatch,
+  BulkActualItem,
+  BulkReviewItem,
+  BulkReviewResponse,
   TriggerForecastResponse,
 } from '@/features/ai-forecast/types/aiForecastType';
-import type { CreateEventInput, ReviewResultInput, TriggerForecastInput } from '@/features/ai-forecast/schemas/aiForecastSchemas';
+import type { CreateEventInput, TriggerForecastInput } from '@/features/ai-forecast/schemas/aiForecastSchemas';
 
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
@@ -57,17 +58,18 @@ export async function getForecastDetail(id: number): Promise<TriggerForecastResp
 
 // ── Results & Feedback ────────────────────────────────────────────────────────
 
-export async function reviewForecastResult(
-  resultId: number,
-  body: ReviewResultInput,
-): Promise<AiForecastResult> {
-  const response = await apiClient.post(`/api/ai-forecasts/results/${resultId}/review`, body);
-  return unwrap<AiForecastResult>(response);
+export async function bulkReviewForecastResults(
+  items: BulkReviewItem[],
+): Promise<BulkReviewResponse> {
+  const response = await apiClient.post('/api/ai-forecasts/bulk-review', { items });
+  return unwrap<BulkReviewResponse>(response);
 }
 
-export async function updateActualQty(resultId: number, actual_qty: number): Promise<AiForecastResult> {
-  const response = await apiClient.post(`/api/ai-forecasts/results/${resultId}/actual`, { actual_qty });
-  return unwrap<AiForecastResult>(response);
+export async function bulkUpdateActualQty(
+  items: BulkActualItem[],
+): Promise<AiForecastResult[]> {
+  const response = await apiClient.post('/api/ai-forecasts/bulk-actual', { items });
+  return unwrap<AiForecastResult[]>(response);
 }
 
 // ── Retrain ───────────────────────────────────────────────────────────────────

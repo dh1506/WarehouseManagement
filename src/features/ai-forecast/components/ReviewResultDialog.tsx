@@ -11,14 +11,24 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { reviewResultSchema } from '../schemas/aiForecastSchemas';
-import { useReviewForecastResult } from '../hooks/useAiForecast';
-import type { AiForecastResult } from '../types/aiForecastType';
+import { useBulkReviewForecastResults } from '../hooks/useAiForecast';
+import type { BulkReviewResponse } from '../types/aiForecastType';
+
+// Minimal target shape — decoupled from raw AiForecastResult
+export interface ReviewTarget {
+  result_id: number;
+  product_code: string;
+  product_name: string;
+  forecast_demand: number;
+  suggested_order: number;
+}
 
 interface ReviewResultDialogProps {
   forecastId: number;
-  result: AiForecastResult | null;
+  target: ReviewTarget | null;
   defaultAction?: 'APPROVE' | 'REJECT';
   onClose: () => void;
+  onSuccess?: (resultId: number, action: 'APPROVE' | 'REJECT', response: BulkReviewResponse) => void;
 }
 
 interface FieldErrors {
@@ -28,23 +38,24 @@ interface FieldErrors {
 
 export function ReviewResultDialog({
   forecastId,
-  result,
+  target,
   defaultAction = 'APPROVE',
   onClose,
+  onSuccess,
 }: ReviewResultDialogProps) {
-  const reviewMutation = useReviewForecastResult(forecastId);
+  const reviewMutation = useBulkReviewForecastResults(forecastId);
 
   const [action, setAction] = useState<'APPROVE' | 'REJECT'>(defaultAction);
   const [rejectReason, setRejectReason] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
-    if (result) {
+    if (target) {
       setAction(defaultAction);
       setRejectReason('');
       setErrors({});
     }
-  }, [result, defaultAction]);
+  }, [target, defaultAction]);
 
   const handleSubmit = () => {
     const parsed = reviewResultSchema.safeParse({
@@ -62,34 +73,41 @@ export function ReviewResultDialog({
       return;
     }
 
-    if (!result) return;
+    if (!target) return;
 
     reviewMutation.mutate(
-      { resultId: result.id, body: parsed.data },
-      { onSuccess: onClose },
+      [{ result_id: target.result_id, action: parsed.data.action, reject_reason: parsed.data.reject_reason }],
+      {
+        onSuccess: (response) => {
+          onSuccess?.(target.result_id, action, response);
+          onClose();
+        },
+      },
     );
   };
 
   const isApprove = action === 'APPROVE';
 
   return (
-    <Dialog open={!!result} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={!!target} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Review Forecast Result</DialogTitle>
-          {result && (
-            <DialogDescription>
-              <span className="font-medium text-slate-700">
-                {result.product.code} — {result.product.name}
-              </span>
-              <br />
-              Forecast qty:{' '}
-              <span className="font-semibold">{Number(result.forecast_qty).toLocaleString()}</span>
-              {' · '}
-              Suggested order:{' '}
-              <span className="font-semibold">
-                {Number(result.suggested_order_qty).toLocaleString()}
-              </span>
+          <DialogTitle>Xét duyệt kết quả dự báo</DialogTitle>
+          {target && (
+            <DialogDescription asChild>
+              <div>
+                <span className="font-medium text-slate-700">
+                  {target.product_code} — {target.product_name}
+                </span>
+                <br />
+                <span className="text-xs">
+                  Dự báo:{' '}
+                  <span className="font-semibold">{target.forecast_demand.toLocaleString()}</span>
+                  {' · '}
+                  Đề xuất nhập:{' '}
+                  <span className="font-semibold">{target.suggested_order.toLocaleString()}</span>
+                </span>
+              </div>
             </DialogDescription>
           )}
         </DialogHeader>
@@ -98,7 +116,7 @@ export function ReviewResultDialog({
           {/* Action Toggle */}
           <div className="flex flex-col gap-1.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Decision <span className="text-rose-500">*</span>
+              Quyết định <span className="text-rose-500">*</span>
             </p>
             <div className="flex gap-2">
               <button
@@ -111,7 +129,7 @@ export function ReviewResultDialog({
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                Approve
+                Duyệt
               </button>
               <button
                 type="button"
@@ -123,7 +141,7 @@ export function ReviewResultDialog({
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">cancel</span>
-                Reject
+                Từ chối
               </button>
             </div>
           </div>
@@ -132,10 +150,10 @@ export function ReviewResultDialog({
           {!isApprove && (
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Rejection Reason <span className="text-rose-500">*</span>
+                Lý do từ chối <span className="text-rose-500">*</span>
               </p>
               <Textarea
-                placeholder="Explain why this forecast result is incorrect (min 10 characters)…"
+                placeholder="Mô tả lý do số lượng dự báo không hợp lý (tối thiểu 10 ký tự)…"
                 rows={3}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
@@ -143,13 +161,16 @@ export function ReviewResultDialog({
               {errors.reject_reason && (
                 <p className="text-xs text-rose-500">{errors.reject_reason}</p>
               )}
+              <p className="text-xs text-slate-400">
+                Lý do này sẽ được gửi cho AI khi retrain để cải thiện độ chính xác.
+              </p>
             </div>
           )}
 
           {isApprove && (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
               <p className="text-xs text-emerald-700">
-                Approving this result marks it as validated for future AI retraining.
+                Duyệt kết quả này xác nhận dự báo là hợp lý — dữ liệu sẽ được dùng để retrain AI.
               </p>
             </div>
           )}
@@ -157,7 +178,7 @@ export function ReviewResultDialog({
 
         <DialogFooter showCloseButton={false}>
           <Button variant="outline" onClick={onClose} disabled={reviewMutation.isPending}>
-            Cancel
+            Hủy
           </Button>
           <Button
             onClick={handleSubmit}
@@ -168,9 +189,9 @@ export function ReviewResultDialog({
             {reviewMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : isApprove ? (
-              'Approve'
+              'Duyệt'
             ) : (
-              'Reject'
+              'Từ chối'
             )}
           </Button>
         </DialogFooter>

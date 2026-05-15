@@ -118,6 +118,28 @@
 
 ---
 
+## Sprint: AI Forecast — Bulk Actual Feedback — 2026-05-14
+
+### Status: COMPLETED ✅
+
+## Context
+
+Backend upgraded to bulk APIs: `POST /api/ai-forecasts/bulk-review` and `POST /api/ai-forecasts/bulk-actual`. Auto-creates Stock In (DRAFT) for approved products grouped by supplier. Sends consolidated MAPE email.
+
+## Completed Tasks
+
+- [x] `BulkActualDialog.tsx` — NEW: dialog for entering actual_qty per selected product in one batch; skips empty rows; per-row MAPE preview; submits via `useBulkUpdateActualQty`
+- [x] `AiForecastDetail.tsx` — Added `onSetActualAll` prop to `BulkActionBar`; added "Nhập thực tế" button; wired `bulkActualOpen` state + `selectedItems` memo + `handleBulkActualSuccess`; rendered `<BulkActualDialog>`
+- [x] `aiForecastService.ts` — Removed leftover debug `console.log` from `bulkReviewForecastResults`
+
+## Next Steps
+
+1. QA bulk actual flow: select 3+ products → Nhập thực tế → enter mixed values → verify only filled rows are sent to `/bulk-actual`
+2. QA bulk approve: verify toast shows `created_stock_ins` codes for approved products with a mapped supplier
+3. Verify BE error message when an approved product has no supplier (BE should throw 4xx with meaningful message; FE shows it via destructive toast)
+
+---
+
 ## Sprint: Inbound Create Flow — 2026-05-13
 
 ### Status: IMPLEMENTED (FE) ✅

@@ -86,6 +86,7 @@ export interface ForecastSummary {
 }
 
 export interface ForecastRecommendation {
+  result_id?: number;
   product_id: number;
   product_code: string;
   product_name: string;
@@ -98,6 +99,10 @@ export interface ForecastRecommendation {
   reasoning: string;
   confidence_level: string;
   priority: StockPriority;
+  review_status?: ReviewStatus;
+  actual_qty?: number | null;
+  mape_score?: number | null;
+  mape_alert_level?: MapeAlertLevel | null;
 }
 
 export interface TriggerForecastResponse {
@@ -213,6 +218,24 @@ export interface AiRetrainBatch {
   triggered_by: number;
   ai_raw_response: { lessons: AiRetrainLesson[] } | null;
   error_message: string | null;
+}
+
+// ── Bulk Operation Types (new bulk-review / bulk-actual endpoints) ────────────
+
+export interface BulkReviewItem {
+  result_id: number;
+  action: 'APPROVE' | 'REJECT';
+  reject_reason?: string;
+}
+
+export interface BulkReviewResponse {
+  updated_count: number;
+  created_stock_ins: string[];
+}
+
+export interface BulkActualItem {
+  result_id: number;
+  actual_qty: number;
 }
 
 // ── API Response / Query Types ────────────────────────────────────────────────

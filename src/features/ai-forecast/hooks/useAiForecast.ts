@@ -1,17 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import {
+  bulkReviewForecastResults,
+  bulkUpdateActualQty,
   createForecastEvent,
   getForecastDetail,
   getForecastEvents,
   getForecastHistory,
-  reviewForecastResult,
   triggerForecast,
   triggerRetrain,
-  updateActualQty,
 } from '@/services/aiForecastService';
-import type { AiForecastFilterState, AiForecastQueryParams } from '../types/aiForecastType';
-import type { CreateEventInput, ReviewResultInput, TriggerForecastInput } from '../schemas/aiForecastSchemas';
+import type {
+  AiForecastFilterState,
+  AiForecastQueryParams,
+  BulkActualItem,
+  BulkReviewItem,
+} from '../types/aiForecastType';
+import type { CreateEventInput, TriggerForecastInput } from '../schemas/aiForecastSchemas';
 
 // ── Query Key Factory ─────────────────────────────────────────────────────────
 
@@ -99,42 +104,50 @@ export function useCreateForecastEvent() {
   });
 }
 
-export function useReviewForecastResult(forecastId: number) {
+export function useBulkReviewForecastResults(forecastId: number) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ resultId, body }: { resultId: number; body: ReviewResultInput }) =>
-      reviewForecastResult(resultId, body),
-    onSuccess: (_, vars) => {
+    mutationFn: (items: BulkReviewItem[]) => bulkReviewForecastResults(items),
+    onSuccess: (data, items) => {
       void queryClient.invalidateQueries({ queryKey: AI_FORECAST_KEYS.detail(forecastId) });
-      toast({
-        title: vars.body.action === 'APPROVE' ? 'Result approved' : 'Result rejected',
-        description:
-          vars.body.action === 'APPROVE'
-            ? 'The forecast result has been approved.'
-            : 'The forecast result has been rejected and noted.',
-      });
+      const approveCount = items.filter((i) => i.action === 'APPROVE').length;
+      const rejectCount = items.filter((i) => i.action === 'REJECT').length;
+
+      let title: string;
+      if (approveCount > 0 && rejectCount === 0) title = `Đã duyệt ${approveCount} kết quả`;
+      else if (rejectCount > 0 && approveCount === 0) title = `Đã từ chối ${rejectCount} kết quả`;
+      else title = `Đã xử lý ${data.updated_count} kết quả`;
+
+      const description =
+        data.created_stock_ins.length > 0
+          ? `Phiếu nhập đã tạo tự động: ${data.created_stock_ins.join(', ')}`
+          : undefined;
+
+      toast({ title, description });
     },
     onError: (err: Error) => {
-      toast({ title: 'Review failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Xét duyệt thất bại', description: err.message, variant: 'destructive' });
     },
   });
 }
 
-export function useUpdateActualQty(forecastId: number) {
+export function useBulkUpdateActualQty(forecastId: number) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ resultId, actual_qty }: { resultId: number; actual_qty: number }) =>
-      updateActualQty(resultId, actual_qty),
-    onSuccess: () => {
+    mutationFn: (items: BulkActualItem[]) => bulkUpdateActualQty(items),
+    onSuccess: (_, items) => {
       void queryClient.invalidateQueries({ queryKey: AI_FORECAST_KEYS.detail(forecastId) });
-      toast({ title: 'Actual quantity saved', description: 'MAPE score has been recalculated.' });
+      toast({
+        title: `Đã cập nhật ${items.length} số lượng thực tế`,
+        description: 'Điểm MAPE đã được tính lại.',
+      });
     },
     onError: (err: Error) => {
-      toast({ title: 'Failed to save', description: err.message, variant: 'destructive' });
+      toast({ title: 'Cập nhật thất bại', description: err.message, variant: 'destructive' });
     },
   });
 }

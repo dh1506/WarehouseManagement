@@ -98,6 +98,12 @@ BE contract `POST /api/stock-ins` yêu cầu `warehouse_location_id`. FE đã t�
 
 ---
 
+### KI-21: Supplier-missing approval error is BE-thrown, not FE-validated
+
+When a user bulk-approves a product that has no `supplier_id`, the BE throws an error and the FE shows it via destructive toast. The FE cannot pre-validate this because supplier data is not included in `TriggerForecastResponse`. If needed, add a `has_supplier: boolean` flag to `ForecastRecommendation` so the FE can warn users before submission.
+
+---
+
 ### KI-10: Lot source is inventory-aggregated, not dedicated lot search API
 
 Lot options are deduped from `/api/inventories` rows.

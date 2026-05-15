@@ -84,6 +84,7 @@
 - `src/features/ai-forecast/components/CreateEventSheet.tsx` — slide-over: event_month, program_name, promotion_types (checkboxes), channels (checkboxes), dates, budget
 - `src/features/ai-forecast/components/ReviewResultDialog.tsx` — approve/reject toggle; conditional reject_reason textarea
 - `src/features/ai-forecast/components/UpdateActualDialog.tsx` — actual_qty input; client-side MAPE preview
+- `src/features/ai-forecast/components/BulkActualDialog.tsx` — NEW (2026-05-14): per-product actual_qty inputs for multiple selected rows; skips empty rows; inline MAPE preview per row; uses useBulkUpdateActualQty
 
 ### Service
 

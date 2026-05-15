@@ -1,5 +1,21 @@
 # Decision Log
 
+## 2026-05-14 — AI Forecast: Bulk Actual Qty UX
+
+### D-AF-8: Per-product actual qty inputs (not a single broadcast value)
+
+`BulkActualDialog` renders one `<Input>` per selected product. Empty rows are skipped silently — only filled rows are submitted to `POST /bulk-actual`. A single shared value would be wrong because each product has different actual sales numbers.
+
+### D-AF-9: Do NOT auto-clear selection after bulk actual submit
+
+After `BulkActualDialog` succeeds, `localActuals` updates but `selected` stays intact. The user may immediately want to approve/reject the same rows — forcing re-selection would break that workflow.
+
+### D-AF-10: Remove debug console.log from aiForecastService
+
+`console.log('Bulk review response:', response)` was a leftover debug artifact on line 66 of `aiForecastService.ts`. Removed.
+
+---
+
 ## 2026-05-13 — Inbound Create Flow
 
 ### D-IN-1: Chọn kho + tự gán vị trí đại diện
