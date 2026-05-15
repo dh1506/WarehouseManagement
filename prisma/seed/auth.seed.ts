@@ -446,6 +446,52 @@ export async function seedAuth(prisma: PrismaClient) {
       module: "report_configs",
       action: "delete",
     },
+
+    // AI FORECASTS
+    {
+      name: "ai_forecasts:read",
+      description: "Xem dự báo AI",
+      module: "ai_forecasts",
+      action: "read",
+    },
+    {
+      name: "ai_forecasts:create",
+      description: "Tạo dự báo AI",
+      module: "ai_forecasts",
+      action: "create",
+    },
+    {
+      name: "ai_forecasts:update",
+      description: "Cập nhật dự báo AI",
+      module: "ai_forecasts",
+      action: "update",
+    },
+    {
+      name: "ai_forecasts:approve",
+      description: "Phê duyệt dự báo AI",
+      module: "ai_forecasts",
+      action: "approve",
+    },
+    {
+      name: "ai_forecasts:retrain",
+      description: "Huấn luyện lại AI",
+      module: "ai_forecasts",
+      action: "retrain",
+    },
+
+    // SALES
+    {
+      name: "sales:read",
+      description: "Xem dữ liệu bán hàng",
+      module: "sales",
+      action: "read",
+    },
+    {
+      name: "sales:create",
+      description: "Nhập dữ liệu bán hàng",
+      module: "sales",
+      action: "create",
+    },
   ];
 
   for (const p of permissions) {
@@ -516,15 +562,15 @@ export async function seedAuth(prisma: PrismaClient) {
       role_id: roleMap["MANAGER"],
     },
     {
-      username: "lan.manager",
-      full_name: "Trần Thị Lan",
-      email: "lan.mng@fb.com",
+      username: "huy.manager",
+      full_name: "Huỳnh Đức Huy",
+      email: "huy.m@gmail.com",
       role_id: roleMap["MANAGER"],
     },
     {
-      username: "vy.staff",
-      full_name: "Hoàng Thúy Vy",
-      email: "vy.staff@fb.com",
+      username: "huyy.staff",
+      full_name: "Huỳnh Đức Huy",
+      email: "huy.s@gmail.com",
       role_id: roleMap["STAFF"],
     },
     {

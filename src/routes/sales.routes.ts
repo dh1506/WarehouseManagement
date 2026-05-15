@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import * as salesController from '../controllers/sales.controller';
 import { authenticate } from "../middlewares/auth.middleware";
+import { requirePermission } from '../middlewares/permission.middleware';
 
 const router = Router();
 
@@ -24,12 +25,12 @@ const upload = multer({
 });
 
 // Import sales via Excel
-router.post('/import', upload.single('file'), salesController.importSalesBatch);
+router.post('/import', requirePermission('sales:create'), upload.single('file'), salesController.importSalesBatch);
 
 // Get transactions list
-router.get('/transactions', salesController.getTransactions);
+router.get('/transactions', requirePermission('sales:read'), salesController.getTransactions);
 
 // Get daily summaries list
-router.get('/summaries', salesController.getDailySummaries);
+router.get('/summaries', requirePermission('sales:read'), salesController.getDailySummaries);
 
 export default router;
