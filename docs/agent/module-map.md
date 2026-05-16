@@ -1,5 +1,23 @@
 # Module Map
 
+## Staff Mobile App (2026-05-15)
+
+| Layer | File | Role |
+|-------|------|------|
+| Page | `src/pages/operations/StaffTaskQueuePage.tsx` | Thin shell → TaskQueueDashboard |
+| Page | `src/pages/operations/BlindCountPage.tsx` | Thin shell → BlindCountScreen |
+| Feature — Task Queue | `src/features/staff-tasks/types/taskType.ts` | TaskItem, TaskType, TaskPriority types + maps |
+| Feature — Task Queue | `src/features/staff-tasks/hooks/useTaskQueue.ts` | Merges stock-ins/outs/counts → sorted TaskItem[] |
+| Feature — Task Queue | `src/features/staff-tasks/components/TaskQueueDashboard.tsx` | Priority-grouped task list, empty state, skeleton |
+| Shared | `src/features/staff-tasks/components/ExceptionReportModal.tsx` | Floating FAB + exception popup; used on all execution screens |
+| Feature — BlindCount | `src/features/stock-count/components/BlindCountScreen.tsx` | Blind count execution; no system_quantity; barcode scan |
+| Modified | `src/features/outbound/components/OutboundPickingScreen.tsx` | + ScanInputBar, + ExceptionReportModal (PICKING) |
+| Modified | `src/features/inbound/components/StockInWorkerView.tsx` | + ScanInputBar (+1 qty on scan), + ExceptionReportModal (PUTAWAY) |
+| Modified | `src/App.tsx` | + 2 routes, + STAFF redirect in DefaultLandingRoute |
+| Modified | `src/lib/pageAccess.ts` | + staff-tasks + blind-count entries in both config arrays |
+
+---
+
 ## Sales Data Management Module
 
 ### Page (thin wrapper)

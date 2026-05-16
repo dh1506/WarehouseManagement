@@ -40,14 +40,9 @@ const EMPTY_DETAIL = {
   product_id: 0,
   reason_id: 0,
   quantity: 1,
-  unit_price: undefined,
   lot_id: undefined,
   reason_note: '',
 } as const;
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-}
 
 // ── Field label ───────────────────────────────────────────────────────────────
 function FieldLabel({ children, required, hint }: { children: React.ReactNode; required?: boolean; hint?: string }) {
@@ -123,7 +118,6 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
   const productId = useWatch({ control, name: `details.${index}.product_id` });
   const warehouseLocationId = useWatch({ control, name: `details.${index}.warehouse_location_id` });
   const quantity = useWatch({ control, name: `details.${index}.quantity` });
-  const unitPrice = useWatch({ control, name: `details.${index}.unit_price` });
   const selectedLotId = useWatch({ control, name: `details.${index}.lot_id` });
 
   const lotOptionsQuery = useDisposalLotOptions(productId, productId > 0);
@@ -139,7 +133,6 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
   );
 
   const availableQty = availableQtyQuery.data ?? 0;
-  const lineAmount = (Number(quantity) || 0) * (Number(unitPrice) || 0);
   const overAvailable = availableQty > 0 && Number(quantity) > availableQty;
 
   // Clear stale lot when product changes
@@ -308,8 +301,8 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
             </div>
           </div>
 
-          {/* Row 3: Quantity (narrow) + Unit price (narrow) + Note (wide) */}
-          <div className="grid grid-cols-4 gap-4">
+          {/* Row 3: Quantity (narrow) + Note (wide) */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <FieldLabel required>Số lượng</FieldLabel>
               <input
@@ -342,28 +335,6 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
               <FieldError message={lineErrors?.quantity?.message} />
             </div>
 
-            <div>
-              <FieldLabel>Đơn giá</FieldLabel>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₫</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="1000"
-                  {...form.register(`details.${index}.unit_price`, {
-                    setValueAs: (v: string) => (v === '' ? undefined : Number(v)),
-                  })}
-                  placeholder="0"
-                  className={cn(
-                    'h-9 w-full rounded-lg border bg-white pl-6 pr-3 text-sm transition-all',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400',
-                    lineErrors?.unit_price ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200',
-                  )}
-                />
-              </div>
-              <FieldError message={lineErrors?.unit_price?.message} />
-            </div>
-
             <div className="col-span-2">
               <FieldLabel>Ghi chú</FieldLabel>
               <input
@@ -380,15 +351,6 @@ function DisposalDetailRow({ index, totalRows, form, control, remove, reasonOpti
             </div>
           </div>
 
-          {/* Line total */}
-          {lineAmount > 0 && (
-            <div className="flex justify-end border-t border-slate-100 pt-2.5">
-              <span className="text-xs text-slate-500">
-                Thành tiền:{' '}
-                <span className="font-bold text-slate-800">{formatCurrency(lineAmount)}</span>
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </motion.div>

@@ -18,7 +18,6 @@ export const createStockDisposalDetailSchema = z.object({
   quantity: z
     .number({ error: 'Quantity is required' })
     .positive('Quantity must be greater than 0'),
-  unit_price: z.number().min(0, 'Unit price cannot be negative').optional(),
   reason_note: z.string().trim().max(500, 'Note is too long').optional(),
 });
 

@@ -6,10 +6,15 @@ import { PageHeader } from '@/components/PageHeader';
 import { useDashboardSummary } from '../hooks/useReports';
 import type { DashboardSummaryParams } from '../types/reportType';
 import { OperationalDashboard } from './OperationalDashboard';
+import { ManagerCommandCenter } from './ManagerCommandCenter';
+import { CeoCommandCenter } from './CeoCommandCenter';
+import { useAuthStore } from '@/store/authStore';
+import { hasPageAccessFromPermissionNames } from '@/lib/pageAccess';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type QuickRange = 'today' | '7d' | '30d' | 'custom';
+type ViewMode = 'summary' | 'ops' | 'ceo';
 
 interface KpiCardProps {
   icon: string;
@@ -158,9 +163,11 @@ function RangeBtn({
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function DashboardSummary() {
+  const authUser = useAuthStore((s) => s.user);
   const [range, setRange] = useState<QuickRange>('today');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('summary');
 
   const summaryParams = useMemo(
     () => getRangeParams(range, customFrom, customTo),
@@ -168,6 +175,26 @@ export function DashboardSummary() {
   );
 
   const { data, isLoading, isError } = useDashboardSummary(summaryParams);
+
+  const visibleQuickLinks = useMemo(
+    () =>
+      quickLinks.filter((link) =>
+        hasPageAccessFromPermissionNames(link.path, authUser?.permissions ?? [], authUser?.role),
+      ),
+    [authUser],
+  );
+
+  const canAccessOpsCenter = useMemo(
+    () =>
+      hasPageAccessFromPermissionNames('/inventory', authUser?.permissions ?? [], authUser?.role) ||
+      hasPageAccessFromPermissionNames('/admin/warehouses', authUser?.permissions ?? [], authUser?.role),
+    [authUser],
+  );
+
+  const canAccessCeoDashboard = useMemo(
+    () => authUser?.role === 'CEO',
+    [authUser],
+  );
 
   const kpiCards = useMemo<Omit<KpiCardProps, 'isLoading'>[]>(
     () => [
@@ -219,6 +246,14 @@ export function DashboardSummary() {
     [data],
   );
 
+  if (viewMode === 'ceo') {
+    return <CeoCommandCenter onBack={() => setViewMode('summary')} />;
+  }
+
+  if (viewMode === 'ops') {
+    return <ManagerCommandCenter onBack={() => setViewMode('summary')} />;
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Fixed header ──────────────────────────────────────────────────────── */}
@@ -227,9 +262,29 @@ export function DashboardSummary() {
           eyebrow="Tổng quan"
           title="Dashboard Kho hàng"
           actions={
-            data?.period ? (
-              <PeriodBadge start={data.period.start} end={data.period.end} />
-            ) : undefined
+            <div className="flex items-center gap-2">
+              {data?.period && <PeriodBadge start={data.period.start} end={data.period.end} />}
+              {canAccessCeoDashboard && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode('ceo')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]">monitoring</span>
+                  Dashboard CEO
+                </button>
+              )}
+              {canAccessOpsCenter && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode('ops')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]">radar</span>
+                  Trung tâm điều hành
+                </button>
+              )}
+            </div>
           }
         />
 
@@ -302,7 +357,7 @@ export function DashboardSummary() {
                 Truy cập nhanh
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {quickLinks.map((link) => (
+                {visibleQuickLinks.map((link) => (
                   <QuickLinkCard key={link.path} {...link} />
                 ))}
               </div>

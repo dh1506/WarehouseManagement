@@ -43,9 +43,10 @@ function formatDate(iso: string): string {
 }
 
 function getProgress(sc: StockCount): number {
-  const total = sc.details.length;
+  const details = sc.details ?? [];
+  const total = details.length;
   if (total === 0) return 0;
-  const counted = sc.details.filter((d) => d.counted_quantity !== null).length;
+  const counted = details.filter((d) => d.counted_quantity !== null).length;
   return Math.round((counted / total) * 100);
 }
 

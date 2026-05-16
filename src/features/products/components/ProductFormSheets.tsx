@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { WarehouseLocationSelect } from '@/features/inbound/components/WarehouseLocationSelect';
 import {
   Sheet,
   SheetContent,
@@ -42,8 +43,8 @@ export function ProductFormSheet({
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      sku: '',
       name: '',
+      locationId: undefined,
       productType: 'goods',
       categoryId: '',
       unitId: '',
@@ -73,8 +74,8 @@ export function ProductFormSheet({
   useEffect(() => {
     if (!open) return;
     reset({
-      sku: product?.sku ?? '',
       name: product?.name ?? '',
+      locationId: undefined,
       productType: product?.productType ?? 'goods',
       categoryId: product?.categoryIds[0] ?? '',
       unitId: product?.unitId ?? '',
@@ -110,7 +111,7 @@ export function ProductFormSheet({
         if (!nextOpen && !isPending) onClose();
       }}
     >
-      <SheetContent className="w-[40vw] gap-0 p-0 sm:max-w-[40vw]" showCloseButton={false}>
+      <SheetContent className="w-[52vw] gap-0 p-0 sm:max-w-[52vw]" showCloseButton={false}>
         <form
           onSubmit={handleSubmit(async (payload) => {
             if (!isView) await onSubmit(payload);
@@ -147,7 +148,7 @@ export function ProductFormSheet({
           {/* Body */}
           <div className="flex-1 overflow-y-auto bg-slate-50/50">
             {isOptionsLoading ? (
-              <div className="flex min-h-[400px] items-center justify-center p-8">
+              <div className="flex min-h-100 items-center justify-center p-8">
                 <StatePanel
                   title="Đang chuẩn bị biểu mẫu"
                   description="Đang tải danh mục, đơn vị và thương hiệu."
@@ -163,8 +164,13 @@ export function ProductFormSheet({
                     <Field label="Tên sản phẩm" error={errors.name?.message}>
                       <input {...register('name')} disabled={isView || isPending} placeholder="Nhập tên sản phẩm" className={inputClass(!!errors.name)} />
                     </Field>
-                    <Field label="SKU" error={errors.sku?.message}>
-                      <input {...register('sku')} disabled={isView || isPending} placeholder="e.g. PRD-001" className={inputClass(!!errors.sku)} />
+                    <Field label="Vị trí lưu trữ" error={errors.locationId?.message}>
+                      <WarehouseLocationSelect
+                        value={form.watch('locationId') ?? null}
+                        onValueChange={(opt) => form.setValue('locationId', opt?.id ?? undefined, { shouldValidate: true })}
+                        placeholder="Chọn vị trí kho..."
+                        disabled={isView || isPending}
+                      />
                     </Field>
                     <Field label="Loại sản phẩm" error={errors.productType?.message}>
                       <select {...register('productType')} disabled={isView || isPending} className={inputClass(!!errors.productType)}>

@@ -1,5 +1,33 @@
 # Decision Log
 
+## 2026-05-15 — Staff Mobile App
+
+### D-SM-1: Task queue uses client-side merge from 3 separate BE endpoints
+
+No unified "task queue" BE endpoint exists. `useTaskQueue` calls `useStockIns({status:'all'})`, `useStockOuts({})`, and `useStockCounts({})` in parallel via React Query, filters actionable statuses client-side, then sorts by priority+createdAt. Limit 50 per endpoint is acceptable for task-queue context.
+
+### D-SM-2: Priority is inferred from status, not a BE field
+
+No `priority` field exists in BE models. Mapping: PICKING→HIGH, APPROVED→NORMAL, IN_PROGRESS→NORMAL, COUNTING→NORMAL, PENDING→LOW. Sorting: HIGH→NORMAL→LOW, then createdAt asc.
+
+### D-SM-3: Barcode scanning uses keyboard-input emulation (no camera library)
+
+PDA/USB scanners emit keystrokes + Enter. Both ScanInputBar components listen for Enter key on an `<input>` element. No `@zxing/library` added. Manual entry also works via the same input.
+
+### D-SM-4: BlindCountScreen hides system_quantity at render level (not service level)
+
+The component receives full `StockCountDetail` from the existing hook but never reads `detail.system_quantity`. The blind-count principle is enforced by not rendering that field — no API changes needed.
+
+### D-SM-5: ExceptionReportModal photo is local-preview only
+
+No BE media upload endpoint exists. Photo is captured via `<input type="file" accept="image/*" capture="environment">` and shown as a local blob URL preview. The photo is NOT included in the discrepancy payload. Flagged as BE gap.
+
+### D-SM-6: STAFF role DefaultLandingRoute redirect by role string comparison
+
+`DefaultLandingRoute` checks `role?.toUpperCase() === 'STAFF'` before the `candidates` list. This means the STAFF task queue is the first page after login for that role.
+
+---
+
 ## 2026-05-14 — AI Forecast: Bulk Actual Qty UX
 
 ### D-AF-8: Per-product actual qty inputs (not a single broadcast value)

@@ -9,7 +9,6 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -19,6 +18,73 @@ import {
 } from '@/components/ui/select';
 import { triggerForecastSchema } from '../schemas/aiForecastSchemas';
 import { useAiForecastEvents, useTriggerForecast } from '../hooks/useAiForecast';
+
+// 63 provinces / municipalities — values are English city names for weather API compatibility
+const VIETNAM_PROVINCES: { label: string; value: string }[] = [
+  { label: 'Hà Nội', value: 'Hanoi' },
+  { label: 'TP. Hồ Chí Minh', value: 'Ho Chi Minh City' },
+  { label: 'Đà Nẵng', value: 'Da Nang' },
+  { label: 'Hải Phòng', value: 'Hai Phong' },
+  { label: 'Cần Thơ', value: 'Can Tho' },
+  { label: 'An Giang', value: 'An Giang' },
+  { label: 'Bà Rịa – Vũng Tàu', value: 'Vung Tau' },
+  { label: 'Bắc Giang', value: 'Bac Giang' },
+  { label: 'Bắc Kạn', value: 'Bac Kan' },
+  { label: 'Bạc Liêu', value: 'Bac Lieu' },
+  { label: 'Bắc Ninh', value: 'Bac Ninh' },
+  { label: 'Bến Tre', value: 'Ben Tre' },
+  { label: 'Bình Định', value: 'Quy Nhon' },
+  { label: 'Bình Dương', value: 'Thu Dau Mot' },
+  { label: 'Bình Phước', value: 'Dong Xoai' },
+  { label: 'Bình Thuận', value: 'Phan Thiet' },
+  { label: 'Cà Mau', value: 'Ca Mau' },
+  { label: 'Cao Bằng', value: 'Cao Bang' },
+  { label: 'Đắk Lắk', value: 'Buon Ma Thuot' },
+  { label: 'Đắk Nông', value: 'Gia Nghia' },
+  { label: 'Điện Biên', value: 'Dien Bien Phu' },
+  { label: 'Đồng Nai', value: 'Bien Hoa' },
+  { label: 'Đồng Tháp', value: 'Cao Lanh' },
+  { label: 'Gia Lai', value: 'Pleiku' },
+  { label: 'Hà Giang', value: 'Ha Giang' },
+  { label: 'Hà Nam', value: 'Phu Ly' },
+  { label: 'Hà Tĩnh', value: 'Ha Tinh' },
+  { label: 'Hải Dương', value: 'Hai Duong' },
+  { label: 'Hậu Giang', value: 'Vi Thanh' },
+  { label: 'Hòa Bình', value: 'Hoa Binh' },
+  { label: 'Hưng Yên', value: 'Hung Yen' },
+  { label: 'Khánh Hòa', value: 'Nha Trang' },
+  { label: 'Kiên Giang', value: 'Rach Gia' },
+  { label: 'Kon Tum', value: 'Kon Tum' },
+  { label: 'Lai Châu', value: 'Lai Chau' },
+  { label: 'Lâm Đồng', value: 'Da Lat' },
+  { label: 'Lạng Sơn', value: 'Lang Son' },
+  { label: 'Lào Cai', value: 'Lao Cai' },
+  { label: 'Long An', value: 'Tan An' },
+  { label: 'Nam Định', value: 'Nam Dinh' },
+  { label: 'Nghệ An', value: 'Vinh' },
+  { label: 'Ninh Bình', value: 'Ninh Binh' },
+  { label: 'Ninh Thuận', value: 'Phan Rang' },
+  { label: 'Phú Thọ', value: 'Viet Tri' },
+  { label: 'Phú Yên', value: 'Tuy Hoa' },
+  { label: 'Quảng Bình', value: 'Dong Hoi' },
+  { label: 'Quảng Nam', value: 'Tam Ky' },
+  { label: 'Quảng Ngãi', value: 'Quang Ngai' },
+  { label: 'Quảng Ninh', value: 'Ha Long' },
+  { label: 'Quảng Trị', value: 'Dong Ha' },
+  { label: 'Sóc Trăng', value: 'Soc Trang' },
+  { label: 'Sơn La', value: 'Son La' },
+  { label: 'Tây Ninh', value: 'Tay Ninh' },
+  { label: 'Thái Bình', value: 'Thai Binh' },
+  { label: 'Thái Nguyên', value: 'Thai Nguyen' },
+  { label: 'Thanh Hóa', value: 'Thanh Hoa' },
+  { label: 'Thừa Thiên Huế', value: 'Hue' },
+  { label: 'Tiền Giang', value: 'My Tho' },
+  { label: 'Trà Vinh', value: 'Tra Vinh' },
+  { label: 'Tuyên Quang', value: 'Tuyen Quang' },
+  { label: 'Vĩnh Long', value: 'Vinh Long' },
+  { label: 'Vĩnh Phúc', value: 'Vinh Yen' },
+  { label: 'Yên Bái', value: 'Yen Bai' },
+];
 
 interface TriggerForecastSheetProps {
   open: boolean;
@@ -104,10 +170,11 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
           {/* Forecast Month */}
           <div className="flex flex-col gap-1.5">
             <FieldLabel required>Forecast Month</FieldLabel>
-            <Input
+            <input
               type="month"
               value={fields.forecast_month}
               onChange={(e) => setFields((prev) => ({ ...prev, forecast_month: e.target.value }))}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             <FieldError msg={errors.forecast_month} />
           </div>
@@ -143,15 +210,26 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
 
           {/* City */}
           <div className="flex flex-col gap-1.5">
-            <FieldLabel>City</FieldLabel>
-            <Input
-              placeholder="e.g. Ho Chi Minh City"
-              value={fields.city}
-              onChange={(e) => setFields((prev) => ({ ...prev, city: e.target.value }))}
-            />
+            <FieldLabel>Tỉnh / Thành phố</FieldLabel>
+            <Select
+              value={fields.city === '' ? '__NONE__' : fields.city}
+              onValueChange={(v) => setFields((prev) => ({ ...prev, city: v === '__NONE__' ? '' : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn vị trí bạn cần dự báo" />
+              </SelectTrigger>
+              <SelectContent className="max-h-64">
+                <SelectItem value="__NONE__">— Chọn thành phố bạn cần dự báo —</SelectItem>
+                {VIETNAM_PROVINCES.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <FieldError msg={errors.city} />
             <p className="text-xs text-slate-500">
-              Used for live weather data. Defaults to server-configured city if blank.
+              Dùng để lấy dữ liệu thời tiết thực. Để trống sẽ dùng thành phố mặc định của máy chủ.
             </p>
           </div>
 
@@ -177,7 +255,7 @@ export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForeca
           <Button
             onClick={handleSubmit}
             disabled={triggerMutation.isPending}
-            className="min-w-[120px]"
+            className="min-w-30"
           >
             {triggerMutation.isPending ? (
               <>

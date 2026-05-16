@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { ExceptionReportModal } from '@/features/staff-tasks/components/ExceptionReportModal';
 import { cn } from '@/lib/utils';
 import { useStockInDetail, useRecordReceipt, useCreateDiscrepancy, useResolveDiscrepancy } from '../hooks/useInboundDetail';
 import { useAllocateStockIn } from '../hooks/useAllocateStockIn';
@@ -836,6 +837,30 @@ function StepStepper({
   );
 }
 
+// ── Scan input bar ─────────────────────────────────────────────────────────────
+function ScanInputBar({ onScan }: { onScan: (code: string) => void }) {
+  return (
+    <div className="relative mx-4 mb-3">
+      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
+        qr_code_scanner
+      </span>
+      <input
+        type="text"
+        autoComplete="off"
+        placeholder="Quét mã sản phẩm (+1 số lượng) hoặc nhập SKU..."
+        className="w-full pl-9 pr-4 py-2.5 text-sm font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-colors placeholder:text-slate-400"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            const val = (e.target as HTMLInputElement).value.trim();
+            if (val) { onScan(val); (e.target as HTMLInputElement).value = ''; }
+          }
+        }}
+        style={{ minHeight: 44 }}
+      />
+    </div>
+  );
+}
+
 // ── Main worker view ───────────────────────────────────────────────────────────
 export function StockInWorkerView() {
   const { id } = useParams<{ id: string }>();
@@ -852,6 +877,7 @@ export function StockInWorkerView() {
 
   // ── Trạng thái nhập số lượng (trực tiếp trên sản phẩm) ────────────────────
   const [receivedQtys, setReceivedQtys] = useState<Record<number, number>>({});
+  const [scannedDetailId, setScannedDetailId] = useState<number | null>(null);
 
   // ── Modal states ─────────────────────────────────────────────────────────────
   const [showDiscForm, setShowDiscForm] = useState(false);
@@ -888,6 +914,34 @@ export function StockInWorkerView() {
       [detailId]: Math.max(0, val),
     }));
   }, []);
+
+  // ── Barcode scan: match product code → +1 qty ─────────────────────────────
+  const handleScan = useCallback(
+    (code: string) => {
+      const details = data?.details ?? [];
+      const matched = details.find(
+        (d) =>
+          d.product.code.toLowerCase() === code.toLowerCase() ||
+          d.product.name.toLowerCase() === code.toLowerCase(),
+      );
+      if (!matched) {
+        if (typeof navigator.vibrate === 'function') navigator.vibrate([200]);
+        toast({
+          title: 'Sản phẩm không khớp',
+          description: `Mã "${code}" không có trong phiếu. Vui lòng kiểm tra lại mặt hàng!`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      setReceivedQtys((prev) => ({
+        ...prev,
+        [matched.id]: (prev[matched.id] ?? 0) + 1,
+      }));
+      setScannedDetailId(matched.id);
+      setTimeout(() => setScannedDetailId(null), 1200);
+    },
+    [data?.details, toast],
+  );
 
   // ── Step 3: Xác nhận kiểm đếm (PENDING → IN_PROGRESS) ────────────────────
   const handleRecord = useCallback(() => {
@@ -1249,18 +1303,25 @@ export function StockInWorkerView() {
           )}
         </AnimatePresence>
 
+        {/* Barcode scan input — only visible when editing is allowed */}
+        {canEditQty && <ScanInputBar onScan={handleScan} />}
+
         {/* Product cards — nhập số lượng thực kiểm */}
-        <div className="px-4 pt-4 space-y-4">
+        <div className="px-4 pt-2 space-y-4">
           {detailRows.map((detail, idx) => (
-            <ProductCard
+            <div
               key={detail.id}
-              detail={detail}
-              index={idx}
-              receivedQty={receivedQtys[detail.id] ?? 0}
-              onDelta={handleDelta}
-              onInput={handleInput}
-              readOnly={!canEditQty}
-            />
+              className={scannedDetailId === detail.id ? 'ring-2 ring-blue-400 rounded-2xl transition-all' : ''}
+            >
+              <ProductCard
+                detail={detail}
+                index={idx}
+                receivedQty={receivedQtys[detail.id] ?? 0}
+                onDelta={handleDelta}
+                onInput={handleInput}
+                readOnly={!canEditQty}
+              />
+            </div>
           ))}
         </div>
 
@@ -1438,6 +1499,21 @@ export function StockInWorkerView() {
         onSubmit={handleAllocate}
         isPending={allocateMutation.isPending}
       />
+
+      {/* ── Exception reporting floating button ────────────────────────────────── */}
+      {status !== 'COMPLETED' && status !== 'CANCELLED' && (
+        <ExceptionReportModal
+          taskDomain="PUTAWAY"
+          taskId={numId}
+          onSkipItem={() => {
+            // Skip the first detail that hasn't been entered yet
+            const target = detailRows.find((d) => (receivedQtys[d.id] ?? 0) === 0);
+            if (target) {
+              toast({ title: 'Đã bỏ qua sản phẩm', description: target.product.name });
+            }
+          }}
+        />
+      )}
 
       {/* ── Complete confirmation dialog ────────────────────────────────────────── */}
       <Dialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>

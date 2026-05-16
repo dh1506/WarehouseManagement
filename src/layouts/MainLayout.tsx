@@ -39,6 +39,7 @@ function useRefreshMyPermissions() {
 
   useEffect(() => {
     if (!user?.role_id) return;
+    if (!user.permissions?.includes('roles:read')) return;
 
     let cancelled = false;
     apiClient
@@ -52,8 +53,14 @@ function useRefreshMyPermissions() {
           .map((p) => `${p.module}:${p.action}`.toLowerCase());
         updateUser({ permissions: freshPermissions });
       })
-      .catch(() => {
-        // Silent fail — keep cached permissions from localStorage
+      .catch((err) => {
+        if (cancelled) return;
+        // 403 means the role no longer has roles:read (e.g. role was changed by admin).
+        // Remove the stale permission so this call is never retried.
+        const statusCode = (err as Record<string, unknown>)?.statusCode as number | undefined;
+        if (statusCode === 403) {
+          updateUser({ permissions: (user?.permissions ?? []).filter((p) => p !== 'roles:read') });
+        }
       });
 
     return () => {

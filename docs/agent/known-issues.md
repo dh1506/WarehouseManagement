@@ -1,5 +1,29 @@
 # Known Issues & Gaps
 
+## Staff Mobile App (2026-05-15)
+
+### KI-SM-1: STAFF role has only :read permissions — execution actions will 403
+
+BE seed gives STAFF only `stock_ins:read`, `stock_outs:read`, `stock_counts:read`. Actions like `recordCountedQuantity`, `updatePickedLots`, `completeCounting`, `createDiscrepancy` all require `:update` or `:create` permissions. **Action needed:** BE to add `stock_ins:update`, `stock_outs:update`, `stock_counts:update`, `stock_ins_discrepancies:create`, `stock_outs_discrepancies:create` to the STAFF role in `auth.seed.ts`.
+
+### KI-SM-2: Task queue lineCount shows 0 if BE list endpoint omits details
+
+`StockIn`, `StockOut`, `StockCount` list endpoints may not include nested `details[]` to save bandwidth. `lineCount` in `TaskItem` falls back to 0 via `?.length ?? 0`. **Action needed:** Verify BE list endpoints include `details` (or add a `detail_count` field) and update `fromStockIn/Out/Count` mappers accordingly.
+
+### KI-SM-3: Photo in ExceptionReportModal is local preview only
+
+No BE endpoint for media upload. Photo cannot be persisted server-side. **Action needed:** BE to expose `POST /api/exceptions/attachment` or attach image URL to discrepancy payload.
+
+### KI-SM-4: "Send notification to Manager" (AC 4.4) not implemented
+
+No push/email notification endpoint available. The discrepancy `createDiscrepancy` API call is the only signal to management. Real-time notification requires BE WebSocket or push service.
+
+### KI-SM-5: BlindCountScreen requires `stock_counts:update` — same as KI-SM-1
+
+`recordCountedQuantity` and `completeCounting` both need `stock_counts:update`. Blocked until KI-SM-1 is resolved.
+
+---
+
 ## Stock Count Module
 
 ### KI-1: Assignee field not implemented

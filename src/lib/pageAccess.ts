@@ -105,6 +105,20 @@ export const PAGE_PERMISSION_MAP: PagePermissionConfig[] = [
     description: 'Gemini AI demand forecasting and accuracy tracking',
     modules: ['ai_forecasts'],
   },
+  {
+    id: 'staff-tasks',
+    label: 'Nhiệm vụ của tôi',
+    icon: 'assignment',
+    description: 'Danh sách nhiệm vụ ca làm việc dành cho nhân viên kho',
+    modules: ['stock_ins', 'stock_outs', 'stock_counts'],
+  },
+  {
+    id: 'blind-count',
+    label: 'Kiểm kê thực tế',
+    icon: 'fact_check',
+    description: 'Giao diện kiểm kê thực tế không hiển thị tồn kho hệ thống',
+    modules: ['stock_counts'],
+  },
 ];
 
 export interface SidebarPageAccessConfig {
@@ -145,6 +159,18 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
     label: 'Stock Disposal',
     path: '/stock-disposal',
     modules: ['stock_disposals'],
+  },
+  {
+    id: 'staff-tasks',
+    label: 'Nhiệm vụ của tôi',
+    path: '/staff/tasks',
+    modules: ['stock_ins', 'stock_outs', 'stock_counts'],
+  },
+  {
+    id: 'blind-count',
+    label: 'Kiểm kê thực tế',
+    path: '/stock-count/:id/blind-count',
+    modules: ['stock_counts'],
   },
 ];
 

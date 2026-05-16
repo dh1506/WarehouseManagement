@@ -83,8 +83,8 @@ export interface ProductListResponse {
 }
 
 export interface ProductFormValues {
-  sku: string;
   name: string;
+  locationId?: number;
   productType: ProductType;
   categoryId: string;
   unitId: string;

@@ -2,13 +2,8 @@
 
 export const productFormSchema = z
   .object({
-    sku: z
-      .string()
-      .trim()
-      .min(3, 'SKU must contain at least 3 characters')
-      .max(32, 'SKU must be 32 characters or fewer')
-      .regex(/^[A-Z0-9_-]+$/i, 'SKU can only contain letters, numbers, underscores, or hyphens'),
     name: z.string().trim().min(3, 'Product name is too short').max(120, 'Product name must be 120 characters or fewer'),
+    locationId: z.number().int().positive().optional(),
     productType: z.enum(['goods', 'material', 'consumable']),
     categoryId: z.string().trim().min(1, 'Please select a category'),
     unitId: z.string().trim().min(1, 'Please select a base unit'),

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStockOut, useUpdatePickedLots, useCompleteStockOut } from '../hooks/useOutbound';
@@ -14,6 +14,7 @@ import type {
   PickedLotEntry,
   StockOutDiscrepancy,
 } from '../types/outboundType';
+import { ExceptionReportModal } from '@/features/staff-tasks/components/ExceptionReportModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -516,6 +517,38 @@ function CompleteConfirmDialog({
   );
 }
 
+// ─── Barcode scan input bar ────────────────────────────────────────────────────
+
+function ScanInputBar({
+  onScan,
+}: {
+  onScan: (code: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="relative">
+      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
+        qr_code_scanner
+      </span>
+      <input
+        ref={inputRef}
+        type="text"
+        autoComplete="off"
+        placeholder="Quét mã SKU hoặc nhập thủ công..."
+        className="w-full pl-9 pr-4 py-2.5 text-sm font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-colors placeholder:text-slate-400"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            const val = (e.target as HTMLInputElement).value.trim();
+            if (val) { onScan(val); (e.target as HTMLInputElement).value = ''; }
+          }
+        }}
+        style={{ minHeight: 44 }}
+      />
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function OutboundPickingScreen() {
@@ -542,6 +575,8 @@ export function OutboundPickingScreen() {
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  // Barcode scan highlight: briefly highlight the matching detail card
+  const [scannedDetailId, setScannedDetailId] = useState<number | null>(null);
 
   const normalizeDiscrepancyReason = useCallback((value: string) => value.replace(/\s+/g, ' ').trim(), []);
 
@@ -686,6 +721,30 @@ export function OutboundPickingScreen() {
       })
       .filter((d) => d.difference !== 0);
   };
+
+  // Barcode scan: find matching detail by SKU, highlight + scroll to it
+  const handleScan = useCallback(
+    (code: string) => {
+      const matched = details.find(
+        (d) => d.product?.sku?.toLowerCase() === code.toLowerCase(),
+      );
+      if (!matched) {
+        if (typeof navigator.vibrate === 'function') navigator.vibrate([200]);
+        toast({
+          title: 'Sản phẩm không khớp',
+          description: `SKU "${code}" không có trong phiếu. Vui lòng kiểm tra lại mặt hàng!`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      setScannedDetailId(matched.id);
+      setTimeout(() => setScannedDetailId(null), 1500);
+      const el = document.getElementById(`detail-card-${matched.id}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast({ title: `Đã tìm thấy: ${matched.product?.name ?? matched.product?.sku}` });
+    },
+    [details, toast],
+  );
 
   // Xây dựng payload lots
   const buildLotsPayload = async (): Promise<{
@@ -927,6 +986,11 @@ export function OutboundPickingScreen() {
         onRefresh={() => refetch()}
       />
 
+      {/* ── Barcode scan input ─────────────────────────────────────────────── */}
+      <div className="sticky top-[57px] z-10 bg-white/95 backdrop-blur border-b border-slate-100 px-4 py-2">
+        <ScanInputBar onScan={handleScan} />
+      </div>
+
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6">
         <section className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px] md:items-end">
           <div>
@@ -1013,13 +1077,18 @@ export function OutboundPickingScreen() {
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Danh sách gán lô hàng</p>
               <div className="space-y-3">
                 {details.map((detail, i) => (
-                  <DetailCard
+                  <div
                     key={detail.id}
-                    detail={detail}
-                    assignments={assignments[detail.id] ?? getDetailAssignments(detail)}
-                    onAssignmentsChange={(lots) => handleAssignmentsChange(detail.id, lots)}
-                    idx={i}
-                  />
+                    id={`detail-card-${detail.id}`}
+                    className={scannedDetailId === detail.id ? 'ring-2 ring-blue-400 rounded-2xl transition-all' : ''}
+                  >
+                    <DetailCard
+                      detail={detail}
+                      assignments={assignments[detail.id] ?? getDetailAssignments(detail)}
+                      onAssignmentsChange={(lots) => handleAssignmentsChange(detail.id, lots)}
+                      idx={i}
+                    />
+                  </div>
                 ))}
                 {details.length === 0 && (
                   <div className="py-10 text-center text-sm text-slate-400">
@@ -1131,6 +1200,22 @@ export function OutboundPickingScreen() {
         onConfirm={() => {
           setCompleteConfirmOpen(false);
           void handleComplete(false);
+        }}
+      />
+
+      {/* ── Exception reporting floating button ────────────────────────────── */}
+      <ExceptionReportModal
+        taskDomain="PICKING"
+        taskId={numericId}
+        onSkipItem={() => {
+          // Advance past the first detail that has no lots assigned yet
+          const target = details.find((d) => {
+            const lots = assignments[d.id] ?? getDetailAssignments(d);
+            return lots.every((l) => !l.lotValue.trim());
+          });
+          if (target) {
+            toast({ title: 'Đã bỏ qua sản phẩm', description: target.product?.name ?? '' });
+          }
         }}
       />
     </div>

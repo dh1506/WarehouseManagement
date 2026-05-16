@@ -35,6 +35,8 @@ import { ReportsPage } from './pages/operations/ReportsPage';
 import { SalesDataPage } from './pages/operations/SalesDataPage';
 import { StockDisposalListPage } from './pages/operations/StockDisposalListPage';
 import { StockDisposalDetailPage } from './pages/operations/StockDisposalDetailPage';
+import { StaffTaskQueuePage } from './pages/operations/StaffTaskQueuePage';
+import { BlindCountPage } from './pages/operations/BlindCountPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +65,19 @@ function DefaultLandingRoute() {
   const user = useAuthStore((state) => state.user);
   const permissions = user?.permissions ?? [];
   const role = user?.role;
+
+  // Redirect to task queue for staff/employee roles.
+  // Primary check: explicit 'STAFF' role name.
+  // Fallback: any role that has task-queue access but lacks manager-level features
+  // (inventory ledger or warehouse admin), covering roles named differently in BE.
+  const hasManagerFeatures =
+    hasPageAccessFromPermissionNames('/inventory', permissions, role) ||
+    hasPageAccessFromPermissionNames('/admin/warehouses', permissions, role);
+  const hasTaskQueueAccess = hasPageAccessFromPermissionNames('/staff/tasks', permissions, role);
+
+  if (role?.toUpperCase() === 'STAFF' || (hasTaskQueueAccess && !hasManagerFeatures)) {
+    return <Navigate to="/staff/tasks" replace />;
+  }
 
   const candidates = [
     '/admin/warehouses',
@@ -143,6 +158,8 @@ function App() {
             <Route path="/stock-count/:id" element={<PageAccessRoute path="/stock-count"><StockCountDetailPage /></PageAccessRoute>} />
             <Route path="/stock-disposal" element={<PageAccessRoute path="/stock-disposal"><StockDisposalListPage /></PageAccessRoute>} />
             <Route path="/stock-disposal/:id" element={<PageAccessRoute path="/stock-disposal"><StockDisposalDetailPage /></PageAccessRoute>} />
+            <Route path="/staff/tasks" element={<PageAccessRoute path="/staff/tasks"><StaffTaskQueuePage /></PageAccessRoute>} />
+            <Route path="/stock-count/:id/blind-count" element={<PageAccessRoute path="/stock-count/:id/blind-count"><BlindCountPage /></PageAccessRoute>} />
           </Route>
 
           {/* 404 — mọi route không khớp */}

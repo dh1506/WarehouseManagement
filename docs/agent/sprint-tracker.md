@@ -1,5 +1,17 @@
 # Sprint Tracker
 
+## Sprint: Staff Mobile App — 2026-05-15
+
+### Status: COMPLETE ✅ — TypeScript passes, awaiting BE STAFF permission grant
+
+**Screens delivered:** Task Queue · Execution barcode scan · Blind Count · Exception Reporting
+
+**Critical BE dependency:** STAFF role needs `:update` + discrepancy `:create` permissions added to seed file before mutations will work.
+
+**Next steps:** See KI-SM-1 through KI-SM-5 in known-issues.md.
+
+---
+
 ## Sprint: Stock Count (Kiểm Kê) — 2026-04-22
 
 ### Status: COMPLETED ✅

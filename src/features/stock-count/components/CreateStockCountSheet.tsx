@@ -40,9 +40,10 @@ interface AutoItemListProps {
   isLoading: boolean;
   unitPrices: Record<number, string>;
   onPriceChange: (id: number, val: string) => void;
+  showUnitPrice?: boolean;
 }
 
-function AutoItemList({ rows, isLoading, unitPrices, onPriceChange }: AutoItemListProps) {
+function AutoItemList({ rows, isLoading, unitPrices, onPriceChange, showUnitPrice = true }: AutoItemListProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-8 text-slate-400">
@@ -72,20 +73,22 @@ function AutoItemList({ rows, isLoading, unitPrices, onPriceChange }: AutoItemLi
               {` · SL: ${row.available_quantity} ${row.uom_name}`}
             </p>
           </div>
-          <div className="shrink-0 w-24">
-            <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={unitPrices[row.id] ?? ''}
-                onChange={(e) => onPriceChange(row.id, e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-md border border-slate-200 pl-5 pr-2 py-1 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-              />
+          {showUnitPrice && (
+            <div className="shrink-0 w-24">
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={unitPrices[row.id] ?? ''}
+                  onChange={(e) => onPriceChange(row.id, e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-md border border-slate-200 pl-5 pr-2 py-1 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ))}
     </div>
@@ -450,7 +453,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
                             Hàng tồn kho
                           </p>
                           {!fullLoading && fullInventory.length > 0 && (
-                            <span className="text-xs text-slate-400">{fullInventory.length} mục · đơn giá tùy chọn</span>
+                            <span className="text-xs text-slate-400">{fullInventory.length} mục</span>
                           )}
                         </div>
                         <AutoItemList
@@ -458,6 +461,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
                           isLoading={fullLoading}
                           unitPrices={unitPrices}
                           onPriceChange={(id, val) => setUnitPrices((prev) => ({ ...prev, [id]: val }))}
+                          showUnitPrice={false}
                         />
                       </div>
                     )}

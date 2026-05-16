@@ -67,7 +67,6 @@ interface AllocRow {
   location_capacity?: number;
   location_current_load?: number;
   lot_no: string;
-  supplier_lot: string;  // display-only — not in AllocateLotPayload (BE gap)
   quantity: number | '';
   production_date: string;
   expired_date: string;
@@ -97,7 +96,6 @@ function makeRow(defaults?: { location_id: number; location_code: string }): All
     location_capacity: undefined,
     location_current_load: undefined,
     lot_no: '',
-    supplier_lot: '',
     quantity: '',
     production_date: '',
     expired_date: '',
@@ -317,6 +315,166 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                       </CommandItem>
                     ))}
                   </CommandGroup>
+                )}
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── LotCombobox ───────────────────────────────────────────────────────────────
+// Searchable lot picker for a given product.
+// Lists existing ProductLot records (via /api/inventories) as suggestions;
+// also lets the user type a brand-new lot code that gets created on submit.
+
+interface LotSuggestion {
+  lotNo: string;
+  expiredDate: string | null;
+}
+
+interface InventoryLotApiItem {
+  id: number;
+  lot_no: string;
+  status: string;
+  expired_date: string | null;
+}
+
+interface InventoryApiRow {
+  lots?: InventoryLotApiItem[];
+}
+
+interface InventoryApiData {
+  items?: InventoryApiRow[];
+  inventories?: InventoryApiRow[];
+}
+
+interface LotComboboxProps {
+  productId: number;
+  value: string;
+  onChange: (lotNo: string) => void;
+}
+
+function LotCombobox({ productId, value, onChange }: LotComboboxProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const { data: suggestions = [], isLoading } = useQuery<LotSuggestion[]>({
+    queryKey: ['lot-suggestions', productId],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/inventories', {
+        params: { page: 1, limit: 100, product_id: productId },
+      });
+      const payload = (res as unknown as ApiResponse<InventoryApiData>).data;
+      const rows = payload.items ?? payload.inventories ?? [];
+      const map = new Map<string, LotSuggestion>();
+      rows.forEach((row) => {
+        (row.lots ?? []).forEach((lot) => {
+          if (!map.has(lot.lot_no)) {
+            map.set(lot.lot_no, { lotNo: lot.lot_no, expiredDate: lot.expired_date });
+          }
+        });
+      });
+      return Array.from(map.values()).sort((a, b) => a.lotNo.localeCompare(b.lotNo));
+    },
+    staleTime: 60_000,
+    enabled: open && productId > 0,
+  });
+
+  const filtered = search
+    ? suggestions.filter((s) => s.lotNo.toLowerCase().includes(search.toLowerCase()))
+    : suggestions;
+
+  const isNewLot = search.trim() !== '' && !suggestions.some((s) => s.lotNo === search.trim());
+
+  const apply = (lotNo: string) => {
+    onChange(lotNo);
+    setOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'flex h-8 w-full items-center justify-between rounded-lg border bg-white px-2.5 text-xs outline-none transition-all hover:border-slate-300 focus:border-blue-300 focus:ring-1 focus:ring-blue-100',
+            value ? 'border-slate-200 text-slate-800' : 'border-slate-200 text-slate-400',
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-1.5 truncate">
+            <Package className="h-3 w-3 shrink-0 text-slate-400" />
+            {value ? (
+              <span className="truncate font-medium text-slate-800">{value}</span>
+            ) : (
+              'Chọn hoặc nhập mã lô...'
+            )}
+          </span>
+          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-72 p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Tìm hoặc nhập mã lô mới..."
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList className="max-h-52">
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-1.5 py-4 text-xs text-slate-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Đang tải lô hiện có...
+              </div>
+            ) : (
+              <>
+                {/* New lot entry */}
+                {isNewLot && (
+                  <CommandGroup heading="Lô mới">
+                    <CommandItem value={search.trim()} onSelect={() => apply(search.trim())}>
+                      <Check className="mr-1.5 h-3.5 w-3.5 shrink-0 opacity-0" />
+                      <span className="text-xs font-medium text-blue-700">{search.trim()}</span>
+                      <span className="ml-auto shrink-0 text-[10px] text-slate-400">Tạo mới</span>
+                    </CommandItem>
+                  </CommandGroup>
+                )}
+
+                {/* Existing lots */}
+                {filtered.length > 0 && (
+                  <CommandGroup heading={suggestions.length > 0 ? 'Lô hiện có trong hệ thống' : undefined}>
+                    {filtered.map((s) => (
+                      <CommandItem
+                        key={s.lotNo}
+                        value={s.lotNo}
+                        onSelect={() => apply(s.lotNo)}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-1.5 h-3.5 w-3.5 shrink-0',
+                            value === s.lotNo ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        <span className="text-xs font-medium text-slate-800">{s.lotNo}</span>
+                        {s.expiredDate && (
+                          <span className="ml-auto shrink-0 text-[10px] text-slate-400">
+                            HSD: {s.expiredDate.slice(0, 10)}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
+                {filtered.length === 0 && !isNewLot && (
+                  <CommandEmpty>
+                    {productId > 0
+                      ? 'Chưa có lô nào. Nhập mã lô mới ở trên.'
+                      : 'Chọn sản phẩm trước.'}
+                  </CommandEmpty>
                 )}
               </>
             )}
@@ -859,18 +1017,16 @@ export function AllocateLotsSheet({
                                       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                                         Mã lô <span className="text-rose-500">*</span>
                                       </label>
-                                      <input
-                                        type="text"
+                                      <LotCombobox
+                                        productId={detail.product_id}
                                         value={row.lot_no}
-                                        onChange={(e) => {
-                                          updateRow(detail.id, row.rowId, { lot_no: e.target.value });
+                                        onChange={(lotNo) => {
+                                          updateRow(detail.id, row.rowId, { lot_no: lotNo });
                                           clearError(
                                             `lot_${detail.id}_${row.rowId}`,
                                             `dup_${detail.id}`,
                                           );
                                         }}
-                                        placeholder="VD: LOT-2024-001"
-                                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
                                       />
                                       {errors[`lot_${detail.id}_${row.rowId}`] && (
                                         <p className="mt-0.5 text-[10px] text-rose-500">
@@ -907,27 +1063,6 @@ export function AllocateLotsSheet({
                                         </p>
                                       )}
                                     </div>
-                                  </div>
-
-                                  {/* ── Supplier lot — display only; not sent to BE (gap) ── */}
-                                  <div>
-                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                      Lô nhà cung cấp{' '}
-                                      <span className="ml-1 rounded bg-amber-50 px-1 py-0.5 text-[9px] font-normal text-amber-600 ring-1 ring-amber-200">
-                                        Chờ BE
-                                      </span>
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={row.supplier_lot}
-                                      onChange={(e) =>
-                                        updateRow(detail.id, row.rowId, {
-                                          supplier_lot: e.target.value,
-                                        })
-                                      }
-                                      placeholder="Mã lô theo nhà cung cấp (tuỳ chọn)"
-                                      className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500 outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
-                                    />
                                   </div>
 
                                   {/* ── Dates — required for F&B (§11.4) ── */}
