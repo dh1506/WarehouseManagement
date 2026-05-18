@@ -33,12 +33,19 @@ export const MANAGER_DASHBOARD_KEYS = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function buildOutboundFunnel(
+  pending: number,
   approved: number,
   picking: number,
 ): FunnelStep[] {
-  const total = approved + picking;
+  const total = pending + approved + picking;
   if (total === 0) return [];
   return [
+    {
+      label: 'Chờ duyệt',
+      count: pending,
+      pct: Math.round((pending / total) * 100),
+      color: 'bg-slate-400',
+    },
     {
       label: 'Chờ lấy hàng',
       count: approved,
@@ -60,11 +67,12 @@ export function useWorkflowBacklog() {
   return useQuery<WorkflowData>({
     queryKey: MANAGER_DASHBOARD_KEYS.workflow(),
     queryFn: async (): Promise<WorkflowData> => {
-      const [pendingIns, inProgressIns, discrepancyIns, approvedOuts, pickingOuts, countingRes] =
+      const [pendingIns, inProgressIns, discrepancyIns, pendingOuts, approvedOuts, pickingOuts, countingRes] =
         await Promise.all([
           getStockIns({ page: 1, limit: 100, search: '', status: 'PENDING' }),
           getStockIns({ page: 1, limit: 100, search: '', status: 'IN_PROGRESS' }),
           getStockIns({ page: 1, limit: 100, search: '', status: 'DISCREPANCY' }),
+          getStockOuts({ page: 1, limit: 100, status: 'PENDING' }),
           getStockOuts({ page: 1, limit: 100, status: 'APPROVED' }),
           getStockOuts({ page: 1, limit: 100, status: 'PICKING' }),
           getStockCounts({ page: 1, limit: 100, status: 'COUNTING' }),
@@ -103,9 +111,10 @@ export function useWorkflowBacklog() {
         ...discrepancyIns.stockIns.map(toInboundItem),
       ].sort((a, b) => b.hoursAging - a.hoursAging);
 
-      const outboundApproved = approvedOuts.stockOuts.map(toOutboundItem);
-      const outboundPicking = pickingOuts.stockOuts.map(toOutboundItem);
-      const outbound = [...outboundApproved, ...outboundPicking].sort(
+      const outboundPending = pendingOuts.items.map(toOutboundItem);
+      const outboundApproved = approvedOuts.items.map(toOutboundItem);
+      const outboundPicking = pickingOuts.items.map(toOutboundItem);
+      const outbound = [...outboundPending, ...outboundApproved, ...outboundPicking].sort(
         (a, b) => b.hoursAging - a.hoursAging,
       );
 
@@ -119,7 +128,7 @@ export function useWorkflowBacklog() {
         audits,
         agingInbound: inbound.filter((i) => i.hoursAging > AGING_THRESHOLD_HOURS),
         agingOutbound: outbound.filter((i) => i.hoursAging > AGING_THRESHOLD_HOURS),
-        funnelOutbound: buildOutboundFunnel(outboundApproved.length, outboundPicking.length),
+        funnelOutbound: buildOutboundFunnel(outboundPending.length, outboundApproved.length, outboundPicking.length),
       };
     },
     staleTime: 0,
@@ -190,6 +199,7 @@ interface RawWarehouseList {
 }
 
 interface RawInventoryItem {
+  product_id?: number | null;
   location?: {
     warehouse?: { id: number } | null;
   } | null;
@@ -208,9 +218,9 @@ function unwrapApiData<T>(response: unknown): T {
   return (r?.data as T) ?? (response as T);
 }
 
-function zoneStatus(pct: number): ZoneStatus {
-  if (pct >= 90) return 'critical';
-  if (pct >= 80) return 'warn';
+function zoneStatus(lowStockCount: number): ZoneStatus {
+  if (lowStockCount >= 3) return 'critical';
+  if (lowStockCount >= 1) return 'warn';
   return 'ok';
 }
 
@@ -218,10 +228,11 @@ export function useZoneHealth() {
   return useQuery<ZoneHealthData>({
     queryKey: MANAGER_DASHBOARD_KEYS.zoneHealth(),
     queryFn: async (): Promise<ZoneHealthData> => {
-      const [warehouseRes, inventoryRes, discrepancyRes] = await Promise.all([
+      const [warehouseRes, inventoryRes, discrepancyRes, overviewData] = await Promise.all([
         apiClient.get('/api/warehouses', { params: { page: 1, limit: 50 } }),
         apiClient.get('/api/inventories', { params: { page: 1, limit: 500 } }),
         getStockIns({ page: 1, limit: 15, search: '', status: 'DISCREPANCY' }),
+        getInventoryOverviewData(),
       ]);
 
       const warehouseData = unwrapApiData<RawWarehouseList>(warehouseRes);
@@ -230,29 +241,40 @@ export function useZoneHealth() {
       const inventoryData = unwrapApiData<RawInventoryPage>(inventoryRes);
       const inventoryRows: RawInventoryItem[] = inventoryData?.items ?? inventoryData?.inventories ?? [];
 
-      // Count inventory rows per warehouse as occupancy proxy
-      const countByWarehouse = new Map<number, number>();
+      // Build set of globally low-stock product IDs
+      const lowStockProductIds = new Set(
+        overviewData.skuRows
+          .filter((r) => r.isLowStock)
+          .map((r) => Number(r.productId)),
+      );
+
+      // Count unique products per warehouse (for itemCount) and low-stock products per warehouse
+      const itemCountByWarehouse = new Map<number, number>();
+      const lowStockByWarehouse = new Map<number, Set<number>>();
+
       for (const row of inventoryRows) {
         const whId = row.location?.warehouse?.id;
-        if (whId != null) {
-          countByWarehouse.set(whId, (countByWarehouse.get(whId) ?? 0) + 1);
+        if (whId == null) continue;
+
+        itemCountByWarehouse.set(whId, (itemCountByWarehouse.get(whId) ?? 0) + 1);
+
+        const productId = row.product_id;
+        if (productId != null && lowStockProductIds.has(productId)) {
+          if (!lowStockByWarehouse.has(whId)) lowStockByWarehouse.set(whId, new Set());
+          lowStockByWarehouse.get(whId)!.add(productId);
         }
       }
 
-      // Compute a dynamic capacity: max observed count + 20% headroom
-      const maxCount = Math.max(0, ...countByWarehouse.values());
-      const capacityPerZone = Math.max(10, Math.ceil(maxCount * 1.2));
-
       const zones: ZoneData[] = warehouses.map((wh) => {
-        const itemCount = countByWarehouse.get(wh.id) ?? 0;
-        const occupancyPct = Math.min(100, Math.round((itemCount / capacityPerZone) * 100));
+        const itemCount = itemCountByWarehouse.get(wh.id) ?? 0;
+        const lowStockCount = lowStockByWarehouse.get(wh.id)?.size ?? 0;
         return {
           id: wh.id,
           name: wh.name,
           code: wh.code,
           itemCount,
-          occupancyPct,
-          status: zoneStatus(occupancyPct),
+          lowStockCount,
+          status: zoneStatus(lowStockCount),
         };
       });
 

@@ -64,6 +64,7 @@ const INBOUND_STATUS_LABELS: Record<string, string> = {
 };
 
 const OUTBOUND_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
   PICKING: 'Đang lấy',
 };
@@ -75,6 +76,7 @@ const INBOUND_STATUS_COLORS: Record<string, string> = {
 };
 
 const OUTBOUND_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'text-amber-600 bg-amber-50',
   APPROVED: 'text-violet-600 bg-violet-50',
   PICKING: 'text-blue-600 bg-blue-50',
 };
@@ -375,15 +377,9 @@ const ZONE_STATUS_CONFIG: Record<ZoneStatus, { bg: string; text: string; ring: s
   critical: { bg: 'bg-rose-50',    text: 'text-rose-700',    ring: 'ring-rose-200',    label: 'Nguy cơ',    icon: 'error'         },
 };
 
-const ZONE_GAUGE_COLORS: Record<ZoneStatus, string> = {
-  ok:       'bg-emerald-400',
-  warn:     'bg-amber-400',
-  critical: 'bg-rose-500',
-};
 
 function ZoneCard({ zone }: { zone: ZoneData }) {
   const cfg = ZONE_STATUS_CONFIG[zone.status];
-  const gaugeColor = ZONE_GAUGE_COLORS[zone.status];
 
   return (
     <div className={cn('rounded-lg border px-3 py-2.5 ring-1', cfg.bg, cfg.ring)}>
@@ -394,17 +390,13 @@ function ZoneCard({ zone }: { zone: ZoneData }) {
         </div>
         <span className={cn('material-symbols-outlined text-[16px]', cfg.text)}>{cfg.icon}</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/60">
-        <motion.div
-          className={cn('h-full rounded-full', gaugeColor)}
-          initial={{ width: 0 }}
-          animate={{ width: `${zone.occupancyPct}%` }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-        />
+      <div className="flex items-baseline gap-1">
+        <span className={cn('text-lg font-black tabular-nums leading-none', cfg.text)}>
+          {zone.lowStockCount}
+        </span>
+        <span className={cn('text-[10px] font-semibold', cfg.text)}>SKU thiếu hàng</span>
       </div>
-      <p className={cn('mt-1 text-[10px] font-semibold tabular-nums', cfg.text)}>
-        {zone.occupancyPct}%
-      </p>
+      <p className="text-[10px] text-slate-400 mt-0.5">{zone.itemCount} vị trí tồn kho</p>
     </div>
   );
 }

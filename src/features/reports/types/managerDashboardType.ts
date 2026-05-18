@@ -62,7 +62,7 @@ export interface ZoneData {
   name: string;
   code: string;
   itemCount: number;
-  occupancyPct: number;
+  lowStockCount: number;
   status: ZoneStatus;
 }
 
