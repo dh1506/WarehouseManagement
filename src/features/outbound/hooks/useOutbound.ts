@@ -14,6 +14,9 @@ import {
   getStockOutHistory,
   getOutboundProductInventoryAvailability,
   getOutboundProductInventoryAvailabilityAtLocation,
+  getOutboundLotOptions,
+  getOutboundLocationOptions,
+  getOutboundAvailableQtyForLine,
   createSalesStockOut,
   createReturnStockOut,
   submitStockOut,
@@ -144,6 +147,40 @@ export function useStockOutKpis(enabled: boolean = true) {
     },
     isLoading: results.some((r) => r.isLoading),
   };
+}
+
+// ─── Create-sheet: lot / location / qty queries ───────────────────────────────
+
+export function useOutboundLotOptions(productId: number, enabled = true) {
+  return useQuery({
+    queryKey: ['outbound', 'lots', productId] as const,
+    queryFn: () => getOutboundLotOptions(productId),
+    enabled: enabled && productId > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useOutboundLocationOptions(productId: number, lotId?: number, enabled = true) {
+  return useQuery({
+    queryKey: ['outbound', 'locations', productId, lotId ?? null] as const,
+    queryFn: () => getOutboundLocationOptions(productId, lotId),
+    enabled: enabled && productId > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useOutboundAvailableQtyForLine(
+  productId: number,
+  locationId: number,
+  lotId?: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['outbound', 'qty', productId, locationId, lotId ?? null] as const,
+    queryFn: () => getOutboundAvailableQtyForLine(productId, locationId, lotId),
+    enabled: enabled && productId > 0 && locationId > 0,
+    staleTime: 30_000,
+  });
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────

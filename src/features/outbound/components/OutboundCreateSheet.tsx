@@ -1,34 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useCallback, useEffect } from 'react';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { motion, AnimatePresence } from 'motion/react';
+import { Plus, Trash2, Loader2, AlertTriangle, PackageCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useProductCategoryOptions } from '@/features/products/hooks/useProducts';
-import { ProductSearchSelect, type ProductOption } from '@/features/inbound/components/ProductSearchSelect';
-import { useCreateReturnStockOut, useCreateSalesStockOut } from '../hooks/useOutbound';
-import { getProductInventoryByLot } from '../services/outboundService';
-import apiClient from '@/services/apiClient';
-import type { ApiResponse } from '@/types/api';
-import { computeFEFOAllocation } from '../lib/fefoAllocationEngine';
+import { ProductSearchSelect } from '@/features/inbound/components/ProductSearchSelect';
+import {
+  useCreateReturnStockOut,
+  useCreateSalesStockOut,
+  useOutboundLotOptions,
+  useOutboundLocationOptions,
+  useOutboundAvailableQtyForLine,
+} from '../hooks/useOutbound';
+import { getOutboundAvailableQtyForLine } from '../services/outboundService';
 import { savePreAllocation } from '../lib/allocationStore';
+import type { AllocationResult } from '../lib/fefoAllocationEngine';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import type { Control, UseFormReturn } from 'react-hook-form';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const lineSchema = z.object({
-  categoryId: z.string().optional().default(''),
-  productId:  z.string().min(1, 'Sản phẩm là bắt buộc'),
-  quantity:   z.coerce.number().gt(0, 'Số lượng phải lớn hơn 0'),
+  productId:           z.number().int().min(1, 'Sản phẩm là bắt buộc'),
+  lotId:               z.number().int().positive().optional(),
+  lotNo:               z.string().optional(),
+  expiredDate:         z.string().nullable().optional(),
+  warehouseLocationId: z.number().int().min(1, 'Vị trí kho là bắt buộc'),
+  quantity:            z.number().positive('Số lượng phải lớn hơn 0'),
 });
 
 const createSheetSchema = z.object({
@@ -37,521 +43,549 @@ const createSheetSchema = z.object({
   details:     z.array(lineSchema).min(1, 'Vui lòng thêm ít nhất một sản phẩm'),
 });
 
-type CreateSheetValues    = z.infer<typeof createSheetSchema>;
-type CreateSheetFormInput  = z.input<typeof createSheetSchema>;
-type CreateSheetFormOutput = z.output<typeof createSheetSchema>;
+type CreateFormValues = z.infer<typeof createSheetSchema>;
+
+const EMPTY_LINE: CreateFormValues['details'][number] = {
+  productId:           0,
+  lotId:               undefined,
+  lotNo:               undefined,
+  expiredDate:         undefined,
+  warehouseLocationId: 0,
+  quantity:            1,
+};
+
+// ─── Field helpers ────────────────────────────────────────────────────────────
+
+function FieldLabel({ children, required, hint }: {
+  children: React.ReactNode;
+  required?: boolean;
+  hint?: string;
+}) {
+  return (
+    <div className="mb-1 flex items-center justify-between">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        {children}
+        {required && <span className="ml-1 text-rose-400">*</span>}
+      </label>
+      {hint && <span className="text-[10px] text-slate-400">{hint}</span>}
+    </div>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-rose-500">
+      <AlertTriangle className="h-3 w-3 shrink-0" />
+      {message}
+    </p>
+  );
+}
+
+function SelectField({
+  isLoading,
+  disabled,
+  error,
+  children,
+  className,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { isLoading?: boolean; error?: boolean }) {
+  return (
+    <div className="relative">
+      <select
+        disabled={disabled || isLoading}
+        className={cn(
+          'h-9 w-full appearance-none rounded-lg border bg-white px-3 pr-8 text-sm transition-all',
+          'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400',
+          'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
+          error ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      {isLoading ? (
+        <Loader2 className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-slate-400" />
+      ) : (
+        <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ─── Detail row ───────────────────────────────────────────────────────────────
+
+interface OutboundDetailRowProps {
+  index: number;
+  totalRows: number;
+  form: UseFormReturn<CreateFormValues>;
+  control: Control<CreateFormValues>;
+  remove: (index: number) => void;
+}
+
+function OutboundDetailRow({ index, totalRows, form, control, remove }: OutboundDetailRowProps) {
+  const lineErrors = form.formState.errors.details?.[index];
+
+  const productId           = useWatch({ control, name: `details.${index}.productId` });
+  const warehouseLocationId = useWatch({ control, name: `details.${index}.warehouseLocationId` });
+  const quantity            = useWatch({ control, name: `details.${index}.quantity` });
+  const selectedLotId       = useWatch({ control, name: `details.${index}.lotId` });
+
+  const lotOptionsQuery      = useOutboundLotOptions(productId, productId > 0);
+  const locationOptionsQuery = useOutboundLocationOptions(productId, selectedLotId, productId > 0);
+  const requiresLotSelection = productId > 0 && (lotOptionsQuery.data?.length ?? 0) > 0;
+  const canChooseLocation    = productId > 0 && (!requiresLotSelection || Boolean(selectedLotId));
+
+  const availableQtyQuery = useOutboundAvailableQtyForLine(
+    productId,
+    warehouseLocationId,
+    selectedLotId,
+    canChooseLocation && warehouseLocationId > 0,
+  );
+
+  const availableQty = availableQtyQuery.data ?? 0;
+  const overAvailable = availableQty > 0 && Number(quantity) > availableQty;
+
+  // Clear stale lot when product changes
+  useEffect(() => {
+    if (!selectedLotId) return;
+    const exists = (lotOptionsQuery.data ?? []).some((l) => l.id === selectedLotId);
+    if (!exists) {
+      form.setValue(`details.${index}.lotId`,   undefined, { shouldDirty: true });
+      form.setValue(`details.${index}.lotNo`,   undefined, { shouldDirty: true });
+      form.setValue(`details.${index}.expiredDate`, undefined, { shouldDirty: true });
+    }
+  }, [selectedLotId, lotOptionsQuery.data, form, index]);
+
+  // Clear stale location when it's no longer in the allowed set
+  useEffect(() => {
+    if (warehouseLocationId <= 0) return;
+    const allowed = new Set((locationOptionsQuery.data ?? []).map((l) => l.id));
+    if (!allowed.has(warehouseLocationId)) {
+      form.setValue(`details.${index}.warehouseLocationId`, 0, { shouldDirty: true });
+    }
+  }, [warehouseLocationId, locationOptionsQuery.data, form, index]);
+
+  // Auto-fill location when options arrive and none selected
+  useEffect(() => {
+    const options = locationOptionsQuery.data;
+    if (!options || options.length === 0) return;
+    if (warehouseLocationId > 0) return;
+    form.setValue(`details.${index}.warehouseLocationId`, options[0].id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [locationOptionsQuery.data, warehouseLocationId, form, index]);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.2 }}
+      className="overflow-hidden"
+    >
+      <div className={cn(
+        'rounded-xl border bg-white shadow-sm transition-colors',
+        lineErrors ? 'border-rose-200' : 'border-slate-200',
+      )}>
+        {/* Card header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-600">
+              {index + 1}
+            </span>
+            <span className="text-xs font-semibold text-slate-500">Dòng sản phẩm</span>
+          </div>
+          {totalRows > 1 && (
+            <button
+              type="button"
+              onClick={() => remove(index)}
+              className="rounded-md p-1 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-3.5 p-4">
+          {/* Product — full width */}
+          <div>
+            <FieldLabel required>Sản phẩm</FieldLabel>
+            <Controller
+              name={`details.${index}.productId`}
+              control={control}
+              render={({ field }) => (
+                <ProductSearchSelect
+                  value={field.value > 0 ? String(field.value) : ''}
+                  onValueChange={(option) => {
+                    field.onChange(Number(option.id));
+                    form.setValue(`details.${index}.lotId`,               undefined, { shouldDirty: true });
+                    form.setValue(`details.${index}.lotNo`,               undefined, { shouldDirty: true });
+                    form.setValue(`details.${index}.expiredDate`,         undefined, { shouldDirty: true });
+                    form.setValue(`details.${index}.warehouseLocationId`, 0,         { shouldDirty: true });
+                  }}
+                  placeholder="Tìm kiếm theo tên hoặc SKU…"
+                />
+              )}
+            />
+            <FieldError message={lineErrors?.productId?.message} />
+          </div>
+
+          {/* Row 2: Lot + Location (2 columns) */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Lot */}
+            <div>
+              <FieldLabel hint={requiresLotSelection && !selectedLotId ? 'bắt buộc' : 'tùy chọn'}>
+                Lô / Mẻ
+              </FieldLabel>
+              <SelectField
+                value={selectedLotId ?? ''}
+                isLoading={lotOptionsQuery.isFetching}
+                disabled={productId <= 0}
+                error={!!lineErrors?.lotId}
+                onChange={(e) => {
+                  const v = e.target.value ? Number(e.target.value) : undefined;
+                  form.setValue(`details.${index}.lotId`, v, { shouldDirty: true, shouldValidate: true });
+                  // Store lotNo + expiredDate for pre-allocation
+                  const lotOpt = (lotOptionsQuery.data ?? []).find((l) => l.id === v);
+                  form.setValue(`details.${index}.lotNo`, lotOpt?.lotNo, { shouldDirty: true });
+                  form.setValue(`details.${index}.expiredDate`, lotOpt?.expiredDate ?? undefined, { shouldDirty: true });
+                  // Reset location to trigger re-fetch for the chosen lot
+                  form.setValue(`details.${index}.warehouseLocationId`, 0, { shouldDirty: true });
+                }}
+              >
+                <option value="">
+                  {productId <= 0
+                    ? 'Chọn sản phẩm trước'
+                    : lotOptionsQuery.isFetching
+                      ? 'Đang tải…'
+                      : (lotOptionsQuery.data?.length ?? 0) === 0
+                        ? 'Không có lô'
+                        : 'Chọn lô…'}
+                </option>
+                {(lotOptionsQuery.data ?? []).map((lot) => (
+                  <option key={lot.id} value={lot.id}>
+                    {lot.lotNo}{lot.status !== 'ACTIVE' ? ` (${lot.status})` : ''}
+                    {lot.expiredDate ? ` — HSD: ${lot.expiredDate.slice(0, 10)}` : ''}
+                  </option>
+                ))}
+              </SelectField>
+              {requiresLotSelection && !selectedLotId && (
+                <p className="mt-1 text-[10px] text-amber-600">Chọn lô để lọc vị trí kho</p>
+              )}
+              <FieldError message={lineErrors?.lotId?.message} />
+            </div>
+
+            {/* Location */}
+            <div>
+              <FieldLabel required>Vị trí kho</FieldLabel>
+              <SelectField
+                {...form.register(`details.${index}.warehouseLocationId`, { valueAsNumber: true })}
+                isLoading={locationOptionsQuery.isFetching}
+                disabled={!canChooseLocation}
+                error={!!lineErrors?.warehouseLocationId}
+              >
+                <option value={0}>
+                  {!productId
+                    ? 'Chọn sản phẩm trước'
+                    : requiresLotSelection && !selectedLotId
+                      ? 'Chọn lô trước'
+                      : locationOptionsQuery.isFetching
+                        ? 'Đang tải…'
+                        : (locationOptionsQuery.data?.length ?? 0) === 0
+                          ? 'Không có vị trí'
+                          : 'Chọn vị trí…'}
+                </option>
+                {(locationOptionsQuery.data ?? []).map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.fullPath} (Tồn: {loc.availableQty})
+                  </option>
+                ))}
+              </SelectField>
+              <FieldError message={lineErrors?.warehouseLocationId?.message} />
+            </div>
+          </div>
+
+          {/* Row 3: Quantity */}
+          <div className="max-w-45">
+            <FieldLabel required>Số lượng xuất</FieldLabel>
+            <input
+              type="number"
+              min={1}
+              step="1"
+              {...form.register(`details.${index}.quantity`, { valueAsNumber: true })}
+              className={cn(
+                'h-9 w-full rounded-lg border bg-white px-3 text-sm transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400',
+                (lineErrors?.quantity || overAvailable) ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200',
+              )}
+            />
+            {warehouseLocationId > 0 && (
+              <p className={cn(
+                'mt-1 text-[10px] font-semibold',
+                availableQtyQuery.isFetching
+                  ? 'text-slate-400'
+                  : overAvailable
+                    ? 'text-rose-500'
+                    : 'text-emerald-600',
+              )}>
+                {availableQtyQuery.isFetching
+                  ? 'Đang kiểm tra…'
+                  : overAvailable
+                    ? `Vượt ${Number(quantity) - availableQty} so với tồn kho`
+                    : `Khả dụng: ${availableQty}`}
+              </p>
+            )}
+            <FieldError message={lineErrors?.quantity?.message} />
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Main sheet ───────────────────────────────────────────────────────────────
 
 interface OutboundCreateSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// productId(string) → { qty: number; locationId: number | null }
-type ProductAvailability = Record<string, { qty: number; locationId: number | null }>;
-
-interface InventoryRow {
-  warehouse_location_id: number;
-  quantity: number | string;
-  reserved_quantity: number | string;
-}
-
-interface InventoryPage {
-  items?: InventoryRow[];
-  inventories?: InventoryRow[];
-  pagination: { total: number; page: number; limit: number; total_pages?: number };
-}
-
-// Fetch available qty computed as quantity - reserved_quantity (avoids stale available_quantity field)
-async function fetchProductAvailability(
-  productId: number,
-): Promise<{ qty: number; locationId: number | null }> {
-  const res = await apiClient.get<ApiResponse<InventoryPage>>('/api/inventories', {
-    params: { product_id: productId, page: 1, limit: 200 },
-  });
-  // unwrap ApiResponse envelope
-  const payload = (res as any)?.data?.data ?? (res as any)?.data ?? res;
-  const rows: InventoryRow[] = (payload as InventoryPage).items ?? (payload as InventoryPage).inventories ?? [];
-  let qty = 0;
-  let locationId: number | null = null;
-  for (const row of rows) {
-    const avail = Math.max(0, (Number(row.quantity) || 0) - (Number(row.reserved_quantity) || 0));
-    qty += avail;
-    if (locationId == null && avail > 0) locationId = Number(row.warehouse_location_id);
-  }
-  return { qty, locationId };
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetProps) {
   const { toast } = useToast();
   const createSalesMutation  = useCreateSalesStockOut();
   const createReturnMutation = useCreateReturnStockOut();
 
-  const methods = useForm<CreateSheetFormInput, unknown, CreateSheetFormOutput>({
+  const form = useForm<CreateFormValues>({
     resolver: zodResolver(createSheetSchema),
-    defaultValues: { type: 'SALES', description: '', details: [] },
-    mode: 'onChange',
+    defaultValues: {
+      type:        'SALES',
+      description: '',
+      details:     [{ ...EMPTY_LINE }],
+    },
   });
 
-  const {
-    register, control, watch, handleSubmit,
-    setValue, setError, clearErrors, reset,
-    formState: { errors, isDirty },
-  } = methods;
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'details',
+  });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'details' });
-
-  const categoryOptionsQuery = useProductCategoryOptions(open);
-  const categories = categoryOptionsQuery.data ?? [];
-
-  const details      = watch('details');
-  const selectedType = watch('type');
-  const isReturn     = selectedType === 'RETURN_TO_SUPPLIER';
-
-  // ─── Stock availability state ─────────────────────────────────────────────
-
-  const [productAvailability, setProductAvailability] = useState<ProductAvailability>({});
-  const [isFetchingStock, setIsFetchingStock]          = useState(false);
-  const [closeConfirmOpen, setCloseConfirmOpen]         = useState(false);
-  const [errorAttention, setErrorAttention]             = useState(false);
-
-  // ─── Derived selections ───────────────────────────────────────────────────
-
-  const selectedProductIds = useMemo(
-    () => (details ?? []).map((d) => d.productId).filter((id) => id.length > 0),
-    [details],
-  );
-
-  const duplicateProductIds = useMemo(() => {
-    const counter = new Map<string, number>();
-    selectedProductIds.forEach((id) => counter.set(id, (counter.get(id) ?? 0) + 1));
-    return new Set(
-      Array.from(counter.entries()).filter(([, c]) => c > 1).map(([id]) => id),
-    );
-  }, [selectedProductIds]);
-
-  // ─── Auto-location: most common preferredLocationId across all products ───
-
-  const autoLocationId = useMemo(() => {
-    const validIds = selectedProductIds.filter((id) => Number(id) > 0);
-    if (validIds.length === 0) return null;
-    // Count votes for each locationId
-    const votes = new Map<number, number>();
-    for (const id of validIds) {
-      const locId = productAvailability[id]?.locationId;
-      if (locId != null) votes.set(locId, (votes.get(locId) ?? 0) + 1);
-    }
-    if (votes.size === 0) return null;
-    // Pick the location that appears for the most products
-    return Array.from(votes.entries()).sort((a, b) => b[1] - a[1])[0][0];
-  }, [productAvailability, selectedProductIds]);
-
-  // ─── Fetch stock when product selection changes ───────────────────────────
-
+  // Reset when opened
   useEffect(() => {
-    const validIds = selectedProductIds.filter((id) => Number(id) > 0);
-    if (validIds.length === 0) {
-      setProductAvailability({});
-      return;
+    if (open) {
+      form.reset({ type: 'SALES', description: '', details: [{ ...EMPTY_LINE }] });
     }
+  }, [open, form]);
 
-    let cancelled = false;
-    setIsFetchingStock(true);
+  const handleSubmit = useCallback(
+    async (values: CreateFormValues) => {
+      form.clearErrors();
 
-    Promise.all(
-      validIds.map((id) =>
-        fetchProductAvailability(Number(id))
-          .then((res) => ({ productId: id, qty: res.qty, locationId: res.locationId }))
-          .catch(() => ({ productId: id, qty: 0, locationId: null })),
-      ),
-    ).then((results) => {
-      if (cancelled) return;
-      const map: ProductAvailability = {};
-      results.forEach(({ productId, qty, locationId }) => {
-        map[productId] = { qty, locationId };
-      });
-      setProductAvailability(map);
-      setIsFetchingStock(false);
-    });
-
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProductIds.join(',')]);
-
-  // ─── Duplicate validation ─────────────────────────────────────────────────
-
-  useEffect(() => {
-    details?.forEach((line, index) => {
-      if (!line.productId) return;
-      if (duplicateProductIds.has(line.productId)) {
-        setError(`details.${index}.productId`, { type: 'manual', message: 'Sản phẩm đã tồn tại, vui lòng gộp số lượng.' });
-      } else if (errors.details?.[index]?.productId?.type === 'manual') {
-        clearErrors(`details.${index}.productId`);
-      }
-    });
-  }, [clearErrors, details, duplicateProductIds, errors.details, setError]);
-
-  // ─── Init first row ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!open || fields.length > 0) return;
-    append({ categoryId: '', productId: '', quantity: 0 });
-  }, [append, fields.length, open]);
-
-  // ─── Helpers ─────────────────────────────────────────────────────────────
-
-  const hasUnsavedData = open && isDirty;
-
-  const resetSheet = () => {
-    reset({ type: 'SALES', description: '', details: [{ categoryId: '', productId: '', quantity: 0 }] });
-    setProductAvailability({});
-    setIsFetchingStock(false);
-    setCloseConfirmOpen(false);
-    setErrorAttention(false);
-  };
-
-  const requestClose = () => {
-    if (hasUnsavedData) { setCloseConfirmOpen(true); return; }
-    resetSheet();
-    onOpenChange(false);
-  };
-
-  const forceClose = () => { resetSheet(); onOpenChange(false); };
-
-  const highlightError = () => {
-    setErrorAttention(true);
-    window.setTimeout(() => setErrorAttention(false), 650);
-    const el = document.querySelector('.outbound-create-sheet [aria-invalid="true"], .outbound-create-sheet .sheet-error') as HTMLElement | null;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
-  // ─── Submit ───────────────────────────────────────────────────────────────
-
-  const onSubmit = async (values: CreateSheetValues) => {
-    if (!autoLocationId) {
-      toast({
-        title: 'Không tìm được vị trí kho phù hợp',
-        description: 'Không có vị trí nào chứa đầy đủ tất cả sản phẩm đã chọn.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const payload = {
-      warehouse_location_id: autoLocationId,
-      type:        values.type,
-      description: values.description?.trim() || undefined,
-      details:     values.details.map((line) => ({
-        product_id: Number(line.productId),
-        quantity:   Number(line.quantity),
-      })),
-    };
-
-    const mutation = isReturn ? createReturnMutation : createSalesMutation;
-    const order    = await mutation.mutateAsync(payload);
-
-    // Post-create FEFO pre-allocation (non-fatal if fails)
-    try {
-      const allocationResults = await Promise.all(
-        values.details.map(async (line) => {
-          const productId = Number(line.productId);
-          const lotRows   = await getProductInventoryByLot(productId, autoLocationId);
-          return computeFEFOAllocation(lotRows, Number(line.quantity), productId);
+      // Pre-flight: validate available qty for each line
+      const checks = await Promise.all(
+        values.details.map(async (detail, index) => {
+          if (detail.productId <= 0 || detail.warehouseLocationId <= 0) {
+            return { index, skip: true, availableQty: 0 };
+          }
+          const availableQty = await getOutboundAvailableQtyForLine(
+            detail.productId,
+            detail.warehouseLocationId,
+            detail.lotId,
+          );
+          return { index, skip: false, availableQty };
         }),
       );
-      savePreAllocation({
-        stockOutId:          order.id,
-        warehouseLocationId: autoLocationId,
-        savedAt:             new Date().toISOString(),
-        results:             allocationResults,
-      });
-    } catch {
-      // Picking screen falls back to manual if pre-allocation fails
-    }
 
-    resetSheet();
-    onOpenChange(false);
-  };
+      let hasError = false;
+      checks.forEach((check) => {
+        if (check.skip) return;
+        const detail = values.details[check.index];
+        if (detail.quantity > check.availableQty) {
+          hasError = true;
+          form.setError(`details.${check.index}.quantity`, {
+            type: 'manual',
+            message: `Vượt quá tồn kho khả dụng (${check.availableQty}).`,
+          });
+        }
+      });
+
+      if (hasError) {
+        toast({
+          title: 'Lỗi tồn kho',
+          description: 'Một hoặc nhiều dòng vượt quá số lượng khả dụng.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Determine order-level warehouse_location_id (most common among lines)
+      const locationVotes = new Map<number, number>();
+      values.details.forEach((d) => {
+        if (d.warehouseLocationId > 0) {
+          locationVotes.set(d.warehouseLocationId, (locationVotes.get(d.warehouseLocationId) ?? 0) + 1);
+        }
+      });
+      const orderLocationId = locationVotes.size > 0
+        ? Array.from(locationVotes.entries()).sort((a, b) => b[1] - a[1])[0][0]
+        : values.details[0]?.warehouseLocationId ?? 0;
+
+      const mutation = values.type === 'RETURN_TO_SUPPLIER' ? createReturnMutation : createSalesMutation;
+
+      const order = await mutation.mutateAsync({
+        warehouse_location_id: orderLocationId,
+        type:        values.type,
+        description: values.description?.trim() || undefined,
+        details:     values.details.map((d) => ({
+          product_id: d.productId,
+          quantity:   d.quantity,
+        })),
+      });
+
+      // Save manually-selected lot pre-allocation for picking screen
+      try {
+        const results: AllocationResult[] = values.details.map((d) => ({
+          product_id:        d.productId,
+          requested_quantity: d.quantity,
+          total_allocated:    d.quantity,
+          is_fully_allocated: true,
+          has_sla_warning:    false,
+          sla_rejected_qty:   0,
+          lines: d.lotId ? [{
+            lot_id:               d.lotId,
+            lot_no:               d.lotNo ?? '',
+            expired_date:         d.expiredDate ?? null,
+            warehouse_location_id: d.warehouseLocationId,
+            available_quantity:   0,
+            suggested_quantity:   d.quantity,
+            allocated_quantity:   d.quantity,
+            is_manual_override:   true,
+          }] : [],
+        }));
+
+        savePreAllocation({
+          stockOutId:          order.id,
+          warehouseLocationId: orderLocationId,
+          savedAt:             new Date().toISOString(),
+          results,
+        });
+      } catch {
+        // Pre-allocation is best-effort — picking screen falls back to manual if it fails
+      }
+
+      onOpenChange(false);
+    },
+    [createSalesMutation, createReturnMutation, form, toast, onOpenChange],
+  );
 
   const isSaving = createSalesMutation.isPending || createReturnMutation.isPending;
-  const hasValidProducts = selectedProductIds.filter((id) => Number(id) > 0).length > 0;
-
-  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <>
-      <Sheet open={open} onOpenChange={(next) => { if (!next) requestClose(); else onOpenChange(true); }}>
-        <SheetContent
-          side="right"
-          showCloseButton={false}
-          className="w-full p-0 sm:w-[50vw]! sm:max-w-[50vw]! data-open:duration-300 data-closed:duration-200"
-          onInteractOutside={(e) => { e.preventDefault(); requestClose(); }}
-          onEscapeKeyDown={(e) => { e.preventDefault(); requestClose(); }}
-        >
-          <div className="flex h-full flex-col bg-white">
-
-            {/* Header */}
-            <SheetHeader className="border-b border-slate-100 px-6 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <SheetTitle>Tạo phiếu xuất kho mới</SheetTitle>
-                  <SheetDescription>Chọn loại xuất, thêm sản phẩm và nhập số lượng cần xuất.</SheetDescription>
-                </div>
-                <button type="button" onClick={requestClose} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              </div>
-            </SheetHeader>
-
-            <form
-              onSubmit={handleSubmit(onSubmit, highlightError)}
-              className={`outbound-create-sheet flex min-h-0 flex-1 flex-col ${errorAttention ? 'form-error-attention' : ''}`}
-            >
-              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-
-                {/* ── Thông tin chung ── */}
-                <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                  <h3 className="mb-4 text-sm font-bold text-slate-800">Thông tin chung</h3>
-                  <div className="space-y-4">
-
-                    {/* Loại xuất kho */}
-                    <div>
-                      <label htmlFor="out-type" className="mb-1.5 block text-xs font-semibold text-slate-500">
-                        Loại xuất kho <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        id="out-type"
-                        {...register('type')}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                      >
-                        <option value="SALES">Xuất bán (SALES)</option>
-                        <option value="RETURN_TO_SUPPLIER">Trả nhà cung cấp (RETURN)</option>
-                      </select>
-                    </div>
-
-                    {/* Ghi chú */}
-                    <div>
-                      <label htmlFor="out-notes" className="mb-1.5 block text-xs font-semibold text-slate-500">Ghi chú</label>
-                      <textarea
-                        id="out-notes"
-                        {...register('description')}
-                        maxLength={255}
-                        rows={3}
-                        className={`w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.description ? 'border-red-400 sheet-error' : 'border-slate-200'}`}
-                        placeholder="Ghi chú tuỳ chọn..."
-                      />
-                      {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>}
-                    </div>
-                  </div>
-                </section>
-
-                {/* ── Danh sách sản phẩm ── */}
-                <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-slate-800">Danh sách sản phẩm xuất</h3>
-                    <button
-                      type="button"
-                      onClick={() => append({ categoryId: '', productId: '', quantity: 0 })}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">add</span>
-                      Thêm sản phẩm
-                    </button>
-                  </div>
-
-                  {typeof errors.details?.message === 'string' && (
-                    <p className="mb-2 text-xs text-red-500 sheet-error">{errors.details.message}</p>
-                  )}
-
-                  <div className="space-y-3">
-                    {fields.length === 0 && (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-400">
-                        Chưa có sản phẩm. Nhấn "Thêm sản phẩm" để bắt đầu.
-                      </div>
-                    )}
-
-                    {fields.map((field, index) => {
-                      const line       = details?.[index];
-                      const productId  = line?.productId ?? '';
-                      const lineErrors = Array.isArray(errors.details) ? errors.details[index] : undefined;
-                      const excludeIds = selectedProductIds.filter((id, i) => id && i !== index);
-                      // null = not yet fetched; number = fetched (0 means out of stock)
-                      const available  = productId && !isFetchingStock
-                        ? (productAvailability[productId]?.qty ?? 0)
-                        : null;
-
-                      return (
-                        <div
-                          key={field.id}
-                          className="rounded-lg border border-slate-200 bg-white p-4 transition-all animate-in fade-in-0 slide-in-from-bottom-1 hover:border-slate-300"
-                        >
-                          {/* Row header */}
-                          <div className="mb-3 flex items-center justify-between">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dòng {index + 1}</p>
-                            <button
-                              type="button"
-                              onClick={() => remove(index)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">delete</span>
-                            </button>
-                          </div>
-
-                          <div className="space-y-3">
-                            {/* Category + Product (2 cols) */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="mb-1 block text-[11px] font-semibold text-slate-500">Danh mục</label>
-                                <select
-                                  value={line?.categoryId ?? ''}
-                                  onChange={(e) => {
-                                    setValue(`details.${index}.categoryId`, e.target.value, { shouldDirty: true });
-                                    setValue(`details.${index}.productId`,  '',             { shouldDirty: true, shouldValidate: true });
-                                    clearErrors(`details.${index}.productId`);
-                                  }}
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm"
-                                >
-                                  <option value="">Tất cả danh mục</option>
-                                  {categories.map((cat) => (
-                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div>
-                                <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                                  Sản phẩm <span className="text-red-500">*</span>
-                                </label>
-                                <div className={lineErrors?.productId ? 'sheet-error rounded-md' : ''}>
-                                  <ProductSearchSelect
-                                    value={productId}
-                                    onValueChange={(opt: ProductOption) => {
-                                      setValue(`details.${index}.productId`, opt.id, { shouldDirty: true, shouldValidate: true });
-                                      clearErrors(`details.${index}.productId`);
-                                    }}
-                                    categoryId={line?.categoryId || undefined}
-                                    excludeIds={excludeIds}
-                                    placeholder="Chọn sản phẩm"
-                                  />
-                                </div>
-                                {lineErrors?.productId && (
-                                  <p className="mt-1 text-[11px] text-red-500">{lineErrors.productId.message}</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Stock info chip — appears after product is selected */}
-                            {productId && (
-                              <div className="flex items-center gap-2">
-                                {isFetchingStock ? (
-                                  <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
-                                    Đang tải tồn kho...
-                                  </span>
-                                ) : available !== null ? (
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                                    available > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
-                                  }`}>
-                                    <span className="material-symbols-outlined text-[13px]">inventory_2</span>
-                                    Tồn kho: {available.toLocaleString('vi-VN')} {available === 0 ? '— hết hàng' : ''}
-                                  </span>
-                                ) : null}
-                              </div>
-                            )}
-
-                            {/* Quantity */}
-                            <div>
-                              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                                Số lượng xuất <span className="text-red-500">*</span>
-                                {available !== null && available > 0 && (
-                                  <span className="ml-1 font-normal text-slate-400">(tối đa {available.toLocaleString('vi-VN')})</span>
-                                )}
-                              </label>
-                              <input
-                                type="number"
-                                min={1}
-                                step="any"
-                                {...register(`details.${index}.quantity`, { valueAsNumber: true })}
-                                className={`w-full rounded-lg border px-2.5 py-2 text-sm ${lineErrors?.quantity ? 'border-red-400 sheet-error' : 'border-slate-200'}`}
-                                placeholder="Nhập số lượng cần xuất"
-                              />
-                              {lineErrors?.quantity && (
-                                <p className="mt-1 text-[11px] text-red-500">{lineErrors.quantity.message}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {/* ── Trạng thái kho tự động ── */}
-                {hasValidProducts && !isFetchingStock && (
-                  <section>
-                    {autoLocationId ? (
-                      <div className="flex items-start gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                        <span className="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5 shrink-0">check_circle</span>
-                        <div>
-                          <p className="text-xs font-semibold text-emerald-800">Kho xuất đã xác định</p>
-                          <p className="text-[11px] text-emerald-700 mt-0.5">
-                            Hệ thống sẽ xuất từ <strong>vị trí #{autoLocationId}</strong> — vị trí có đủ hàng cho tất cả sản phẩm.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-2.5 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                        <span className="material-symbols-outlined text-[16px] text-amber-600 mt-0.5 shrink-0">warning</span>
-                        <div>
-                          <p className="text-xs font-semibold text-amber-800">Không tìm thấy kho phù hợp</p>
-                          <p className="text-[11px] text-amber-700 mt-0.5">
-                            Không có vị trí nào chứa đồng thời tất cả sản phẩm đã chọn. Kiểm tra lại tồn kho hoặc tách thành nhiều phiếu.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-slate-100 px-6 py-4">
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <button type="button" onClick={requestClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                    Huỷ
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSaving || (hasValidProducts && !autoLocationId)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-5 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSaving ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        Đang lưu...
-                      </>
-                    ) : 'Tạo phiếu xuất'}
-                  </button>
-                </div>
-              </div>
-            </form>
+    <Sheet open={open} onOpenChange={(v) => !v && onOpenChange(false)}>
+      <SheetContent className="flex flex-col overflow-hidden p-0 w-[50vw]! max-w-none!" side="right">
+        {/* Header */}
+        <SheetHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
+              <PackageCheck className="h-4.5 w-4.5 text-blue-600" />
+            </div>
+            <div>
+              <SheetTitle className="text-base font-bold text-slate-900">Tạo phiếu xuất kho</SheetTitle>
+              <SheetDescription className="text-xs text-slate-500">
+                Chọn sản phẩm, lô hàng và vị trí kho cho từng dòng xuất.
+              </SheetDescription>
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </SheetHeader>
 
-      <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Bạn có dữ liệu chưa lưu.</AlertDialogTitle>
-            <AlertDialogDescription>Bạn có chắc muốn đóng và huỷ thao tác này không?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
-            <AlertDialogAction onClick={forceClose} className="bg-red-600 hover:bg-red-700">Thoát không lưu</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto">
+          <form id="outbound-create-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5 px-6 py-5">
+
+            {/* Loại xuất + Ghi chú */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <FieldLabel required>Loại xuất kho</FieldLabel>
+                <SelectField {...form.register('type')}>
+                  <option value="SALES">Xuất bán (SALES)</option>
+                  <option value="RETURN_TO_SUPPLIER">Trả nhà cung cấp (RETURN)</option>
+                </SelectField>
+              </div>
+              <div>
+                <FieldLabel>Ghi chú</FieldLabel>
+                <input
+                  type="text"
+                  {...form.register('description')}
+                  maxLength={255}
+                  placeholder="Ghi chú tùy chọn…"
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm placeholder:text-slate-300 transition-all focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                <FieldError message={form.formState.errors.description?.message} />
+              </div>
+            </div>
+
+            {/* Product lines */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Danh sách sản phẩm xuất
+              </p>
+
+              {form.formState.errors.details?.root && (
+                <FieldError message={form.formState.errors.details.root.message} />
+              )}
+
+              <AnimatePresence initial={false}>
+                {fields.map((field, index) => (
+                  <OutboundDetailRow
+                    key={field.id}
+                    index={index}
+                    totalRows={fields.length}
+                    form={form}
+                    control={form.control}
+                    remove={remove}
+                  />
+                ))}
+              </AnimatePresence>
+
+              <button
+                type="button"
+                onClick={() => append({ ...EMPTY_LINE })}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm font-semibold text-slate-400 transition-all hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-600"
+              >
+                <Plus className="h-4 w-4" />
+                Thêm sản phẩm
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 border-t border-slate-100 bg-white px-6 py-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              disabled={isSaving}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 disabled:opacity-50"
+            >
+              Huỷ
+            </button>
+            <button
+              type="submit"
+              form="outbound-create-form"
+              disabled={isSaving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-700 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:opacity-50"
+            >
+              {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isSaving ? 'Đang tạo…' : 'Tạo phiếu xuất'}
+            </button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

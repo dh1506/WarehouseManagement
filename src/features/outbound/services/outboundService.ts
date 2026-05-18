@@ -232,6 +232,129 @@ export async function getProductTotalAvailableQuantity(productId: number): Promi
   }
 }
 
+// ─── Lot / Location helpers for create sheet ─────────────────────────────────
+
+interface OutboundInventoryApiRow {
+  product_id: number;
+  warehouse_location_id: number;
+  quantity: number | string;
+  reserved_quantity: number | string;
+  lots?: Array<{
+    id: number;
+    lot_no: string;
+    status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+    expired_date: string | null;
+  }>;
+  location?: {
+    id?: number;
+    location_code?: string;
+    full_path?: string;
+  };
+}
+
+interface OutboundInventoryApiPage {
+  items?: OutboundInventoryApiRow[];
+  inventories?: OutboundInventoryApiRow[];
+  pagination: { page: number; limit: number; total_pages?: number; totalPages?: number };
+}
+
+export interface OutboundLotOption {
+  id: number;
+  lotNo: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+  expiredDate: string | null;
+}
+
+export interface OutboundLocationOption {
+  id: number;
+  code: string;
+  fullPath: string;
+  availableQty: number;
+}
+
+export async function getOutboundLotOptions(productId: number): Promise<OutboundLotOption[]> {
+  const response = await apiClient.get('/api/inventories', {
+    params: { product_id: productId, page: 1, limit: 200 },
+  });
+  const payload = unwrap<OutboundInventoryApiPage>(response);
+  const rows = payload.items ?? payload.inventories ?? [];
+  const lotMap = new Map<number, OutboundLotOption>();
+  rows.forEach((row) => {
+    (row.lots ?? []).forEach((lot) => {
+      if (!lotMap.has(lot.id)) {
+        lotMap.set(lot.id, {
+          id: lot.id,
+          lotNo: lot.lot_no,
+          status: lot.status,
+          expiredDate: lot.expired_date,
+        });
+      }
+    });
+  });
+  return Array.from(lotMap.values()).sort((a, b) => a.lotNo.localeCompare(b.lotNo));
+}
+
+export async function getOutboundLocationOptions(
+  productId: number,
+  lotId?: number,
+): Promise<OutboundLocationOption[]> {
+  const response = await apiClient.get('/api/inventories', {
+    params: {
+      product_id: productId,
+      page: 1,
+      limit: 200,
+      ...(lotId ? { lot_id: lotId } : {}),
+    },
+  });
+  const payload = unwrap<OutboundInventoryApiPage>(response);
+  const rows = payload.items ?? payload.inventories ?? [];
+  const locationMap = new Map<number, OutboundLocationOption>();
+
+  rows.forEach((row) => {
+    const locId = Number(row.location?.id ?? row.warehouse_location_id);
+    if (!locId) return;
+    if (lotId) {
+      const hasLot = (row.lots ?? []).some((l) => l.id === lotId);
+      if (!hasLot) return;
+    }
+    // Use quantity - reserved_quantity to bypass stale available_quantity
+    const avail = Math.max(0, (Number(row.quantity) || 0) - (Number(row.reserved_quantity) || 0));
+    const code = row.location?.location_code ?? `LOC-${locId}`;
+    const fullPath = row.location?.full_path ?? code;
+    const existing = locationMap.get(locId);
+    if (existing) {
+      existing.availableQty += avail;
+    } else {
+      locationMap.set(locId, { id: locId, code, fullPath, availableQty: avail });
+    }
+  });
+
+  return Array.from(locationMap.values())
+    .filter((l) => l.availableQty > 0)
+    .sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+}
+
+export async function getOutboundAvailableQtyForLine(
+  productId: number,
+  warehouseLocationId: number,
+  lotId?: number,
+): Promise<number> {
+  const response = await apiClient.get('/api/inventories', {
+    params: {
+      product_id: productId,
+      warehouse_location_id: warehouseLocationId,
+      page: 1,
+      limit: 200,
+      ...(lotId ? { lot_id: lotId } : {}),
+    },
+  });
+  const payload = unwrap<OutboundInventoryApiPage>(response);
+  const rows = payload.items ?? payload.inventories ?? [];
+  return rows.reduce((sum, row) => {
+    return sum + Math.max(0, (Number(row.quantity) || 0) - (Number(row.reserved_quantity) || 0));
+  }, 0);
+}
+
 // ─── Danh sách phiếu xuất ─────────────────────────────────────────────────────
 
 export async function getStockOuts(params: StockOutListParams = {}): Promise<StockOutListResponse> {
