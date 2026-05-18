@@ -1,16 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useProductInventoryAvailability } from '../hooks/useOutbound';
+import { useProductInventoryAtLocation } from '../hooks/useOutbound';
 import type { CreateStockOutSchemaValues } from '../schemas/outboundSchema';
 
 // ─── LineItemEditor ───────────────────────────────────────────────────────────
 // Schema của BE: details[{ product_id, quantity, unit_price? }]
 // Lô hàng & vị trí KHÔNG được chỉ định lúc tạo phiếu — chỉ gán sau khi APPROVED.
 //
-// Tồn kho khả dụng được đọc từ hai nguồn (xem useProductInventoryAvailability):
-//  1. localStorage fallback — ghi bởi Zone Detail khi operator lưu bin
-//  2. API /api/inventories — nguồn chính thức (có thể chậm đồng bộ)
+// Tồn kho khả dụng được tra tại đúng warehouse_location_id của phiếu (khớp với
+// logic validateAvailableStock của BE) để tránh tạo phiếu không thể phê duyệt.
 
 export function LineItemEditor() {
   const { control, formState: { errors } } = useFormContext<CreateStockOutSchemaValues>();
@@ -128,16 +127,23 @@ function LineItemRow({ index, onRemove }: { index: number; onRemove: () => void 
   const quantity = useWatch<CreateStockOutSchemaValues, `details.${number}.quantity`>({
     name: `details.${index}.quantity`,
   });
+  const warehouseLocationId = useWatch<CreateStockOutSchemaValues, 'warehouse_location_id'>({
+    name: 'warehouse_location_id',
+  });
 
   // Debounce productId 400ms để tránh gọi API khi user đang gõ từng chữ số
   const debouncedProductId = useDebounce(productId, 400);
   const safeProductId =
     Number.isFinite(debouncedProductId) && debouncedProductId > 0 ? debouncedProductId : 0;
+  const safeLocationId =
+    Number.isFinite(warehouseLocationId) && warehouseLocationId > 0 ? warehouseLocationId : 0;
 
+  // Query inventory at the specific stock-out location — matches BE's validateAvailableStock.
+  // Disabled when no location is entered yet (safeLocationId === 0).
   const { data: inventoryData, isLoading: isLoadingInventory } =
-    useProductInventoryAvailability(safeProductId);
+    useProductInventoryAtLocation(safeProductId, safeLocationId);
 
-  const availableQty = inventoryData?.availableQty;
+  const availableQty = safeLocationId > 0 ? inventoryData?.availableQty : undefined;
 
   // Ref để theo dõi xem chính hook này có đang giữ manual error không,
   // tránh xoá nhầm lỗi do Zod resolver đặt (ví dụ: "Số lượng phải lớn hơn 0")
@@ -208,6 +214,7 @@ function LineItemRow({ index, onRemove }: { index: number; onRemove: () => void 
           {/* Badge tồn kho — hiển thị ngay dưới ô nhập product_id */}
           <InventoryAvailabilityBadge
             productId={safeProductId}
+            locationId={safeLocationId}
             isLoading={isLoadingInventory}
             availableQty={availableQty}
           />
@@ -265,13 +272,23 @@ function LineItemRow({ index, onRemove }: { index: number; onRemove: () => void 
 
 interface InventoryAvailabilityBadgeProps {
   productId: number;
+  locationId: number;
   isLoading: boolean;
   availableQty: number | undefined;
 }
 
-function InventoryAvailabilityBadge({ productId, isLoading, availableQty }: InventoryAvailabilityBadgeProps) {
-  // Chưa chọn sản phẩm hợp lệ → không hiển thị gì
+function InventoryAvailabilityBadge({ productId, locationId, isLoading, availableQty }: InventoryAvailabilityBadgeProps) {
   if (productId === 0) return null;
+
+  // Product selected but no location entered yet — prompt user to enter location
+  if (locationId === 0) {
+    return (
+      <div className="flex items-center gap-1 mt-1.5">
+        <span className="material-symbols-outlined text-[13px] text-slate-400">location_on</span>
+        <span className="text-[10px] text-slate-400">Nhập ID vị trí xuất để xem tồn kho</span>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -290,7 +307,9 @@ function InventoryAvailabilityBadge({ productId, isLoading, availableQty }: Inve
         <span className="material-symbols-outlined text-[13px] text-red-500">
           production_quantity_limits
         </span>
-        <span className="text-[10px] font-semibold text-red-600">Hết hàng trong kho</span>
+        <span className="text-[10px] font-semibold text-red-600">
+          Hết hàng tại vị trí #{locationId}
+        </span>
       </div>
     );
   }
@@ -301,7 +320,7 @@ function InventoryAvailabilityBadge({ productId, isLoading, availableQty }: Inve
         inventory_2
       </span>
       <span className="text-[10px] font-semibold text-emerald-700">
-        Tồn kho khả dụng: <span className="font-bold">{availableQty}</span>
+        Khả dụng tại #{locationId}: <span className="font-bold">{availableQty}</span>
       </span>
     </div>
   );

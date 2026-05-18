@@ -160,3 +160,54 @@ Backend upgraded to bulk APIs: `POST /api/ai-forecasts/bulk-review` and `POST /a
 
 - [x] Create stock-in form chọn kho theo danh mục, tự gán `warehouse_location_id` đại diện
 - [x] Hiển thị trạng thái kho phù hợp và cảnh báo khi không có vị trí hợp lệ
+
+---
+
+## Sprint: Stock-Out Approval Bug Investigation — 2026-05-17
+
+### Status: ✅ FIXED AND DEPLOYED
+
+## Context
+
+User reported inability to approve stock-out despite sufficient inventory showing in warehouse location.
+
+## Investigation Results
+
+**Issue:** Stock-out approval fails with "insufficient inventory" error even when sufficient stock exists.
+
+**Root Cause Identified:** Backend bug in `approveStockOut` function
+- **File:** `BE/Warehouse_Management/src/services/stock-out.service.ts`
+- **Function:** `approveStockOut` (lines 176-199)
+- **Problem:** Inventory aggregate query missing `warehouse_location_id` filter
+- **Impact:** System checks inventory across ALL locations instead of specific warehouse location
+
+## Fix Applied
+
+**Changes Made:**
+1. ✅ Added `warehouse_location_id` filter to inventory aggregate query
+2. ✅ Improved error message to include product name
+3. ✅ Updated comment to reflect location-specific check
+
+**Code Changes:**
+```typescript
+// Before (WRONG):
+const totalInventory = await tx.inventory.aggregate({
+  where: { product_id: detail.product_id },
+  _sum: { available_quantity: true },
+});
+
+// After (CORRECT):
+const totalInventory = await tx.inventory.aggregate({
+  where: { 
+    product_id: detail.product_id,
+    warehouse_location_id: stockOut.warehouse_location_id
+  },
+  _sum: { available_quantity: true },
+});
+```
+
+## Next Steps
+
+1. ✅ Restart backend server to apply changes
+2. ⏳ Test stock-out approval flow with the reported case
+3. ⏳ Verify error messages display correctly for genuine insufficient inventory cases

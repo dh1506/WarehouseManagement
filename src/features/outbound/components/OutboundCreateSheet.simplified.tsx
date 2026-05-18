@@ -17,9 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProductCategoryOptions } from '@/features/products/hooks/useProducts';
 import { ProductSearchSelect, type ProductOption } from '@/features/inbound/components/ProductSearchSelect';
 import { useCreateReturnStockOut, useCreateSalesStockOut } from '../hooks/useOutbound';
-import { getProductStockByLocation, getProductInventoryByLot } from '../services/outboundService';
-import { computeFEFOAllocation } from '../lib/fefoAllocationEngine';
-import { savePreAllocation } from '../lib/allocationStore';
+import { getProductTotalAvailableQuantity } from '../services/outboundService';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -27,19 +25,17 @@ const lineSchema = z.object({
   categoryId: z.string().optional().default(''),
   productId: z.string().min(1, 'Sản phẩm là bắt buộc'),
   quantity: z.coerce.number().gt(0, 'Số lượng phải lớn hơn 0'),
+  availableQty: z.number().optional(), // For display only
 });
 
 const createSheetSchema = z.object({
   type: z.enum(['SALES', 'RETURN_TO_SUPPLIER']).default('SALES'),
   reference_number: z.string().max(50, 'Số tham chiếu không được quá 50 ký tự').optional().default(''),
   description: z.string().max(255, 'Ghi chú không được quá 255 ký tự').optional().default(''),
-  sla_min_days: z.coerce.number().min(0).optional(),
   details: z.array(lineSchema).min(1, 'Vui lòng thêm ít nhất một sản phẩm'),
 });
 
 type CreateSheetValues = z.infer<typeof createSheetSchema>;
-type CreateSheetFormInput = z.input<typeof createSheetSchema>;
-type CreateSheetFormOutput = z.output<typeof createSheetSchema>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,9 +44,6 @@ interface OutboundCreateSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// locationId → { productId(string) → availableQty }
-type LocationProductStock = Record<number, Record<string, number>>;
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetProps) {
@@ -58,13 +51,12 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   const createSalesMutation = useCreateSalesStockOut();
   const createReturnMutation = useCreateReturnStockOut();
 
-  const methods = useForm<CreateSheetFormInput, unknown, CreateSheetFormOutput>({
+  const methods = useForm<CreateSheetValues>({
     resolver: zodResolver(createSheetSchema),
     defaultValues: {
       type: 'SALES',
       reference_number: '',
       description: '',
-      sla_min_days: undefined,
       details: [],
     },
     mode: 'onChange',
@@ -91,16 +83,11 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   const selectedType = watch('type');
   const isReturn = selectedType === 'RETURN_TO_SUPPLIER';
 
-  // ─── Location-aware stock state ────────────────────────────────────────────
-
-  const [locationProductStock, setLocationProductStock] = useState<LocationProductStock>({});
-  const [isFetchingLocationStock, setIsFetchingLocationStock] = useState(false);
-  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
-
   // ─── UI state ─────────────────────────────────────────────────────────────
 
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [errorAttention, setErrorAttention] = useState(false);
+  const [loadingAvailability, setLoadingAvailability] = useState<Record<number, boolean>>({});
 
   const hasUnsavedData = useMemo(() => {
     if (!open) return false;
@@ -122,69 +109,23 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     );
   }, [selectedProductIds]);
 
-  // ─── Fetch per-location stock when product selection changes ──────────────
+  // ─── Fetch available quantity when product changes ────────────────────────
 
-  useEffect(() => {
-    const validIds = selectedProductIds.filter((id) => Number(id) > 0);
-    if (validIds.length === 0) {
-      setLocationProductStock({});
-      setSelectedLocationId(null);
-      return;
+  const fetchAvailableQuantity = async (index: number, productId: string) => {
+    if (!productId || Number(productId) <= 0) return;
+
+    setLoadingAvailability(prev => ({ ...prev, [index]: true }));
+
+    try {
+      const available = await getProductTotalAvailableQuantity(Number(productId));
+      setValue(`details.${index}.availableQty`, available, { shouldDirty: false });
+    } catch (error) {
+      console.error('Failed to fetch available quantity:', error);
+      setValue(`details.${index}.availableQty`, 0, { shouldDirty: false });
+    } finally {
+      setLoadingAvailability(prev => ({ ...prev, [index]: false }));
     }
-
-    let cancelled = false;
-    setIsFetchingLocationStock(true);
-
-    Promise.all(
-      validIds.map((id) =>
-        getProductStockByLocation(Number(id))
-          .then((rows) => ({ productId: id, rows }))
-          .catch(() => ({ productId: id, rows: [] as { warehouse_location_id: number; available_quantity: number }[] })),
-      ),
-    ).then((results) => {
-      if (cancelled) return;
-
-      const map: LocationProductStock = {};
-      results.forEach(({ productId, rows }) => {
-        rows.forEach((row) => {
-          if (!map[row.warehouse_location_id]) map[row.warehouse_location_id] = {};
-          map[row.warehouse_location_id][productId] = row.available_quantity;
-        });
-      });
-
-      setLocationProductStock(map);
-      setIsFetchingLocationStock(false);
-
-      // If the previously selected location is no longer compatible, clear it
-      setSelectedLocationId((prev) => {
-        if (prev === null) return null;
-        const prevStock = map[prev];
-        if (!prevStock) return null;
-        const stillValid = validIds.every((id) => (prevStock[id] ?? 0) > 0);
-        return stillValid ? prev : null;
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProductIds.join(',')]);
-
-  // ─── Compatible locations: must have ALL selected products with qty > 0 ────
-
-  const compatibleLocations = useMemo(() => {
-    const validIds = selectedProductIds.filter((id) => Number(id) > 0);
-    if (validIds.length === 0) return [];
-
-    return Object.entries(locationProductStock)
-      .filter(([, productStocks]) => validIds.every((id) => (productStocks[id] ?? 0) > 0))
-      .map(([locId, productStocks]) => ({
-        id: Number(locId),
-        minStock: Math.min(...validIds.map((id) => productStocks[id] ?? 0)),
-      }))
-      .sort((a, b) => a.id - b.id);
-  }, [locationProductStock, selectedProductIds]);
+  };
 
   // ─── Duplicate validation errors ──────────────────────────────────────────
 
@@ -207,7 +148,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   useEffect(() => {
     if (!open) return;
     if (fields.length > 0) return;
-    append({ categoryId: '', productId: '', quantity: 0 });
+    append({ categoryId: '', productId: '', quantity: 0, availableQty: 0 });
   }, [append, fields.length, open]);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -229,12 +170,9 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       type: 'SALES',
       reference_number: '',
       description: '',
-      sla_min_days: undefined,
-      details: [{ categoryId: '', productId: '', quantity: 0 }],
+      details: [{ categoryId: '', productId: '', quantity: 0, availableQty: 0 }],
     });
-    setLocationProductStock({});
-    setSelectedLocationId(null);
-    setIsFetchingLocationStock(false);
+    setLoadingAvailability({});
     setCloseConfirmOpen(false);
     setErrorAttention(false);
   };
@@ -256,17 +194,32 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       return;
     }
 
-    if (!selectedLocationId) {
+    // Validate quantities against available stock
+    let hasInsufficientStock = false;
+    for (let i = 0; i < values.details.length; i++) {
+      const line = values.details[i];
+      const available = line.availableQty ?? 0;
+      if (line.quantity > available) {
+        setError(`details.${i}.quantity`, {
+          type: 'manual',
+          message: `Số lượng vượt quá khả dụng (${available})`,
+        });
+        hasInsufficientStock = true;
+      }
+    }
+
+    if (hasInsufficientStock) {
       toast({
-        title: 'Chưa chọn vị trí xuất',
-        description: 'Vui lòng chọn một vị trí kho từ danh sách tương thích.',
+        title: 'Số lượng không hợp lệ',
+        description: 'Một số sản phẩm có số lượng xuất vượt quá tồn kho khả dụng.',
         variant: 'destructive',
       });
+      highlightAndScrollToFirstError();
       return;
     }
 
     const payload = {
-      warehouse_location_id: selectedLocationId,
+      // ❌ Không gửi warehouse_location_id - Backend sẽ tự động chọn
       type: values.type,
       reference_number: values.reference_number?.trim() || undefined,
       description: values.description?.trim() || undefined,
@@ -277,32 +230,12 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     };
 
     const mutation = isReturn ? createReturnMutation : createSalesMutation;
-    const order = await mutation.mutateAsync(payload);
+    await mutation.mutateAsync(payload);
 
-    // Post-create: compute and store FEFO pre-allocation for the picking screen
-    try {
-      const sla = values.sla_min_days != null && values.sla_min_days > 0
-        ? { min_days_before_expiry: values.sla_min_days }
-        : undefined;
-
-      const allocationResults = await Promise.all(
-        values.details.map(async (line) => {
-          const productId = Number(line.productId);
-          const lotRows = await getProductInventoryByLot(productId, selectedLocationId);
-          return computeFEFOAllocation(lotRows, Number(line.quantity), productId, sla);
-        }),
-      );
-
-      savePreAllocation({
-        stockOutId: order.id,
-        warehouseLocationId: selectedLocationId,
-        savedAt: new Date().toISOString(),
-        slaMinDays: values.sla_min_days,
-        results: allocationResults,
-      });
-    } catch {
-      // FEFO pre-allocation failure is non-fatal — picking screen will fall back to manual.
-    }
+    toast({
+      title: 'Tạo phiếu xuất thành công',
+      description: 'Hệ thống đã tự động chọn vị trí kho tốt nhất theo FEFO.',
+    });
 
     resetSheet();
     onOpenChange(false);
@@ -336,7 +269,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                 <div>
                   <SheetTitle>Tạo phiếu xuất kho mới</SheetTitle>
                   <SheetDescription>
-                    Chọn sản phẩm trước, sau đó chọn vị trí kho tương thích để xuất hàng.
+                    Chọn sản phẩm và nhập số lượng. Hệ thống sẽ tự động chọn vị trí kho tốt nhất.
                   </SheetDescription>
                 </div>
                 <button
@@ -356,7 +289,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
 
                 {/* ── General info ── */}
-                <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200">
+                <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                   <h3 className="mb-4 text-sm font-bold text-slate-800">Thông tin chung</h3>
                   <div className="space-y-4">
                     <div>
@@ -379,7 +312,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                         id="outbound-reference-number"
                         {...register('reference_number')}
                         maxLength={50}
-                        className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.reference_number ? 'border-red-400 outbound-sheet-error' : 'border-slate-200'}`}
+                        className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.reference_number ? 'border-red-400' : 'border-slate-200'}`}
                         placeholder="VD: SO-2026-001"
                       />
                       {errors.reference_number && (
@@ -394,38 +327,23 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                         {...register('description')}
                         maxLength={255}
                         rows={3}
-                        className={`w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.description ? 'border-red-400 outbound-sheet-error' : 'border-slate-200'}`}
+                        className={`w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-sm ${errors.description ? 'border-red-400' : 'border-slate-200'}`}
                         placeholder="Ghi chú tuỳ chọn..."
                       />
                       {errors.description && (
                         <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
                       )}
                     </div>
-
-                    <div>
-                      <label htmlFor="outbound-sla-days" className="mb-1.5 block text-xs font-semibold text-slate-500">
-                        SLA tối thiểu (ngày trước hết hạn)
-                        <span className="ml-1 text-[10px] font-normal text-slate-400">Tùy chọn — FEFO sẽ ưu tiên lô đáp ứng SLA</span>
-                      </label>
-                      <input
-                        id="outbound-sla-days"
-                        type="number"
-                        min={0}
-                        {...register('sla_min_days')}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                        placeholder="VD: 30"
-                      />
-                    </div>
                   </div>
                 </section>
 
                 {/* ── Product list ── */}
-                <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200">
+                <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-bold text-slate-800">Danh sách sản phẩm xuất</h3>
                     <button
                       type="button"
-                      onClick={() => append({ categoryId: '', productId: '', quantity: 0 })}
+                      onClick={() => append({ categoryId: '', productId: '', quantity: 0, availableQty: 0 })}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                     >
                       <span className="material-symbols-outlined text-[14px]">add</span>
@@ -449,22 +367,24 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                       const lineProductId = line?.productId ?? '';
                       const lineErrors = Array.isArray(errors.details) ? errors.details[index] : undefined;
                       const excludeProductIds = selectedProductIds.filter((id, i) => id && i !== index);
+                      const availableQty = line?.availableQty ?? 0;
+                      const isLoadingQty = loadingAvailability[index] ?? false;
 
                       return (
-                        <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-3 transition-all duration-200 animate-in fade-in-0 slide-in-from-bottom-1 hover:border-slate-300">
+                        <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-3">
                           <div className="mb-3 flex items-center justify-between">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dòng {index + 1}</p>
                             <button
                               type="button"
                               onClick={() => remove(index)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
                               title="Xoá dòng"
                             >
                               <span className="material-symbols-outlined text-[18px]">delete</span>
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                          <div className="space-y-3">
                             <div>
                               <label className="mb-1 block text-[11px] font-semibold text-slate-500">Danh mục</label>
                               <select
@@ -472,6 +392,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                                 onChange={(e) => {
                                   setValue(`details.${index}.categoryId`, e.target.value, { shouldDirty: true });
                                   setValue(`details.${index}.productId`, '', { shouldDirty: true, shouldValidate: true });
+                                  setValue(`details.${index}.availableQty`, 0, { shouldDirty: false });
                                   clearErrors(`details.${index}.productId`);
                                 }}
                                 className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm"
@@ -493,6 +414,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                                   onValueChange={(option: ProductOption) => {
                                     setValue(`details.${index}.productId`, option.id, { shouldDirty: true, shouldValidate: true });
                                     clearErrors(`details.${index}.productId`);
+                                    fetchAvailableQuantity(index, option.id);
                                   }}
                                   categoryId={line?.categoryId || undefined}
                                   excludeIds={excludeProductIds}
@@ -504,7 +426,21 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                               )}
                             </div>
 
-                            <div className="sm:col-span-2">
+                            {/* Available Quantity Display */}
+                            {lineProductId && (
+                              <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-semibold text-blue-700">Số lượng khả dụng:</span>
+                                  {isLoadingQty ? (
+                                    <span className="text-xs text-blue-600">Đang tải...</span>
+                                  ) : (
+                                    <span className="text-sm font-bold text-blue-900">{availableQty}</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
                               <label className="mb-1 block text-[11px] font-semibold text-slate-500">
                                 Số lượng xuất <span className="text-red-500">*</span>
                               </label>
@@ -514,6 +450,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                                 step="any"
                                 {...register(`details.${index}.quantity`, { valueAsNumber: true })}
                                 className={`w-full rounded-lg border px-2.5 py-2 text-sm ${lineErrors?.quantity ? 'border-red-400 outbound-sheet-error' : 'border-slate-200'}`}
+                                placeholder={availableQty > 0 ? `Tối đa: ${availableQty}` : 'Nhập số lượng'}
                               />
                               {lineErrors?.quantity && (
                                 <p className="mt-1 text-[11px] text-red-500">{lineErrors.quantity.message}</p>
@@ -526,55 +463,19 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   </div>
                 </section>
 
-                {/* ── Location selector ── */}
-                {selectedProductIds.filter((id) => Number(id) > 0).length > 0 && (
-                  <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200">
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-blue-600 text-[18px]">location_on</span>
-                      <h3 className="text-sm font-bold text-slate-800">Vị trí xuất kho</h3>
+                {/* ── Auto Location Info ── */}
+                <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-emerald-600 text-[18px] shrink-0">info</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-emerald-800 mb-1">Vị trí kho tự động</h4>
+                      <p className="text-[11px] text-emerald-700 leading-relaxed">
+                        Hệ thống sẽ tự động chọn vị trí kho tốt nhất dựa trên thuật toán FEFO (First Expire First Out) 
+                        để ưu tiên xuất hàng có hạn sử dụng gần nhất.
+                      </p>
                     </div>
-
-                    {isFetchingLocationStock ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent shrink-0" />
-                        Đang tìm vị trí kho tương thích...
-                      </div>
-                    ) : compatibleLocations.length === 0 ? (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
-                        <span className="font-semibold">Không tìm thấy vị trí nào</span> chứa đầy đủ tất cả sản phẩm đã chọn. Kiểm tra lại tồn kho hoặc chia thành nhiều phiếu.
-                      </div>
-                    ) : (
-                      <>
-                        <label htmlFor="outbound-location" className="mb-1.5 block text-xs font-semibold text-slate-500">
-                          Chọn vị trí kho <span className="text-red-500">*</span>
-                          <span className="ml-1 text-[10px] font-normal text-slate-400">({compatibleLocations.length} vị trí có đủ hàng)</span>
-                        </label>
-                        <select
-                          id="outbound-location"
-                          value={selectedLocationId ?? ''}
-                          onChange={(e) => setSelectedLocationId(e.target.value ? Number(e.target.value) : null)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                        >
-                          <option value="">-- Chọn vị trí --</option>
-                          {compatibleLocations.map((loc) => (
-                            <option key={loc.id} value={loc.id}>
-                              Vị trí #{loc.id}
-                            </option>
-                          ))}
-                        </select>
-
-                        {selectedLocationId && (
-                          <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
-                            <span className="material-symbols-outlined text-[14px] text-emerald-600 shrink-0 mt-0.5">check_circle</span>
-                            <p className="text-[11px] text-emerald-700">
-                              Vị trí <strong>#{selectedLocationId}</strong> đã chọn. Lô hàng FEFO sẽ được tính toán sau khi tạo phiếu và hiển thị trong màn hình lấy hàng.
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </section>
-                )}
+                  </div>
+                </section>
               </div>
 
               {/* ── Footer ── */}
@@ -589,7 +490,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving || !selectedLocationId}
+                    disabled={isSaving}
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSaving ? (
@@ -598,7 +499,10 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                         Đang lưu...
                       </>
                     ) : (
-                      'Lưu phiếu xuất'
+                      <>
+                        <span className="material-symbols-outlined text-[18px]">check</span>
+                        Tạo phiếu xuất
+                      </>
                     )}
                   </button>
                 </div>
@@ -608,18 +512,19 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
         </SheetContent>
       </Sheet>
 
+      {/* ── Close confirmation dialog ── */}
       <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Bạn có dữ liệu chưa lưu.</AlertDialogTitle>
+            <AlertDialogTitle>Xác nhận đóng</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc muốn đóng và huỷ thao tác này không?
+              Bạn có thay đổi chưa lưu. Đóng form sẽ mất tất cả dữ liệu đã nhập.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
             <AlertDialogAction onClick={forceClose} className="bg-red-600 hover:bg-red-700">
-              Thoát không lưu
+              Đóng và bỏ thay đổi
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -143,7 +143,7 @@ export function TaskQueueDashboard() {
   })();
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-full overflow-y-auto bg-slate-50">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm px-4 py-3 flex items-center justify-between">
         <div>

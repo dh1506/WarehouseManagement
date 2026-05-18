@@ -13,6 +13,7 @@ import {
   getStockOutReviewSnapshot,
   getStockOutHistory,
   getOutboundProductInventoryAvailability,
+  getOutboundProductInventoryAvailabilityAtLocation,
   createSalesStockOut,
   createReturnStockOut,
   submitStockOut,
@@ -101,6 +102,20 @@ export function useProductInventoryAvailability(productId: number) {
     queryFn: () => getOutboundProductInventoryAvailability(productId),
     enabled: productId > 0,
     staleTime: 2 * 60 * 1000, // 2 phút — đủ tươi cho quy trình tạo phiếu
+  });
+}
+
+/**
+ * Lấy tồn kho khả dụng của một sản phẩm tại một vị trí kho cụ thể.
+ * Khớp với logic validateAvailableStock của BE (kiểm tra per warehouse_location_id).
+ * Chỉ kích hoạt khi cả productId và locationId > 0.
+ */
+export function useProductInventoryAtLocation(productId: number, locationId: number) {
+  return useQuery({
+    queryKey: [...stockOutKeys.productInventory(productId), 'loc', locationId] as const,
+    queryFn: () => getOutboundProductInventoryAvailabilityAtLocation(productId, locationId),
+    enabled: productId > 0 && locationId > 0,
+    staleTime: 2 * 60 * 1000,
   });
 }
 

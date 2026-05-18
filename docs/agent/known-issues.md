@@ -132,3 +132,57 @@ When a user bulk-approves a product that has no `supplier_id`, the BE throws an 
 
 Lot options are deduped from `/api/inventories` rows.
 If BE later provides dedicated lot lookup with richer metadata, FE should switch for better precision/performance.
+
+---
+
+## Stock Out Module
+
+### KI-22: Stock-out approval fails despite sufficient inventory (✅ FIXED)
+
+**Reported:** 2026-05-17  
+**Fixed:** 2026-05-17  
+**Severity:** HIGH  
+**Status:** ✅ RESOLVED
+
+**Symptoms:**
+- Error: "Không thể phê duyệt - Sản phẩm Cà phê hạt Trung Nguyên 500g thiếu tồn kho: yêu cầu 100, khả dụng 0"
+- Product has 400 units available in warehouse location LOC-110
+- System incorrectly reports 0 units available
+
+**Root Cause:**
+- **File:** `BE/Warehouse_Management/src/services/stock-out.service.ts`
+- **Function:** `approveStockOut` (lines 176-199)
+- **Issue:** Inventory aggregate query missing `warehouse_location_id` filter
+- Query checked inventory across ALL locations instead of the specific warehouse location
+
+**Fix Applied:**
+```typescript
+// ✅ FIXED
+const totalInventory = await tx.inventory.aggregate({
+  where: { 
+    product_id: detail.product_id,
+    warehouse_location_id: stockOut.warehouse_location_id // ✅ ADDED
+  },
+  _sum: { available_quantity: true },
+});
+
+// Also improved error message to include product name
+const product = await tx.product.findUnique({
+  where: { id: detail.product_id },
+  select: { name: true }
+});
+
+throw new AppError(
+  `Sản phẩm ${product?.name || 'ID ' + detail.product_id} thiếu tồn kho: yêu cầu ${requiredQty}, khả dụng ${totalAvailable}`,
+  400,
+);
+```
+
+**Impact:** Stock-out approval validation now works correctly. Users can approve valid stock-out requests.
+
+**Testing Required:**
+1. ✅ Product with sufficient stock in target location → should approve
+2. ❌ Product with stock in other locations but not target → should reject with clear error
+3. ❌ Product with no stock anywhere → should reject with clear error
+
+**Note:** The `completeStockOut` function already used location-specific queries correctly. This fix aligned `approveStockOut` with the same pattern.

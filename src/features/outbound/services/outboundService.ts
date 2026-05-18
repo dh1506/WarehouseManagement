@@ -198,6 +198,40 @@ function unwrap<T>(response: unknown): T {
   return (r?.data as T) ?? (response as T);
 }
 
+/**
+ * Get total available quantity for a product across ALL warehouse locations
+ * Used in simplified create form to show total stock
+ */
+export async function getProductTotalAvailableQuantity(productId: number): Promise<number> {
+  try {
+    const rows = await collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
+      fetchPage: async (page, limit) => {
+        const response = await apiClient.get<ApiResponse<ReviewInventoryPage>>('/api/inventories', {
+          params: {
+            page,
+            limit,
+            product_id: productId,
+            // ❌ Không filter theo warehouse_location_id - lấy tất cả
+          },
+        });
+        return unwrap<ReviewInventoryPage>(response);
+      },
+      getItems: (payload) => payload.items ?? payload.inventories ?? [],
+      getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+    });
+
+    let totalAvailable = 0;
+    rows.forEach((row) => {
+      totalAvailable += Number(row.available_quantity) || 0;
+    });
+
+    return totalAvailable;
+  } catch (error) {
+    console.error('Failed to fetch total available quantity:', error);
+    return 0;
+  }
+}
+
 // ─── Danh sách phiếu xuất ─────────────────────────────────────────────────────
 
 export async function getStockOuts(params: StockOutListParams = {}): Promise<StockOutListResponse> {
@@ -221,8 +255,9 @@ export async function getStockOutById(id: number): Promise<StockOut> {
 }
 
 /**
- * Detail review snapshot: load stock-out detail and inventory state in parallel.
- * This protects page load latency and gives realtime available qty for each line item.
+ * Detail review snapshot: load stock-out order and total-warehouse inventory in parallel.
+ * Shows total available across all locations so reviewers see the full picture.
+ * Approval check uses total warehouse aggregate (matches updated BE approveStockOut logic).
  */
 export async function getStockOutReviewSnapshot(id: number): Promise<StockOutReviewSnapshot> {
   const inventoryTask = collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
@@ -236,10 +271,7 @@ export async function getStockOutReviewSnapshot(id: number): Promise<StockOutRev
     getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
   });
 
-  const [order, inventoryRows] = await Promise.all([
-    getStockOutById(id),
-    inventoryTask,
-  ]);
+  const [order, inventoryRows] = await Promise.all([getStockOutById(id), inventoryTask]);
 
   const availableByProduct: Record<number, number> = {};
   const lineProductIds = new Set(order.details.map((detail) => detail.product_id));
@@ -250,18 +282,124 @@ export async function getStockOutReviewSnapshot(id: number): Promise<StockOutRev
 
   inventoryRows.forEach((row) => {
     const rowProductId = Number(row.product_id);
-    if (!lineProductIds.has(rowProductId)) {
-      return;
-    }
-
+    if (!lineProductIds.has(rowProductId)) return;
     availableByProduct[rowProductId] =
       (availableByProduct[rowProductId] ?? 0) + (Number(row.available_quantity) || 0);
   });
 
-  return {
-    order,
-    availableByProduct,
+  return { order, availableByProduct };
+}
+
+/**
+ * Per-location stock for a product — used to filter compatible locations in the create sheet.
+ * Returns rows with warehouse_location_id + available_quantity only.
+ */
+export async function getProductStockByLocation(
+  productId: number,
+): Promise<Array<{ warehouse_location_id: number; available_quantity: number }>> {
+  const rows = await collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
+    fetchPage: async (page, limit) => {
+      const response = await apiClient.get<ApiResponse<ReviewInventoryPage>>('/api/inventories', {
+        params: { page, limit, product_id: productId },
+      });
+      return unwrap<ReviewInventoryPage>(response);
+    },
+    getItems: (payload) => payload.items ?? payload.inventories ?? [],
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+  });
+  return rows.map((row) => ({
+    warehouse_location_id: Number(row.warehouse_location_id),
+    available_quantity: Number(row.available_quantity) || 0,
+  }));
+}
+
+export interface InventoryLotServiceRow {
+  warehouse_location_id: number;
+  lot_id: number;
+  lot_no: string;
+  expired_date: string | null;
+  available_quantity: number;
+  location_code?: string;
+}
+
+interface InventoryWithLotRow extends ReviewInventoryRow {
+  lot_id?: number;
+  lot_no?: string;
+  expired_date?: string | null;
+  location_code?: string;
+  lots?: Array<{
+    id: number;
+    lot_no: string;
+    expired_date?: string | null;
+    available_quantity?: number;
+  }>;
+}
+
+interface InventoryWithLotPage {
+  items?: InventoryWithLotRow[];
+  inventories?: InventoryWithLotRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    total_pages?: number;
+    totalPages?: number;
   };
+}
+
+/**
+ * Lot-level inventory for a product at an optional location.
+ * Used by the FEFO allocation engine to compute suggested lot splits.
+ */
+export async function getProductInventoryByLot(
+  productId: number,
+  warehouseLocationId?: number,
+): Promise<InventoryLotServiceRow[]> {
+  const rows = await collectPaginatedItems<InventoryWithLotPage, InventoryWithLotRow>({
+    fetchPage: async (page, limit) => {
+      const response = await apiClient.get<ApiResponse<InventoryWithLotPage>>('/api/inventories', {
+        params: {
+          page,
+          limit,
+          product_id: productId,
+          ...(warehouseLocationId ? { warehouse_location_id: warehouseLocationId } : {}),
+        },
+      });
+      return unwrap<InventoryWithLotPage>(response);
+    },
+    getItems: (payload) => payload.items ?? payload.inventories ?? [],
+    getTotalPages: (payload) => payload.pagination.total_pages ?? payload.pagination.totalPages ?? 1,
+  });
+
+  const result: InventoryLotServiceRow[] = [];
+
+  for (const row of rows) {
+    const locId = Number(row.warehouse_location_id);
+    const available = Number(row.available_quantity) || 0;
+
+    if (Array.isArray(row.lots) && row.lots.length > 0) {
+      for (const lot of row.lots) {
+        result.push({
+          warehouse_location_id: locId,
+          lot_id: Number(lot.id),
+          lot_no: String(lot.lot_no ?? ''),
+          expired_date: lot.expired_date ?? null,
+          available_quantity: typeof lot.available_quantity === 'number' ? lot.available_quantity : available,
+          location_code: row.location_code,
+        });
+      }
+    } else if (row.lot_id) {
+      result.push({
+        warehouse_location_id: locId,
+        lot_id: Number(row.lot_id),
+        lot_no: String(row.lot_no ?? ''),
+        expired_date: row.expired_date ?? null,
+        available_quantity: available,
+        location_code: row.location_code,
+      });
+    }
+  }
+
+  return result;
 }
 
 // ─── Tạo phiếu xuất bán ──────────────────────────────────────────────────────

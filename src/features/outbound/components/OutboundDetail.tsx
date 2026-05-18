@@ -14,9 +14,8 @@ import {
   useCancelStockOut,
 } from '../hooks/useOutbound';
 import {
-  getOutboundProductInventoryAvailability,
   getStoredStockOutDiscrepancyResolution,
-  getOutboundProductInventoryAvailabilityWithOptions,
+  getOutboundProductInventoryAvailabilityAtLocation,
 } from '../services/outboundService';
 import { createStockOutSchema, type CreateStockOutSchemaValues } from '../schemas/outboundSchema';
 import {
@@ -469,7 +468,7 @@ export function OutboundDetail() {
   const approveDisabled = order.status === 'PENDING' && hasInsufficientInventory;
 
   const approveDisabledReason = approveDisabled
-    ? 'Không thể phê duyệt vì có sản phẩm vượt tồn kho khả dụng tại thời điểm tải trang.'
+    ? `Không thể phê duyệt: tồn kho tại vị trí #${order.warehouse_location_id} không đủ. Hủy phiếu và tạo lại với ID vị trí có hàng.`
     : undefined;
 
   const validateInventoryBeforeApprove = async (): Promise<boolean> => {
@@ -479,9 +478,10 @@ export function OutboundDetail() {
 
     const checks = await Promise.all(
       order.details.map(async (detail) => {
-        const availability = await getOutboundProductInventoryAvailabilityWithOptions(
+        // Must check at the stock-out's specific location — matches BE's validateAvailableStock logic.
+        const availability = await getOutboundProductInventoryAvailabilityAtLocation(
           detail.product_id,
-          { forceNetwork: true },
+          order.warehouse_location_id,
         );
         return {
           detail,
@@ -624,9 +624,26 @@ export function OutboundDetail() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 space-y-1.5"
           >
-            Một hoặc nhiều dòng sản phẩm đang thiếu tồn kho khả dụng. Nút phê duyệt đã bị khóa để bảo vệ tồn kho.
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-[18px] text-red-500 shrink-0 mt-0.5">
+                inventory
+              </span>
+              <div>
+                <p className="font-bold text-red-800">
+                  Không đủ tồn kho tại vị trí #{order.warehouse_location_id}
+                </p>
+                <p className="mt-0.5">
+                  Một hoặc nhiều sản phẩm không có đủ số lượng khả dụng tại vị trí kho này.
+                  Tồn kho có thể đang ở vị trí khác trong kho.
+                </p>
+                <p className="mt-1.5 text-red-600">
+                  Để phê duyệt: hủy phiếu này và tạo lại với đúng ID vị trí chứa hàng,
+                  hoặc kiểm tra trang <span className="font-semibold">Tồn kho</span> để tìm vị trí có hàng.
+                </p>
+              </div>
+            </div>
           </motion.div>
         ) : null}
 
@@ -868,14 +885,17 @@ export function OutboundCreateForm() {
         continue;
       }
 
-      const inventory = await getOutboundProductInventoryAvailability(detail.product_id);
+      const inventory = await getOutboundProductInventoryAvailabilityAtLocation(
+        detail.product_id,
+        values.warehouse_location_id,
+      );
       const availableQty = inventory.availableQty;
 
       if (detail.quantity > availableQty) {
         const fieldName = `details.${index}.quantity` as const;
         setError(fieldName, {
           type: 'manual',
-          message: `Số lượng xuất vượt quá tồn kho khả dụng (${availableQty})`,
+          message: `Số lượng xuất vượt quá tồn kho khả dụng tại vị trí #${values.warehouse_location_id} (${availableQty})`,
         });
 
         if (!firstInvalidField) {

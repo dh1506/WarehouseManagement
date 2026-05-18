@@ -9,6 +9,7 @@ import {
   saveStockOutDiscrepancyResolution,
   resolveStockOutDiscrepancy,
 } from '../services/outboundService';
+import { getPreAllocation, appendOverrideAudit } from '../lib/allocationStore';
 import type {
   StockOutDetail,
   PickedLotEntry,
@@ -564,6 +565,8 @@ export function OutboundPickingScreen() {
 
   // Local state: gán lô cho từng detail
   const [assignments, setAssignments] = useState<DetailAssignments>(() => ({}));
+  // Tracks FEFO-suggested assignments so manual changes can be recorded as overrides
+  const fefoSuggestionsRef = useRef<DetailAssignments>({});
   const [isSaving, setIsSaving] = useState(false);
   const [discrepancyState, setDiscrepancyState] = useState<{
     visible: boolean;
@@ -619,6 +622,43 @@ export function OutboundPickingScreen() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Load FEFO pre-allocation from localStorage when order data arrives.
+  // Only pre-populates details that don't already have lots assigned by BE.
+  useEffect(() => {
+    if (!order || order.details.length === 0) return;
+
+    const stored = getPreAllocation(order.id);
+    if (!stored || stored.results.length === 0) return;
+
+    const preloaded: DetailAssignments = {};
+
+    for (const detail of order.details) {
+      // Skip if BE already has lots for this detail
+      if (detail.lots && detail.lots.length > 0) continue;
+
+      const result = stored.results.find((r) => r.product_id === detail.product_id);
+      if (!result || result.lines.length === 0) continue;
+
+      const lots: LotAssignment[] = result.lines
+        .filter((line) => line.allocated_quantity > 0)
+        .map((line) => ({
+          lotValue: String(line.lot_id),
+          quantity: line.allocated_quantity,
+        }));
+
+      if (lots.length > 0) {
+        preloaded[detail.id] = lots;
+      }
+    }
+
+    if (Object.keys(preloaded).length > 0) {
+      fefoSuggestionsRef.current = preloaded;
+      setAssignments((prev) => ({ ...preloaded, ...prev }));
+    }
+  // Run once after order loads
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id]);
 
   // Khởi tạo assignments từ dữ liệu đã có (lots từ BE khi load)
   const getDetailAssignments = useCallback(
