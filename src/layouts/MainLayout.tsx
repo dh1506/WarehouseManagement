@@ -18,6 +18,7 @@ interface RoleDetailForAuth {
   permissions: RolePermissionApiItem[];
 }
 
+// Muc dich: Tach du lieu role tu response API.
 function unwrapRoleData(response: unknown): RoleDetailForAuth | null {
   try {
     if (!response || typeof response !== 'object' || !('data' in response)) return null;
@@ -33,6 +34,7 @@ function unwrapRoleData(response: unknown): RoleDetailForAuth | null {
 
 /** On every app mount (incl. F5) refresh the logged-in user's permissions
  *  from the server so sidebar reflects any role changes the admin made. */
+// Muc dich: Lam moi permissions cua user de cap nhat sidebar.
 function useRefreshMyPermissions() {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -70,6 +72,7 @@ function useRefreshMyPermissions() {
   }, [user?.role_id]);
 }
 
+// Muc dich: Bo cuc chinh cua ung dung (sidebar + header + content).
 export function MainLayout() {
   useRefreshMyPermissions();
   const location = useLocation();

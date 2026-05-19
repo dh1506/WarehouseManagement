@@ -28,7 +28,7 @@ interface PaginationApiModel {
   limit: number;
   total: number;
   total_pages: number;
-  // legacy alias — some endpoints return camelCase
+  // Một số endpoint trả về camelCase
   totalPages?: number;
 }
 
@@ -136,6 +136,7 @@ interface InventoryListApiData {
   pagination: PaginationApiModel;
 }
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -149,10 +150,12 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Map trang thai active sang status kho.
 function mapWarehouseStatus(isActive: boolean): 'operational' | 'inactive' {
   return isActive ? 'operational' : 'inactive';
 }
 
+// Muc dich: Map du lieu kho API sang model FE.
 function mapWarehouse(item: WarehouseApiItem): WarehouseItem {
   return {
     id: String(item.id),
@@ -169,6 +172,7 @@ function mapWarehouse(item: WarehouseApiItem): WarehouseItem {
   };
 }
 
+// Muc dich: Map trang thai vi tri kho sang status FE.
 function mapLocationStatus(status: WarehouseLocationApiItem['location_status'], isActive: boolean): WarehouseLocationItem['status'] {
   if (!isActive) {
     return 'inactive';
@@ -181,6 +185,7 @@ function mapLocationStatus(status: WarehouseLocationApiItem['location_status'], 
   return 'active';
 }
 
+// Muc dich: Map du lieu location API sang model FE.
 function mapLocation(item: WarehouseLocationApiItem): WarehouseLocationItem {
   return {
     id: String(item.id),
@@ -202,6 +207,7 @@ function mapLocation(item: WarehouseLocationApiItem): WarehouseLocationItem {
   };
 }
 
+// Muc dich: Suy ra loai zone theo storageCondition pho bien.
 function resolveZoneTypeFromStorageCondition(locations: WarehouseLocationItem[]): string {
   const counter = locations.reduce<Record<string, number>>((accumulator, location) => {
     const key = (location.storageCondition ?? 'AMBIENT').trim().toUpperCase();
@@ -213,6 +219,7 @@ function resolveZoneTypeFromStorageCondition(locations: WarehouseLocationItem[])
   return sorted[0]?.[0] ?? 'AMBIENT';
 }
 
+// Muc dich: Map status FE sang status request.
 function mapLocationStatusForRequest(status: WarehouseLocationItem['status']): WarehouseLocationApiItem['location_status'] {
   if (status === 'blocked') {
     return 'MAINTENANCE';
@@ -228,6 +235,7 @@ const DEFAULT_LAYOUT_CONFIG: WarehouseLayoutConfig = {
   zoneOrder: [],
 };
 
+// Muc dich: Xac dinh muc do day cua bin.
 function getBinOccupancyLevel(occupancy: number): BinOccupancyLevel {
   if (occupancy === 0) return 'empty';
   if (occupancy <= 20) return 'low';
@@ -236,11 +244,13 @@ function getBinOccupancyLevel(occupancy: number): BinOccupancyLevel {
   return 'overloaded';
 }
 
+// Muc dich: Chuan hoa key cho zone code.
 function zoneCodeKey(zoneCode: string): string {
   const value = zoneCode.trim().toUpperCase();
   return value.length > 0 ? value : 'UNASSIGNED';
 }
 
+// Muc dich: Suy ra trang thai location tu currentLoad.
 function getLocationStatusFromLoad(currentLoad: number, capacity: number): WarehouseLocationApiItem['location_status'] {
   if (capacity <= 0 || currentLoad <= 0) {
     return 'AVAILABLE';
@@ -253,6 +263,7 @@ function getLocationStatusFromLoad(currentLoad: number, capacity: number): Wareh
   return 'PARTIAL';
 }
 
+// Muc dich: Lay danh sach ma duy nhat va sap xep.
 function collectUniqueCodes(values: string[]): string[] {
   return Array.from(
     new Set(
@@ -288,10 +299,12 @@ interface ZoneMetadataFallback {
   type: string;
 }
 
+// Muc dich: Chuan hoa danh sach id string.
 function normalizeIdList(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)));
 }
 
+// Muc dich: Doc map du lieu tu localStorage.
 function readStorageMap<T>(storageKey: string): Record<string, T> {
   if (typeof window === 'undefined') {
     return {};
@@ -314,6 +327,7 @@ function readStorageMap<T>(storageKey: string): Record<string, T> {
   return {};
 }
 
+// Muc dich: Ghi map du lieu vao localStorage.
 function writeStorageMap<T>(storageKey: string, value: Record<string, T>): void {
   if (typeof window === 'undefined') {
     return;
@@ -322,21 +336,25 @@ function writeStorageMap<T>(storageKey: string, value: Record<string, T>): void 
   window.localStorage.setItem(storageKey, JSON.stringify(value));
 }
 
+// Muc dich: Luu scope category cua kho vao localStorage.
 function setWarehouseCategoryScopeFallback(warehouseId: string, categoryIds: string[]): void {
   const next = readStorageMap<string[]>(WAREHOUSE_CATEGORY_SCOPE_KEY);
   next[warehouseId] = normalizeIdList(categoryIds);
   writeStorageMap(WAREHOUSE_CATEGORY_SCOPE_KEY, next);
 }
 
+// Muc dich: Lay scope category cua kho tu localStorage.
 function getWarehouseCategoryScopeFallback(warehouseId: string): string[] {
   const map = readStorageMap<string[]>(WAREHOUSE_CATEGORY_SCOPE_KEY);
   return normalizeIdList(map[warehouseId] ?? []);
 }
 
+// Muc dich: Tao key luu metadata cho zone.
 function buildZoneMetadataKey(warehouseId: string, zoneCode: string): string {
   return `${warehouseId}:${zoneCodeKey(zoneCode)}`;
 }
 
+// Muc dich: Lay metadata zone tu localStorage fallback.
 function getZoneMetadataFallback(warehouseId: string, zoneCode: string): ZoneMetadataFallback | null {
   const map = readStorageMap<ZoneMetadataFallback>(ZONE_METADATA_SCOPE_KEY);
   const metadata = map[buildZoneMetadataKey(warehouseId, zoneCode)];
@@ -356,6 +374,7 @@ function getZoneMetadataFallback(warehouseId: string, zoneCode: string): ZoneMet
   };
 }
 
+// Muc dich: Luu metadata zone vao localStorage fallback.
 function setZoneMetadataFallback(warehouseId: string, zoneCode: string, value: ZoneMetadataFallback): void {
   const map = readStorageMap<ZoneMetadataFallback>(ZONE_METADATA_SCOPE_KEY);
   const key = buildZoneMetadataKey(warehouseId, zoneCode);
@@ -366,6 +385,7 @@ function setZoneMetadataFallback(warehouseId: string, zoneCode: string, value: Z
   writeStorageMap(ZONE_METADATA_SCOPE_KEY, map);
 }
 
+// Muc dich: Xoa metadata zone trong localStorage.
 function removeZoneMetadataFallback(warehouseId: string, zoneCode: string): void {
   const map = readStorageMap<ZoneMetadataFallback>(ZONE_METADATA_SCOPE_KEY);
   const key = buildZoneMetadataKey(warehouseId, zoneCode);
@@ -377,6 +397,7 @@ function removeZoneMetadataFallback(warehouseId: string, zoneCode: string): void
   writeStorageMap(ZONE_METADATA_SCOPE_KEY, map);
 }
 
+// Muc dich: Doc map gan san pham cho bin tu localStorage.
 function getBinAssignmentFallbackMap(): Record<string, BinAssignmentValue> {
   const map = readStorageMap<BinAssignmentValue>(BIN_ASSIGNMENT_SCOPE_KEY);
   const result: Record<string, BinAssignmentValue> = {};
@@ -414,6 +435,7 @@ function getBinAssignmentFallbackMap(): Record<string, BinAssignmentValue> {
   return result;
 }
 
+// Muc dich: Luu gan san pham cho bin vao localStorage.
 function setBinAssignmentFallback(locationId: string, value: BinAssignmentValue): void {
   const next = readStorageMap<BinAssignmentValue>(BIN_ASSIGNMENT_SCOPE_KEY);
   next[locationId] = {
@@ -430,6 +452,7 @@ function setBinAssignmentFallback(locationId: string, value: BinAssignmentValue)
  * Fallback synchronous — không phụ thuộc vào API khi /api/inventories chưa phản ánh
  * đúng dữ liệu sau khi operator cập nhật bin trong Zone Detail.
  */
+// Muc dich: Tinh tong so luong kha dung tu fallback bin.
 export function getProductAvailableQtyFromBinFallback(productId: string): number {
   const map = getBinAssignmentFallbackMap();
   let total = 0;
@@ -445,6 +468,7 @@ export function getProductAvailableQtyFromBinFallback(productId: string): number
  * Chọn location có currentLoad cao nhất cho product từ localStorage fallback.
  * Dùng để suy ra warehouse_location_id khi API inventories tạm thời chưa trả row.
  */
+// Muc dich: Chon location uu tien tu fallback bin.
 export function getProductPreferredLocationIdFromBinFallback(productId: string): number | null {
   const map = getBinAssignmentFallbackMap();
   let selectedLocationId: number | null = null;
@@ -470,6 +494,7 @@ export function getProductPreferredLocationIdFromBinFallback(productId: string):
   return selectedLocationId;
 }
 
+// Muc dich: Sinh toa do zone tu cau hinh racks/levels/bins.
 function buildZoneCoordinatesByStructure(racks: number, levels: number, bins: number): ZoneCoordinate[] {
   const coordinates: ZoneCoordinate[] = [];
 
@@ -488,18 +513,22 @@ function buildZoneCoordinatesByStructure(racks: number, levels: number, bins: nu
   return coordinates;
 }
 
+// Muc dich: Tao key duy nhat cho toa do bin.
 function buildCoordinateKey(input: Pick<WarehouseLocationItem, 'rack' | 'level' | 'bin'>): string {
   return `${input.rack.trim().toUpperCase()}|${input.level.trim().toUpperCase()}|${input.bin.trim().toUpperCase()}`;
 }
 
+// Muc dich: Tao key tu ma rack/level/bin.
 function buildCoordinateKeyFromCodes(input: ZoneCoordinate): string {
   return `${input.rackCode}|${input.levelCode}|${input.binCode}`;
 }
 
+// Muc dich: Tao ma location tu toa do.
 function buildLocationCodeFromCoordinate(warehouseId: string, zoneCode: string, coordinate: ZoneCoordinate): string {
   return `W${warehouseId}-${zoneCode}-${coordinate.rackCode}-${coordinate.levelCode}-${coordinate.binCode}`;
 }
 
+// Muc dich: Tao map index theo code.
 function createCodeIndexMap(codes: string[]): Record<string, number> {
   return codes.reduce<Record<string, number>>((accumulator, code, index) => {
     accumulator[code] = index + 1;
@@ -507,6 +536,7 @@ function createCodeIndexMap(codes: string[]): Record<string, number> {
   }, {});
 }
 
+// Muc dich: Chuan hoa loai dieu kien bao quan.
 function normalizeStorageCondition(type: string): 'AMBIENT' | 'CHILLED' | 'FROZEN' | 'DRY' {
   const normalized = type.trim().toUpperCase();
   if (normalized === 'CHILLED' || normalized === 'FROZEN' || normalized === 'DRY') {
@@ -516,6 +546,7 @@ function normalizeStorageCondition(type: string): 'AMBIENT' | 'CHILLED' | 'FROZE
   return 'AMBIENT';
 }
 
+// Muc dich: Suy ra status location tu tai trong.
 function deriveLocationStatus(currentWeight: number, maxWeight: number): WarehouseLocationApiItem['location_status'] {
   if (maxWeight <= 0 || currentWeight <= 0) {
     return 'AVAILABLE';
@@ -528,6 +559,7 @@ function deriveLocationStatus(currentWeight: number, maxWeight: number): Warehou
   return 'PARTIAL';
 }
 
+// Muc dich: Chuan hoa trong luong khi cap nhat location.
 function normalizeWeightForLocationUpdate(currentLoad: number, capacity: number): { maxWeight: number; currentWeight: number } {
   const safeMaxWeight = Math.max(0, capacity);
   if (safeMaxWeight === 0) {
@@ -543,6 +575,7 @@ function normalizeWeightForLocationUpdate(currentLoad: number, capacity: number)
   };
 }
 
+// Muc dich: Lay toan bo rule danh muc duoc phep theo location.
 async function fetchAllLocationAllowedCategories(params?: {
   locationId?: string;
 }): Promise<LocationAllowedCategoryApiItem[]> {
@@ -568,6 +601,7 @@ async function fetchAllLocationAllowedCategories(params?: {
   return all;
 }
 
+// Muc dich: Lay toan bo ton kho, co cache khi API loi.
 async function fetchAllInventories(params?: {
   warehouseLocationId?: string;
 }): Promise<InventoryApiItem[]> {
@@ -605,6 +639,7 @@ async function fetchAllInventories(params?: {
 }
 
 
+// Muc dich: Tao map location -> danh muc duoc phep.
 function buildLocationAllowedCategoryMap(
   rules: LocationAllowedCategoryApiItem[],
   activeLocationIdSet?: Set<string>,
@@ -633,6 +668,7 @@ function buildLocationAllowedCategoryMap(
   return map;
 }
 
+// Muc dich: Tao map gan san pham theo ton kho.
 function buildInventoryAssignmentMap(
   inventories: InventoryApiItem[],
   locationCategoryMap: Record<string, string[]>,
@@ -673,6 +709,7 @@ function buildInventoryAssignmentMap(
   return map;
 }
 
+// Muc dich: Tong hop so luong theo location.
 function buildLocationQuantityMap(inventories: InventoryApiItem[]): Record<string, number> {
   const map: Record<string, number> = {};
   inventories.forEach((inv) => {
@@ -682,6 +719,7 @@ function buildLocationQuantityMap(inventories: InventoryApiItem[]): Record<strin
   return map;
 }
 
+// Muc dich: Dong bo scope danh muc cho cac location.
 async function syncLocationCategoryScope(locationIds: string[], categoryIds: string[]): Promise<void> {
   const normalizedCategoryIds = normalizeIdList(categoryIds);
 
@@ -717,6 +755,7 @@ async function syncLocationCategoryScope(locationIds: string[], categoryIds: str
   );
 }
 
+// Muc dich: Lay danh sach location theo zone code.
 async function fetchLocationsByZoneCode(
   warehouseId: string,
   zoneCode: string,
@@ -747,6 +786,7 @@ async function fetchLocationsByZoneCode(
   return mapped.filter((location) => location.status !== 'inactive');
 }
 
+// Muc dich: Tach zone code tu zoneId.
 function extractZoneCodeFromId(warehouseId: string, zoneId: string): string {
   const prefix = `${warehouseId}-`;
   if (zoneId.startsWith(prefix)) {
@@ -756,6 +796,7 @@ function extractZoneCodeFromId(warehouseId: string, zoneId: string): string {
   return zoneId;
 }
 
+// Muc dich: Map location sang du lieu bin cho UI.
 function toZoneBin(
   location: WarehouseLocationItem,
   rackMap: Record<string, number>,
@@ -773,8 +814,7 @@ function toZoneBin(
   const shelf = binMap[normalizedBin] ?? (fallbackIndex % 10) + 1;
   const level = levelMap[normalizedLevel] ?? 1;
   const capacity = location.capacity > 0 ? location.capacity : 1;
-  // Prefer inventory-based quantity over potentially stale location.currentLoad (current_weight DB field
-  // is not updated by completeStockIn — only Inventory.quantity is incremented).
+  // Ưu tiên số lượng từ tồn kho thay vì currentLoad lưu trong DB (có thể chưa đồng bộ).
   const currentLoad = inventoryQuantity !== undefined
     ? Math.max(0, inventoryQuantity)
     : Math.max(0, location.currentLoad);
@@ -799,6 +839,7 @@ function toZoneBin(
   };
 }
 
+// Muc dich: Tong hop du lieu zone tu danh sach location.
 function toZone(
   warehouseId: string,
   zoneCode: string,
@@ -855,6 +896,7 @@ function toZone(
   };
 }
 
+// Muc dich: Tong hop du lieu hub kho tu zone va location.
 function toHub(
   warehouse: WarehouseItem,
   locations: WarehouseLocationItem[],
@@ -911,6 +953,7 @@ function toHub(
   };
 }
 
+// Muc dich: Lay danh sach kho, co search va fallback.
 export async function getWarehouses(params: WarehouseListParams = {}): Promise<WarehouseListResponse> {
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 10;
@@ -932,7 +975,7 @@ export async function getWarehouses(params: WarehouseListParams = {}): Promise<W
   const mappedWarehouses = payload.warehouses.map(mapWarehouse);
 
   if (search && mappedWarehouses.length === 0) {
-    const allWarehouses = await collectPaginatedItems({
+    const allWarehouses = await collectPaginatedItems<WarehouseListApiData, WarehouseItem>({
       fetchPage: async (fallbackPage, fallbackLimit) => {
         const fallbackResponse = await apiClient.get<ApiResponse<WarehouseListApiData>>('/api/warehouses', {
           params: {
@@ -945,7 +988,7 @@ export async function getWarehouses(params: WarehouseListParams = {}): Promise<W
         return unwrapApiData<WarehouseListApiData>(fallbackResponse);
       },
       getItems: (fallbackPayload) => fallbackPayload.warehouses.map(mapWarehouse),
-      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.total_pages ?? fallbackPayload.pagination.totalPages ?? 1,
     });
 
     const fallbackResult = paginateFallbackItems(
@@ -970,6 +1013,7 @@ export async function getWarehouses(params: WarehouseListParams = {}): Promise<W
   };
 }
 
+// Muc dich: Tao kho moi.
 export async function createWarehouse(payload: WarehouseFormValues): Promise<WarehouseItem> {
   const response = await apiClient.post<ApiResponse<WarehouseApiItem>>('/api/warehouses', {
     code: payload.code.trim().toUpperCase(),
@@ -980,6 +1024,7 @@ export async function createWarehouse(payload: WarehouseFormValues): Promise<War
   return mapWarehouse(unwrapApiData<WarehouseApiItem>(response));
 }
 
+// Muc dich: Cap nhat kho theo id.
 export async function updateWarehouse(id: string, payload: WarehouseFormValues): Promise<WarehouseItem> {
   const response = await apiClient.patch<ApiResponse<WarehouseApiItem>>(`/api/warehouses/${Number(id)}`, {
     code: payload.code.trim().toUpperCase(),
@@ -990,6 +1035,7 @@ export async function updateWarehouse(id: string, payload: WarehouseFormValues):
   return mapWarehouse(unwrapApiData<WarehouseApiItem>(response));
 }
 
+// Muc dich: Vo hieu hoa kho theo id.
 export async function deleteWarehouse(id: string): Promise<void> {
   const warehouseId = Number(id);
   if (Number.isNaN(warehouseId) || warehouseId <= 0) {
@@ -1006,6 +1052,7 @@ export async function deleteWarehouse(id: string): Promise<void> {
   });
 }
 
+// Muc dich: Lay danh sach location theo kho, co search va fallback.
 export async function getWarehouseLocations(
   params: WarehouseLocationListParams = {},
 ): Promise<WarehouseLocationListResponse> {
@@ -1029,7 +1076,7 @@ export async function getWarehouseLocations(
     .filter((item) => (params.status && params.status !== 'all' ? item.status === params.status : true));
 
   if (search && mappedLocations.length === 0) {
-    const allLocations = await collectPaginatedItems({
+    const allLocations = await collectPaginatedItems<WarehouseLocationListApiData, WarehouseLocationItem>({
       fetchPage: async (fallbackPage, fallbackLimit) => {
         const fallbackResponse = await apiClient.get<ApiResponse<WarehouseLocationListApiData>>('/api/warehouses/locations/search', {
           params: {
@@ -1046,7 +1093,7 @@ export async function getWarehouseLocations(
         fallbackPayload.locations
           .map(mapLocation)
           .filter((item) => (params.status && params.status !== 'all' ? item.status === params.status : true)),
-      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.totalPages,
+      getTotalPages: (fallbackPayload) => fallbackPayload.pagination.total_pages ?? fallbackPayload.pagination.totalPages ?? 1,
     });
 
     const fallbackResult = paginateFallbackItems(
@@ -1081,6 +1128,7 @@ export async function getWarehouseLocations(
   };
 }
 
+// Muc dich: Tao location kho moi.
 export async function createWarehouseLocation(
   payload: WarehouseLocationFormValues,
 ): Promise<WarehouseLocationItem> {
@@ -1100,13 +1148,12 @@ export async function createWarehouseLocation(
   return mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
 }
 
+// Muc dich: Cap nhat location kho theo id.
 export async function updateWarehouseLocation(
   id: string,
   payload: WarehouseLocationFormValues,
 ): Promise<WarehouseLocationItem> {
-  // Only send location_status when explicitly switching to/from MAINTENANCE (blocked).
-  // For 'active' locations, omit the field so BE retains its inventory-calculated
-  // PARTIAL or FULL status instead of being overwritten with AVAILABLE.
+  // Chỉ gửi location_status khi chuyển sang/khỏi MAINTENANCE — bỏ qua với location active để BE giữ trạng thái tính từ tồn kho.
   const locationStatusOverride: Partial<{ location_status: WarehouseLocationApiItem['location_status'] }> =
     payload.status === 'blocked' ? { location_status: 'MAINTENANCE' } : {};
 
@@ -1123,11 +1170,13 @@ export async function updateWarehouseLocation(
   return mapLocation(unwrapApiData<WarehouseLocationApiItem>(response));
 }
 
+// Muc dich: Thong bao chua ho tro xoa location kho.
 export async function deleteWarehouseLocation(id: string): Promise<void> {
   void id;
   throw new Error('Backend hiện chưa hỗ trợ xóa vị trí kho trong API contract.');
 }
 
+// Muc dich: Tong hop hub kho tu kho va location.
 export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
   const [warehouses, allLocations] = await Promise.all([
     collectPaginatedItems({
@@ -1162,6 +1211,7 @@ export async function getWarehouseHubs(): Promise<WarehouseHub[]> {
     });
 }
 
+// Muc dich: Tao hub kho va luu scope danh muc fallback.
 export async function createWarehouseHub(payload: WarehouseHubFormValues): Promise<WarehouseHub> {
   const response = await apiClient.post<ApiResponse<WarehouseApiItem>>('/api/warehouses', {
     code: payload.code.trim().toUpperCase(),
@@ -1177,6 +1227,7 @@ export async function createWarehouseHub(payload: WarehouseHubFormValues): Promi
   };
 }
 
+// Muc dich: Cap nhat hub kho va dong bo scope danh muc.
 export async function updateWarehouseHub(id: string, payload: WarehouseHubFormValues): Promise<WarehouseHub> {
   const response = await apiClient.patch<ApiResponse<WarehouseApiItem>>(`/api/warehouses/${Number(id)}`, {
     code: payload.code.trim().toUpperCase(),
@@ -1225,10 +1276,12 @@ export async function updateWarehouseHub(id: string, payload: WarehouseHubFormVa
   return hub;
 }
 
+// Muc dich: Xoa hub kho (vo hieu hoa kho).
 export async function deleteWarehouseHub(id: string): Promise<void> {
   await deleteWarehouse(id);
 }
 
+// Muc dich: Tao zone moi va sinh location.
 export async function createWarehouseZone(warehouseId: string, payload: WarehouseZoneFormValues): Promise<Zone> {
   const zoneCode = payload.code.trim().toUpperCase();
   const hubs = await getWarehouseHubs();
@@ -1301,12 +1354,13 @@ export async function createWarehouseZone(warehouseId: string, payload: Warehous
   };
 }
 
+// Muc dich: Cap nhat zone va dong bo location.
 export async function updateWarehouseZone(
   warehouseId: string,
   zoneId: string,
   payload: WarehouseZoneFormValues,
 ): Promise<Zone> {
-  // Zone code là bất biến khi update — luôn dùng code từ zoneId (server source of truth).
+  // Zone code là bất biến khi cập nhật — luôn dùng code từ zoneId hiện tại.
   const currentZoneCode = zoneCodeKey(extractZoneCodeFromId(warehouseId, zoneId));
 
   const hubs = await getWarehouseHubs();
@@ -1476,13 +1530,13 @@ export async function updateWarehouseZone(
   };
 }
 
+// Muc dich: Vo hieu hoa location trong zone va xoa metadata.
 export async function deleteWarehouseZone(warehouseId: string, zoneId: string): Promise<void> {
   const zoneCode = zoneCodeKey(extractZoneCodeFromId(warehouseId, zoneId));
 
   console.debug('[deleteWarehouseZone] start', { warehouseId, zoneId, zoneCode });
 
-  // Fetch ALL locations (including inactive) so we get a complete picture.
-  // Then only patch the ones that are currently active — inactive ones are already done.
+  // Lấy toàn bộ location kể cả inactive, chỉ vô hiệu hóa những location đang active.
   const allZoneLocations = await fetchLocationsByZoneCode(warehouseId, zoneCode, true);
   const activeLocations = allZoneLocations.filter((loc) => loc.status !== 'inactive');
 
@@ -1494,7 +1548,7 @@ export async function deleteWarehouseZone(warehouseId: string, zoneId: string): 
   });
 
   if (allZoneLocations.length === 0) {
-    // Zone has no locations at all — just clean up metadata and exit cleanly.
+    // Zone không có location nào — chỉ dọn metadata và thoát.
     console.debug('[deleteWarehouseZone] no locations found — fallback cleanup only');
     removeZoneMetadataFallback(warehouseId, zoneCode);
     return;
@@ -1525,6 +1579,7 @@ export async function deleteWarehouseZone(warehouseId: string, zoneId: string): 
   console.debug('[deleteWarehouseZone] done');
 }
 
+// Muc dich: Cap nhat cau hinh layout kho (local).
 export async function updateWarehouseLayoutConfig(
   warehouseId: string,
   payload: WarehouseLayoutConfig,
@@ -1538,6 +1593,7 @@ export async function updateWarehouseLayoutConfig(
   };
 }
 
+// Muc dich: Lay danh sach bin theo zone.
 export async function getZoneBins(warehouseId: string, zoneId: string): Promise<Bin[]> {
   const [hubs, warehouseLocations] = await Promise.all([
     getWarehouseHubs(),
@@ -1589,6 +1645,7 @@ export async function getZoneBins(warehouseId: string, zoneId: string): Promise<
   });
 }
 
+// Muc dich: Cap nhat suc chua bin va gan san pham.
 export async function updateZoneBinCapacity(
   warehouseId: string,
   zoneId: string,
@@ -1625,7 +1682,7 @@ export async function updateZoneBinCapacity(
     },
   );
 
-  // Persist selected category scope on this location so re-open/re-select hydrates correct form values.
+  // Lưu phạm vi danh mục cho location để form tự điền lại đúng khi mở lại.
   await syncLocationCategoryScope([locationId], [payload.categoryId]);
 
   setBinAssignmentFallback(locationId, {
@@ -1658,6 +1715,7 @@ export async function updateZoneBinCapacity(
   };
 }
 
+// Muc dich: Lay danh sach category cho kho.
 export async function getWarehouseCategoryOptions(): Promise<WarehouseCategoryOption[]> {
   const response = await getProductCategories({ page: 1, pageSize: 100 });
   return response.data.map((category) => ({
@@ -1667,6 +1725,7 @@ export async function getWarehouseCategoryOptions(): Promise<WarehouseCategoryOp
   }));
 }
 
+// Muc dich: Lay danh sach san pham theo category.
 export async function getWarehouseProductOptions(categoryId?: string): Promise<WarehouseProductOption[]> {
   const response = await apiClient.get<ApiResponse<ProductListApiData>>('/api/products', {
     params: {
@@ -1686,6 +1745,7 @@ export async function getWarehouseProductOptions(categoryId?: string): Promise<W
   }));
 }
 
+// Muc dich: Lay ton kho theo bin.
 export async function getBinInventories(locationId: string): Promise<import('../features/warehouses/types/warehouseType').BinInventoryItem[]> {
   const numericId = Number(locationId);
   if (!locationId || Number.isNaN(numericId)) return [];

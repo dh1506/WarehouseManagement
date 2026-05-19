@@ -13,7 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 export function CategoryManagement() {
   const { toast } = useToast();
 
-  // States
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter] = useState<string>('all');
@@ -25,7 +24,6 @@ export function CategoryManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<ProductCategory | null>(null);
 
-  // Data fetching
   const { data, isLoading } = useProductCategories({
     page,
     pageSize: 100, // Fetch 100 to build full tree on frontend for simplicity in this MVP
@@ -36,12 +34,10 @@ export function CategoryManagement() {
   const allCategories = data?.data || [];
   const totalCategories = data?.total || 0;
 
-  // Mutations
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
 
-  // Handlers
   const handleOpenCreate = () => {
     setEditingCategory(null);
     setViewingCategory(null);
@@ -97,10 +93,8 @@ export function CategoryManagement() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
-      {/* Top Bar (Optional if you want to keep it like the design, but in our layout it is part of Header. Assuming we have a standard header or we can just render page content) */}
       <div className="flex-1 overflow-auto p-4 pb-24">
         <div className="max-w-6xl mx-auto h-full flex flex-col">
-          {/* Header Section */}
           <div className="flex justify-between items-end mb-8 flex-shrink-0">
             <div>
               <nav className="flex text-xs text-slate-500 font-semibold tracking-wider uppercase mb-2">
@@ -138,7 +132,6 @@ export function CategoryManagement() {
             </div>
           </div>
 
-          {/* Table Container */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden relative">
             <CategoryTable
               categories={allCategories}
@@ -148,7 +141,6 @@ export function CategoryManagement() {
               onDelete={handleOpenDelete}
             />
 
-            {/* Pagination Box */}
             <div className="px-6 py-2 border-t border-slate-200 flex items-center justify-between bg-white flex-shrink-0">
               <span className="text-sm text-slate-500">
                 Hiển thị {allCategories.length} trong tổng số {totalCategories} danh mục
@@ -163,7 +155,7 @@ export function CategoryManagement() {
                 </button>
                 <button className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded font-medium">{page}</button>
                 <button
-                  disabled={allCategories.length < 100} // Temporary simplistic end check
+                  disabled={allCategories.length < 100}
                   onClick={() => setPage(p => p + 1)}
                   className="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 font-medium disabled:opacity-50"
                 >
@@ -172,7 +164,7 @@ export function CategoryManagement() {
               </div>
             </div>
 
-            {/* Float Info Overlay when Drawer is open */}
+            {/* Lớp phủ khi drawer mở */}
             {isFormOpen && (
               <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px] z-20 flex flex-col pointer-events-none transition-opacity duration-300">
                 <div className="absolute bottom-8 left-8 p-4 bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/20 flex items-center gap-4 max-w-sm">
@@ -190,7 +182,6 @@ export function CategoryManagement() {
         </div>
       </div>
 
-      {/* Drawer & Dialogs */}
       <CategoryFormSheet
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}

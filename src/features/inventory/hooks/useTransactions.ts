@@ -15,7 +15,7 @@ import type {
 } from '../types/transactionType';
 import { WAREHOUSE_KEYS } from '@/features/warehouses/hooks/useWarehouses';
 
-// ── Stable query keys ─────────────────────────────────────────────────────────
+// ── Khóa truy vấn ────────────────────────────────────────────────────────────
 
 export const TRANSACTION_KEYS = {
   all: ['inventory-transactions'] as const,
@@ -23,7 +23,7 @@ export const TRANSACTION_KEYS = {
   detail: (id: number) => ['inventory-transactions', 'detail', id] as const,
 };
 
-// ── Hook: paginated list ──────────────────────────────────────────────────────
+// ── Hook: danh sách phân trang ────────────────────────────────────────────────
 
 export function useTransactions(params: TransactionQueryParams) {
   return useQuery<TransactionListResponse>({
@@ -33,7 +33,7 @@ export function useTransactions(params: TransactionQueryParams) {
   });
 }
 
-// ── Hook: KPI totals by transaction type ─────────────────────────────────────
+// ── Hook: tổng KPI theo loại giao dịch ───────────────────────────────────────
 // Gửi 3 query song song, mỗi query limit=1, chỉ lấy pagination.total.
 // Tránh đếm trên trang hiện tại (chỉ 10 dòng → sai kết quả).
 
@@ -56,7 +56,7 @@ export function useTransactionKpis() {
   };
 }
 
-// ── Hook: single transaction detail ───────────────────────────────────────────
+// ── Hook: chi tiết giao dịch ──────────────────────────────────────────────────
 
 export function useTransactionDetail(id: number) {
   return useQuery<InventoryTransaction>({
@@ -66,7 +66,7 @@ export function useTransactionDetail(id: number) {
   });
 }
 
-// ── Mutation: create adjustment ───────────────────────────────────────────────
+// ── Mutation: tạo điều chỉnh ──────────────────────────────────────────────────
 
 export function useCreateAdjustment() {
   const queryClient = useQueryClient();
@@ -76,7 +76,7 @@ export function useCreateAdjustment() {
     mutationFn: createAdjustment,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: TRANSACTION_KEYS.all });
-      // Adjustment changes inventory → invalidate warehouse layout data
+      // Điều chỉnh thay đổi tồn kho → xóa cache layout kho
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.all });
       toast({
@@ -94,7 +94,7 @@ export function useCreateAdjustment() {
   });
 }
 
-// ── Export helpers (non-query, imperative) ─────────────────────────────────────
+// ── Xuất file (không dùng query) ──────────────────────────────────────────────
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);

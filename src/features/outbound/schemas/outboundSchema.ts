@@ -57,7 +57,7 @@ export const cancelStockOutSchema = z.object({
   reason: z.string().optional(),
 });
 
-// ─── Inferred types ───────────────────────────────────────────────────────────
+// ─── Kiểu dữ liệu suy luận ───────────────────────────────────────────────────
 
 export type CreateStockOutSchemaValues = z.infer<typeof createStockOutSchema>;
 export type CreateStockOutDetailSchemaValues = z.infer<typeof createStockOutDetailSchema>;

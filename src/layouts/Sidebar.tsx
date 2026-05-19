@@ -22,6 +22,7 @@ const NAV_ROUTES: { to: string; icon: string; label: string; end?: boolean }[] =
   { to: '/admin/role-permissions', icon: 'security', label: 'Vai trò & Phân quyền' },
 ];
 
+// Muc dich: Render sidebar dieu huong va tai khoan nguoi dung.
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -33,10 +34,12 @@ export function Sidebar() {
   const permissionNames = user?.permissions ?? [];
   const roleName = user?.role ?? '';
 
+  // Muc dich: Loc menu theo quyen truy cap.
   const visibleNavItems = NAV_ROUTES.filter((item) =>
     hasPageAccessFromPermissionNames(item.to, permissionNames, roleName),
   );
 
+  // Muc dich: Dang xuat va chuyen ve trang login.
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });

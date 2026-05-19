@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Table wrapper co overflow.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
@@ -17,6 +18,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   )
 }
 
+// Muc dich: Phan header cua table.
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
@@ -27,6 +29,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   )
 }
 
+// Muc dich: Phan body cua table.
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
@@ -37,6 +40,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   )
 }
 
+// Muc dich: Phan footer cua table.
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
     <tfoot
@@ -50,6 +54,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
+// Muc dich: Dong trong table.
 function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
@@ -63,6 +68,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
+// Muc dich: O tieu de trong table.
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
@@ -76,6 +82,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
+// Muc dich: O du lieu trong table.
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
@@ -89,6 +96,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   )
 }
 
+// Muc dich: Chu thich cho table.
 function TableCaption({
   className,
   ...props

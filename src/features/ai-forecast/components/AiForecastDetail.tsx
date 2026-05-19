@@ -48,11 +48,13 @@ type LocalReviewStatus = 'APPROVED' | 'REJECTED';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Muc dich: Tach phan tram do tin cay tu chuoi.
 function parseConfidencePct(label: string): number | null {
   const m = label.match(/\((\d+)%\)/);
   return m ? parseInt(m[1], 10) : null;
 }
 
+// Muc dich: Phan tich chuoi mo ta thoi tiet.
 function parseWeatherContext(text: string): {
   temp: number | null;
   humidity: number | null;
@@ -70,6 +72,7 @@ function parseWeatherContext(text: string): {
   return { temp, humidity, condition, note };
 }
 
+// Muc dich: Map du lieu de mo dialog duyet.
 function toReviewTarget(item: ForecastRecommendation): ReviewTarget | null {
   if (item.result_id === undefined) return null;
   return {
@@ -81,6 +84,7 @@ function toReviewTarget(item: ForecastRecommendation): ReviewTarget | null {
   };
 }
 
+// Muc dich: Map du lieu de mo dialog cap nhat thuc te.
 function toActualTarget(item: ForecastRecommendation): ActualTarget | null {
   if (item.result_id === undefined) return null;
   return {
@@ -92,6 +96,7 @@ function toActualTarget(item: ForecastRecommendation): ActualTarget | null {
   };
 }
 
+// Muc dich: Uu tien trang thai review local neu co.
 function effectiveReviewStatus(
   item: ForecastRecommendation,
   localReviews: Map<number, LocalReviewStatus>,
@@ -104,6 +109,7 @@ function effectiveReviewStatus(
   return undefined;
 }
 
+// Muc dich: Uu tien so luong thuc te local neu co.
 function effectiveActualQty(
   item: ForecastRecommendation,
   localActuals: Map<number, number>,
@@ -117,6 +123,7 @@ function effectiveActualQty(
 
 // ── Badges ────────────────────────────────────────────────────────────────────
 
+// Muc dich: Badge trang thai du bao.
 function ForecastStatusBadge({ status }: { status?: string | null }) {
   const key = (status && status in FORECAST_STATUS_STYLES ? status : 'PENDING') as AiForecastStatus;
   const s = FORECAST_STATUS_STYLES[key];
@@ -128,6 +135,7 @@ function ForecastStatusBadge({ status }: { status?: string | null }) {
   );
 }
 
+// Muc dich: Badge muc do uu tien ton kho.
 function PriorityBadge({ priority }: { priority: StockPriority }) {
   const s = PRIORITY_STYLES[priority];
   return (
@@ -137,6 +145,7 @@ function PriorityBadge({ priority }: { priority: StockPriority }) {
   );
 }
 
+// Muc dich: Badge trang thai duyet tam thoi.
 function LocalReviewBadge({ status }: { status: LocalReviewStatus }) {
   if (status === 'APPROVED') {
     return (
@@ -156,6 +165,7 @@ function LocalReviewBadge({ status }: { status: LocalReviewStatus }) {
 
 // ── Context Cards ─────────────────────────────────────────────────────────────
 
+// Muc dich: The thong tin thoi tiet.
 function WeatherContextCard({ weatherContext }: { weatherContext: string }) {
   const { temp, humidity, condition, note } = parseWeatherContext(weatherContext);
   const conditionIcon: Record<string, string> = {
@@ -187,6 +197,7 @@ function WeatherContextCard({ weatherContext }: { weatherContext: string }) {
   );
 }
 
+// Muc dich: The tom tat tac dong su kien.
 function EventImpactCard({ eventImpact }: { eventImpact: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
@@ -201,6 +212,7 @@ function EventImpactCard({ eventImpact }: { eventImpact: string }) {
 
 // ── AI Prediction Summary ─────────────────────────────────────────────────────
 
+// Muc dich: The tong quan san pham.
 function ProductSummaryCard({ item }: { item: ForecastRecommendation }) {
   const isUrgent = item.suggested_order > 0;
   const stockTone = item.current_stock === 0 ? 'text-slate-400' : item.current_stock < item.safe_stock ? 'text-rose-700' : 'text-slate-800';
@@ -247,6 +259,7 @@ function ProductSummaryCard({ item }: { item: ForecastRecommendation }) {
   );
 }
 
+// Muc dich: Panel tong quan ket qua du bao.
 function AiPredictionSummaryPanel({ data }: { data: TriggerForecastResponse }) {
   const { summary, urgent_orders, stable_products } = data;
 
@@ -326,6 +339,7 @@ function AiPredictionSummaryPanel({ data }: { data: TriggerForecastResponse }) {
 
 // ── AI Insights Panel ─────────────────────────────────────────────────────────
 
+// Muc dich: Panel phan tich AI chi tiet.
 function AiInsightsPanel({ allProducts, isFallback }: { allProducts: ForecastRecommendation[]; isFallback: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -643,6 +657,7 @@ function ReviewRow({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+// Muc dich: Man hinh chi tiet du bao AI.
 export function AiForecastDetail({ id }: AiForecastDetailProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();

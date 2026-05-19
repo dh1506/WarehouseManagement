@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useStockCountDetail } from '@/features/stock-count/hooks/useStockCount';
 import { StockCountDetail } from '@/features/stock-count/components/StockCountDetail';
 
+// Muc dich: Skeleton loading cho chi tiet phieu kiem ke.
 function SkeletonDetail() {
   return (
     <div className="px-6 py-6 space-y-5 animate-pulse">
@@ -33,6 +34,7 @@ function SkeletonDetail() {
   );
 }
 
+// Muc dich: Trang chi tiet phieu kiem ke.
 export function StockCountDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

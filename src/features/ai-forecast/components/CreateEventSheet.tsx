@@ -32,6 +32,7 @@ interface CreateEventSheetProps {
 
 type FieldErrors = Partial<Record<keyof CreateEventFormValues, string>>;
 
+// Muc dich: Label dong bo style cho field.
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -40,6 +41,7 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   );
 }
 
+// Muc dich: Hien thi loi validate cua field.
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
   return <p className="mt-1 text-xs text-rose-500">{msg}</p>;
@@ -58,6 +60,7 @@ const DEFAULT_FIELDS: CreateEventFormValues = {
   notes: '',
 };
 
+// Muc dich: Sheet tao su kien khuyen mai.
 export function CreateEventSheet({ open, onClose }: CreateEventSheetProps) {
   const createMutation = useCreateForecastEvent();
   const [fields, setFields] = useState<CreateEventFormValues>(DEFAULT_FIELDS);

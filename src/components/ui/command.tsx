@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 
+// Muc dich: Wrapper cho command palette.
 function Command({
   className,
   ...props
@@ -33,6 +34,7 @@ function Command({
   )
 }
 
+// Muc dich: Dialog chua command palette.
 function CommandDialog({
   title = "Command Palette",
   description = "Search for a command to run...",
@@ -65,6 +67,7 @@ function CommandDialog({
   )
 }
 
+// Muc dich: O nhap tim kiem trong command.
 function CommandInput({
   className,
   ...props
@@ -88,6 +91,7 @@ function CommandInput({
   )
 }
 
+// Muc dich: Danh sach ket qua command.
 function CommandList({
   className,
   ...props
@@ -104,6 +108,7 @@ function CommandList({
   )
 }
 
+// Muc dich: Trang thai khong co ket qua.
 function CommandEmpty({
   className,
   ...props
@@ -117,6 +122,7 @@ function CommandEmpty({
   )
 }
 
+// Muc dich: Nhom cac command.
 function CommandGroup({
   className,
   ...props
@@ -133,6 +139,7 @@ function CommandGroup({
   )
 }
 
+// Muc dich: Duong ke ngan cach trong danh sach.
 function CommandSeparator({
   className,
   ...props
@@ -146,6 +153,7 @@ function CommandSeparator({
   )
 }
 
+// Muc dich: Item trong danh sach command.
 function CommandItem({
   className,
   children,
@@ -166,6 +174,7 @@ function CommandItem({
   )
 }
 
+// Muc dich: Hien thi phim tat.
 function CommandShortcut({
   className,
   ...props

@@ -16,9 +16,9 @@ import type {
   SupplyChainData,
 } from '../types/ceoDashboardType';
 
-const REFRESH_INTERVAL_MS = 60_000 * 60; // hourly (CEO data is not real-time)
+const REFRESH_INTERVAL_MS = 60_000 * 60; // Làm mới mỗi giờ
 
-// ── Query key factory ─────────────────────────────────────────────────────────
+// ── Khóa query cho React Query ────────────────────────────────────────────────
 
 export const CEO_DASHBOARD_KEYS = {
   financial: () => ['ceo-dashboard', 'financial'] as const,
@@ -27,7 +27,7 @@ export const CEO_DASHBOARD_KEYS = {
   supplyChain: () => ['ceo-dashboard', 'supply-chain'] as const,
 };
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
+// ── Hàm xử lý ngày tháng ─────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -45,14 +45,14 @@ function endOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0);
 }
 
-// ── Recharts category palette ─────────────────────────────────────────────────
+// ── Màu sắc cho biểu đồ danh mục ─────────────────────────────────────────────
 
 const CATEGORY_FILLS = [
   '#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899',
   '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16',
 ];
 
-// ── Raw API shape helpers ─────────────────────────────────────────────────────
+// ── Hàm giải nén dữ liệu API ─────────────────────────────────────────────────
 
 function unwrapApiData<T>(response: unknown): T {
   const r = response as { data?: { data?: T } | T };
@@ -62,7 +62,7 @@ function unwrapApiData<T>(response: unknown): T {
   return (r?.data as T) ?? (response as T);
 }
 
-// ── Widget 1: Financial Snapshot ─────────────────────────────────────────────
+// ── Widget 1: Tài chính tồn kho ──────────────────────────────────────────────
 
 interface RawStockInForPrice {
   stockIns?: Array<{
@@ -106,7 +106,7 @@ export function useCeoFinancialSnapshot() {
         }),
       ]);
 
-      // Build price map: product_id → latest unit_price
+      // Xây dựng bảng giá: product_id → đơn giá mới nhất
       const priceMap = new Map<number, number>();
       const stockInData = unwrapApiData<RawStockInForPrice>(stockInsRaw);
       for (const si of stockInData?.stockIns ?? []) {
@@ -119,7 +119,7 @@ export function useCeoFinancialSnapshot() {
       }
       const hasPriceData = priceMap.size > 0;
 
-      // Build category map: product_id → category name
+      // Xây dựng bảng danh mục: product_id → tên danh mục
       const categoryMap = new Map<number, string>();
       const productListData = unwrapApiData<RawProductListPage>(productsRaw);
       for (const p of productListData?.products ?? []) {
@@ -128,7 +128,7 @@ export function useCeoFinancialSnapshot() {
         if (pid) categoryMap.set(pid, catName);
       }
 
-      // Compute totals per SKU
+      // Tính tổng giá trị theo từng SKU
       let totalInventoryValue = 0;
       let deadStockValue = 0;
       let deadStockCount = 0;
@@ -140,7 +140,7 @@ export function useCeoFinancialSnapshot() {
         const skuValue = price * sku.available;
         totalInventoryValue += skuValue;
 
-        // Dead stock: in stock AND overstocked (available > 2×minStock or maxStock > 0 && available >= maxStock)
+        // Hàng tồn chết: còn hàng nhưng quá dư so với ngưỡng
         const isDeadStock = sku.available > 0 && (
           (sku.minStock > 0 && sku.available > sku.minStock * 3) ||
           (sku.maxStock > 0 && sku.available >= sku.maxStock)
@@ -150,20 +150,18 @@ export function useCeoFinancialSnapshot() {
           deadStockCount++;
         }
 
-        // Category breakdown
+        // Phân bổ theo danh mục
         const catName = categoryMap.get(pid) ?? 'Không phân loại';
         catValueMap.set(catName, (catValueMap.get(catName) ?? 0) + skuValue);
       }
 
-      // Inventory Turnover Ratio (simplified): stock-outs last 30d / active SKU count
+      // Tính vòng quay tồn kho ước tính
       const stockOutCount30d = summary30d.total_stock_outs;
       const activeCount = overview.activeProductCount || 1;
-      // ITR proxy: (stock-outs × avg lines per order) / active SKUs
-      // A healthy monthly ITR ≈ 0.5–2.0 for a warehouse
       const itr = activeCount > 0 ? +(stockOutCount30d / activeCount * 5).toFixed(2) : 0;
       const turnoverAlert = itr < 0.5 ? 'critical' : itr < 1.0 ? 'warn' : 'ok';
 
-      // Build category pie data (top 8 + "Khác")
+      // Xây dựng dữ liệu biểu đồ tròn danh mục (top 8 + "Khác")
       const catEntries = Array.from(catValueMap.entries())
         .sort((a, b) => b[1] - a[1]);
       const top8 = catEntries.slice(0, 8);
@@ -193,11 +191,19 @@ export function useCeoFinancialSnapshot() {
   });
 }
 
-// ── Widget 2: AI Forecast Insight ─────────────────────────────────────────────
+// ── Widget 2: Thông tin dự báo AI ────────────────────────────────────────────
+
+interface RawForecastItem {
+  id: number;
+  forecast_month: string;
+  status: string;
+  is_fallback: boolean;
+}
 
 interface RawForecastList {
-  forecasts?: Array<{ id: number; forecast_month: string; status: string; is_fallback: boolean }>;
-  data?: Array<{ id: number; forecast_month: string; status: string; is_fallback: boolean }>;
+  items?: RawForecastItem[];
+  forecasts?: RawForecastItem[];
+  data?: RawForecastItem[];
 }
 
 interface RawForecastResult {
@@ -220,12 +226,13 @@ interface RawForecastDetail {
 export function useCeoAiForecast() {
   return useQuery<AiForecastInsight>({
     queryKey: CEO_DASHBOARD_KEYS.aiForecast(),
+    staleTime: 0, // Luôn lấy lại — danh sách dự báo thay đổi sau mỗi lần kích hoạt
     queryFn: async (): Promise<AiForecastInsight> => {
       const listRes = await apiClient.get('/api/ai-forecasts', {
         params: { page: 1, limit: 10, status: 'COMPLETED' },
       });
       const listData = unwrapApiData<RawForecastList>(listRes);
-      const forecasts = listData?.forecasts ?? listData?.data ?? [];
+      const forecasts = listData?.items ?? listData?.forecasts ?? listData?.data ?? [];
 
       if (forecasts.length === 0) {
         return {
@@ -246,7 +253,7 @@ export function useCeoAiForecast() {
       const detail = unwrapApiData<RawForecastDetail>(detailRes);
       const results: RawForecastResult[] = detail?.results ?? [];
 
-      // MAPE accuracy
+      // Tính độ chính xác MAPE
       const mapeScores = results
         .map((r) => r.mape_score)
         .filter((m): m is number => m !== null && m !== undefined);
@@ -259,11 +266,11 @@ export function useCeoAiForecast() {
         : avgMape > 0.15 ? 'warn'
         : 'ok';
 
-      // Budget: sum forecast_qty as proxy (no price data in forecast results)
+      // Tổng số lượng đề xuất nhập
       const totalSuggestedQty = results.reduce((s, r) => s + (Number(r.forecast_qty) || 0), 0);
       const productsNeedOrder = results.filter((r) => Number(r.forecast_qty) > 0).length;
 
-      // Infrastructure alert based on forecast volume vs baseline
+      // Cảnh báo khi dự báo dùng mô hình dự phòng
       const infrastructureAlert = latest.is_fallback
         ? 'Dự báo tháng này dùng mô hình dự phòng — độ chính xác thấp hơn bình thường.'
         : null;
@@ -271,7 +278,7 @@ export function useCeoAiForecast() {
       return {
         latestForecastMonth: latest.forecast_month,
         forecastStatus: latest.status,
-        totalBudgetVnd: 0, // requires unit price cross-ref — shown as "cần cập nhật giá"
+        totalBudgetVnd: 0,
         totalSuggestedQty,
         forecastAccuracyPct,
         mapeLevel,
@@ -280,12 +287,10 @@ export function useCeoAiForecast() {
         totalProducts: detail?._count?.results ?? results.length,
       };
     },
-    staleTime: REFRESH_INTERVAL_MS,
-    refetchInterval: REFRESH_INTERVAL_MS,
   });
 }
 
-// ── Widget 3: Risk & Shrinkage ────────────────────────────────────────────────
+// ── Widget 3: Rủi ro & Hao hụt ───────────────────────────────────────────────
 
 export function useCeoRiskAnalysis() {
   return useQuery<ShrinkageData>({
@@ -306,7 +311,7 @@ export function useCeoRiskAnalysis() {
         }),
       ]);
 
-      // Shrinkage: disposals this month
+      // Lọc phiếu thanh lý trong tháng hiện tại
       const thisMonthDisposals = disposalsRes.items.filter((d) => {
         const dt = new Date(d.created_at);
         return dt >= firstOfMonth && dt <= lastOfMonth;
@@ -321,17 +326,16 @@ export function useCeoRiskAnalysis() {
         }
       }
 
-      // Approximate inbound value for this month from previous month stock-in count
-      // (rough proxy: inboundThisMonth total × avg order value)
+      // Ước tính giá trị nhập kho tháng hiện tại dựa trên số phiếu tháng trước
       const prevMonthIns = inboundThisMonth.total_stock_ins;
-      const inboundValueThisMonth = prevMonthIns * 10; // placeholder multiplier
+      const inboundValueThisMonth = prevMonthIns * 10;
 
       const shrinkageRatePct =
         inboundValueThisMonth > 0
           ? +((shrinkageValue / inboundValueThisMonth) * 100).toFixed(2)
           : null;
 
-      // Supplier risk: group discrepancy stock-ins by supplier
+      // Nhóm phiếu sai lệch theo nhà cung cấp để đánh giá rủi ro
       const supplierMap = new Map<
         string,
         { supplierId: number | null; count: number; codes: string[] }
@@ -372,7 +376,7 @@ export function useCeoRiskAnalysis() {
   });
 }
 
-// ── Widget 4: Supply Chain KPIs ───────────────────────────────────────────────
+// ── Widget 4: KPI Chuỗi cung ứng ─────────────────────────────────────────────
 
 export function useCeoSupplyChain() {
   return useQuery<SupplyChainData>({
@@ -380,7 +384,7 @@ export function useCeoSupplyChain() {
     queryFn: async (): Promise<SupplyChainData> => {
       const now = new Date();
 
-      // Build last-6-months date ranges
+      // Xây dựng khoảng thời gian 6 tháng gần nhất
       const months = Array.from({ length: 6 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
         return {
@@ -390,7 +394,7 @@ export function useCeoSupplyChain() {
         };
       });
 
-      // Parallel: monthly summaries + current OTIF estimate
+      // Lấy song song tóm tắt từng tháng và đơn hàng để tính OTIF
       const [monthlySummaries, completedOuts, allActiveOuts] = await Promise.all([
         Promise.all(
           months.map((m) =>
@@ -401,7 +405,7 @@ export function useCeoSupplyChain() {
         getStockOuts({ page: 1, limit: 500 }),
       ]);
 
-      // OTIF: % completed orders out of all non-DRAFT, non-CANCELLED orders
+      // Tính tỷ lệ OTIF từ các đơn không phải DRAFT/CANCELLED
       const totalOrders = allActiveOuts.items.filter(
         (o) => o.status !== 'DRAFT' && o.status !== 'CANCELLED',
       ).length;

@@ -3,6 +3,7 @@ import { Label as LabelPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Label cho form field.
 function Label({
   className,
   ...props

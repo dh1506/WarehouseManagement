@@ -5,6 +5,7 @@ interface PageHeaderProps {
   actions?: React.ReactNode;
 }
 
+// Muc dich: Hien thi tieu de trang va action.
 export function PageHeader({ eyebrow, title, actions }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">

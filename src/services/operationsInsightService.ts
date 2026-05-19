@@ -15,6 +15,7 @@ export interface OperationsInsightPayload {
   locationResult: Awaited<ReturnType<typeof getWarehouseLocations>>;
 }
 
+// Muc dich: Tong hop du lieu san pham, kho va vi tri cho man hinh insight.
 export async function getOperationsInsightPayload(
   params: OperationsInsightParams,
 ): Promise<OperationsInsightPayload> {

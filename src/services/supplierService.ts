@@ -49,6 +49,7 @@ interface SupplierListApiData {
   pagination: PaginationApiModel;
 }
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -62,10 +63,12 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Map trang thai active sang status FE.
 function toSupplierStatus(isActive: boolean): SupplierStatus {
   return isActive ? 'active' : 'inactive';
 }
 
+// Muc dich: Map thong tin san pham cua nha cung cap.
 function toProductSummary(item: SupplierProductApiModel): SupplierProductSummary {
   return {
     id: String(item.product.id),
@@ -82,6 +85,7 @@ function toProductSummary(item: SupplierProductApiModel): SupplierProductSummary
   };
 }
 
+// Muc dich: Map nha cung cap API sang item FE.
 function toSupplierItem(supplier: SupplierApiModel): SupplierItem {
   return {
     id: String(supplier.id),
@@ -98,6 +102,7 @@ function toSupplierItem(supplier: SupplierApiModel): SupplierItem {
   };
 }
 
+// Muc dich: Map nha cung cap API sang detail FE.
 function toSupplierDetail(supplier: SupplierApiModel): SupplierDetail {
   return {
     ...toSupplierItem(supplier),
@@ -105,6 +110,7 @@ function toSupplierDetail(supplier: SupplierApiModel): SupplierDetail {
   };
 }
 
+// Muc dich: Chuyen id string sang so va validate.
 function toNumberId(value: string): number {
   const parsed = Number(value);
 
@@ -115,6 +121,7 @@ function toNumberId(value: string): number {
   return parsed;
 }
 
+// Muc dich: Lay danh sach nha cung cap.
 export async function getSuppliers(params: SupplierListParams = {}): Promise<SupplierListResponse> {
   const response = await apiClient.get<ApiResponse<SupplierListApiData>>('/api/suppliers', {
     params: {
@@ -138,6 +145,7 @@ export async function getSuppliers(params: SupplierListParams = {}): Promise<Sup
   };
 }
 
+// Muc dich: Lay chi tiet nha cung cap theo id.
 export async function getSupplierById(id: string): Promise<SupplierDetail> {
   const response = await apiClient.get<ApiResponse<SupplierApiModel>>(
     `/api/suppliers/${toNumberId(id)}`,
@@ -145,6 +153,7 @@ export async function getSupplierById(id: string): Promise<SupplierDetail> {
   return toSupplierDetail(unwrapApiData<SupplierApiModel>(response));
 }
 
+// Muc dich: Tao nha cung cap moi.
 export async function createSupplier(payload: SupplierFormValues): Promise<SupplierItem> {
   const response = await apiClient.post<ApiResponse<SupplierApiModel>>('/api/suppliers', {
     code: payload.code.trim().toUpperCase(),
@@ -159,6 +168,7 @@ export async function createSupplier(payload: SupplierFormValues): Promise<Suppl
   return toSupplierItem(unwrapApiData<SupplierApiModel>(response));
 }
 
+// Muc dich: Cap nhat nha cung cap theo id.
 export async function updateSupplier(id: string, payload: SupplierFormValues): Promise<SupplierItem> {
   const response = await apiClient.patch<ApiResponse<SupplierApiModel>>(
     `/api/suppliers/${toNumberId(id)}`,

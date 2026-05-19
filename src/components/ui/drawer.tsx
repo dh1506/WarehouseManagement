@@ -3,30 +3,35 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Wrapper cho Drawer root.
 function Drawer({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
   return <DrawerPrimitive.Root data-slot="drawer" {...props} />
 }
 
+// Muc dich: Trigger mo Drawer.
 function DrawerTrigger({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Trigger>) {
   return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />
 }
 
+// Muc dich: Portal cho Drawer.
 function DrawerPortal({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Portal>) {
   return <DrawerPrimitive.Portal data-slot="drawer-portal" {...props} />
 }
 
+// Muc dich: Nut dong Drawer.
 function DrawerClose({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Close>) {
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />
 }
 
+// Muc dich: Lop nen overlay cho Drawer.
 function DrawerOverlay({
   className,
   ...props
@@ -43,6 +48,7 @@ function DrawerOverlay({
   )
 }
 
+// Muc dich: Khung noi dung Drawer.
 function DrawerContent({
   className,
   children,
@@ -66,6 +72,7 @@ function DrawerContent({
   )
 }
 
+// Muc dich: Header cua Drawer.
 function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -79,6 +86,7 @@ function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Footer cua Drawer.
 function DrawerFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -89,6 +97,7 @@ function DrawerFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Tieu de Drawer.
 function DrawerTitle({
   className,
   ...props
@@ -105,6 +114,7 @@ function DrawerTitle({
   )
 }
 
+// Muc dich: Mo ta Drawer.
 function DrawerDescription({
   className,
   ...props

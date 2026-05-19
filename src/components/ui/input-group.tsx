@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
+// Muc dich: Nhom input gom addon/textarea/button.
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -20,6 +21,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Variant cho InputGroup addon.
 const inputGroupAddonVariants = cva(
   "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
   {
@@ -41,6 +43,7 @@ const inputGroupAddonVariants = cva(
   }
 )
 
+// Muc dich: Addon ben trong InputGroup.
 function InputGroupAddon({
   className,
   align = "inline-start",
@@ -63,6 +66,7 @@ function InputGroupAddon({
   )
 }
 
+// Muc dich: Variant cho nut trong InputGroup.
 const inputGroupButtonVariants = cva(
   "flex items-center gap-2 text-sm shadow-none",
   {
@@ -81,6 +85,7 @@ const inputGroupButtonVariants = cva(
   }
 )
 
+// Muc dich: Nut thao tac trong InputGroup.
 function InputGroupButton({
   className,
   type = "button",
@@ -100,6 +105,7 @@ function InputGroupButton({
   )
 }
 
+// Muc dich: Text hien thi trong InputGroup.
 function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
@@ -112,6 +118,7 @@ function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
+// Muc dich: Input dung trong InputGroup.
 function InputGroupInput({
   className,
   ...props
@@ -128,6 +135,7 @@ function InputGroupInput({
   )
 }
 
+// Muc dich: Textarea dung trong InputGroup.
 function InputGroupTextarea({
   className,
   ...props

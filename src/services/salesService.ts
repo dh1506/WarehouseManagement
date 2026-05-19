@@ -9,16 +9,15 @@ import type {
 } from '@/features/sales/types/salesType';
 import { useAuthStore } from '@/store/authStore';
 
+// Muc dich: Lay data thuan tu ApiResponse.
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
   return res.data;
 }
 
 // ── POST /api/sales/import ────────────────────────────────────────────────────
-// Uses native fetch (not apiClient) so the browser can auto-set the correct
-// multipart/form-data; boundary=... Content-Type header for the FormData body.
-// Axios's default Content-Type: application/json interferes with multer when
-// using the shared apiClient instance.
+// Dùng native fetch thay vì apiClient để trình duyệt tự gán Content-Type multipart/form-data.
+// Muc dich: Import file ban hang bang multipart/form-data.
 export async function importSalesBatch(file: File): Promise<SalesImportResult> {
   const formData = new FormData();
   formData.append('file', file);
@@ -35,8 +34,7 @@ export async function importSalesBatch(file: File): Promise<SalesImportResult> {
       body: formData,
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        // No Content-Type header — the browser auto-injects
-        // "multipart/form-data; boundary=<uuid>" from the FormData body.
+        // Không set Content-Type — trình duyệt tự thêm boundary từ FormData.
       },
       signal: controller.signal,
     });
@@ -53,7 +51,8 @@ export async function importSalesBatch(file: File): Promise<SalesImportResult> {
   }
 }
 
-// ── GET /api/sales/transactions ───────────────────────────────────────────────
+// ── GET /api/sales/transactions ──────────────────────────────────────────────
+// Muc dich: Lay danh sach giao dich ban hang.
 export async function getSalesTransactions(
   params: SalesTransactionQueryParams,
 ): Promise<SalesTransactionListResponse> {
@@ -67,13 +66,12 @@ export async function getSalesTransactions(
   if (params.product_id) query.product_id = params.product_id;
 
   const response = await apiClient.get('/api/sales/transactions', { params: query });
-  // The interceptor already returns response.data (the full JSON body).
-  // BE sends { success, data: [...], meta: {...} } at the top level, which
-  // directly matches SalesTransactionListResponse — no further unwrap needed.
+  // Interceptor đã trả về response.data — cấu trúc BE khớp thẳng với SalesTransactionListResponse.
   return response as unknown as SalesTransactionListResponse;
 }
 
-// ── GET /api/sales/summaries ──────────────────────────────────────────────────
+// ── GET /api/sales/summaries ─────────────────────────────────────────────────
+// Muc dich: Lay tong hop ban hang theo ngay.
 export async function getSalesDailySummaries(
   params: SalesDailySummaryQueryParams,
 ): Promise<SalesDailySummaryListResponse> {
@@ -87,7 +85,6 @@ export async function getSalesDailySummaries(
   if (params.product_id) query.product_id = params.product_id;
 
   const response = await apiClient.get('/api/sales/summaries', { params: query });
-  // Same shape as transactions — BE returns { success, data: [...], meta: {...} }
-  // at the top level; return directly without unwrap.
+  // Cấu trúc giống transactions — trả về trực tiếp.
   return response as unknown as SalesDailySummaryListResponse;
 }

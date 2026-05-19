@@ -16,6 +16,7 @@ const LEVEL_CONFIG: Record<OccupancyLevel, { label: string; dot: string; badge: 
 
 // ── Conversion helpers (exported for reuse) ───────────────────────────────────
 
+// Muc dich: Map ti le day sang level.
 export function occupancyPctToLevel(pct: number): OccupancyLevel {
   if (pct < 1)  return 'EMPTY';
   if (pct < 40) return 'LOW';
@@ -24,6 +25,7 @@ export function occupancyPctToLevel(pct: number): OccupancyLevel {
   return 'FULL';
 }
 
+// Muc dich: Map status backend sang level.
 export function locationStatusToLevel(
   status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE' | undefined,
 ): OccupancyLevel {
@@ -47,6 +49,7 @@ interface OccupancyBadgeProps {
   className?: string;
 }
 
+// Muc dich: Hien thi badge trang thai do day.
 export function OccupancyBadge({
   occupancyPct,
   locationStatus,

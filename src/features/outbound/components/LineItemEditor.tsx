@@ -5,11 +5,9 @@ import { useProductInventoryAtLocation } from '../hooks/useOutbound';
 import type { CreateStockOutSchemaValues } from '../schemas/outboundSchema';
 
 // ─── LineItemEditor ───────────────────────────────────────────────────────────
-// Schema của BE: details[{ product_id, quantity, unit_price? }]
-// Lô hàng & vị trí KHÔNG được chỉ định lúc tạo phiếu — chỉ gán sau khi APPROVED.
-//
-// Tồn kho khả dụng được tra tại đúng warehouse_location_id của phiếu (khớp với
-// logic validateAvailableStock của BE) để tránh tạo phiếu không thể phê duyệt.
+// Danh sách sản phẩm xuất theo schema BE: details[{ product_id, quantity, unit_price? }]
+// Lô hàng và vị trí chưa được chỉ định lúc tạo — chỉ gán sau khi APPROVED.
+// Kiểm tra tồn kho tại đúng warehouse_location_id để tránh tạo phiếu không duyệt được.
 
 export function LineItemEditor() {
   const { control, formState: { errors } } = useFormContext<CreateStockOutSchemaValues>();
@@ -24,7 +22,7 @@ export function LineItemEditor() {
 
   return (
     <div className="space-y-3">
-      {/* Header */}
+      {/* Tiêu đề danh sách */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-blue-600 text-[18px]">list_alt</span>
@@ -51,7 +49,7 @@ export function LineItemEditor() {
         <p className="text-xs text-red-500">{detailErrors.root.message}</p>
       )}
 
-      {/* Empty state */}
+      {/* Trạng thái rỗng */}
       {fields.length === 0 && (
         <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-200 mb-2 block">
@@ -83,7 +81,7 @@ export function LineItemEditor() {
         </div>
       )}
 
-      {/* Fields */}
+      {/* Danh sách dòng */}
       <div className="space-y-3">
         {fields.map((field, index) => (
           <LineItemRow key={field.id} index={index} onRemove={() => remove(index)} />
@@ -109,9 +107,8 @@ export function LineItemEditor() {
 }
 
 // ─── LineItemRow ──────────────────────────────────────────────────────────────
-// Mỗi dòng sản phẩm tự quản lý truy vấn tồn kho của riêng mình.
-// Dùng useWatch để subscribe chính xác vào product_id và quantity của dòng đó,
-// tránh re-render toàn bộ form khi các field khác thay đổi.
+// Mỗi dòng tự quản lý truy vấn tồn kho của riêng mình.
+// Dùng useWatch để tránh re-render toàn bộ form khi field khác thay đổi.
 
 function LineItemRow({ index, onRemove }: { index: number; onRemove: () => void }) {
   const {
@@ -131,28 +128,26 @@ function LineItemRow({ index, onRemove }: { index: number; onRemove: () => void 
     name: 'warehouse_location_id',
   });
 
-  // Debounce productId 400ms để tránh gọi API khi user đang gõ từng chữ số
+  // Debounce product ID 400ms để giảm số lần gọi API
   const debouncedProductId = useDebounce(productId, 400);
   const safeProductId =
     Number.isFinite(debouncedProductId) && debouncedProductId > 0 ? debouncedProductId : 0;
   const safeLocationId =
     Number.isFinite(warehouseLocationId) && warehouseLocationId > 0 ? warehouseLocationId : 0;
 
-  // Query inventory at the specific stock-out location — matches BE's validateAvailableStock.
-  // Disabled when no location is entered yet (safeLocationId === 0).
+  // Truy vấn tồn kho tại vị trí xuất cụ thể (vô hiệu khi chưa nhập location)
   const { data: inventoryData, isLoading: isLoadingInventory } =
     useProductInventoryAtLocation(safeProductId, safeLocationId);
 
   const availableQty = safeLocationId > 0 ? inventoryData?.availableQty : undefined;
 
-  // Ref để theo dõi xem chính hook này có đang giữ manual error không,
-  // tránh xoá nhầm lỗi do Zod resolver đặt (ví dụ: "Số lượng phải lớn hơn 0")
+  // Theo dõi lỗi manual để tránh xóa nhầm lỗi do Zod resolver đặt
   const hasManualErrorRef = useRef(false);
 
   useEffect(() => {
     const fieldName = `details.${index}.quantity` as const;
 
-    // Chưa chọn sản phẩm hoặc đang tải → xoá manual error nếu có, không làm gì thêm
+    // Chưa chọn sản phẩm hoặc đang tải — xóa manual error nếu có
     if (safeProductId === 0 || isLoadingInventory || availableQty === undefined) {
       if (hasManualErrorRef.current) {
         clearErrors(fieldName);
@@ -268,7 +263,7 @@ function LineItemRow({ index, onRemove }: { index: number; onRemove: () => void 
 }
 
 // ─── InventoryAvailabilityBadge ───────────────────────────────────────────────
-// Pure presentational — không chứa logic, chỉ nhận props và render trạng thái.
+// Hiển thị trạng thái tồn kho khả dụng — chỉ nhận props, không chứa logic.
 
 interface InventoryAvailabilityBadgeProps {
   productId: number;
@@ -280,7 +275,7 @@ interface InventoryAvailabilityBadgeProps {
 function InventoryAvailabilityBadge({ productId, locationId, isLoading, availableQty }: InventoryAvailabilityBadgeProps) {
   if (productId === 0) return null;
 
-  // Product selected but no location entered yet — prompt user to enter location
+  // Đã chọn sản phẩm nhưng chưa nhập vị trí — nhắc người dùng
   if (locationId === 0) {
     return (
       <div className="flex items-center gap-1 mt-1.5">

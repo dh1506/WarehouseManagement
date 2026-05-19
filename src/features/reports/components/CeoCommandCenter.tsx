@@ -207,6 +207,7 @@ const MAPE_LABELS = { ok: 'Tốt', warn: 'Trung bình', critical: 'Kém' };
 
 function AiForecastWidget() {
   const { data, isLoading } = useCeoAiForecast();
+  const navigate = useNavigate();
 
   return (
     <WidgetCard
@@ -231,8 +232,8 @@ function AiForecastWidget() {
           <p className="text-xs text-slate-400">Chưa có dự báo AI nào hoàn thành</p>
           <button
             type="button"
-            onClick={() => { /* navigate to ai-forecast */ }}
-            className="text-xs text-violet-600 underline"
+            onClick={() => navigate('/ai-forecast')}
+            className="text-xs text-violet-600 underline hover:text-violet-800"
           >
             Khởi chạy dự báo →
           </button>
@@ -287,7 +288,7 @@ function AiForecastWidget() {
 
           <button
             type="button"
-            onClick={() => window.location.assign('/ai-forecast')}
+            onClick={() => navigate('/ai-forecast')}
             className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-violet-200 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 transition-colors"
           >
             <span className="material-symbols-outlined text-[14px]">open_in_new</span>

@@ -10,14 +10,17 @@ const ACTION_ALIASES: Record<ModulePermissionAction, string[]> = {
   approve: ['approve', 'manage'],
 };
 
+// Muc dich: Chuan hoa token permission.
 function normalizeToken(value: string): string {
   return value.trim().toLowerCase();
 }
 
+// Muc dich: Chuyen danh tu so nhieu ve so it neu can.
 function toSingular(value: string): string {
   return value.endsWith('s') ? value.slice(0, -1) : value;
 }
 
+// Muc dich: Tao danh sach bien the module de so khop permission.
 function buildModuleCandidates(moduleName: string, aliases: string[] = []): string[] {
   const rawCandidates = [moduleName, ...aliases]
     .map(normalizeToken)
@@ -35,11 +38,13 @@ function buildModuleCandidates(moduleName: string, aliases: string[] = []): stri
   return Array.from(new Set(rawCandidates));
 }
 
+// Muc dich: Kiem tra role co phai admin.
 export function isAdminRole(roleValue: string | null | undefined): boolean {
   const normalizedRole = normalizeToken(roleValue ?? '');
   return ADMIN_ROLES.has(normalizedRole.toUpperCase());
 }
 
+// Muc dich: Kiem tra quyen action theo module va alias.
 export function hasModuleActionPermission(params: {
   permissions: string[];
   moduleName: string;

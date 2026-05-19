@@ -35,7 +35,7 @@ interface StockCountDetailProps {
   stockCount: StockCount;
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+// ── Badge trạng thái ──────────────────────────────────────────────────────────────
 const STATUS_BADGE: Record<StockCountStatus, { bg: string; text: string; ring: string; icon: string }> = {
   DRAFT:     { bg: 'bg-slate-100',   text: 'text-slate-600',   ring: 'ring-slate-200',   icon: 'edit_note' },
   COUNTING:  { bg: 'bg-blue-50',     text: 'text-blue-700',    ring: 'ring-blue-200',    icon: 'fact_check' },
@@ -84,12 +84,11 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
 
-  // Progress
   const totalItems = stockCount.details.length;
   const countedItems = stockCount.details.filter((d) => d.counted_quantity !== null).length;
   const progressPct = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
 
-  // Unconfirmed variances (blocks Complete)
+  // Chênh lệch chưa xác nhận (chặn hoàn tất)
   const unconfirmedVariances = stockCount.details.filter(
     (d) =>
       d.counted_quantity !== null &&
@@ -97,7 +96,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
       !d.is_confirmed,
   );
 
-  // All items with any variance (shown in approve dialog)
+  // Tất cả mục có chênh lệch (hiển thị trong dialog phê duyệt)
   const allVarianceDetails = stockCount.details.filter(
     (d) => d.counted_quantity !== null && Number(d.variance_quantity ?? 0) !== 0,
   );
@@ -107,7 +106,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
     countedItems === totalItems &&
     unconfirmedVariances.length === 0;
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Xử lý hành động ───────────────────────────────────────────────────────────────
   const handleStart = () => {
     startMutation.mutate(stockCount.id, {
       onSuccess: () => toast({ title: 'Đã bắt đầu kiểm kê', description: 'Trạng thái đã chuyển sang Đang kiểm kê.' }),
@@ -132,7 +131,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
     });
   };
 
-  // Show variance warning dialog if there are any variances; otherwise approve directly.
+  // Mở dialog cảnh báo nếu có chênh lệch; nếu không thì duyệt trực tiếp.
   const handleApprove = () => {
     if (allVarianceDetails.length > 0) {
       setApproveOpen(true);
@@ -221,12 +220,11 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
             </div>
           </div>
 
-          {/* Action buttons — single AnimatePresence with keyed children prevents
-              simultaneous insertBefore conflicts when multiple buttons exit/enter
-              on the same status transition. */}
+          {/* Nút hành động — AnimatePresence với keyed children để tránh xung đột khi nhiều nút
+              cùng exit/enter trong một lần chuyển trạng thái. */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <AnimatePresence mode="popLayout">
-              {/* Export */}
+              {/* Xuất file */}
               {canExport && (stockCount.status === 'COMPLETED' || stockCount.status === 'APPROVED') && (
                 <motion.div
                   key="export"
@@ -257,7 +255,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                 </motion.div>
               )}
 
-              {/* Cancel */}
+              {/* Hủy phiếu */}
               {canCancel && (stockCount.status === 'DRAFT' || stockCount.status === 'COUNTING') && (
                 <motion.button
                   key="cancel"
@@ -276,7 +274,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                 </motion.button>
               )}
 
-              {/* Start counting */}
+              {/* Bắt đầu kiểm kê */}
               {canUpdate && stockCount.status === 'DRAFT' && (
                 <motion.button
                   key="start"
@@ -299,7 +297,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                 </motion.button>
               )}
 
-              {/* Complete */}
+              {/* Hoàn tất kiểm kê */}
               {canUpdate && stockCount.status === 'COUNTING' && (
                 <motion.button
                   key="complete"
@@ -335,7 +333,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
                 </motion.button>
               )}
 
-              {/* Approve */}
+              {/* Phê duyệt */}
               {canApprove && stockCount.status === 'COMPLETED' && (
                 <motion.button
                   key="approve"
@@ -387,7 +385,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
             value={String(totalItems)}
             sub={`${countedItems} đã đếm`}
           />
-          {/* Progress card */}
+          {/* Card tiến độ */}
           <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <span className="material-symbols-outlined text-[16px] text-slate-400">bar_chart</span>
@@ -413,7 +411,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
         {/* Status banners */}
         <div className="space-y-2">
           <AnimatePresence>
-            {/* Transaction lock info — shown whenever counting is active */}
+            {/* Thông báo khóa giao dịch — hiển thị khi đang kiểm kê */}
             {stockCount.status === 'COUNTING' && (
               <motion.div
                 key="lock-banner"
@@ -430,7 +428,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
               </motion.div>
             )}
 
-            {/* Not-all-counted hint — visible on mobile where the disabled tooltip is inaccessible */}
+            {/* Gợi ý chưa đếm đủ — hiển thị trên mobile vì tooltip disabled không dùng được */}
             {stockCount.status === 'COUNTING' && countedItems < totalItems && unconfirmedVariances.length === 0 && (
               <motion.div
                 key="incomplete-banner"
@@ -447,7 +445,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
               </motion.div>
             )}
 
-            {/* Unconfirmed variance warning */}
+            {/* Cảnh báo chênh lệch chưa xác nhận */}
             {unconfirmedVariances.length > 0 && stockCount.status === 'COUNTING' && (
               <motion.div
                 key="variance-banner"
@@ -477,7 +475,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
           <StockCountDetailGrid stockCount={stockCount} />
         </motion.div>
 
-        {/* Adjustments section (APPROVED only) */}
+        {/* Phần điều chỉnh tồn kho (chỉ khi APPROVED) */}
         <AnimatePresence>
           {stockCount.status === 'APPROVED' && stockCount.adjustments.length > 0 && (
             <motion.div
@@ -542,7 +540,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
         </AnimatePresence>
       </div>
 
-      {/* ── Cancel dialog ────────────────────────────────────────────────────── */}
+      {/* ── Dialog hủy phiếu ────────────────────────────────────────────────────── */}
       <CancelStockCountDialog
         open={cancelOpen}
         stockCountCode={stockCount.code}
@@ -551,7 +549,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
         onClose={() => setCancelOpen(false)}
       />
 
-      {/* ── Approve variance confirmation dialog ──────────────────────────── */}
+      {/* ── Dialog xác nhận phê duyệt khi có chênh lệch ──────────────────────────── */}
       <ApproveWithVarianceDialog
         open={approveOpen}
         stockCountCode={stockCount.code}
@@ -564,7 +562,7 @@ export function StockCountDetail({ stockCount }: StockCountDetailProps) {
   );
 }
 
-// ── Info card sub-component ───────────────────────────────────────────────────
+// ── Sub-component card thông tin ───────────────────────────────────────────────────
 function InfoCard({
   icon,
   label,

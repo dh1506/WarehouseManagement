@@ -5,6 +5,7 @@ import en from './locales/en.json';
 
 type Locale = 'vi' | 'en';
 
+// Muc dich: Lay locale da luu tu localStorage.
 function getPersistedLocale(): Locale {
   try {
     const raw = localStorage.getItem('ui-storage');

@@ -114,6 +114,7 @@ const SIDEBAR_MODULE_TEMPLATES: SidebarModuleTemplate[] = [
   },
 ];
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -127,12 +128,14 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Chuyen danh sach quyen thanh Set de tra cuu nhanh.
 function toPermissionSet(permissions: Array<{ module: string; action: string }>): Set<string> {
   return new Set(
     permissions.map((permission) => `${permission.module}:${permission.action}`.toLowerCase()),
   );
 }
 
+// Muc dich: Kiem tra co bat ky action nao duoc cap cho module backend.
 function hasAnyAction(
   permissionSet: Set<string>,
   backendModules: string[],
@@ -141,6 +144,7 @@ function hasAnyAction(
   return backendModules.some((moduleName) => actions.some((action) => permissionSet.has(`${moduleName}:${action}`)));
 }
 
+// Muc dich: Kiem tra action co ton tai trong catalog quyen.
 function hasAvailableAction(
   permissionCatalogSet: Set<string>,
   backendModules: string[],
@@ -149,6 +153,7 @@ function hasAvailableAction(
   return backendModules.some((moduleName) => permissionCatalogSet.has(`${moduleName}:${action}`));
 }
 
+// Muc dich: Ghep mau module sidebar voi quyen hien co.
 function mapToSidebarModules(
   permissionSet: Set<string>,
   permissionCatalogSet: Set<string>,
@@ -196,6 +201,7 @@ function mapToSidebarModules(
   });
 }
 
+// Muc dich: Tao thong tin tong hop ve role va muc do rui ro.
 function buildContext(roleId: string, roleDescription: string | null, modules: ModulePermission[]): RoleContext {
   const activeModules = modules.filter((moduleItem) => moduleItem.view).length;
   const highRiskPermissions = modules.reduce(
@@ -211,6 +217,7 @@ function buildContext(roleId: string, roleDescription: string | null, modules: M
   };
 }
 
+// Muc dich: Chuyen quyen cua module thanh danh sach action.
 function toActionSet(modulePermission: ModulePermission): string[] {
   const actions = new Set<string>();
 
@@ -225,6 +232,7 @@ function toActionSet(modulePermission: ModulePermission): string[] {
   return Array.from(actions);
 }
 
+// Muc dich: Map payload module->action sang danh sach id quyen.
 function mapPayloadToPermissionIds(
   payload: UpdateAdvancedPermissionPayload,
   permissionCatalog: PermissionApiItem[],
@@ -253,6 +261,7 @@ function mapPayloadToPermissionIds(
     .map((permission) => permission.id);
 }
 
+// Muc dich: Lay quyen nang cao cua role va map ra module sidebar.
 export async function getAdvancedRolePermissions(roleId: string): Promise<AdvancedRolePermissionResponse> {
   const [roleResponse, permissionResponse] = await Promise.all([
     apiClient.get<ApiResponse<RoleDetailApiData>>(`/api/roles/${roleId}`),
@@ -286,6 +295,7 @@ export async function getAdvancedRolePermissions(roleId: string): Promise<Advanc
   };
 }
 
+// Muc dich: Cap nhat quyen role va tra ve cau hinh moi.
 export async function updateAdvancedRolePermissions(
   roleId: string,
   payload: UpdateAdvancedPermissionPayload,

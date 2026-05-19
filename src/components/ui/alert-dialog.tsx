@@ -4,12 +4,14 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+// Muc dich: Wrapper cho AlertDialog root.
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }
 
+// Muc dich: Trigger mo AlertDialog.
 function AlertDialogTrigger({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
@@ -18,6 +20,7 @@ function AlertDialogTrigger({
   )
 }
 
+// Muc dich: Portal cho AlertDialog.
 function AlertDialogPortal({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
@@ -26,6 +29,7 @@ function AlertDialogPortal({
   )
 }
 
+// Muc dich: Lop nen overlay cho AlertDialog.
 function AlertDialogOverlay({
   className,
   ...props
@@ -42,6 +46,7 @@ function AlertDialogOverlay({
   )
 }
 
+// Muc dich: Khung noi dung AlertDialog.
 function AlertDialogContent({
   className,
   size = "default",
@@ -65,6 +70,7 @@ function AlertDialogContent({
   )
 }
 
+// Muc dich: Header cua AlertDialog.
 function AlertDialogHeader({
   className,
   ...props
@@ -81,6 +87,7 @@ function AlertDialogHeader({
   )
 }
 
+// Muc dich: Footer chua cac action.
 function AlertDialogFooter({
   className,
   ...props
@@ -97,6 +104,7 @@ function AlertDialogFooter({
   )
 }
 
+// Muc dich: Khu vuc media/icon cho dialog.
 function AlertDialogMedia({
   className,
   ...props
@@ -113,6 +121,7 @@ function AlertDialogMedia({
   )
 }
 
+// Muc dich: Tieu de AlertDialog.
 function AlertDialogTitle({
   className,
   ...props
@@ -129,6 +138,7 @@ function AlertDialogTitle({
   )
 }
 
+// Muc dich: Mo ta AlertDialog.
 function AlertDialogDescription({
   className,
   ...props
@@ -145,6 +155,7 @@ function AlertDialogDescription({
   )
 }
 
+// Muc dich: Nut action chinh cua AlertDialog.
 function AlertDialogAction({
   className,
   variant = "default",
@@ -163,6 +174,7 @@ function AlertDialogAction({
   )
 }
 
+// Muc dich: Nut huy cua AlertDialog.
 function AlertDialogCancel({
   className,
   variant = "outline",

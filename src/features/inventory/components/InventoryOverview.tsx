@@ -47,7 +47,7 @@ function PaginationButton({
   );
 }
 
-// ── KPI Widget ────────────────────────────────────────────────────────────────
+// ── Widget KPI ────────────────────────────────────────────────────────────────
 
 function KpiWidget({
   label,
@@ -117,7 +117,7 @@ function KpiWidget({
   );
 }
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
+// ── Badge trạng thái ──────────────────────────────────────────────────────────
 
 function StatusBadge({ row }: { row: InventorySkuRow }) {
   if (row.onHand < 0) {
@@ -175,7 +175,7 @@ function StatusBadge({ row }: { row: InventorySkuRow }) {
   );
 }
 
-// ── Lot Status Badge ──────────────────────────────────────────────────────────
+// ── Badge trạng thái lô ───────────────────────────────────────────────────────
 
 function LotStatusBadge({ hasHold, expiry, onHand }: { hasHold: boolean; expiry: string | null; onHand: number }) {
   if (onHand < 0) {
@@ -199,7 +199,7 @@ function LotStatusBadge({ hasHold, expiry, onHand }: { hasHold: boolean; expiry:
   return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">Còn hàng</span>;
 }
 
-// ── Detail Rows (lazy-loaded per expanded product) ────────────────────────────
+// ── Hàng chi tiết tồn kho theo vị trí ────────────────────────────────────────
 
 function ProductDetailRows({
   productId,
@@ -307,7 +307,7 @@ function DetailTable({ rows }: { rows: InventoryDetailRow[] }) {
   );
 }
 
-// ── Master Table Row ──────────────────────────────────────────────────────────
+// ── Hàng bảng chính ───────────────────────────────────────────────────────────
 
 function SkuTableRow({
   row,
@@ -384,7 +384,7 @@ function SkuTableRow({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Trang chính ───────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 20;
 
@@ -425,12 +425,10 @@ export function InventoryOverview() {
     if (!data) return [];
     let rows = data.skuRows;
 
-    // Widget quick filter
     if (widgetFilter === 'lowStock') rows = rows.filter((r) => r.isLowStock);
     else if (widgetFilter === 'expiringSoon') rows = rows.filter((r) => r.hasExpiringSoon);
     else if (widgetFilter === 'blocked') rows = rows.filter((r) => r.hasBlockedLot);
 
-    // Debounced search
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.trim().toLowerCase();
       rows = rows.filter(
@@ -438,7 +436,7 @@ export function InventoryOverview() {
       );
     }
 
-    // Sort: low stock first, then expiring, then normal
+    // Sắp xếp: tồn thấp trước, rồi sắp hết hạn, rồi bình thường
     return [...rows].sort((a, b) => {
       const priority = (r: InventorySkuRow) =>
         r.isLowStock ? 0 : r.hasExpiringSoon ? 1 : r.hasBlockedLot ? 2 : 3;
@@ -466,7 +464,7 @@ export function InventoryOverview() {
           description="Bảng tổng hợp sức khoẻ tồn kho theo SKU — tồn thực tế, khả dụng, phân bổ và theo dõi lô hàng."
         />
 
-        {/* ── Zone 1: KPI Widgets ─────────────────────────────────────────── */}
+        {/* ── Khu 1: Widget KPI ───────────────────────────────────────────── */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KpiWidget
             label="Sản phẩm đang hoạt động"
@@ -502,7 +500,7 @@ export function InventoryOverview() {
           />
         </div>
 
-        {/* ── Zone 2: Smart Filter Bar ────────────────────────────────────── */}
+        {/* ── Khu 2: Thanh lọc ────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="relative flex-1 min-w-48">
             <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-slate-400">
@@ -573,7 +571,7 @@ export function InventoryOverview() {
           </Button>
         </div>
 
-        {/* ── Zone 3: Master Data Grid ────────────────────────────────────── */}
+        {/* ── Khu 3: Bảng dữ liệu chính ──────────────────────────────────── */}
         {query.isLoading && (
           <div className="flex min-h-0 flex-1 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
             <StatePanel
@@ -649,7 +647,7 @@ export function InventoryOverview() {
                   </table>
                 </div>
 
-                {/* Sticky pagination */}
+                {/* Phân trang cố định */}
                 <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-xs text-slate-500">

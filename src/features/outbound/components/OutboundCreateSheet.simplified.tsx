@@ -25,7 +25,7 @@ const lineSchema = z.object({
   categoryId: z.string().optional().default(''),
   productId: z.string().min(1, 'Sản phẩm là bắt buộc'),
   quantity: z.coerce.number().gt(0, 'Số lượng phải lớn hơn 0'),
-  availableQty: z.number().optional(), // For display only
+  availableQty: z.number().optional(), // Chỉ để hiển thị, không gửi lên API
 });
 
 const createSheetSchema = z.object({
@@ -83,7 +83,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   const selectedType = watch('type');
   const isReturn = selectedType === 'RETURN_TO_SUPPLIER';
 
-  // ─── UI state ─────────────────────────────────────────────────────────────
+  // ─── Trạng thái UI ────────────────────────────────────────────────────────
 
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [errorAttention, setErrorAttention] = useState(false);
@@ -94,7 +94,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     return isDirty;
   }, [isDirty, open]);
 
-  // ─── Derived product IDs from form ────────────────────────────────────────
+  // ─── ID sản phẩm đã chọn từ form ─────────────────────────────────────────
 
   const selectedProductIds = useMemo(
     () => (details ?? []).map((item) => item.productId).filter((id) => id.length > 0),
@@ -109,7 +109,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     );
   }, [selectedProductIds]);
 
-  // ─── Fetch available quantity when product changes ────────────────────────
+  // ─── Tải tồn kho khả dụng khi sản phẩm thay đổi ─────────────────────────
 
   const fetchAvailableQuantity = async (index: number, productId: string) => {
     if (!productId || Number(productId) <= 0) return;
@@ -127,7 +127,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     }
   };
 
-  // ─── Duplicate validation errors ──────────────────────────────────────────
+  // ─── Kiểm tra sản phẩm trùng lặp ─────────────────────────────────────────
 
   useEffect(() => {
     details?.forEach((line, index) => {
@@ -143,7 +143,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     });
   }, [clearErrors, details, duplicateProductIds, errors.details, setError]);
 
-  // ─── Init first row ───────────────────────────────────────────────────────
+  // ─── Thêm dòng đầu tiên khi mở sheet ────────────────────────────────────
 
   useEffect(() => {
     if (!open) return;
@@ -151,7 +151,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     append({ categoryId: '', productId: '', quantity: 0, availableQty: 0 });
   }, [append, fields.length, open]);
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
+  // ─── Hàm hỗ trợ ──────────────────────────────────────────────────────────
 
   const highlightAndScrollToFirstError = () => {
     setErrorAttention(true);
@@ -185,7 +185,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
   const forceClose = () => { resetSheet(); onOpenChange(false); };
 
-  // ─── Submit ───────────────────────────────────────────────────────────────
+  // ─── Xử lý submit ────────────────────────────────────────────────────────
 
   const onSubmit = async (values: CreateSheetValues) => {
     if (values.details.length === 0) {
@@ -194,7 +194,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
       return;
     }
 
-    // Validate quantities against available stock
+    // Kiểm tra số lượng không vượt tồn kho khả dụng
     let hasInsufficientStock = false;
     for (let i = 0; i < values.details.length; i++) {
       const line = values.details[i];
@@ -219,7 +219,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     }
 
     const payload = {
-      // ❌ Không gửi warehouse_location_id - Backend sẽ tự động chọn
+      // Không gửi warehouse_location_id — BE sẽ tự động chọn
       type: values.type,
       reference_number: values.reference_number?.trim() || undefined,
       description: values.description?.trim() || undefined,
@@ -245,7 +245,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
 
   const isSaving = createSalesMutation.isPending || createReturnMutation.isPending;
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render giao diện ────────────────────────────────────────────────────
 
   return (
     <>
@@ -288,7 +288,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
             >
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
 
-                {/* ── General info ── */}
+                {/* ── Thông tin chung ── */}
                 <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                   <h3 className="mb-4 text-sm font-bold text-slate-800">Thông tin chung</h3>
                   <div className="space-y-4">
@@ -337,7 +337,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   </div>
                 </section>
 
-                {/* ── Product list ── */}
+                {/* ── Danh sách sản phẩm ── */}
                 <section className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-bold text-slate-800">Danh sách sản phẩm xuất</h3>
@@ -426,7 +426,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                               )}
                             </div>
 
-                            {/* Available Quantity Display */}
+                            {/* Hiển thị tồn kho khả dụng */}
                             {lineProductId && (
                               <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
                                 <div className="flex items-center justify-between">
@@ -463,7 +463,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                   </div>
                 </section>
 
-                {/* ── Auto Location Info ── */}
+                {/* ── Thông tin vị trí tự động ── */}
                 <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
                   <div className="flex items-start gap-2">
                     <span className="material-symbols-outlined text-emerald-600 text-[18px] shrink-0">info</span>
@@ -478,7 +478,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
                 </section>
               </div>
 
-              {/* ── Footer ── */}
+              {/* ── Footer hành động ── */}
               <div className="border-t border-slate-100 px-6 py-4">
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
@@ -512,7 +512,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
         </SheetContent>
       </Sheet>
 
-      {/* ── Close confirmation dialog ── */}
+      {/* ── Dialog xác nhận đóng form ── */}
       <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

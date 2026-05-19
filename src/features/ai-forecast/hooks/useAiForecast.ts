@@ -31,6 +31,7 @@ export const AI_FORECAST_KEYS = {
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
+// Muc dich: Lay lich su du bao theo bo loc.
 export function useAiForecastHistory(filters: AiForecastFilterState, page = 1, limit = 12) {
   const params: AiForecastQueryParams = {
     page,
@@ -45,6 +46,7 @@ export function useAiForecastHistory(filters: AiForecastFilterState, page = 1, l
   });
 }
 
+// Muc dich: Lay chi tiet du bao theo id.
 export function useAiForecastDetail(id: number) {
   return useQuery({
     queryKey: AI_FORECAST_KEYS.detail(id),
@@ -53,6 +55,7 @@ export function useAiForecastDetail(id: number) {
   });
 }
 
+// Muc dich: Lay danh sach su kien du bao.
 export function useAiForecastEvents() {
   return useQuery({
     queryKey: AI_FORECAST_KEYS.events(),
@@ -63,6 +66,7 @@ export function useAiForecastEvents() {
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
+// Muc dich: Kich hoat du bao AI.
 export function useTriggerForecast() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -88,6 +92,7 @@ export function useTriggerForecast() {
   });
 }
 
+// Muc dich: Tao su kien du bao.
 export function useCreateForecastEvent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -104,6 +109,7 @@ export function useCreateForecastEvent() {
   });
 }
 
+// Muc dich: Duyet/tu choi hang loat ket qua du bao.
 export function useBulkReviewForecastResults(forecastId: number) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -133,6 +139,7 @@ export function useBulkReviewForecastResults(forecastId: number) {
   });
 }
 
+// Muc dich: Cap nhat hang loat so luong thuc te.
 export function useBulkUpdateActualQty(forecastId: number) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -152,6 +159,7 @@ export function useBulkUpdateActualQty(forecastId: number) {
   });
 }
 
+// Muc dich: Kich hoat retrain tu feedback.
 export function useTriggerRetrain() {
   const { toast } = useToast();
 

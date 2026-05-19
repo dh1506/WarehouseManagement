@@ -4,6 +4,7 @@ import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Wrapper cho Tabs root.
 function Tabs({
   className,
   orientation = "horizontal",
@@ -22,6 +23,7 @@ function Tabs({
   )
 }
 
+// Muc dich: Variant cho TabsList.
 const tabsListVariants = cva(
   "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
   {
@@ -37,6 +39,7 @@ const tabsListVariants = cva(
   }
 )
 
+// Muc dich: Danh sach tab.
 function TabsList({
   className,
   variant = "default",
@@ -53,6 +56,7 @@ function TabsList({
   )
 }
 
+// Muc dich: Nut chuyen tab.
 function TabsTrigger({
   className,
   ...props
@@ -72,6 +76,7 @@ function TabsTrigger({
   )
 }
 
+// Muc dich: Noi dung cua tab.
 function TabsContent({
   className,
   ...props

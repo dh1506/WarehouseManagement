@@ -15,7 +15,7 @@ import { ChartCard } from './ChartCard';
 import { EmptyChartState } from './EmptyChartState';
 import { exportChartAsPNG, exportAsCSV } from './chartUtils';
 
-// ── Design tokens ────────────────────────────────────────────────────────────
+// ── Màu sắc biểu đồ ──────────────────────────────────────────────────────────
 
 const COLOR_SYSTEM    = '#e2e8f0'; // slate-200
 const COLOR_OVERCOUNT = '#10b981'; // emerald-500
@@ -33,7 +33,7 @@ function formatDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-// ── Accuracy Metric Card ─────────────────────────────────────────────────────
+// ── Thẻ độ chính xác kiểm kê ─────────────────────────────────────────────────
 
 interface AccuracyCardProps {
   accuracy:      number;
@@ -68,7 +68,7 @@ function AccuracyCard({ accuracy, lastCountDate, zones }: AccuracyCardProps) {
 
   return (
     <div className={`flex items-center justify-between rounded-xl border px-4 py-3 mb-4 ${bgClass}`}>
-      {/* Main metric */}
+      {/* Chỉ số chính */}
       <div className="flex items-center gap-3">
         <span className={`material-symbols-outlined text-[28px] ${iconClass}`}>{icon}</span>
         <div>
@@ -82,7 +82,7 @@ function AccuracyCard({ accuracy, lastCountDate, zones }: AccuracyCardProps) {
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* Thống kê bổ sung */}
       <div className="hidden sm:flex items-center gap-5 text-right">
         <div>
           <p className="text-[10px] text-slate-400 mb-0.5">Tổng sai lệch</p>
@@ -107,7 +107,7 @@ function AccuracyCard({ accuracy, lastCountDate, zones }: AccuracyCardProps) {
   );
 }
 
-// ── Custom Tooltip ────────────────────────────────────────────────────────────
+// ── Tooltip tùy chỉnh ────────────────────────────────────────────────────────
 
 function VarianceTooltip({ active, payload, label }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
@@ -146,7 +146,7 @@ function VarianceTooltip({ active, payload, label }: TooltipProps<number, string
   );
 }
 
-// ── Custom Legend ─────────────────────────────────────────────────────────────
+// ── Chú thích biểu đồ ────────────────────────────────────────────────────────
 
 function VarianceLegend() {
   const items = [
@@ -167,7 +167,7 @@ function VarianceLegend() {
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ── Component chính ──────────────────────────────────────────────────────────
 
 interface InventoryVarianceChartProps {
   data:       InventoryVarianceData;
@@ -216,7 +216,7 @@ export function InventoryVarianceChart({ data, isLoading, isError }: InventoryVa
         />
       ) : (
         <div className="px-4 pt-3 pb-4">
-          {/* ── Accuracy card (above the chart) ── */}
+          {/* ── Thẻ độ chính xác (hiển thị phía trên biểu đồ) ── */}
           <AccuracyCard
             accuracy={data.accuracy}
             lastCountDate={data.lastCountDate}
@@ -247,7 +247,7 @@ export function InventoryVarianceChart({ data, isLoading, isError }: InventoryVa
               />
               <Tooltip content={<VarianceTooltip />} cursor={{ fill: '#f8fafc', rx: 4 }} />
 
-              {/* Background bar: system quantity */}
+              {/* Cột nền: số lượng hệ thống */}
               <Bar
                 dataKey="systemQty"
                 name="Hệ thống"
@@ -256,7 +256,7 @@ export function InventoryVarianceChart({ data, isLoading, isError }: InventoryVa
                 maxBarSize={28}
               />
 
-              {/* Foreground bar: actual quantity — coloured by variance direction */}
+              {/* Cột trước: số lượng thực tế — màu theo chiều sai lệch */}
               <Bar
                 dataKey="actualQty"
                 name="Thực tế"

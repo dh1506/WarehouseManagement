@@ -27,10 +27,10 @@ interface LotAssignment {
 const DISCREPANCY_REASON_MIN_LENGTH = 5;
 const DISCREPANCY_REASON_MAX_LENGTH = 500;
 
-/** Gán lô: detailId → danh sách lô */
+/** Bảng gán lô: detailId → danh sách lô */
 type DetailAssignments = Record<number, LotAssignment[]>;
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Các component con ───────────────────────────────────────────────────────
 
 /** Header cố định trên cùng */
 function PickingHeader({
@@ -93,7 +93,7 @@ function ProgressBar({ pct }: { pct: number }) {
   );
 }
 
-/** Một dòng lô gán cho detail */
+/** Một dòng nhập lô hàng */
 function LotRow({
   lotIdx,
   assignment,
@@ -131,7 +131,7 @@ function LotRow({
         />
       </div>
 
-      {/* Quantity */}
+      {/* Số lượng */}
       <div className="w-28 shrink-0">
         <input
           type="number"
@@ -145,7 +145,7 @@ function LotRow({
         />
       </div>
 
-      {/* Remove */}
+      {/* Xóa dòng */}
       {canRemove && (
         <button
           type="button"
@@ -159,7 +159,7 @@ function LotRow({
   );
 }
 
-/** Card cho một StockOutDetail */
+/** Card gán lô cho một dòng sản phẩm */
 function DetailCard({
   detail,
   assignments,
@@ -201,7 +201,7 @@ function DetailCard({
           : 'border-slate-200 bg-white'
         }`}
     >
-      {/* Product info */}
+      {/* Thông tin sản phẩm */}
       <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
@@ -217,7 +217,7 @@ function DetailCard({
           </div>
         </div>
 
-        {/* Fulfillment status */}
+        {/* Trạng thái gán số lượng */}
         <div className="shrink-0 text-right">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Yêu cầu</p>
           <p className="text-base font-extrabold text-blue-900 leading-tight">{required}</p>
@@ -227,7 +227,7 @@ function DetailCard({
         </div>
       </div>
 
-      {/* Status bar */}
+      {/* Thanh trạng thái gán lô */}
       <div className="px-4 pb-1">
         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
           <motion.div
@@ -238,7 +238,7 @@ function DetailCard({
         </div>
       </div>
 
-      {/* Lot rows */}
+      {/* Danh sách hàng lô */}
       <div className="px-4 py-3 space-y-2.5">
         <div className="flex items-center justify-between mb-1">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -284,7 +284,7 @@ function DetailCard({
   );
 }
 
-/** Panel hiển thị lệch số lượng khi hoàn tất thất bại */
+/** Panel xử lý chênh lệch số lượng khi hoàn tất không khớp */
 function DiscrepancyPanel({
   open,
   discrepancies,
@@ -518,7 +518,7 @@ function CompleteConfirmDialog({
   );
 }
 
-// ─── Barcode scan input bar ────────────────────────────────────────────────────
+// ─── Thanh nhập quét barcode ──────────────────────────────────────────────────
 
 function ScanInputBar({
   onScan,
@@ -563,9 +563,9 @@ export function OutboundPickingScreen() {
   const updateLotsMutation = useUpdatePickedLots(numericId);
   const completeMutation = useCompleteStockOut(numericId);
 
-  // Local state: gán lô cho từng detail
+  // Trạng thái gán lô cho từng dòng sản phẩm
   const [assignments, setAssignments] = useState<DetailAssignments>(() => ({}));
-  // Tracks FEFO-suggested assignments so manual changes can be recorded as overrides
+  // Ghi nhớ gợi ý FEFO để phát hiện override thủ công
   const fefoSuggestionsRef = useRef<DetailAssignments>({});
   const [isSaving, setIsSaving] = useState(false);
   const [discrepancyState, setDiscrepancyState] = useState<{
@@ -578,7 +578,7 @@ export function OutboundPickingScreen() {
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
-  // Barcode scan highlight: briefly highlight the matching detail card
+  // ID dòng vừa quét barcode để highlight tạm thời
   const [scannedDetailId, setScannedDetailId] = useState<number | null>(null);
 
   const normalizeDiscrepancyReason = useCallback((value: string) => value.replace(/\s+/g, ' ').trim(), []);
@@ -623,8 +623,8 @@ export function OutboundPickingScreen() {
     };
   }, []);
 
-  // Load FEFO pre-allocation from localStorage when order data arrives.
-  // Only pre-populates details that don't already have lots assigned by BE.
+  // Nạp phân bổ FEFO tạm từ localStorage khi dữ liệu phiếu sẵn sàng.
+  // Chỉ điền trước các dòng chưa có lô từ BE.
   useEffect(() => {
     if (!order || order.details.length === 0) return;
 
@@ -634,7 +634,7 @@ export function OutboundPickingScreen() {
     const preloaded: DetailAssignments = {};
 
     for (const detail of order.details) {
-      // Skip if BE already has lots for this detail
+      // Bỏ qua dòng đã có lô từ BE
       if (detail.lots && detail.lots.length > 0) continue;
 
       const result = stored.results.find((r) => r.product_id === detail.product_id);
@@ -656,22 +656,22 @@ export function OutboundPickingScreen() {
       fefoSuggestionsRef.current = preloaded;
       setAssignments((prev) => ({ ...preloaded, ...prev }));
     }
-  // Run once after order loads
+  // Chạy một lần sau khi order được tải
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
-  // Khởi tạo assignments từ dữ liệu đã có (lots từ BE khi load)
+  // Khởi tạo assignments từ dữ liệu lô đã có sẵn từ BE
   const getDetailAssignments = useCallback(
     (detail: StockOutDetail): LotAssignment[] => {
       if (assignments[detail.id]) return assignments[detail.id];
-      // Nếu BE đã có lots, map vào local state
+      // Map lots từ BE vào local state
       if (detail.lots.length > 0) {
         return detail.lots.map((l) => ({
           lotValue: l.product_lot?.lot_number?.trim() || String(l.product_lot_id),
           quantity: l.quantity,
         }));
       }
-      // Default: 1 hàng trống
+      // Mặc định: 1 hàng trống
       return [{ lotValue: '', quantity: 0 }];
     },
     [assignments],
@@ -679,7 +679,7 @@ export function OutboundPickingScreen() {
 
   const handleAssignmentsChange = (detailId: number, lots: LotAssignment[]) => {
     setAssignments((prev) => ({ ...prev, [detailId]: lots }));
-    // Ẩn discrepancy nếu đang sửa
+    // Ẩn panel chênh lệch khi đang chỉnh sửa
     if (discrepancyState.visible) {
       setDiscrepancyState({ visible: false, items: [], message: '' });
     }
@@ -712,7 +712,7 @@ export function OutboundPickingScreen() {
     });
   }, [assignments, details, getDetailAssignments]);
 
-  // Tiến độ theo số dòng đã đủ (theo AC: 1/5 dòng = 20%)
+  // Tiến độ tính theo số dòng đã đủ số lượng
   const enoughCount = useMemo(
     () => lineStats.filter((line) => line.isEnough).length,
     [lineStats],
@@ -743,7 +743,7 @@ export function OutboundPickingScreen() {
     return Math.round((enoughCount / details.length) * 100);
   }, [details.length, enoughCount]);
 
-  // Kiểm tra discrepancies cục bộ
+  // Tính toán chênh lệch số lượng cục bộ
   const computeDiscrepancies = (): StockOutDiscrepancy[] => {
     return details
       .map((d) => {
@@ -762,7 +762,7 @@ export function OutboundPickingScreen() {
       .filter((d) => d.difference !== 0);
   };
 
-  // Barcode scan: find matching detail by SKU, highlight + scroll to it
+  // Xử lý quét barcode: tìm dòng khớp SKU, highlight và cuộn đến
   const handleScan = useCallback(
     (code: string) => {
       const matched = details.find(
@@ -786,7 +786,7 @@ export function OutboundPickingScreen() {
     [details, toast],
   );
 
-  // Xây dựng payload lots
+  // Xây dựng payload gán lô để gửi lên API
   const buildLotsPayload = async (): Promise<{
     payload: PickedLotEntry[];
     invalidLotValues: string[];
@@ -858,7 +858,7 @@ export function OutboundPickingScreen() {
     };
   };
 
-  /** Lưu tất cả lot assignments (PUT /picked-lots) */
+  /** Lưu tạm toàn bộ gán lô (PUT /picked-lots) */
   const handleSaveAssignments = async () => {
     if (!isOnline) {
       toast({
@@ -896,7 +896,7 @@ export function OutboundPickingScreen() {
     }
   };
 
-  /** Hoàn tất phiếu xuất (PATCH /complete) */
+  /** Hoàn tất phiếu xuất (PATCH /complete), có xử lý chênh lệch nếu cho phép */
   const handleComplete = async (allowDiscrepancy: boolean = false) => {
     if (!isOnline) {
       toast({
@@ -916,7 +916,7 @@ export function OutboundPickingScreen() {
       return;
     }
 
-    // Kiểm tra discrepancy cục bộ trước
+    // Kiểm tra chênh lệch cục bộ trước khi gửi
     const discrepancies = computeDiscrepancies();
     if (discrepancies.length > 0 && !allowDiscrepancy) {
       openDiscrepancyPanel(discrepancies, 'Số lượng gán lô chưa khớp với yêu cầu xuất.');
@@ -930,7 +930,7 @@ export function OutboundPickingScreen() {
       return;
     }
 
-    // Lưu lots trước khi complete
+    // Lưu gán lô trước khi hoàn tất
     const { payload: lots, invalidLotValues } = await buildLotsPayload();
 
     if (invalidLotValues.length > 0) {
@@ -946,7 +946,7 @@ export function OutboundPickingScreen() {
       try {
         await updateLotsMutation.mutateAsync({ lots });
       } catch {
-        return; // toast đã được xử lý trong hook
+        return; // Toast lỗi đã được xử lý trong hook mutation
       }
     }
 
@@ -974,7 +974,7 @@ export function OutboundPickingScreen() {
       await completeMutation.mutateAsync();
       navigate('/outbound');
     } catch (err: unknown) {
-      // BE có thể trả 400 với lỗi số lượng không khớp
+      // BE có thể trả 400 khi số lượng không khớp
       const message =
         err instanceof Error ? err.message : 'Không thể hoàn tất phiếu xuất.';
       const discrepanciesFromBe = computeDiscrepancies();
@@ -995,7 +995,7 @@ export function OutboundPickingScreen() {
     );
   }
 
-  // Access guard — chỉ APPROVED hoặc PICKING mới được vào
+  // Chỉ cho vào màn hình lấy hàng khi phiếu ở trạng thái APPROVED hoặc PICKING
   if (!order || (order.status !== 'APPROVED' && order.status !== 'PICKING')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-white px-6">
@@ -1026,7 +1026,7 @@ export function OutboundPickingScreen() {
         onRefresh={() => refetch()}
       />
 
-      {/* ── Barcode scan input ─────────────────────────────────────────────── */}
+      {/* ── Ô nhập quét barcode ───────────────────────────────────────────── */}
       <div className="sticky top-[57px] z-10 bg-white/95 backdrop-blur border-b border-slate-100 px-4 py-2">
         <ScanInputBar onScan={handleScan} />
       </div>
@@ -1157,7 +1157,7 @@ export function OutboundPickingScreen() {
         </div>
       </div>
 
-      {/* ── Sticky footer: Complete button ───────────────────────────────────── */}
+      {/* ── Footer cố định: nút hoàn tất ──────────────────────────────────── */}
       <div className="sticky bottom-0 z-20 border-t border-slate-100 bg-white/95 px-4 py-4 shadow-xl backdrop-blur safe-area-bottom">
         <div className="mx-auto max-w-3xl space-y-2">
           {!allFulfilled && (
@@ -1243,12 +1243,12 @@ export function OutboundPickingScreen() {
         }}
       />
 
-      {/* ── Exception reporting floating button ────────────────────────────── */}
+      {/* ── Nút nổi báo cáo ngoại lệ ─────────────────────────────────────── */}
       <ExceptionReportModal
         taskDomain="PICKING"
         taskId={numericId}
         onSkipItem={() => {
-          // Advance past the first detail that has no lots assigned yet
+          // Bỏ qua dòng đầu tiên chưa được gán lô
           const target = details.find((d) => {
             const lots = assignments[d.id] ?? getDetailAssignments(d);
             return lots.every((l) => !l.lotValue.trim());

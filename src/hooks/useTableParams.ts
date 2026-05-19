@@ -6,9 +6,10 @@ export interface TableParams {
   search: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
-  [key: string]: any; // Phục vụ cho custom filters
+  [key: string]: any; // Cho phép các bộ lọc tuỳ chỉnh
 }
 
+// Muc dich: Dong bo tham so bang voi URL search params.
 export function useTableParams(defaultSortBy = 'createdAt', defaultSortOrder: 'asc' | 'desc' = 'desc') {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -19,6 +20,7 @@ export function useTableParams(defaultSortBy = 'createdAt', defaultSortOrder: 'a
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || defaultSortOrder;
 
   // Lọc lấy các custom filter (nếu có) không thuộc nhóm param cơ bản
+  // Muc dich: Tach cac filter tuy chinh ngoai param co ban.
   const getCustomFilters = () => {
     const filters: Record<string, string> = {};
     searchParams.forEach((value, key) => {
@@ -29,6 +31,7 @@ export function useTableParams(defaultSortBy = 'createdAt', defaultSortOrder: 'a
     return filters;
   };
 
+  // Muc dich: Cap nhat tham so bang va reset page khi can.
   const updateTableParams = (newParams: Partial<TableParams>) => {
     const currentParams = Object.fromEntries(searchParams.entries());
 

@@ -8,6 +8,7 @@ export interface SidebarNavItem {
   pageDescription?: string;
 }
 
+// Muc dich: Cau hinh menu sidebar theo route va quyen.
 export const sidebarNavItems: SidebarNavItem[] = [
   {
     to: '/',

@@ -30,6 +30,7 @@ const MODULE_ICON: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /** Toggle switch cho cột Approve */
+// Muc dich: Toggle cho quyen approve.
 function ApproveToggle({
   checked,
   onChange,
@@ -61,6 +62,7 @@ function ApproveToggle({
 }
 
 /** Checkbox tùy chỉnh để trông đẹp hơn */
+// Muc dich: Checkbox quyen theo cot.
 function PermCheckbox({
   checked,
   onChange,
@@ -101,6 +103,7 @@ function PermCheckbox({
 // Main Component
 // ---------------------------------------------------------------------------
 
+// Muc dich: UI phan quyen nang cao theo module.
 export function AdvancedPermissions() {
   const { toast } = useToast();
   const canUpdateAdvancedPermissions = usePermission('roles:update');

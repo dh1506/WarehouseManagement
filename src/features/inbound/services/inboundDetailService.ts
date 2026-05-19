@@ -8,18 +8,21 @@ import type {
   AllocateLotPayload,
 } from '../types/inboundDetailType';
 
+// Muc dich: Lay data tu response API.
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
   return res.data;
 }
 
 // ── GET /api/stock-ins/:id ───────────────────────────────────────────────────
+// Muc dich: Lay chi tiet phieu nhap kho.
 export async function getStockInDetail(id: number): Promise<StockIn> {
   const response = await apiClient.get(`/api/stock-ins/${id}`);
   return unwrap<StockIn>(response);
 }
 
 // ── PATCH /api/stock-ins/:id/record ─────────────────────────────────────────
+// Muc dich: Ghi nhan so luong nhap thuc te.
 export async function recordReceipt(
   id: number,
   payload: RecordReceiptPayload,
@@ -29,6 +32,7 @@ export async function recordReceipt(
 }
 
 // ── POST /api/stock-ins/:id/discrepancies ────────────────────────────────────
+// Muc dich: Tao sai lech phieu nhap.
 export async function createDiscrepancy(
   id: number,
   payload: CreateDiscrepancyPayload,
@@ -38,6 +42,7 @@ export async function createDiscrepancy(
 }
 
 // ── PATCH /api/stock-ins/:id/discrepancies/:discId/resolve ───────────────────
+// Muc dich: Giai quyet sai lech phieu nhap.
 export async function resolveDiscrepancy(
   id: number,
   discId: number,
@@ -51,6 +56,7 @@ export async function resolveDiscrepancy(
 }
 
 // ── POST /api/stock-ins/:id/allocate ─────────────────────────────────────────
+// Muc dich: Phan bo hang vao lot/bin.
 export async function allocateLots(
   id: number,
   payload: AllocateLotPayload,

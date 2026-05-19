@@ -6,12 +6,14 @@ import { Select as SelectPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
+// Muc dich: Wrapper cho Select root.
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />
 }
 
+// Muc dich: Nhom item trong Select.
 function SelectGroup({
   className,
   ...props
@@ -25,12 +27,14 @@ function SelectGroup({
   )
 }
 
+// Muc dich: Gia tri hien tai cua Select.
 function SelectValue({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
+// Muc dich: Trigger mo Select.
 function SelectTrigger({
   className,
   size = "default",
@@ -57,6 +61,7 @@ function SelectTrigger({
   )
 }
 
+// Muc dich: Noi dung dropdown cua Select.
 function SelectContent({
   className,
   children,
@@ -90,6 +95,7 @@ function SelectContent({
   )
 }
 
+// Muc dich: Label trong Select.
 function SelectLabel({
   className,
   ...props
@@ -103,6 +109,7 @@ function SelectLabel({
   )
 }
 
+// Muc dich: Item trong Select.
 function SelectItem({
   className,
   children,
@@ -127,6 +134,7 @@ function SelectItem({
   )
 }
 
+// Muc dich: Duong ke ngan cach trong Select.
 function SelectSeparator({
   className,
   ...props
@@ -140,6 +148,7 @@ function SelectSeparator({
   )
 }
 
+// Muc dich: Nut cuon len trong Select.
 function SelectScrollUpButton({
   className,
   ...props
@@ -159,6 +168,7 @@ function SelectScrollUpButton({
   )
 }
 
+// Muc dich: Nut cuon xuong trong Select.
 function SelectScrollDownButton({
   className,
   ...props

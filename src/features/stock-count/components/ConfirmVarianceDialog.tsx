@@ -20,7 +20,7 @@ interface VarianceRow {
 
 interface ConfirmVarianceDialogProps {
   open: boolean;
-  variantDetails: StockCountDetail[];   // unconfirmed details with variance ≠ 0
+  variantDetails: StockCountDetail[];   // các chi tiết chưa xác nhận có chênh lệch ≠ 0
   isPending: boolean;
   onConfirm: (items: Array<{ detail_id: number; variance_reason: string }>) => void;
   onClose: () => void;
@@ -120,7 +120,7 @@ export function ConfirmVarianceDialog({
                 transition={{ duration: 0.18, delay: idx * 0.04 }}
                 className="rounded-xl border border-slate-100 bg-white p-4 space-y-3"
               >
-                {/* Product info */}
+                {/* Thông tin sản phẩm */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">
@@ -146,7 +146,7 @@ export function ConfirmVarianceDialog({
                   </div>
                 </div>
 
-                {/* Reason input */}
+                {/* Ô nhập lý do */}
                 <div>
                   <textarea
                     value={row.reason}

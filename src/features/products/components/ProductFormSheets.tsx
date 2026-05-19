@@ -120,7 +120,6 @@ export function ProductFormSheet({
           })}
           className="flex h-full flex-col"
         >
-          {/* Header */}
           <SheetHeader className="border-b border-slate-200 bg-white px-6 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -147,7 +146,6 @@ export function ProductFormSheet({
             </div>
           </SheetHeader>
 
-          {/* Body */}
           <div className="flex-1 overflow-y-auto bg-slate-50/50">
             {isOptionsLoading ? (
               <div className="flex min-h-100 items-center justify-center p-6">
@@ -160,7 +158,7 @@ export function ProductFormSheet({
             ) : (
               <div className="space-y-4 px-5 py-5">
 
-                {/* ── Basic Information ─────────────────────────────────────── */}
+                {/* ── Thông tin cơ bản ─────────────────────────────────────── */}
                 <Section title="Thông tin cơ bản" icon="info">
                   <div className="space-y-4">
                     <Field label="Tên sản phẩm" error={errors.name?.message}>
@@ -193,7 +191,7 @@ export function ProductFormSheet({
                   </div>
                 </Section>
 
-                {/* ── Classification ────────────────────────────────────────── */}
+                {/* ── Phân loại ────────────────────────────────────────────── */}
                 <Section title="Phân loại" icon="category">
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -225,7 +223,7 @@ export function ProductFormSheet({
                   </div>
                 </Section>
 
-                {/* ── Stock Policy ──────────────────────────────────────────── */}
+                {/* ── Chính sách tồn kho ───────────────────────────────────── */}
                 <Section title="Chính sách tồn kho" icon="inventory">
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Tồn kho tối thiểu" error={errors.minStock?.message}>
@@ -238,10 +236,9 @@ export function ProductFormSheet({
                   </div>
                 </Section>
 
-                {/* ── Tracking ──────────────────────────────────────────────── */}
+                {/* ── Theo dõi ──────────────────────────────────────────────── */}
                 <Section title="Theo dõi" icon="qr_code_scanner">
                   <div className="space-y-3">
-                    {/* Toggles */}
                     <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <TrackingToggle
                         label="Theo dõi lô / mẻ"
@@ -257,7 +254,6 @@ export function ProductFormSheet({
                       />
                     </div>
 
-                    {/* Conditional date fields */}
                     {trackedByLot && (
                       <Field label="Ngày sản xuất" error={errors.productionDate?.message}>
                         <input type="date" {...register('productionDate')} disabled={isView || isPending} className={inputClass(!!errors.productionDate)} />
@@ -271,7 +267,7 @@ export function ProductFormSheet({
                   </div>
                 </Section>
 
-                {/* ── Additional Details ────────────────────────────────────── */}
+                {/* ── Thông tin thêm ───────────────────────────────────────── */}
                 <Section title="Thông tin thêm" icon="description">
                   <div className="space-y-4">
                     <Field label="Mô tả" error={errors.description?.message}>
@@ -287,7 +283,6 @@ export function ProductFormSheet({
             )}
           </div>
 
-          {/* Footer */}
           <SheetFooter className="border-t border-slate-200 bg-white px-6 py-4">
             <div className="flex w-full items-center justify-between">
               {isView ? (

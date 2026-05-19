@@ -49,12 +49,14 @@ export interface DisposalLocationOption {
   availableQty: number;
 }
 
+// Muc dich: Lay data thuan tu ApiResponse.
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
   return res.data;
 }
 
-// ── Disposal Reasons ─────────────────────────────────────────────────────────
+// ── Lý do thanh lý ───────────────────────────────────────────────────────────
+// Muc dich: Lay danh sach ly do thanh ly.
 export async function getDisposalReasons(isActive?: boolean): Promise<DisposalReason[]> {
   const params: Record<string, string> = {};
   if (isActive !== undefined) params.is_active = String(isActive);
@@ -62,7 +64,8 @@ export async function getDisposalReasons(isActive?: boolean): Promise<DisposalRe
   return unwrap<DisposalReason[]>(response);
 }
 
-// ── GET /api/stock-disposals ─────────────────────────────────────────────────
+// ── Danh sách phiếu thanh lý ──────────────────────────────────────────────────
+// Muc dich: Lay danh sach phieu thanh ly.
 export async function getStockDisposals(params: StockDisposalQueryParams): Promise<StockDisposalListResponse> {
   const query: Record<string, string | number> = {
     page: params.page,
@@ -75,13 +78,14 @@ export async function getStockDisposals(params: StockDisposalQueryParams): Promi
   return unwrap<StockDisposalListResponse>(response);
 }
 
-// ── GET /api/stock-disposals/:id ─────────────────────────────────────────────
+// ── Chi tiết phiếu thanh lý ───────────────────────────────────────────────────
+// Muc dich: Lay chi tiet phieu thanh ly.
 export async function getStockDisposalById(id: number): Promise<StockDisposal> {
   const response = await apiClient.get(`/api/stock-disposals/${id}`);
   return unwrap<StockDisposal>(response);
 }
 
-// ── POST /api/stock-disposals ────────────────────────────────────────────────
+// ── Tạo phiếu thanh lý ───────────────────────────────────────────────────────
 export interface CreateStockDisposalPayload {
   description?: string;
   details: Array<{
@@ -95,42 +99,49 @@ export interface CreateStockDisposalPayload {
   }>;
 }
 
+// Muc dich: Tao phieu thanh ly moi.
 export async function createStockDisposal(payload: CreateStockDisposalPayload): Promise<StockDisposal> {
   const response = await apiClient.post('/api/stock-disposals', payload);
   return unwrap<StockDisposal>(response);
 }
 
-// ── PUT /api/stock-disposals/:id ─────────────────────────────────────────────
+// ── Cập nhật phiếu thanh lý ──────────────────────────────────────────────────
+// Muc dich: Cap nhat phieu thanh ly.
 export async function updateStockDisposal(id: number, payload: CreateStockDisposalPayload): Promise<StockDisposal> {
   const response = await apiClient.put(`/api/stock-disposals/${id}`, payload);
   return unwrap<StockDisposal>(response);
 }
 
-// ── PATCH /api/stock-disposals/:id/submit ────────────────────────────────────
+// ── Gửi duyệt phiếu thanh lý ─────────────────────────────────────────────────
+// Muc dich: Gui duyet phieu thanh ly.
 export async function submitStockDisposal(id: number): Promise<StockDisposal> {
   const response = await apiClient.patch(`/api/stock-disposals/${id}/submit`);
   return unwrap<StockDisposal>(response);
 }
 
-// ── PATCH /api/stock-disposals/:id/approve ───────────────────────────────────
+// ── Phê duyệt phiếu thanh lý ─────────────────────────────────────────────────
+// Muc dich: Phe duyet phieu thanh ly.
 export async function approveStockDisposal(id: number): Promise<StockDisposal> {
   const response = await apiClient.patch(`/api/stock-disposals/${id}/approve`);
   return unwrap<StockDisposal>(response);
 }
 
-// ── PATCH /api/stock-disposals/:id/complete ──────────────────────────────────
+// ── Hoàn tất phiếu thanh lý ──────────────────────────────────────────────────
+// Muc dich: Hoan tat phieu thanh ly.
 export async function completeStockDisposal(id: number): Promise<StockDisposal> {
   const response = await apiClient.patch(`/api/stock-disposals/${id}/complete`);
   return unwrap<StockDisposal>(response);
 }
 
-// ── PATCH /api/stock-disposals/:id/cancel ────────────────────────────────────
+// ── Huỷ phiếu thanh lý ───────────────────────────────────────────────────────
+// Muc dich: Huy phieu thanh ly.
 export async function cancelStockDisposal(id: number): Promise<StockDisposal> {
   const response = await apiClient.patch(`/api/stock-disposals/${id}/cancel`);
   return unwrap<StockDisposal>(response);
 }
 
-// ── GET /api/stock-disposals/analytics ───────────────────────────────────────
+// ── Thống kê thanh lý ────────────────────────────────────────────────────────
+// Muc dich: Lay thong ke thanh ly theo bo loc.
 export async function getDisposalAnalytics(query: DisposalAnalyticsQuery): Promise<DisposalAnalyticsResponse> {
   const params: Record<string, string | number> = {};
   if (query.from_date) params.from_date = query.from_date;
@@ -142,7 +153,8 @@ export async function getDisposalAnalytics(query: DisposalAnalyticsQuery): Promi
   return unwrap<DisposalAnalyticsResponse>(response);
 }
 
-// ── GET /api/inventories (helper for disposal form) ─────────────────────────
+// ── Hỗ trợ form thanh lý: lấy số lượng khả dụng ────────────────────────────
+// Muc dich: Lay so luong kha dung de thanh ly.
 export async function getDisposalAvailableQuantity(
   productId: number,
   warehouseLocationId: number,
@@ -164,6 +176,7 @@ export async function getDisposalAvailableQuantity(
   return rows.reduce((sum, row) => sum + (Number(row.available_quantity) || 0), 0);
 }
 
+// Muc dich: Lay danh sach lo co san cho san pham.
 export async function getDisposalLotOptions(productId: number): Promise<DisposalLotOption[]> {
   const response = await apiClient.get('/api/inventories', {
     params: {
@@ -193,6 +206,7 @@ export async function getDisposalLotOptions(productId: number): Promise<Disposal
   return Array.from(lotMap.values()).sort((left, right) => left.lotNo.localeCompare(right.lotNo));
 }
 
+// Muc dich: Lay danh sach vi tri co hang kha dung.
 export async function getDisposalLocationOptions(
   productId: number,
   lotId?: number,

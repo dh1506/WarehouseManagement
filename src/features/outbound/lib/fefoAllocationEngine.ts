@@ -1,6 +1,6 @@
-// ─── FEFO Allocation Engine ───────────────────────────────────────────────────
-// Pure TypeScript — no React, no side-effects.
-// Implements Smart FEFO with Customer SLA filtering per requirements Groups 1-2.
+// ─── Engine Phân Bổ FEFO ──────────────────────────────────────────────────────
+// TypeScript thuần — không phụ thuộc React, không có side-effect.
+// Thực hiện FEFO thông minh với lọc SLA khách hàng theo nhóm yêu cầu 1-2.
 
 export interface CustomerSLA {
   min_days_before_expiry: number;
@@ -37,7 +37,7 @@ export interface AllocationResult {
   sla_rejected_qty: number;
 }
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+// ─── Hàm tiện ích ngày tháng ──────────────────────────────────────────────────
 
 export function daysUntilExpiry(expiredDate: string | null): number {
   if (!expiredDate) return Infinity;
@@ -49,14 +49,14 @@ export function daysUntilExpiry(expiredDate: string | null): number {
 }
 
 export function passesCustomerSLA(expiredDate: string | null, sla: CustomerSLA): boolean {
-  if (!expiredDate) return true; // No expiry = always passes SLA
+  if (!expiredDate) return true; // Không có HSD → luôn đạt SLA
   const days = daysUntilExpiry(expiredDate);
-  if (days < 0) return false; // Already expired — never passes SLA
+  if (days < 0) return false; // Đã hết hạn → không đạt SLA
   return days >= sla.min_days_before_expiry;
 }
 
-// ─── FEFO comparator ─────────────────────────────────────────────────────────
-// Sort ascending by expiry: soonest-expiring first; null (no expiry) goes last.
+// ─── Bộ so sánh FEFO ─────────────────────────────────────────────────────────
+// Sắp xếp tăng dần theo HSD: gần hết hạn nhất lên đầu; null (không có HSD) xuống cuối.
 
 function fefoComparator(a: InventoryLotRow, b: InventoryLotRow): number {
   if (a.expired_date === null && b.expired_date === null) return 0;
@@ -65,7 +65,7 @@ function fefoComparator(a: InventoryLotRow, b: InventoryLotRow): number {
   return new Date(a.expired_date).getTime() - new Date(b.expired_date).getTime();
 }
 
-// ─── Greedy allocation ────────────────────────────────────────────────────────
+// ─── Phân bổ tham lam (greedy) ────────────────────────────────────────────────
 
 function greedyAllocate(
   rows: InventoryLotRow[],
@@ -78,7 +78,7 @@ function greedyAllocate(
     if (remaining <= 0) break;
     if (row.available_quantity <= 0) continue;
 
-    // Skip already-expired lots entirely
+    // Bỏ qua lô đã hết hạn
     if (row.expired_date !== null && daysUntilExpiry(row.expired_date) < 0) continue;
 
     const qty = Math.min(row.available_quantity, remaining);
@@ -100,17 +100,17 @@ function greedyAllocate(
   return { lines, totalAllocated };
 }
 
-// ─── Main allocation function ─────────────────────────────────────────────────
+// ─── Hàm phân bổ chính ───────────────────────────────────────────────────────
 
 /**
- * Compute FEFO allocation for a single product.
+ * Tính toán phân bổ FEFO cho một sản phẩm.
  *
- * Algorithm:
- *  1. Remove expired lots (days < 0).
- *  2. When SLA is provided, partition into SLA-valid and SLA-failed pools.
- *  3. Sort each pool by expiry ASC (null last) — FEFO.
- *  4. Allocate from SLA-valid first; if insufficient, fall back to SLA-failed.
- *  5. Set has_sla_warning = true when fallback was needed.
+ * Thuật toán:
+ *  1. Loại bỏ lô đã hết hạn (days < 0).
+ *  2. Khi có SLA, chia thành pool đạt SLA và pool không đạt SLA.
+ *  3. Sắp xếp mỗi pool theo HSD tăng dần (null xuống cuối) — FEFO.
+ *  4. Phân bổ từ pool đạt SLA trước; nếu thiếu, dùng pool không đạt.
+ *  5. Đặt has_sla_warning = true khi phải dùng pool dự phòng.
  */
 export function computeFEFOAllocation(
   rows: InventoryLotRow[],
@@ -118,7 +118,7 @@ export function computeFEFOAllocation(
   productId: number,
   sla?: CustomerSLA,
 ): AllocationResult {
-  // 1. Filter out already-expired
+  // 1. Lọc bỏ lô đã hết hạn
   const active = rows.filter(
     (r) => r.expired_date === null || daysUntilExpiry(r.expired_date) >= 0,
   );

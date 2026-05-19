@@ -30,7 +30,7 @@ export function ApproveWithVarianceDialog({
 }: ApproveWithVarianceDialogProps) {
   const [acknowledged, setAcknowledged] = useState(false);
 
-  // Reset acknowledgement each time dialog opens
+  // Reset xác nhận mỗi khi dialog mở
   const handleOpenChange = (v: boolean) => {
     if (!v && !isPending) {
       setAcknowledged(false);
@@ -59,7 +59,7 @@ export function ApproveWithVarianceDialog({
           </div>
         </DialogHeader>
 
-        {/* Variance list */}
+        {/* Danh sách chênh lệch */}
         <div className="flex-1 min-h-0 overflow-y-auto my-3 space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
           {varianceDetails.map((d) => {
             const sys = Number(d.system_quantity);
@@ -103,7 +103,7 @@ export function ApproveWithVarianceDialog({
           })}
         </div>
 
-        {/* Acknowledgement checkbox */}
+        {/* Checkbox xác nhận */}
         <button
           type="button"
           onClick={() => setAcknowledged((v) => !v)}

@@ -62,6 +62,7 @@ interface CategoryListApiData {
   pagination: PaginationApiModel;
 }
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -75,6 +76,7 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Suy ra icon cho danh muc dua tren ten va ma.
 function inferCategoryIcon(category: { code: string; name: string; parentName?: string | null }): string {
   const source = `${category.code} ${category.name} ${category.parentName ?? ''}`.toLowerCase();
 
@@ -89,6 +91,7 @@ function inferCategoryIcon(category: { code: string; name: string; parentName?: 
   return 'category';
 }
 
+// Muc dich: Map item danh sach API sang model ProductCategory.
 function mapCategoryFromListApi(item: CategoryListApiItem): ProductCategory {
   return {
     id: String(item.id),
@@ -107,6 +110,7 @@ function mapCategoryFromListApi(item: CategoryListApiItem): ProductCategory {
   };
 }
 
+// Muc dich: Map item chi tiet API sang model CategoryDetail.
 function mapCategoryFromDetailApi(item: CategoryDetailApiItem): CategoryDetail {
   return {
     id: String(item.id),
@@ -130,6 +134,7 @@ function mapCategoryFromDetailApi(item: CategoryDetailApiItem): CategoryDetail {
   };
 }
 
+// Muc dich: Lay danh sach danh muc san pham, co ho tro search va fallback.
 export async function getProductCategories(
   params: { page?: number; pageSize?: number; search?: string; parentId?: string } = {},
 ): Promise<CategoriesResponse> {
@@ -190,11 +195,13 @@ export async function getProductCategories(
   };
 }
 
+// Muc dich: Lay chi tiet danh muc theo id.
 export async function getProductCategoryById(id: string): Promise<CategoryDetail> {
   const response = await apiClient.get<ApiResponse<CategoryDetailApiItem>>(`/api/product-categories/${id}`);
   return mapCategoryFromDetailApi(unwrapApiData<CategoryDetailApiItem>(response));
 }
 
+// Muc dich: Tao danh muc san pham moi.
 export async function createProductCategory(data: CategoryFormData): Promise<ProductCategory> {
   const response = await apiClient.post<ApiResponse<CategoryListApiItem>>('/api/product-categories', {
     name: data.name.trim(),
@@ -212,6 +219,7 @@ export async function createProductCategory(data: CategoryFormData): Promise<Pro
   });
 }
 
+// Muc dich: Cap nhat thong tin danh muc san pham.
 export async function updateProductCategory(
   id: string,
   data: CategoryFormData,
@@ -232,6 +240,7 @@ export async function updateProductCategory(
   });
 }
 
+// Muc dich: Xoa danh muc san pham theo id.
 export async function deleteProductCategory(id: string): Promise<void> {
   await apiClient.delete<ApiResponse<null>>(`/api/product-categories/${id}`);
 }

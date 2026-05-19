@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/**
- * Hook trả về giá trị sau khi delay nhất định.
- * Dùng để debounce input search tránh gọi API mỗi keystroke.
- */
+// Muc dich: Debounce gia tri dau vao theo do tre.
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 

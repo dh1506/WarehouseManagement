@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 
+// Muc dich: Placeholder loading skeleton.
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

@@ -68,6 +68,7 @@ interface SupplierListApiData {
   pagination: PaginationApiModel;
 }
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -81,6 +82,7 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Map reference chung sang model FE.
 function mapReference(item: ReferenceApiItem, type: ProductReferenceType): ProductReferenceItem {
   return {
     id: String(item.id),
@@ -95,6 +97,7 @@ function mapReference(item: ReferenceApiItem, type: ProductReferenceType): Produ
   };
 }
 
+// Muc dich: Map supplier sang model FE.
 function mapSupplier(item: SupplierApiItem): ProductReferenceItem {
   return {
     id: String(item.id),
@@ -113,6 +116,7 @@ function mapSupplier(item: SupplierApiItem): ProductReferenceItem {
   };
 }
 
+// Muc dich: Lay danh sach reference theo loai (unit/brand/supplier).
 export async function getProductReferences(
   params: ProductReferenceListParams,
 ): Promise<ProductReferenceListResponse> {
@@ -282,11 +286,13 @@ export async function getProductReferences(
   };
 }
 
+// Muc dich: Lay options reference active de hien thi UI.
 export async function getProductReferenceOptions(type: ProductReferenceType) {
   const response = await getProductReferences({ type, page: 1, pageSize: 100, status: 'active' });
   return response.data;
 }
 
+// Muc dich: Tao reference moi theo loai.
 export async function createProductReference(
   type: ProductReferenceType,
   payload: ProductReferenceFormValues,
@@ -325,6 +331,7 @@ export async function createProductReference(
   return mapReference(unwrapApiData<ReferenceApiItem>(response), 'brand');
 }
 
+// Muc dich: Cap nhat reference theo id va loai.
 export async function updateProductReference(
   id: string,
   type: ProductReferenceType,
@@ -368,6 +375,7 @@ export async function updateProductReference(
   return mapReference(unwrapApiData<ReferenceApiItem>(response), 'brand');
 }
 
+// Muc dich: Thong bao chua ho tro xoa reference.
 export async function deleteProductReference(id: string): Promise<void> {
   void id;
   throw new Error('Backend hiện chưa hỗ trợ xóa đơn vị tính, thương hiệu, hoặc nhà cung cấp.');

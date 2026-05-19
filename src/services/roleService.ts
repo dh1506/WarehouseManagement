@@ -3,6 +3,7 @@ import type { ApiResponse } from '@/types/api';
 import type {
   CreateRolePayload,
   Permission,
+  PermissionCatalogModule,
   Role,
   RolePermissionResponse,
   UpdateRolePayload,
@@ -53,6 +54,7 @@ type PermissionToggleKey = keyof Omit<Permission, 'module'>;
 
 const PRIMARY_ROLE_NAMES = new Set(['CEO', 'DIRECTOR']);
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -66,10 +68,12 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Chon mau nhan cho role quan trong.
 function toColorClass(roleName: string): string {
   return PRIMARY_ROLE_NAMES.has(roleName.toUpperCase()) ? 'bg-primary' : 'bg-slate-300';
 }
 
+// Muc dich: Map action backend sang toggle key FE.
 function toToggleKey(action: string): PermissionToggleKey | null {
   const normalizedAction = action.trim().toLowerCase();
 
@@ -82,6 +86,7 @@ function toToggleKey(action: string): PermissionToggleKey | null {
   return null;
 }
 
+// Muc dich: Map toggle key FE ve action backend.
 function toActionKey(toggleKey: PermissionToggleKey): string {
   if (toggleKey === 'view') return 'read';
   if (toggleKey === 'create') return 'create';
@@ -90,6 +95,7 @@ function toActionKey(toggleKey: PermissionToggleKey): string {
   return 'approve';
 }
 
+// Muc dich: Tao ma tran quyen rong cho module.
 function createEmptyPermission(moduleName: string): Permission {
   return {
     module: moduleName,
@@ -101,6 +107,7 @@ function createEmptyPermission(moduleName: string): Permission {
   };
 }
 
+// Muc dich: Ghep quyen co san va quyen da gan thanh ma tran.
 function buildPermissionMatrix(availablePermissions: PermissionApiItem[], assignedPermissions: PermissionApiItem[]): Permission[] {
   const permissionByModule = new Map<string, Permission>();
 
@@ -129,6 +136,7 @@ function buildPermissionMatrix(availablePermissions: PermissionApiItem[], assign
   return Array.from(permissionByModule.values());
 }
 
+// Muc dich: Map du lieu role API sang model FE.
 function mapRoleFromApi(role: RoleApiItem): Role {
   return {
     id: String(role.id),
@@ -141,18 +149,19 @@ function mapRoleFromApi(role: RoleApiItem): Role {
   };
 }
 
+// Muc dich: Lay danh muc quyen co the gan cho role.
 async function getPermissionCatalog(): Promise<PermissionApiItem[]> {
   try {
     const response = await apiClient.get<ApiResponse<PermissionsListApiData>>('/api/permissions');
     const payload = unwrapApiData<PermissionsListApiData>(response);
     return payload.permissions.filter((permission) => permission.is_active);
   } catch {
-    // User lacks permissions:read — degrade gracefully.
-    // Matrix will be built from assigned permissions only (no empty module rows).
+    // Người dùng không có quyền đọc danh mục — bỏ qua, ma trận chỉ dùng quyền đã gán.
     return [];
   }
 }
 
+// Muc dich: Map payload quyen sang danh sach permission id.
 function mapPayloadToPermissionIds(payload: UpdateRolePermissionPayload, permissionCatalog: PermissionApiItem[]): number[] {
   const selectedActionMap = new Map<string, Set<string>>();
 
@@ -174,6 +183,27 @@ function mapPayloadToPermissionIds(payload: UpdateRolePermissionPayload, permiss
     .map((permission) => permission.id);
 }
 
+function buildAvailableModules(permissionCatalog: PermissionApiItem[]): PermissionCatalogModule[] {
+  const moduleActionMap = new Map<string, Set<PermissionToggleKey>>();
+
+  permissionCatalog.forEach((permission) => {
+    const toggleKey = toToggleKey(permission.action);
+    if (!toggleKey) {
+      return;
+    }
+
+    const existing = moduleActionMap.get(permission.module) ?? new Set<PermissionToggleKey>();
+    existing.add(toggleKey);
+    moduleActionMap.set(permission.module, existing);
+  });
+
+  return Array.from(moduleActionMap.entries()).map(([module, actions]) => ({
+    module,
+    actions: Array.from(actions),
+  }));
+}
+
+// Muc dich: Lay danh sach role.
 export const getRoles = async (): Promise<Role[]> => {
   const response = await apiClient.get<ApiResponse<RolesListApiData>>('/api/roles', {
     params: {
@@ -186,6 +216,7 @@ export const getRoles = async (): Promise<Role[]> => {
   return payload.roles.map(mapRoleFromApi);
 };
 
+// Muc dich: Tao role moi.
 export const createRole = async (payload: CreateRolePayload): Promise<Role> => {
   const response = await apiClient.post<ApiResponse<RoleDetailApiData>>('/api/roles', {
     name: payload.name.trim(),
@@ -196,6 +227,7 @@ export const createRole = async (payload: CreateRolePayload): Promise<Role> => {
   return mapRoleFromApi(unwrapApiData<RoleDetailApiData>(response));
 };
 
+// Muc dich: Cap nhat role theo id.
 export const updateRole = async (id: string, payload: UpdateRolePayload): Promise<Role> => {
   const body: Record<string, unknown> = {};
 
@@ -214,6 +246,7 @@ export const updateRole = async (id: string, payload: UpdateRolePayload): Promis
   return mapRoleFromApi(unwrapApiData<RoleDetailApiData>(response));
 };
 
+// Muc dich: Lay ma tran quyen cua role.
 export const getRolePermissions = async (id: string): Promise<RolePermissionResponse> => {
   const [roleResponse, permissionCatalog] = await Promise.all([
     apiClient.get<ApiResponse<RoleDetailApiResponse>>(`/api/roles/${id}`),
@@ -226,9 +259,11 @@ export const getRolePermissions = async (id: string): Promise<RolePermissionResp
   return {
     roleId: String(roleId),
     permissions: buildPermissionMatrix(permissionCatalog, rolePayload.permissions),
+    availableModules: buildAvailableModules(permissionCatalog),
   };
 };
 
+// Muc dich: Cap nhat quyen cua role theo payload.
 export const updateRolePermissions = async (id: string, payload: UpdateRolePermissionPayload): Promise<RolePermissionResponse> => {
   const permissionCatalog = await getPermissionCatalog();
   const permissionIds = mapPayloadToPermissionIds(payload, permissionCatalog);

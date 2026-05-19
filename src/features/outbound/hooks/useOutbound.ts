@@ -149,7 +149,7 @@ export function useStockOutKpis(enabled: boolean = true) {
   };
 }
 
-// ─── Create-sheet: lot / location / qty queries ───────────────────────────────
+// ─── Create-sheet: query lô / vị trí / số lượng ──────────────────────────────
 
 export function useOutboundLotOptions(productId: number, enabled = true) {
   return useQuery({
@@ -297,7 +297,7 @@ export function useUpdatePickedLots(id: number) {
     mutationFn: (payload: UpdatePickedLotsPayload) => updatePickedLots(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockOutKeys.detail(id) });
-      toast({ title: 'Progress saved successfully' });
+      toast({ title: 'Đã lưu gán lô thành công' });
     },
     onError: (error: Error) => {
       toast({

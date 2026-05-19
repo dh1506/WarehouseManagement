@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { loginSchema, type LoginFormData } from '../schema/loginSchema';
 import { useLogin } from '../hooks/useLogin';
 
+// Muc dich: Form dang nhap nguoi dung.
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -21,6 +22,7 @@ export function LoginForm() {
 
   const { mutateAsync: loginMutation } = useLogin();
 
+  // Muc dich: Xu ly submit dang nhap.
   const onSubmit = async (data: LoginFormData) => {
     try {
       setGlobalError(null);

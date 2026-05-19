@@ -45,6 +45,7 @@ export interface UpdateAdvancedPermissionPayload {
 /**
  * Tính access level dựa trên trạng thái permission của một module.
  */
+// Muc dich: Tinh access level tu quyen module.
 export function computeAccessLevel(perm: ModulePermission): AccessLevel {
   if (perm.approve) return 'ai_augmented';
   const actionCount = [perm.view, perm.create, perm.edit, perm.delete].filter(Boolean).length;

@@ -111,6 +111,7 @@ interface UnitListApiData {
 
 const MAX_PRODUCT_REQUEST_LIMIT = 100;
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -124,6 +125,7 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Chuyen trang thai san pham API sang enum FE.
 function mapStatus(status: ProductApiItem['product_status']): ProductStatus {
   switch (status) {
     case 'ACTIVE':
@@ -137,6 +139,7 @@ function mapStatus(status: ProductApiItem['product_status']): ProductStatus {
   }
 }
 
+// Muc dich: Chuyen loai san pham API sang enum FE.
 function mapType(type: ProductApiItem['product_type']): ProductType {
   switch (type) {
     case 'MATERIAL':
@@ -149,6 +152,7 @@ function mapType(type: ProductApiItem['product_type']): ProductType {
   }
 }
 
+// Muc dich: Map du lieu san pham API sang model FE.
 function mapProduct(item: ProductApiItem): ProductItem {
   const primaryCategory = item.categories?.[0] ?? null;
   const primarySupplier = item.productSuppliers?.find((supplier) => supplier.is_primary) ?? item.productSuppliers?.[0] ?? null;
@@ -191,6 +195,7 @@ function mapProduct(item: ProductApiItem): ProductItem {
   };
 }
 
+// Muc dich: Map item tham chieu sang option cho select.
 function mapOption(item: { id: number; code: string; name: string }): ProductOptionItem {
   return {
     id: String(item.id),
@@ -199,6 +204,7 @@ function mapOption(item: { id: number; code: string; name: string }): ProductOpt
   };
 }
 
+// Muc dich: Chuan hoa ngay sang ISO de gui BE.
 function toIsoDate(value: string): string | undefined {
   if (!value.trim()) {
     return undefined;
@@ -207,6 +213,7 @@ function toIsoDate(value: string): string | undefined {
   return new Date(`${value}T00:00:00.000Z`).toISOString();
 }
 
+// Muc dich: Chuan hoa payload tao/cap nhat san pham.
 function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update') {
   const expiryDate = payload.trackedByExpiry ? toIsoDate(payload.expiryDate) : undefined;
 
@@ -214,7 +221,7 @@ function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update'
     name: payload.name.trim(),
     description: payload.description.trim() || undefined,
     product_type: payload.productType.toUpperCase(),
-    // product_status is only accepted by BE in the update schema, not create
+    // product_status chỉ được BE chấp nhận khi cập nhật, không dùng khi tạo mới
     ...(mode === 'update' ? { product_status: payload.status.toUpperCase() } : {}),
     brand_ids: payload.brandId ? [Number(payload.brandId)] : [],
     base_uom_id: Number(payload.unitId),
@@ -228,6 +235,7 @@ function mapProductPayload(payload: ProductFormValues, mode: 'create' | 'update'
   };
 }
 
+// Muc dich: Lay danh sach san pham, co search va fallback.
 export async function getProducts(params: ProductListParams = {}): Promise<ProductListResponse> {
   const page = params.page ?? 1;
   const pageSize = Math.min(params.pageSize ?? 10, MAX_PRODUCT_REQUEST_LIMIT);
@@ -298,21 +306,25 @@ export async function getProducts(params: ProductListParams = {}): Promise<Produ
   };
 }
 
+// Muc dich: Lay chi tiet san pham theo id.
 export async function getProductById(id: string): Promise<ProductItem> {
   const response = await apiClient.get<ApiResponse<ProductApiItem>>(`/api/products/${id}`);
   return mapProduct(unwrapApiData<ProductApiItem>(response));
 }
 
+// Muc dich: Tao san pham moi.
 export async function createProduct(payload: ProductFormValues): Promise<ProductItem> {
   const response = await apiClient.post<ApiResponse<ProductApiItem>>('/api/products', mapProductPayload(payload, 'create'));
   return mapProduct(unwrapApiData<ProductApiItem>(response));
 }
 
+// Muc dich: Cap nhat san pham theo id.
 export async function updateProduct(id: string, payload: ProductFormValues): Promise<ProductItem> {
   const response = await apiClient.patch<ApiResponse<ProductApiItem>>(`/api/products/${id}`, mapProductPayload(payload, 'update'));
   return mapProduct(unwrapApiData<ProductApiItem>(response));
 }
 
+// Muc dich: Doi trang thai san pham sang DISCONTINUED.
 export async function discontinueProduct(id: string): Promise<ProductItem> {
   const response = await apiClient.patch<ApiResponse<ProductApiItem>>(`/api/products/${id}`, {
     product_status: 'DISCONTINUED',
@@ -321,6 +333,7 @@ export async function discontinueProduct(id: string): Promise<ProductItem> {
   return mapProduct(unwrapApiData<ProductApiItem>(response));
 }
 
+// Muc dich: Cap nhat trang thai san pham theo status.
 export async function updateProductStatus(id: string, status: ProductStatus): Promise<ProductItem> {
   const response = await apiClient.patch<ApiResponse<ProductApiItem>>(`/api/products/${id}`, {
     product_status: status.toUpperCase(),
@@ -329,7 +342,7 @@ export async function updateProductStatus(id: string, status: ProductStatus): Pr
   return mapProduct(unwrapApiData<ProductApiItem>(response));
 }
 
-// ── Inventory raw API types ──────────────────────────────────────────────────
+// ── Kiểu dữ liệu thô tồn kho từ API ─────────────────────────────────────────
 
 interface InventoryLotApiItem {
   id: number;
@@ -374,10 +387,8 @@ interface InventoryListApiData {
 const EXPIRY_CRITICAL_DAYS = 7;
 const EXPIRY_NEAR_DAYS = 30;
 
-/**
- * Lấy dữ liệu tồn kho và danh sách lô cho một sản phẩm.
- * Gọi GET /api/inventories?product_id=X&limit=100 rồi tổng hợp phía client.
- */
+/** Lấy dữ liệu tồn kho và danh sách lô cho một sản phẩm. */
+// Muc dich: Lay ton kho va thong ke lo theo san pham.
 export async function getProductInventoryData(productId: string): Promise<ProductInventoryData> {
   const response = await apiClient.get<ApiResponse<InventoryListApiData>>('/api/inventories', {
     params: {
@@ -427,7 +438,7 @@ export async function getProductInventoryData(productId: string): Promise<Produc
     }
   }
 
-  // Lô có status EXPIRED cũng tính là critical
+  // Lô đã hết hạn (EXPIRED) cũng được tính vào nhóm nguy cấp
   criticalExpiryCount += lots.filter((l) => l.status === 'EXPIRED').length;
 
   return {
@@ -440,6 +451,7 @@ export async function getProductInventoryData(productId: string): Promise<Produc
   };
 }
 
+// Muc dich: Lay danh sach brand dang active cho select.
 export async function getBrandOptions(): Promise<ProductOptionItem[]> {
   const response = await apiClient.get<ApiResponse<BrandListApiData>>('/api/brands', {
     params: {
@@ -453,6 +465,7 @@ export async function getBrandOptions(): Promise<ProductOptionItem[]> {
   return payload.brands.map(mapOption);
 }
 
+// Muc dich: Lay danh sach don vi tinh dang active cho select.
 export async function getUnitOptions(): Promise<ProductOptionItem[]> {
   const response = await apiClient.get<ApiResponse<UnitListApiData>>('/api/units-of-measure', {
     params: {

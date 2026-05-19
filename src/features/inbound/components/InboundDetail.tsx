@@ -94,7 +94,7 @@ export function InboundDetail() {
     );
   }, [discReason, discrepancyMutation, toast]);
 
-  // AC03/AC04/AC05 — FE pre-submit guard before calling completeStockIn
+  // AC03/AC04/AC05 — Kiểm tra điều kiện trên FE trước khi gọi completeStockIn
   const handleComplete = useCallback(() => {
     if (!data) return;
 
@@ -102,7 +102,7 @@ export function InboundDetail() {
       const received = Number(detail.received_quantity);
       if (received <= 0) continue;
 
-      // AC03 & AC04 — storage location + lot must be allocated
+      // AC03 & AC04 — vị trí lưu kho và lô hàng phải được phân bổ
       if (detail.lots.length === 0) {
         toast({
           title: 'Chưa phân bổ lô hàng',
@@ -112,7 +112,7 @@ export function InboundDetail() {
         return;
       }
 
-      // AC05 — sum of allocated lot quantities must equal received quantity
+      // AC05 — tổng số lượng lô phân bổ phải bằng số lượng đã nhận
       const totalAllocated = detail.lots.reduce((acc, l) => acc + Number(l.quantity), 0);
       if (Math.abs(totalAllocated - received) > 0.001) {
         toast({
@@ -123,7 +123,7 @@ export function InboundDetail() {
         return;
       }
 
-      // FEFO guard — block completion if any committed lot has expired (F&B §16)
+      // FEFO — chặn hoàn tất nếu bất kỳ lô nào đã hết hạn (F&B §16)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       for (const lot of detail.lots) {
@@ -186,7 +186,7 @@ export function InboundDetail() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: 'easeOut' }}
       >
-        {/* Header */}
+        {/* Tiêu đề */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <button
@@ -206,9 +206,9 @@ export function InboundDetail() {
             </p>
           </div>
 
-          {/* Action buttons — role + status gated */}
+          {/* Nút thao tác — giới hạn theo vai trò và trạng thái */}
           <div className="flex flex-wrap gap-2">
-            {/* Approve — only on DRAFT */}
+            {/* Duyệt — chỉ khi DRAFT */}
             {canApprove && data.status === 'DRAFT' && (
               <ActionButton
                 label="Duyệt phiếu"
@@ -219,7 +219,7 @@ export function InboundDetail() {
               />
             )}
 
-            {/* Record Receipt — on PENDING or IN_PROGRESS */}
+            {/* Lưu biên nhận — khi PENDING hoặc IN_PROGRESS */}
             {canRecord && (data.status === 'PENDING' || data.status === 'IN_PROGRESS') && (
               <ActionButton
                 label="Lưu biên nhận"
@@ -230,7 +230,7 @@ export function InboundDetail() {
               />
             )}
 
-            {/* Allocate Lots — on IN_PROGRESS */}
+            {/* Phân bổ lô — khi IN_PROGRESS */}
             {canRecord && data.status === 'IN_PROGRESS' && (
               <ActionButton
                 label="Phân bổ lô"
@@ -241,7 +241,7 @@ export function InboundDetail() {
               />
             )}
 
-            {/* Report Discrepancy — on IN_PROGRESS */}
+            {/* Báo cáo sai lệch — khi IN_PROGRESS */}
             {canRecord && data.status === 'IN_PROGRESS' && (
               <ActionButton
                 label="Báo cáo sai lệch"
@@ -252,7 +252,7 @@ export function InboundDetail() {
               />
             )}
 
-            {/* Complete — on IN_PROGRESS or DISCREPANCY */}
+            {/* Hoàn tất — khi IN_PROGRESS hoặc DISCREPANCY */}
             {canApprove &&
               (data.status === 'IN_PROGRESS' || data.status === 'DISCREPANCY') && (
                 <ActionButton
@@ -266,7 +266,7 @@ export function InboundDetail() {
           </div>
         </div>
 
-        {/* Discrepancy inline form */}
+        {/* Form báo cáo sai lệch nội tuyến */}
         {showDiscForm && (
           <motion.div
             className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
@@ -302,16 +302,16 @@ export function InboundDetail() {
           </motion.div>
         )}
 
-        {/* Workflow stepper */}
+        {/* Thanh tiến trình quy trình */}
         <WorkflowStepper
           status={data.status}
           createdAt={data.created_at}
           updatedAt={data.updated_at}
         />
 
-        {/* Main grid */}
+        {/* Lưới nội dung chính */}
         <div className="grid grid-cols-12 gap-5">
-          {/* Left: items table + discrepancy list */}
+          {/* Trái: bảng sản phẩm + danh sách sai lệch */}
           <div className="col-span-12 space-y-4 xl:col-span-8">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">Danh sách sản phẩm</h3>
@@ -326,7 +326,7 @@ export function InboundDetail() {
               canEdit={canRecord && (data.status === 'PENDING' || data.status === 'IN_PROGRESS')}
             />
 
-            {/* Discrepancy list */}
+            {/* Danh sách sai lệch */}
             {data.discrepancies.length > 0 && (
               <DiscrepancyList
                 discrepancies={data.discrepancies}
@@ -351,7 +351,7 @@ export function InboundDetail() {
             )}
           </div>
 
-          {/* Right: info panel + zone map */}
+          {/* Phải: thẻ thông tin + bản đồ khu vực */}
           <div className="col-span-12 space-y-4 xl:col-span-4">
             <InfoCard data={data} canSeeValue={canSeeValue} totalValue={totalValue} />
             {(() => {
@@ -372,7 +372,7 @@ export function InboundDetail() {
         </div>
       </motion.div>
 
-      {/* Lot allocation sheet */}
+      {/* Sheet phân bổ lô hàng */}
       <AllocateLotsSheet
         open={showAllocateSheet}
         onClose={() => setShowAllocateSheet(false)}
@@ -385,7 +385,7 @@ export function InboundDetail() {
   );
 }
 
-// ── Action button ─────────────────────────────────────────────────────────────
+// ── Nút thao tác ─────────────────────────────────────────────────────────────
 
 type ActionColor = 'blue' | 'slate' | 'amber' | 'emerald' | 'indigo';
 
@@ -429,7 +429,7 @@ function ActionButton({
   );
 }
 
-// ── Items table ───────────────────────────────────────────────────────────────
+// ── Bảng sản phẩm ────────────────────────────────────────────────────────────
 
 type LotStatus = 'na' | 'none' | 'partial' | 'full';
 
@@ -491,7 +491,7 @@ function ItemsTable({
 
             return (
               <Fragment key={d.id}>
-                {/* Main product row */}
+                {/* Hàng chính của sản phẩm */}
                 <motion.tr
                   initial={{ opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -564,7 +564,7 @@ function ItemsTable({
                   </td>
                 </motion.tr>
 
-                {/* Lot chips sub-row — only when lots have been allocated */}
+                {/* Hàng con hiển thị chip lô — chỉ khi đã phân bổ */}
                 {d.lots.length > 0 && (
                   <tr className="bg-slate-50/30">
                     <td colSpan={7} className="px-4 pb-3 pt-0">
@@ -610,7 +610,7 @@ function ItemsTable({
   );
 }
 
-// ── Discrepancy list ──────────────────────────────────────────────────────────
+// ── Danh sách sai lệch ────────────────────────────────────────────────────────
 
 function DiscrepancyList({
   discrepancies,
@@ -710,7 +710,7 @@ function DiscrepancyList({
   );
 }
 
-// ── Info card (right sidebar) ─────────────────────────────────────────────────
+// ── Thẻ thông tin (thanh bên phải) ───────────────────────────────────────────
 
 function InfoCard({
   data,
@@ -721,13 +721,13 @@ function InfoCard({
   canSeeValue: boolean;
   totalValue: number;
 }) {
-  // Parse [REF: xxx] prefix serialised into description by CreatePurchaseOrderSheet
+  // Tách tiền tố [REF: xxx] được đóng gói vào trường description bởi CreatePurchaseOrderSheet
   const REF_RE = /^\[REF:\s*([^\]]+)\]\n?/;
   const refMatch = data.description ? REF_RE.exec(data.description) : null;
   const referenceNo = refMatch ? refMatch[1].trim() : null;
   const notes = data.description ? data.description.replace(REF_RE, '').trim() || null : null;
 
-  // Collect unique allocated storage locations from all lots (AC02)
+  // Tổng hợp các vị trí lưu kho duy nhất từ tất cả lô đã phân bổ (AC02)
   const allocatedLocations = useMemo(() => {
     const seen = new Set<number>();
     const result: { id: number; path: string }[] = [];
@@ -783,7 +783,7 @@ function InfoCard({
           </div>
         ))}
 
-        {/* AC02 — actual allocated storage locations (distinct from default receipt location) */}
+        {/* AC02 — vị trí lưu kho thực tế đã phân bổ (khác với vị trí nhận hàng mặc định) */}
         {allocatedLocations.length > 0 && (
           <div className="flex justify-between gap-2 border-t border-slate-100 pt-2 text-sm">
             <dt className="shrink-0 text-slate-500">Vị trí lưu kho</dt>

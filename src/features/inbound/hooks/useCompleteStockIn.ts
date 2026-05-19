@@ -5,18 +5,7 @@ import type { StockIn } from '../types/inboundType';
 import { STOCK_IN_KEYS } from './useInbound';
 import { WAREHOUSE_KEYS } from '@/features/warehouses/hooks/useWarehouses';
 
-/**
- * Hook: Hoàn tất phiếu nhập kho (Step 6 — Complete)
- * API: PATCH /api/stock-ins/:id/complete
- *
- * Tích hợp toast success/error và invalidate query cache.
- * FE phải disable nút Complete nếu status === 'DISCREPANCY'
- * hoặc discrepancies array còn item có status 'PENDING'.
- * Logic disable nằm ở StockInDetailActions component, không nằm ở hook.
- *
- * Invalidate warehouse hub/zone-bins cache so the warehouse layout
- * diagram reflects finalized inventory after completion.
- */
+// Muc dich: Hoan tat phieu nhap va dong bo cache/notify.
 export function useCompleteStockIn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

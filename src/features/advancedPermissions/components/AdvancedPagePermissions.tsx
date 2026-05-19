@@ -22,10 +22,12 @@ const MODULE_ICON: Record<string, string> = {
   permissions: 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7l3-7z',
 };
 
+// Muc dich: Chuan hoa key permission de so khop.
 function normalizePermissionKey(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, '-');
 }
 
+// Muc dich: Toggle cho quyen approve.
 function ApproveToggle({
   checked,
   onChange,
@@ -51,6 +53,7 @@ function ApproveToggle({
   );
 }
 
+// Muc dich: Checkbox quyen theo cot.
 function PermCheckbox({
   checked,
   onChange,
@@ -81,6 +84,7 @@ function PermCheckbox({
   );
 }
 
+// Muc dich: UI phan quyen page theo role.
 export function AdvancedPagePermissions() {
   const { toast } = useToast();
   const { data: roles, isLoading: rolesLoading } = useRolesForAdvanced();

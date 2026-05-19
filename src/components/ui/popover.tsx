@@ -3,18 +3,21 @@ import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Wrapper cho Popover root.
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
 }
 
+// Muc dich: Trigger mo Popover.
 function PopoverTrigger({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Trigger>) {
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
 }
 
+// Muc dich: Noi dung Popover.
 function PopoverContent({
   className,
   align = "center",
@@ -37,12 +40,14 @@ function PopoverContent({
   )
 }
 
+// Muc dich: Anchor cho Popover.
 function PopoverAnchor({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Anchor>) {
   return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />
 }
 
+// Muc dich: Header cua Popover.
 function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -53,6 +58,7 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Tieu de Popover.
 function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
     <div
@@ -63,6 +69,7 @@ function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
   )
 }
 
+// Muc dich: Mo ta Popover.
 function PopoverDescription({
   className,
   ...props

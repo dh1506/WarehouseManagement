@@ -16,6 +16,7 @@ import { StockInWorkerView } from '@/features/inbound/components/StockInWorkerVi
  */
 const WORKER_ROLES = new Set(['STAFF']);
 
+// Muc dich: Chuan hoa role tu user store.
 function normalizeRoleValue(role: unknown): string {
   if (typeof role === 'string') {
     return role;
@@ -29,6 +30,7 @@ function normalizeRoleValue(role: unknown): string {
   return '';
 }
 
+// Muc dich: Trang chi tiet nhap kho, re nhanh theo vai tro.
 export function InboundDetailPage() {
   const user = useAuthStore((state) => state.user);
   const role = normalizeRoleValue(user?.role).trim().toUpperCase();

@@ -21,7 +21,7 @@ import { computeHoursAging, AGING_THRESHOLD_HOURS } from '../types/managerDashbo
 
 const POLL_INTERVAL_MS = 30_000;
 
-// ── Query key factory ─────────────────────────────────────────────────────────
+// ── Khóa query cho React Query ────────────────────────────────────────────────
 
 export const MANAGER_DASHBOARD_KEYS = {
   workflow: () => ['manager-dashboard', 'workflow'] as const,
@@ -30,7 +30,7 @@ export const MANAGER_DASHBOARD_KEYS = {
   workforce: () => ['manager-dashboard', 'workforce'] as const,
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Hàm tiện ích ─────────────────────────────────────────────────────────────
 
 function buildOutboundFunnel(
   pending: number,
@@ -61,7 +61,7 @@ function buildOutboundFunnel(
   ];
 }
 
-// ── Widget 1: Workflow Backlog ────────────────────────────────────────────────
+// ── Widget 1: Tồn đọng công việc ─────────────────────────────────────────────
 
 export function useWorkflowBacklog() {
   return useQuery<WorkflowData>({
@@ -137,7 +137,7 @@ export function useWorkflowBacklog() {
   });
 }
 
-// ── Widget 2: Inventory Alerts ────────────────────────────────────────────────
+// ── Widget 2: Cảnh báo tồn kho ───────────────────────────────────────────────
 
 export function useInventoryAlerts() {
   return useQuery<InventoryAlertData>({
@@ -180,12 +180,12 @@ export function useInventoryAlerts() {
       };
     },
     staleTime: 60_000,
-    refetchInterval: POLL_INTERVAL_MS * 2, // less frequent — expensive call
+    refetchInterval: POLL_INTERVAL_MS * 2,
     refetchIntervalInBackground: false,
   });
 }
 
-// ── Widget 3: Zone Health ─────────────────────────────────────────────────────
+// ── Widget 3: Sức khỏe khu vực kho ──────────────────────────────────────────
 
 interface RawWarehouse {
   id: number;
@@ -241,14 +241,14 @@ export function useZoneHealth() {
       const inventoryData = unwrapApiData<RawInventoryPage>(inventoryRes);
       const inventoryRows: RawInventoryItem[] = inventoryData?.items ?? inventoryData?.inventories ?? [];
 
-      // Build set of globally low-stock product IDs
+      // Lấy danh sách product ID thiếu hàng toàn cục
       const lowStockProductIds = new Set(
         overviewData.skuRows
           .filter((r) => r.isLowStock)
           .map((r) => Number(r.productId)),
       );
 
-      // Count unique products per warehouse (for itemCount) and low-stock products per warehouse
+      // Đếm sản phẩm và sản phẩm thiếu hàng theo kho
       const itemCountByWarehouse = new Map<number, number>();
       const lowStockByWarehouse = new Map<number, Set<number>>();
 
@@ -293,7 +293,7 @@ export function useZoneHealth() {
   });
 }
 
-// ── Widget 4: Workforce ───────────────────────────────────────────────────────
+// ── Widget 4: Nhân sự ────────────────────────────────────────────────────────
 
 const ONLINE_THRESHOLD_HOURS = 8;
 
@@ -303,7 +303,7 @@ function isOnline(lastLogin: string): boolean {
   return hours <= ONLINE_THRESHOLD_HOURS;
 }
 
-// Deterministic mock task progress seeded by user id (stable across re-renders)
+// Tiến độ công việc ước tính dựa trên user id (ổn định qua các lần render)
 function mockTaskProgress(idStr: string): { done: number; total: number } {
   const seed = idStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const total = 10 + (seed % 15);

@@ -1,8 +1,8 @@
-// ── Flow Chart ─────────────────────────────────────────────────────────────────
+// ── Biểu đồ luồng nhập/xuất ──────────────────────────────────────────────────
 
 export interface FlowDataPoint {
-  date: string;      // 'DD/MM' for X-axis display
-  fullDate: string;  // 'YYYY-MM-DD' for tooltip
+  date: string;      // 'DD/MM' hiển thị trục X
+  fullDate: string;  // 'YYYY-MM-DD' dùng cho tooltip
   inbound: number;
   outbound: number;
   pending: number;
@@ -15,13 +15,13 @@ export interface FlowChartData {
   points: FlowDataPoint[];
 }
 
-// ── Defects & Exceptions Chart ─────────────────────────────────────────────────
+// ── Biểu đồ lỗi & sai lệch ───────────────────────────────────────────────────
 
 export interface DefectCategory {
   id: string;
   name: string;
-  value: number;   // absolute count
-  color: string;   // hex color
+  value: number;   // số lượng tuyệt đối
+  color: string;   // mã màu hex
 }
 
 export interface TopDefectProduct {
@@ -37,17 +37,17 @@ export interface DefectsData {
   topProducts: TopDefectProduct[];
 }
 
-// ── Inventory Variance Chart ───────────────────────────────────────────────────
+// ── Biểu đồ sai lệch tồn kho ─────────────────────────────────────────────────
 
 export interface InventoryZone {
-  label: string;     // 'Khu A', 'Khu B' or count ID
+  label: string;     // tên khu vực kho
   systemQty: number;
   actualQty: number;
-  variance: number;  // actualQty - systemQty (+overcount, -undercount)
+  variance: number;  // actualQty - systemQty (dương: thừa, âm: thiếu)
 }
 
 export interface InventoryVarianceData {
   zones: InventoryZone[];
-  accuracy: number;      // 0-100 percentage
+  accuracy: number;      // phần trăm chính xác 0-100
   lastCountDate: string; // 'YYYY-MM-DD'
 }

@@ -78,12 +78,10 @@ export function CategoryFormSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v && !isPending) onClose(); }}>
-      {/* Drawer Container (Side Sheet matching design) */}
-      <SheetContent 
-        side="right" 
+      <SheetContent
+        side="right"
         className="w-[440px] max-w-full p-0 bg-white shadow-[-16px_0_48px_-4px_rgba(0,0,0,0.15)] flex flex-col border-l border-slate-200"
       >
-        {/* Drawer Header */}
         <div className="px-8 py-8 flex items-center justify-between flex-shrink-0">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 tracking-tight font-headline">
@@ -102,10 +100,8 @@ export function CategoryFormSheet({
           </button>
         </div>
 
-        {/* Drawer Body */}
         <div className="flex-1 overflow-y-auto px-8 pb-12 space-y-10 no-scrollbar">
           <form id="category-form" onSubmit={handleSubmit} className="space-y-8">
-            {/* Category Name */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">
                 Tên danh mục {!isView && <span className="text-red-600 font-body">*</span>}
@@ -120,7 +116,6 @@ export function CategoryFormSheet({
               />
             </div>
 
-            {/* Description */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Mô tả</label>
               <textarea
@@ -133,7 +128,6 @@ export function CategoryFormSheet({
               />
             </div>
 
-            {/* Parent Category */}
             <div className="space-y-2.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Danh mục cha</label>
               <div className="relative group flex items-center bg-slate-50 rounded-xl px-4 py-3.5">
@@ -156,7 +150,6 @@ export function CategoryFormSheet({
               </p>
             </div>
 
-            {/* Status Toggle Block */}
             <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition-colors group">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm transition-transform ${status === 'active' ? 'text-blue-600' : 'text-slate-400'}`}>
@@ -179,7 +172,7 @@ export function CategoryFormSheet({
               </label>
             </div>
 
-            {/* Iconography Preview Section */}
+            {/* ── Chọn biểu tượng ── */}
             <div className="space-y-4 pt-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em]">Biểu tượng</label>
               
@@ -216,7 +209,6 @@ export function CategoryFormSheet({
           </form>
         </div>
 
-        {/* Drawer Footer */}
         <div className="p-8 bg-white border-t border-slate-100 flex items-center gap-4 flex-shrink-0">
           {!isView && (
             <button 

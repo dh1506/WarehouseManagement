@@ -13,6 +13,7 @@ const PERMISSION_ALIASES: Record<string, string[]> = {
   ],
 };
 
+// Muc dich: Kiem tra quyen truy cap dua tren role va permission list.
 export function usePermission(permission?: string) {
   const user = useAuthStore((state) => state.user);
   const hasPermission = useAuthStore((state) => state.hasPermission);

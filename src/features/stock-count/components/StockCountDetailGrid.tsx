@@ -12,8 +12,8 @@ interface StockCountDetailGridProps {
   stockCount: StockCount;
 }
 
-// ── Local draft state for optimistic quantity inputs ─────────────────────────
-type DraftMap = Record<number, string>; // detail.id → raw string input
+// ── Trạng thái nháp cục bộ để nhập số lượng tức thời ─────────────────────────
+type DraftMap = Record<number, string>; // detail.id → chuỗi nhập thô
 
 function formatQty(raw: string | null): string {
   if (raw === null) return '';
@@ -25,7 +25,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// Compute variance client-side (no server round-trip — per NFR 2)
+// Tính chênh lệch phía client (không cần round-trip server)
 function computeVariance(systemQty: string, countedQty: string | null): number | null {
   if (countedQty === null) return null;
   return Number(countedQty) - Number(systemQty);
@@ -64,7 +64,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
   const recordMutation = useRecordCount();
   const confirmVarianceMutation = useConfirmVariance();
 
-  // Local draft quantities for real-time variance calc without server round-trip
+  // Số lượng nháp cục bộ để tính chênh lệch tức thời không cần round-trip server
   const [draftQty, setDraftQty] = useState<DraftMap>(() => {
     const map: DraftMap = {};
     stockCount.details.forEach((d) => {
@@ -75,7 +75,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
     return map;
   });
 
-  // Saving state (set of detail IDs currently being saved)
+  // Tập hợp ID chi tiết đang được lưu
   const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
 
   // Confirm variance dialog state
@@ -84,7 +84,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
 
   const isCounting = stockCount.status === 'COUNTING';
 
-  // All unconfirmed variances (for bulk confirm)
+  // Tất cả chênh lệch chưa xác nhận (cho xác nhận hàng loạt)
   const unconfirmedVariances = useMemo(
     () =>
       stockCount.details.filter(
@@ -97,7 +97,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
   );
 
   const handleQtyChange = (detailId: number, value: string) => {
-    // Allow only non-negative numbers
+    // Chỉ cho phép số không âm
     if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
     setDraftQty((prev) => ({ ...prev, [detailId]: value }));
   };
@@ -259,7 +259,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                   const draftNum = draftValue !== '' ? parseFloat(draftValue) : null;
                   const serverCounted = detail.counted_quantity !== null ? Number(detail.counted_quantity) : null;
 
-                  // Use draft for real-time variance display
+                  // Dùng giá trị nháp để hiển thị chênh lệch tức thời
                   const displayVariance = canSeeSystemQty
                     ? draftNum !== null
                       ? draftNum - Number(detail.system_quantity)
@@ -284,10 +284,10 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                         needsConfirm && 'bg-amber-50/30',
                       )}
                     >
-                      {/* Row # */}
+                      {/* STT */}
                       <td className="px-4 py-3 text-xs text-slate-400 tabular-nums">{idx + 1}</td>
 
-                      {/* Product */}
+                      {/* Sản phẩm */}
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-slate-800 truncate max-w-[180px]">
                           {detail.product.name}
@@ -297,7 +297,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                         </p>
                       </td>
 
-                      {/* Location */}
+                      {/* Vị trí */}
                       <td className="px-4 py-3">
                         <span
                           className="text-xs text-slate-600 truncate max-w-[140px] block"
@@ -308,7 +308,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                         <span className="text-[11px] text-slate-400">{detail.location.warehouse.name}</span>
                       </td>
 
-                      {/* Lot */}
+                      {/* Lô hàng */}
                       <td className="px-4 py-3">
                         {detail.lot ? (
                           <div>
@@ -324,7 +324,7 @@ export function StockCountDetailGrid({ stockCount }: StockCountDetailGridProps) 
                         )}
                       </td>
 
-                      {/* T0 Qty (Manager/CEO only) */}
+                      {/* Số lượng hệ thống (chỉ Manager/CEO) */}
                       {canSeeSystemQty && (
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-mono text-slate-600 tabular-nums">

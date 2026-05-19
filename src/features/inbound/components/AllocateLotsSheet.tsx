@@ -38,7 +38,7 @@ import {
 import { OccupancyBadge } from '@/components/OccupancyBadge';
 import { CapacityProgress } from '@/components/CapacityProgress';
 
-// ── Raw API shape for location search ────────────────────────────────────────
+// ── Kiểu dữ liệu thô từ API tìm kiếm vị trí ─────────────────────────────────
 
 interface LocationRaw {
   id: number;
@@ -47,7 +47,7 @@ interface LocationRaw {
   location_status: 'AVAILABLE' | 'PARTIAL' | 'FULL' | 'MAINTENANCE';
   zone_code: string | null;
   warehouse: { name: string; code: string };
-  // Optional capacity fields — present when BE search endpoint returns them
+  // Trường sức chứa tuỳ chọn — có mặt khi endpoint tìm kiếm BE trả về
   capacity?: number;
   current_load?: number;
 }
@@ -57,7 +57,7 @@ interface LocationListResponse {
   pagination: { total: number };
 }
 
-// ── Form types ────────────────────────────────────────────────────────────────
+// ── Kiểu dữ liệu form ────────────────────────────────────────────────────────
 
 interface AllocRow {
   rowId: string;
@@ -72,9 +72,9 @@ interface AllocRow {
   expired_date: string;
 }
 
-type FormState = Record<number, AllocRow[]>; // keyed by StockInDetail.id
+type FormState = Record<number, AllocRow[]>; // key là StockInDetail.id
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ── Props ────────────────────────────────────────────────────────────────────
 
 interface AllocateLotsSheetProps {
   open: boolean;
@@ -85,7 +85,7 @@ interface AllocateLotsSheetProps {
   defaultLocationCode?: string;
 }
 
-// ── Pure helpers ──────────────────────────────────────────────────────────────
+// ── Hàm tiện ích thuần túy ────────────────────────────────────────────────────
 
 function makeRow(defaults?: { location_id: number; location_code: string }): AllocRow {
   return {
@@ -110,7 +110,7 @@ function calcRemaining(detail: StockInDetail): number {
   return Math.max(0, Number(detail.received_quantity) - sumAlreadyAllocated(detail));
 }
 
-// Today as YYYY-MM-DD in local time — used for min/max date attributes and validation
+// Ngày hôm nay dạng YYYY-MM-DD theo giờ địa phương — dùng cho thuộc tính min/max và kiểm tra hợp lệ
 function todayStr(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -119,7 +119,7 @@ function todayStr(): string {
   return `${y}-${m}-${dd}`;
 }
 
-// Remaining shelf life in days from today; null when date is empty
+// Số ngày còn lại trên kệ tính từ hôm nay; null nếu ngày trống
 function shelfLifeDays(expiredDate: string): number | null {
   if (!expiredDate) return null;
   const expiry = new Date(expiredDate);
@@ -129,8 +129,7 @@ function shelfLifeDays(expiredDate: string): number | null {
 }
 
 // ── LocationCombobox ──────────────────────────────────────────────────────────
-// Searchable location picker.
-// AC02 — locations that already hold this SKU are surfaced first.
+// Dropdown tìm kiếm vị trí lưu kho; ưu tiên vị trí đã chứa cùng SKU (AC02).
 
 interface LocationOption {
   id: number;
@@ -150,14 +149,14 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  // AC02 — locations already holding this SKU
+  // Vị trí đã chứa hàng cùng SKU (AC02)
   const { data: existingLocs, isLoading: existingLoading } = useProductLocationInventory(
     String(productId),
     '',
     open,
   );
 
-  // All locations via full-text search
+  // Tất cả vị trí qua tìm kiếm toàn văn
   const { data: allLocsRaw, isLoading: allLoading } = useQuery({
     queryKey: ['warehouse-locations', 'alloc-search', search],
     queryFn: async () => {
@@ -223,7 +222,7 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                   <CommandEmpty>Không tìm thấy vị trí nào.</CommandEmpty>
                 )}
 
-                {/* Group 1 — locations that already hold this SKU (AC02 priority) */}
+                {/* Nhóm 1 — vị trí đã chứa hàng cùng SKU (ưu tiên AC02) */}
                 {(existingLocs?.length ?? 0) > 0 && (
                   <CommandGroup heading="Đã có hàng cùng SKU (ưu tiên)">
                     {existingLocs!.map((loc) => {
@@ -269,7 +268,7 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
                   <CommandSeparator />
                 )}
 
-                {/* Group 2 — all other locations */}
+                {/* Nhóm 2 — tất cả vị trí còn lại */}
                 {otherLocs.length > 0 && (
                   <CommandGroup heading="Vị trí khác">
                     {otherLocs.slice(0, 50).map((loc) => (
@@ -326,9 +325,8 @@ function LocationCombobox({ productId, value, onSelect }: LocationComboboxProps)
 }
 
 // ── LotCombobox ───────────────────────────────────────────────────────────────
-// Searchable lot picker for a given product.
-// Lists existing ProductLot records (via /api/inventories) as suggestions;
-// also lets the user type a brand-new lot code that gets created on submit.
+// Dropdown tìm kiếm lô hàng cho sản phẩm; hiển thị lô hiện có làm gợi ý
+// và cho phép nhập mã lô mới sẽ được tạo khi xác nhận.
 
 interface LotSuggestion {
   lotNo: string;
@@ -432,7 +430,7 @@ function LotCombobox({ productId, value, onChange }: LotComboboxProps) {
               </div>
             ) : (
               <>
-                {/* New lot entry */}
+                {/* Mã lô mới */}
                 {isNewLot && (
                   <CommandGroup heading="Lô mới">
                     <CommandItem value={search.trim()} onSelect={() => apply(search.trim())}>
@@ -443,7 +441,7 @@ function LotCombobox({ productId, value, onChange }: LotComboboxProps) {
                   </CommandGroup>
                 )}
 
-                {/* Existing lots */}
+                {/* Lô hiện có */}
                 {filtered.length > 0 && (
                   <CommandGroup heading={suggestions.length > 0 ? 'Lô hiện có trong hệ thống' : undefined}>
                     {filtered.map((s) => (
@@ -485,7 +483,7 @@ function LotCombobox({ productId, value, onChange }: LotComboboxProps) {
   );
 }
 
-// ── AllocateLotsSheet ─────────────────────────────────────────────────────────
+// ── AllocateLotsSheet — Form phân bổ lô hàng ─────────────────────────────────
 
 export function AllocateLotsSheet({
   open,
@@ -498,7 +496,7 @@ export function AllocateLotsSheet({
   const { toast } = useToast();
   const allocateMutation = useAllocateLots(stockInId);
 
-  // Details that have been received (received_quantity > 0)
+  // Chỉ lấy các dòng đã nhận hàng thực tế (received_quantity > 0)
   const activeDetails = useMemo(
     () => details.filter((d) => Number(d.received_quantity) > 0),
     [details],
@@ -507,8 +505,7 @@ export function AllocateLotsSheet({
   const [formState, setFormState] = useState<FormState>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reset form each time the sheet opens; pre-fill each row with the stock-in's
-  // default warehouse location so the user sees a concrete starting point.
+  // Đặt lại form mỗi khi mở sheet; điền sẵn vị trí kho mặc định cho từng dòng.
   useEffect(() => {
     if (!open) return;
     const locDefaults =
@@ -528,7 +525,7 @@ export function AllocateLotsSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ── Row CRUD ────────────────────────────────────────────────────────────────
+  // ── Thêm / xoá / cập nhật dòng phân bổ ────────────────────────────────────
 
   const addRow = useCallback((detailId: number) => {
     setFormState((prev) => ({
@@ -564,11 +561,11 @@ export function AllocateLotsSheet({
     });
   }, []);
 
-  // ── Validation ──────────────────────────────────────────────────────────────
-  // AC03 — lot_no, production_date, expired_date all required; expired_date > today
-  // AC04 — at least one allocation row per received detail
-  // AC05 — new rows total == remaining quantity (±0.001 tolerance)
-  // AC08 — quantity <= remaining location capacity (when capacity data available)
+  // ── Kiểm tra hợp lệ trước khi gửi ─────────────────────────────────────────
+  // AC03 — lot_no, ngày sản xuất, ngày hết hạn bắt buộc; hạn dùng phải sau hôm nay
+  // AC04 — mỗi dòng đã nhận phải có ít nhất một dòng phân bổ
+  // AC05 — tổng số lượng các dòng mới phải bằng số lượng còn lại (±0.001)
+  // AC08 — số lượng phân bổ không được vượt sức chứa còn lại của vị trí
 
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
@@ -580,14 +577,14 @@ export function AllocateLotsSheet({
 
       const rows = formState[detail.id] ?? [];
 
-      // AC04 — must have at least one allocation row
+      // AC04 — phải có ít nhất một dòng phân bổ
       if (rows.length === 0) {
         newErrors[`detail_${detail.id}`] =
           `Chưa có dòng phân bổ nào cho sản phẩm "${detail.product.name}".`;
         continue;
       }
 
-      // Duplicate lot_no + location_id within same product
+      // Kiểm tra trùng lặp lot_no + location_id trong cùng sản phẩm
       const seenLotLoc = new Set<string>();
       for (const row of rows) {
         if (row.lot_no.trim() && row.location_id) {
@@ -604,7 +601,7 @@ export function AllocateLotsSheet({
       let totalNewQty = 0;
 
       for (const row of rows) {
-        // Location required + not FULL
+        // Vị trí bắt buộc và không được ở trạng thái ĐẦY
         if (!row.location_id) {
           newErrors[`loc_${detail.id}_${row.rowId}`] = 'Chưa chọn vị trí lưu kho.';
         } else if (row.location_status === 'FULL') {
@@ -612,18 +609,18 @@ export function AllocateLotsSheet({
             'Vị trí này đã đầy (FULL) — vui lòng chọn vị trí khác.';
         }
 
-        // Lot no required
+        // Mã lô bắt buộc
         if (!row.lot_no.trim()) {
           newErrors[`lot_${detail.id}_${row.rowId}`] = 'Chưa nhập mã lô.';
         }
 
-        // Quantity > 0
+        // Số lượng phải > 0
         if (row.quantity === '' || Number(row.quantity) <= 0) {
           newErrors[`qty_${detail.id}_${row.rowId}`] = 'Số lượng phải > 0.';
         } else {
           totalNewQty += Number(row.quantity);
 
-          // AC08 — capacity check (numeric capacity graceful fallback)
+          // AC08 — kiểm tra sức chứa vị trí
           if (row.location_capacity && row.location_capacity > 0) {
             const remaining = row.location_capacity - (row.location_current_load ?? 0);
             if (Number(row.quantity) > remaining) {
@@ -633,12 +630,12 @@ export function AllocateLotsSheet({
           }
         }
 
-        // Production date — required (§11.4 F&B mandatory)
+        // Ngày sản xuất — bắt buộc (§11.4 quy định F&B)
         if (!row.production_date) {
           newErrors[`mfg_${detail.id}_${row.rowId}`] = 'Ngày sản xuất là bắt buộc.';
         }
 
-        // Expiry date — required AND must be > today (§11.4, AC03)
+        // Ngày hết hạn — bắt buộc và phải sau hôm nay (§11.4, AC03)
         if (!row.expired_date) {
           newErrors[`exp_${detail.id}_${row.rowId}`] = 'Ngày hết hạn là bắt buộc.';
         } else if (row.expired_date <= today) {
@@ -647,7 +644,7 @@ export function AllocateLotsSheet({
         }
       }
 
-      // AC05 — new rows total must equal remaining unallocated amount
+      // AC05 — tổng số lượng dòng mới phải bằng phần chưa phân bổ
       const hasRowLevelErrors = Object.keys(newErrors).some(
         (k) =>
           k.startsWith(`loc_${detail.id}`) ||
@@ -668,7 +665,7 @@ export function AllocateLotsSheet({
     return Object.keys(newErrors).length === 0;
   }, [activeDetails, formState]);
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Gửi dữ liệu phân bổ lên server ──────────────────────────────────────
 
   const handleSubmit = useCallback(() => {
     if (!validate()) return;
@@ -685,7 +682,7 @@ export function AllocateLotsSheet({
           location_id: row.location_id!,
           lot_no: row.lot_no.trim(),
           quantity: Number(row.quantity),
-          // BE schema uses z.string().datetime() — convert YYYY-MM-DD to full ISO 8601
+          // Schema BE dùng z.string().datetime() — chuyển YYYY-MM-DD sang ISO 8601 đầy đủ
           production_date: row.production_date
             ? `${row.production_date}T00:00:00.000Z`
             : undefined,
@@ -733,7 +730,7 @@ export function AllocateLotsSheet({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex justify-end">
-        {/* Backdrop */}
+        {/* Lớp phủ nền */}
         <motion.div
           className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
           initial={{ opacity: 0 }}
@@ -743,7 +740,7 @@ export function AllocateLotsSheet({
           onClick={onClose}
         />
 
-        {/* Sheet panel */}
+        {/* Tấm panel bên phải */}
         <motion.div
           className="relative flex h-full w-145 max-w-full flex-col bg-white shadow-2xl"
           initial={{ x: '100%' }}
@@ -751,7 +748,7 @@ export function AllocateLotsSheet({
           exit={{ x: '100%' }}
           transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
         >
-          {/* Header */}
+          {/* Tiêu đề */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Phân bổ lô hàng</h2>
@@ -767,10 +764,10 @@ export function AllocateLotsSheet({
             </button>
           </div>
 
-          {/* Body */}
+          {/* Nội dung chính */}
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
 
-            {/* Empty state */}
+            {/* Trạng thái rỗng */}
             {activeDetails.length === 0 && (
               <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
                 <Package className="h-10 w-10" />
@@ -778,7 +775,7 @@ export function AllocateLotsSheet({
               </div>
             )}
 
-            {/* All already allocated */}
+            {/* Tất cả đã phân bổ đầy đủ */}
             {activeDetails.length > 0 && allFullyAllocated && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
@@ -788,7 +785,7 @@ export function AllocateLotsSheet({
               </div>
             )}
 
-            {/* Per-detail allocation form */}
+            {/* Form phân bổ từng dòng sản phẩm */}
             {activeDetails.map((detail) => {
               const receivedQty  = Number(detail.received_quantity);
               const allocatedQty = sumAlreadyAllocated(detail);
@@ -809,7 +806,7 @@ export function AllocateLotsSheet({
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm"
                 >
-                  {/* Product header */}
+                  {/* Tiêu đề sản phẩm */}
                   <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-800">
@@ -847,7 +844,7 @@ export function AllocateLotsSheet({
                   </div>
 
                   <div className="space-y-3 px-4 py-3">
-                    {/* Existing lots — read-only chips */}
+                    {/* Lô đã phân bổ trước — chỉ đọc */}
                     {detail.lots.length > 0 && (
                       <div>
                         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -873,7 +870,7 @@ export function AllocateLotsSheet({
                       </div>
                     )}
 
-                    {/* Fully allocated — no form needed */}
+                    {/* Đã phân bổ đầy đủ — không cần form */}
                     {isFullyAllocated ? (
                       <p className="flex items-center gap-1 text-xs font-medium text-emerald-600">
                         <CheckCircle2 className="h-3.5 w-3.5" />
@@ -881,7 +878,7 @@ export function AllocateLotsSheet({
                       </p>
                     ) : (
                       <>
-                        {/* Remaining qty progress indicator */}
+                        {/* Chỉ báo tiến trình số lượng còn lại */}
                         <div className="flex items-center justify-between">
                           <p className="text-[11px] text-slate-500">
                             Cần phân bổ thêm:{' '}
@@ -906,11 +903,11 @@ export function AllocateLotsSheet({
                           )}
                         </div>
 
-                        {/* Allocation row forms */}
+                        {/* Các dòng nhập liệu phân bổ */}
                         <div className="space-y-2">
                           <AnimatePresence initial={false}>
                             {rows.map((row, rowIdx) => {
-                              // Sum of all rows for this detail that target the same location
+                              // Tổng số lượng các dòng cùng sản phẩm hướng đến cùng vị trí
                               const totalPendingForLoc = rows
                                 .filter((r) => r.location_id === row.location_id)
                                 .reduce(
@@ -938,7 +935,7 @@ export function AllocateLotsSheet({
                                   transition={{ duration: 0.15 }}
                                   className="group space-y-2 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5"
                                 >
-                                  {/* Row header */}
+                                  {/* Tiêu đề dòng */}
                                   <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                                       Dòng {rowIdx + 1}
@@ -954,7 +951,7 @@ export function AllocateLotsSheet({
                                     )}
                                   </div>
 
-                                  {/* ── Location picker (AC02) ── */}
+                                  {/* ── Chọn vị trí lưu kho (AC02) ── */}
                                   <div>
                                     <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                                       Vị trí lưu kho <span className="text-rose-500">*</span>
@@ -980,7 +977,7 @@ export function AllocateLotsSheet({
                                           }}
                                         />
                                       </div>
-                                      {/* OccupancyBadge — AC07 location colour status */}
+                                      {/* Huy hiệu mức độ chiếm dụng — AC07 màu trạng thái vị trí */}
                                       {row.location_id && (
                                         <OccupancyBadge
                                           occupancyPct={occupancyPct}
@@ -993,7 +990,7 @@ export function AllocateLotsSheet({
                                         {errors[`loc_${detail.id}_${row.rowId}`]}
                                       </p>
                                     )}
-                                    {/* CapacityProgress — AC08 occupancy visualisation */}
+                                    {/* Thanh tiến trình sức chứa — AC08 hiển thị mức chiếm dụng */}
                                     {hasCapacity && (
                                       <div className="mt-1.5">
                                         <CapacityProgress
@@ -1011,7 +1008,7 @@ export function AllocateLotsSheet({
                                     )}
                                   </div>
 
-                                  {/* ── Lot no + Quantity ── */}
+                                  {/* ── Mã lô + Số lượng ── */}
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -1065,7 +1062,7 @@ export function AllocateLotsSheet({
                                     </div>
                                   </div>
 
-                                  {/* ── Dates — required for F&B (§11.4) ── */}
+                                  {/* ── Ngày sản xuất & hạn dùng — bắt buộc theo §11.4 F&B ── */}
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -1120,7 +1117,7 @@ export function AllocateLotsSheet({
                                           {errors[`exp_${detail.id}_${row.rowId}`]}
                                         </p>
                                       )}
-                                      {/* Remaining shelf-life chip — shown once a valid future date is entered */}
+                                      {/* Chip hạn sử dụng còn lại — hiển thị khi nhập ngày tương lai hợp lệ */}
                                       {(() => {
                                         const days = shelfLifeDays(row.expired_date);
                                         if (days === null || days <= 0) return null;
@@ -1145,7 +1142,7 @@ export function AllocateLotsSheet({
                           </AnimatePresence>
                         </div>
 
-                        {/* Add allocation row */}
+                        {/* Thêm dòng phân bổ */}
                         <button
                           type="button"
                           onClick={() => addRow(detail.id)}
@@ -1162,7 +1159,7 @@ export function AllocateLotsSheet({
             })}
           </div>
 
-          {/* Footer */}
+          {/* Chân trang */}
           <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/80 px-6 py-4">
             <button
               type="button"

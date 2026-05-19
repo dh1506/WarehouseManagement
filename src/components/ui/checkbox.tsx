@@ -4,6 +4,7 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { CheckIcon } from "lucide-react"
 
+// Muc dich: Component Checkbox theo Radix.
 function Checkbox({
   className,
   ...props

@@ -12,6 +12,7 @@ export const ADVANCED_PERM_KEYS = {
   roles: ['roles', 'list'] as const,
 };
 
+// Muc dich: Lay danh sach role cho man hinh phan quyen nang cao.
 export function useRolesForAdvanced() {
   return useQuery({
     queryKey: ADVANCED_PERM_KEYS.roles,
@@ -19,6 +20,7 @@ export function useRolesForAdvanced() {
   });
 }
 
+// Muc dich: Lay quyen nang cao theo role.
 export function useAdvancedRolePermissions(roleId: string | null) {
   return useQuery({
     queryKey: ADVANCED_PERM_KEYS.byRole(roleId!),
@@ -27,6 +29,7 @@ export function useAdvancedRolePermissions(roleId: string | null) {
   });
 }
 
+// Muc dich: Cap nhat quyen nang cao va dong bo cache.
 export function useUpdateAdvancedPermissions() {
   const queryClient = useQueryClient();
 

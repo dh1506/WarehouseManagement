@@ -2,9 +2,7 @@ import apiClient from './apiClient';
 import type { ApiResponse } from '@/types/api';
 import { collectPaginatedItems, matchesCaseInsensitiveSearch, paginateFallbackItems } from './searchFallback';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// ── Kiểu dữ liệu ─────────────────────────────────────────────────────────────
 
 export interface UserItem {
   id: string;
@@ -106,6 +104,7 @@ interface ApiErrorShape {
   message?: string;
 }
 
+// Muc dich: Lay du lieu thuan tu phan hoi API co nhieu lop data.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     const level1 = (response as { data: unknown }).data;
@@ -119,16 +118,19 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Trim va tra ve undefined neu rong.
 function toTrimmedOrUndefined(value?: string): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
+// Muc dich: Trim va tra ve null neu rong.
 function toTrimmedOrNull(value?: string): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
 
+// Muc dich: Parse so duong va bao loi neu khong hop le.
 function parsePositiveInt(value: string, fieldLabel: string): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -138,6 +140,7 @@ function parsePositiveInt(value: string, fieldLabel: string): number {
   return parsed;
 }
 
+// Muc dich: Rut gon thong diep loi tu API.
 function getApiErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error) {
     const message = (error as ApiErrorShape).message;
@@ -153,18 +156,21 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+// Muc dich: Map status backend sang FE.
 function fromApiStatus(status: UserApiItem['user_status']): UserItem['status'] {
   if (status === 'ACTIVE') return 'Active';
   if (status === 'INACTIVE') return 'Inactive';
   return 'Suspended';
 }
 
+// Muc dich: Map status FE sang backend.
 function toApiStatus(status: UserItem['status']): UserApiItem['user_status'] {
   if (status === 'Active') return 'ACTIVE';
   if (status === 'Inactive') return 'INACTIVE';
   return 'SUSPENDED';
 }
 
+// Muc dich: Map du lieu nguoi dung API sang model FE.
 function mapUserFromApi(item: UserApiItem): UserItem {
   return {
     id: String(item.id),
@@ -182,14 +188,10 @@ function mapUserFromApi(item: UserApiItem): UserItem {
 }
 
 
-// ---------------------------------------------------------------------------
-// API functions — khớp đúng contract đã thiết kế
-// ---------------------------------------------------------------------------
+// ── Các hàm gọi API ───────────────────────────────────────────────────────────
 
-/**
- * GET /api/users?page={}&limit={}&search={}
- * Xem danh sách người dùng (có phân trang, tìm kiếm)
- */
+/** Lấy danh sách người dùng có phân trang và tìm kiếm. */
+// Muc dich: Lay danh sach nguoi dung co phan trang va search.
 export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
   const page = params.page;
   const limit = params.limit;
@@ -275,17 +277,13 @@ export const getUsers = (params: GetUsersParams): Promise<GetUsersResponse> => {
     });
 };
 
-/**
- * GET /api/users/:id
- * Xem chi tiết người dùng
- */
+/** Lấy chi tiết người dùng theo ID. */
+// Muc dich: Lay chi tiet nguoi dung theo id.
 export const getUserById = (id: string): Promise<UserItem> =>
   apiClient.get<ApiResponse<UserApiItem>>(`/api/users/${id}`).then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
-/**
- * POST /api/users
- * Tạo tài khoản người dùng mới
- */
+/** Tạo tài khoản người dùng mới. */
+// Muc dich: Tao tai khoan nguoi dung moi.
 export const createUser = (payload: CreateUserPayload): Promise<UserItem> =>
   apiClient
     .post<ApiResponse<UserApiItem>>('/api/users', {
@@ -299,10 +297,8 @@ export const createUser = (payload: CreateUserPayload): Promise<UserItem> =>
     })
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
-/**
- * PATCH /api/users/:id
- * Cập nhật thông tin tài khoản người dùng
- */
+/** Cập nhật thông tin tài khoản người dùng. */
+// Muc dich: Cap nhat thong tin nguoi dung.
 export const updateUser = (id: string, payload: UpdateUserPayload): Promise<UserItem> =>
   apiClient
     .patch<ApiResponse<UserApiItem>>(`/api/users/${id}`, {
@@ -315,10 +311,8 @@ export const updateUser = (id: string, payload: UpdateUserPayload): Promise<User
     })
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
-/**
- * PATCH /api/users/:id
- * Khoá / mở khoá tài khoản người dùng
- */
+/** Khoá hoặc mở khoá tài khoản người dùng. */
+// Muc dich: Khoa/mo khoa tai khoan nguoi dung.
 export const lockUser = (id: string, payload: LockUserPayload): Promise<UserItem> =>
   apiClient
     .patch<ApiResponse<UserApiItem>>(`/api/users/${id}`, {
@@ -326,10 +320,8 @@ export const lockUser = (id: string, payload: LockUserPayload): Promise<UserItem
     })
     .then((response) => mapUserFromApi(unwrapApiData<UserApiItem>(response)));
 
-/**
- * PATCH /api/users/:id
- * Đặt lại mật khẩu người dùng
- */
+/** Đặt lại mật khẩu người dùng. */
+// Muc dich: Dat lai mat khau nguoi dung.
 export const resetUserPassword = (id: string, payload: ResetPasswordPayload): Promise<void> =>
   apiClient
     .patch<ApiResponse<unknown>>(`/api/users/${id}`, {
@@ -337,6 +329,7 @@ export const resetUserPassword = (id: string, payload: ResetPasswordPayload): Pr
     })
     .then(() => undefined);
 
+// Muc dich: Lay danh sach role active de chon.
 export const getUserRoleOptions = (): Promise<UserRoleOption[]> =>
   apiClient
     .get<ApiResponse<RolesListApiData>>('/api/roles', {

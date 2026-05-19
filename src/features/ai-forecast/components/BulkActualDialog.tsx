@@ -22,6 +22,7 @@ interface BulkActualDialogProps {
   onSuccess?: (updated: Map<number, number>) => void;
 }
 
+// Muc dich: Dialog cap nhat so luong thuc te hang loat.
 export function BulkActualDialog({
   forecastId,
   open,

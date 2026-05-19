@@ -24,7 +24,7 @@ import {
   Layers,
 } from 'lucide-react';
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Hàm hỗ trợ ──────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; color: string; icon: typeof ArrowDownLeft }> = {
   IN: { label: 'Nhập kho', color: 'bg-emerald-50 text-emerald-700 ring-emerald-200', icon: ArrowDownLeft },
@@ -68,7 +68,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Package; label: st
   );
 }
 
-// ── Component ───────────────────────────────────────────────────────────────
+// ── Component chính ─────────────────────────────────────────────────────────
 
 interface TransactionDetailSheetProps {
   transactionId: number | null;
@@ -113,7 +113,7 @@ export function TransactionDetailSheet({ transactionId, open, onOpenChange }: Tr
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="pt-4 space-y-1"
           >
-            {/* Type badge + quantity highlight */}
+            {/* Badge loại giao dịch và số lượng */}
             <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5 mb-4">
               <div className="flex items-center justify-between mb-4">
                 <span className={cn(
@@ -153,7 +153,7 @@ export function TransactionDetailSheet({ transactionId, open, onOpenChange }: Tr
               </div>
             </div>
 
-            {/* Detail rows */}
+            {/* Các dòng chi tiết */}
             <div className="divide-y divide-slate-100">
               <InfoRow
                 icon={Calendar}

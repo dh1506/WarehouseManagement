@@ -1,13 +1,14 @@
 import { LoginForm } from '@/features/auth/components/LoginForm';
 
+// Muc dich: Trang dang nhap he thong.
 export function LoginPage() {
   return (
     <div className="bg-surface text-on-surface antialiased min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Auth Layout Wrapper */}
+      {/* Khung bố cục đăng nhập */}
       <div className="flex w-full h-screen">
-        {/* Left Section: Visual Brand Anchor */}
+        {/* Bên trái: khối thương hiệu hình ảnh */}
         <div className="hidden lg:flex lg:w-3/5 xl:w-2/3 relative overflow-hidden bg-primary">
-          {/* Background Image with data-alt */}
+          {/* Ảnh nền */}
           <div className="absolute inset-0 z-0">
             <img
               className="w-full h-full object-cover opacity-60 mix-blend-luminosity"
@@ -15,10 +16,10 @@ export function LoginPage() {
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmrHOGhpQISoKui4wOinmO3oBvVYaaulpsuv9xdUF5u_ydst4L23jF6wvF2kjsyp0TIaH5cfLMHC3bkFI9wSrL7DHLzr-NWinqlr7NqP6Q2GOlxivmcDFdYmSutsCQ1YLtZc5ZcS2dBEAE6ducCtpYTBAbzsZ84Em5ci5zN8FVwRDm6Vi1gDlu03PBe2m5j1pF40w7jKb1qgCQ0Rb8K7FD1Y6I8eg0CKhZERqOUo6JxsBynD-TjqyDa6-iSjyfRrSF1BFCdLlfaOs"
             />
           </div>
-          {/* Dynamic Overlay Gradient */}
+          {/* Lớp phủ gradient */}
           <div className="absolute inset-0 bg-gradient-to-tr from-primary via-primary/40 to-transparent z-10"></div>
 
-          {/* Content Overlay */}
+          {/* Nội dung overlay */}
           <div className="relative z-20 flex flex-col justify-between p-16 w-full h-full">
             <div>
               <div className="flex items-center gap-3 mb-8">
@@ -41,7 +42,7 @@ export function LoginPage() {
               </div>
             </div>
 
-            {/* AI Metric Teaser */}
+            {/* Chỉ số nổi bật AI */}
             <div className="flex gap-6">
               <div className="bg-white/10 backdrop-blur-xl border border-white/10 p-6 rounded-xl w-64">
                 <div className="flex items-center gap-2 mb-2">
@@ -72,10 +73,10 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Right Section: Login Interface */}
+        {/* Bên phải: giao diện đăng nhập */}
         <div className="w-full lg:w-2/5 xl:w-1/3 flex flex-col p-8 md:p-12 lg:p-16 bg-surface h-screen">
           <div className="w-full max-w-md mx-auto flex flex-col h-full flex-1">
-            {/* Mobile Branding (Hidden on Desktop) */}
+            {/* Thương hiệu trên mobile (ẩn trên desktop) */}
             <div className="lg:hidden flex items-center gap-2 mb-10 flex-none">
               <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
                 <span className="material-symbols-outlined text-white text-sm" data-icon="auto_awesome">
@@ -85,10 +86,10 @@ export function LoginPage() {
               <span className="text-xl font-bold text-primary">WMS Enterprise</span>
             </div>
 
-            {/* Form Logic and View (Flexes to fill middle space and pushes elements appropriately) */}
+            {/* Form đăng nhập */}
             <LoginForm />
 
-            {/* Footer Links (Pushed to bottom) */}
+            {/* Liên kết cuối trang */}
             <div className="mt-4 pt-8 border-t border-outline-variant/15 text-center flex-none">
               <p className="text-sm text-on-surface-variant">
                 Chỉ dành cho nhân sự được uỷ quyền. <br />

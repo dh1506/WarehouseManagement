@@ -5,6 +5,7 @@ import { Tooltip as TooltipPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Provider cho Tooltip.
 function TooltipProvider({
   delayDuration = 0,
   ...props
@@ -18,18 +19,21 @@ function TooltipProvider({
   )
 }
 
+// Muc dich: Wrapper cho Tooltip root.
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
+// Muc dich: Trigger mo Tooltip.
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
 }
 
+// Muc dich: Noi dung Tooltip.
 function TooltipContent({
   className,
   sideOffset = 0,

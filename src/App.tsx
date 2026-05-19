@@ -48,12 +48,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Guard component: chỉ render children nếu đã đăng nhập
+// Muc dich: Bao ve route yeu cau dang nhap.
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+// Muc dich: Bao ve route theo quyen truy cap page.
 function PageAccessRoute({ path, children }: { path: string; children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const canAccess = hasPageAccessFromPermissionNames(path, user?.permissions ?? [], user?.role);
@@ -61,6 +62,7 @@ function PageAccessRoute({ path, children }: { path: string; children: React.Rea
   return canAccess ? <>{children}</> : <Navigate to="/403" replace />;
 }
 
+// Muc dich: Dieu huong trang mac dinh theo quyen.
 function DefaultLandingRoute() {
   const user = useAuthStore((state) => state.user);
   const permissions = user?.permissions ?? [];
@@ -104,6 +106,7 @@ function DefaultLandingRoute() {
   return <Navigate to={firstAccessible ?? '/profile'} replace />;
 }
 
+// Muc dich: Cau hinh router va query client cho app.
 function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 

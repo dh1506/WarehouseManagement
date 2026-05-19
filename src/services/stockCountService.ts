@@ -8,18 +8,20 @@ import type {
   StockCountQueryParams,
 } from '@/features/stock-count/types/stockCountType';
 
-// Bypasses the apiClient response interceptor — required for blob downloads.
+// Bỏ qua interceptor của apiClient — cần thiết để tải file blob.
 const rawAxios = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
   timeout: 30000,
 });
 
+// Muc dich: Lay data thuan tu ApiResponse.
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
   return res.data;
 }
 
-// ── GET /api/stock-counts ────────────────────────────────────────────────────
+// ── GET /api/stock-counts ───────────────────────────────────────────────────
+// Muc dich: Lay danh sach phieu kiem ke.
 export async function getStockCounts(params: StockCountQueryParams): Promise<StockCountListResponse> {
   const query: Record<string, string | number> = {
     page: params.page,
@@ -34,13 +36,14 @@ export async function getStockCounts(params: StockCountQueryParams): Promise<Sto
   return unwrap<StockCountListResponse>(response);
 }
 
-// ── GET /api/stock-counts/:id ────────────────────────────────────────────────
+// ── GET /api/stock-counts/:id ──────────────────────────────────────────────
+// Muc dich: Lay chi tiet phieu kiem ke theo id.
 export async function getStockCountById(id: number): Promise<StockCount> {
   const response = await apiClient.get(`/api/stock-counts/${id}`);
   return unwrap<StockCount>(response);
 }
 
-// ── POST /api/stock-counts ───────────────────────────────────────────────────
+// ── POST /api/stock-counts ──────────────────────────────────────────────────
 export interface CreateStockCountPayload {
   type: 'PERIODIC' | 'AD_HOC';
   scope_type: 'FULL' | 'ZONE' | 'PRODUCT' | 'LOT';
@@ -53,18 +56,21 @@ export interface CreateStockCountPayload {
   }>;
 }
 
+// Muc dich: Tao phieu kiem ke moi.
 export async function createStockCount(payload: CreateStockCountPayload): Promise<StockCount> {
   const response = await apiClient.post('/api/stock-counts', payload);
   return unwrap<StockCount>(response);
 }
 
-// ── PATCH /api/stock-counts/:id/start ───────────────────────────────────────
+// ── PATCH /api/stock-counts/:id/start ──────────────────────────────────────
+// Muc dich: Bat dau quy trinh kiem ke.
 export async function startCounting(id: number): Promise<StockCount> {
   const response = await apiClient.patch(`/api/stock-counts/${id}/start`);
   return unwrap<StockCount>(response);
 }
 
-// ── PATCH /api/stock-counts/:id/record ──────────────────────────────────────
+// ── PATCH /api/stock-counts/:id/record ─────────────────────────────────────
+// Muc dich: Ghi nhan so luong da dem.
 export async function recordCountedQuantity(
   id: number,
   details: Array<{ detail_id: number; counted_quantity: number }>,
@@ -73,7 +79,8 @@ export async function recordCountedQuantity(
   return unwrap<StockCount>(response);
 }
 
-// ── PATCH /api/stock-counts/:id/confirm-variance ────────────────────────────
+// ── PATCH /api/stock-counts/:id/confirm-variance ───────────────────────────
+// Muc dich: Xac nhan chenh lech ton kho.
 export async function confirmVariance(
   id: number,
   details: Array<{ detail_id: number; variance_reason: string }>,
@@ -82,25 +89,28 @@ export async function confirmVariance(
   return unwrap<StockCount>(response);
 }
 
-// ── PATCH /api/stock-counts/:id/complete ────────────────────────────────────
+// ── PATCH /api/stock-counts/:id/complete ───────────────────────────────────
+// Muc dich: Hoan tat phieu kiem ke.
 export async function completeCounting(id: number): Promise<StockCount> {
   const response = await apiClient.patch(`/api/stock-counts/${id}/complete`);
   return unwrap<StockCount>(response);
 }
 
-// ── PATCH /api/stock-counts/:id/approve ─────────────────────────────────────
+// ── PATCH /api/stock-counts/:id/approve ────────────────────────────────────
+// Muc dich: Phe duyet phieu kiem ke.
 export async function approveStockCount(id: number): Promise<StockCount> {
   const response = await apiClient.patch(`/api/stock-counts/${id}/approve`);
   return unwrap<StockCount>(response);
 }
 
-// ── PATCH /api/stock-counts/:id/cancel ──────────────────────────────────────
+// ── PATCH /api/stock-counts/:id/cancel ─────────────────────────────────────
+// Muc dich: Huy phieu kiem ke theo ly do.
 export async function cancelStockCount(id: number, reason: string): Promise<StockCount> {
   const response = await apiClient.patch(`/api/stock-counts/${id}/cancel`, { reason });
   return unwrap<StockCount>(response);
 }
 
-// ── GET /api/inventories (for stock-count auto-populate) ────────────────────
+// ── GET /api/inventories (tự điền dữ liệu cho phiếu kiểm kê) ───────────────
 
 export interface InventoryRow {
   id: number;
@@ -133,6 +143,7 @@ interface InventoryListApiData {
   pagination: { total: number; totalPages: number };
 }
 
+// Muc dich: Lay ton kho de tu dong dien phieu kiem ke.
 export async function fetchInventoryForCount(params: {
   warehouse_id?: number;
   warehouse_location_id?: number;
@@ -165,7 +176,8 @@ export async function fetchInventoryForCount(params: {
   }));
 }
 
-// ── GET /api/stock-counts/:id/export/excel|pdf ───────────────────────────────
+// ── Xuất phiếu kiểm kê dạng Excel hoặc PDF ───────────────────────────────────
+// Muc dich: Xuat phieu kiem ke ra Excel/PDF.
 export async function exportStockCount(id: number, format: 'excel' | 'pdf'): Promise<Blob> {
   const token = useAuthStore.getState().token;
   const response = await rawAxios.get(`/api/stock-counts/${id}/export/${format}`, {

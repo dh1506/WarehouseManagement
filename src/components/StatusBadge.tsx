@@ -19,6 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
   unknown: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
+// Muc dich: Hien thi badge trang thai theo mau.
 export function StatusBadge({ status }: StatusBadgeProps) {
   const normalized = status.toLowerCase();
   const style = STATUS_STYLES[normalized] ?? 'bg-slate-100 text-slate-700 ring-slate-200';

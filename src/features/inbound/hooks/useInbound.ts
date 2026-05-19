@@ -23,6 +23,7 @@ export const STOCK_IN_KEYS = {
 };
 
 // ── Hook: paginated list ──────────────────────────────────────────────────────
+// Muc dich: Lay danh sach phieu nhap theo trang.
 export function useStockIns(params: StockInQueryParams) {
   return useQuery<StockInListResponse>({
     queryKey: STOCK_IN_KEYS.list(params),
@@ -32,6 +33,7 @@ export function useStockIns(params: StockInQueryParams) {
 }
 
 // ── Hook: KPI stats derived from a full-list query (no separate endpoint) ────
+// Muc dich: Tinh KPI phieu nhap tu danh sach.
 export function useStockInKpis() {
   const allParams: StockInQueryParams = {
     page: 1,
@@ -66,6 +68,7 @@ export function useStockInKpis() {
 }
 
 // ── Mutation: create new StockIn (DRAFT) ──────────────────────────────────────
+// Muc dich: Tao phieu nhap moi.
 export function useCreateStockIn() {
   const queryClient = useQueryClient();
 
@@ -79,6 +82,7 @@ export function useCreateStockIn() {
 
 // ── Mutation: approve/submit StockIn (DRAFT → PENDING) ───────────────────────
 // Used by both "Submit for Approval" (manager) and "Approve" (CEO) — same endpoint.
+// Muc dich: Duyet/submit phieu nhap.
 export function useApproveStockIn() {
   const queryClient = useQueryClient();
 
@@ -99,6 +103,7 @@ export function useApproveStockIn() {
 export const useSubmitStockIn = useApproveStockIn;
 
 // ── Mutation: complete StockIn (→ COMPLETED) ──────────────────────────────────
+// Muc dich: Hoan tat phieu nhap kho.
 export function useCompleteStockIn() {
   const queryClient = useQueryClient();
 

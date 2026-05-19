@@ -23,7 +23,6 @@ function buildFlattenedTree(categories: ProductCategory[]) {
 
   function traverse(pId: string, depth: number) {
     const children = map.get(pId) || [];
-    // Sort logic optional (currently by creation naturally)
     for (const child of children) {
       const childsOfChild = map.get(child.id) || [];
       flatten.push({
@@ -69,7 +68,6 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
   return (
     <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
-        {/* Table Header */}
         <div className="grid grid-cols-12 gap-2 p-2 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 bg-white z-10">
           <div className="col-span-3 pl-8">Tên danh mục</div>
           <div className="col-span-4">Mô tả</div>
@@ -79,7 +77,6 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
           <div className="col-span-1 text-right">Thao tác</div>
         </div>
 
-        {/* Table Body */}
         <div className="divide-y divide-slate-100 flex-1">
           {treeData.map((item) => {
             const hasKids = item.hasChildren;
@@ -107,7 +104,7 @@ export function CategoryTable({ categories, isLoading, onView, onEdit, onDelete 
                       <span className="material-symbols-outlined text-xs">expand_more</span>
                     </button>
                   ) : (
-                    <div className="w-6 flex-shrink-0" /> // spacer
+                    <div className="w-6 flex-shrink-0" />
                   )}
 
                   <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center mr-3 text-blue-600 border border-blue-100 flex-shrink-0">

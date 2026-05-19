@@ -50,7 +50,7 @@ interface AllowedCategoryResponse {
   pagination: { total: number; total_pages: number };
 }
 
-// ── Item row ──────────────────────────────────────────────────────────────────
+// ── Dòng sản phẩm trong form ──────────────────────────────────────────────────
 interface FormItem {
   product_id: number;
   productName: string;
@@ -69,7 +69,7 @@ const EMPTY_ITEM: FormItem = {
   unit_price: undefined,
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Hàm tiện ích ─────────────────────────────────────────────────────────────
 function clamp(val: number, min = 1): number {
   return Math.max(min, val);
 }
@@ -79,7 +79,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
   const navigate = useNavigate();
   const createMutation = useCreateStockIn();
 
-  // ── Form state ───────────────────────────────────────────────────────────
+  // ── Trạng thái form ──────────────────────────────────────────────────────
   const [locationCategoryId, setLocationCategoryId] = useState('');
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState('');
@@ -90,7 +90,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
 
-  // ── Reset on open ────────────────────────────────────────────────────────
+  // ── Đặt lại form khi mở ─────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
       setLocationCategoryId('');
@@ -105,7 +105,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     }
   }, [open]);
 
-  // ── Categories ───────────────────────────────────────────────────────────
+  // ── Tải danh mục và dữ liệu kho ─────────────────────────────────────────
   const { data: categoriesRes } = useQuery({
     queryKey: ['categories', 'options'],
     queryFn: () => getProductCategories({ page: 1, pageSize: 100 }),
@@ -190,7 +190,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     };
   }, [eligibleLocations]);
 
-  // ── Item handlers ────────────────────────────────────────────────────────
+  // ── Xử lý thay đổi dòng sản phẩm ────────────────────────────────────────
   const handleProductSelect = useCallback(
     (index: number, product: ProductOption) => {
       const isDuplicate = items.some((it, i) => i !== index && String(it.product_id) === product.id);
@@ -209,7 +209,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
         };
         return updated;
       });
-      // Clear qty error if product is now filled
+      // Xoá lỗi số lượng khi đã chọn sản phẩm
       setErrors((prev) => {
         const next = { ...prev };
         delete next[`qty_${index}`];
@@ -258,7 +258,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     setDeleteConfirmIdx(null);
   }, []);
 
-  // ── Validation ───────────────────────────────────────────────────────────
+  // ── Kiểm tra hợp lệ trước khi gửi ───────────────────────────────────────
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
     if (!selectedWarehouseId) newErrors.warehouseId = 'Kho lưu trữ là bắt buộc';
@@ -282,7 +282,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     return Object.keys(newErrors).length === 0;
   }, [selectedWarehouseId, representativeLocation, locationCategoryId, supplierId, items]);
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // ── Gửi dữ liệu tạo phiếu ───────────────────────────────────────────────
   const handleSubmit = useCallback(() => {
     if (!validate()) return;
     const payload = {
@@ -313,7 +313,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
     });
   }, [validate, representativeLocation, supplierId, description, items, createMutation, toast, onClose, navigate]);
 
-  // ── Derived ──────────────────────────────────────────────────────────────
+  // ── Giá trị tính toán ────────────────────────────────────────────────────
   const totalValue = useMemo(
     () => items.reduce((sum, it) => sum + it.expected_quantity * (it.unit_price || 0), 0),
     [items],
@@ -324,7 +324,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex justify-end">
-        {/* Backdrop */}
+        {/* Lớp phủ nền */}
         <motion.div
           className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
           initial={{ opacity: 0 }}
@@ -334,7 +334,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
           onClick={onClose}
         />
 
-        {/* Sheet */}
+        {/* Tấm panel bên phải */}
         <motion.div
           className="relative w-1/3 min-w-80 bg-white shadow-2xl flex flex-col h-full"
           initial={{ x: '100%' }}
@@ -342,7 +342,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
           exit={{ x: '100%' }}
           transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
         >
-          {/* Header */}
+          {/* Tiêu đề */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Tạo phiếu nhập kho</h2>
@@ -356,15 +356,15 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
             </button>
           </div>
 
-          {/* Body — scrolls */}
+          {/* Nội dung cuộn */}
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
-            {/* ── General Information ─────────────────────────────────────── */}
+            {/* ── Thông tin chung ───────────────────────────────────────────── */}
             <section className="space-y-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Thông tin chung</h3>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Step 1: Product Category (for zone filtering) */}
+                {/* Bước 1: Danh mục sản phẩm (để lọc khu vực kho phù hợp) */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Danh mục sản phẩm
@@ -393,7 +393,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                   </Select>
                 </div>
 
-                {/* Step 2: Warehouse */}
+                {/* Bước 2: Chọn kho lưu trữ */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Kho lưu trữ <span className="text-rose-500">*</span>
@@ -452,7 +452,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                   {errors.location && <p className="text-[11px] text-rose-500 mt-1">{errors.location}</p>}
                 </div>
 
-                {/* Supplier */}
+                {/* Nhà cung cấp */}
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Nhà cung cấp <span className="text-rose-500">*</span>
@@ -479,7 +479,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 </div>
               </div>
 
-              {/* Reference No + Receipt Date */}
+              {/* Số tham chiếu + Ngày nhập kho */}
               <div className="col-span-2 grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -505,7 +505,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 </div>
               </div>
 
-              {/* Notes */}
+              {/* Ghi chú */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Ghi chú</label>
                 <textarea
@@ -518,7 +518,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
               </div>
             </section>
 
-            {/* ── Products ──────────────────────────────────────────────────── */}
+            {/* ── Danh sách sản phẩm ───────────────────────────────────────── */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Sản phẩm</h3>
@@ -535,7 +535,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 </motion.p>
               )}
 
-              {/* Product line cards */}
+              {/* Các thẻ dòng sản phẩm */}
               <div className="space-y-2">
                 <AnimatePresence initial={false}>
                   {items.map((item, index) => {
@@ -554,14 +554,14 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                         className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 space-y-2.5 group hover:border-slate-200 transition-colors"
                       >
-                        {/* Line 1 — index badge + Product + delete */}
+                        {/* Hàng 1 — số thứ tự + Sản phẩm + nút xoá */}
                         <div className="flex items-center gap-2">
-                          {/* Row number */}
+                          {/* Số thứ tự dòng */}
                           <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-500">
                             {index + 1}
                           </span>
 
-                          {/* Product — fills remaining width, filtered by top-level category */}
+                          {/* Sản phẩm — chiếm phần rộng còn lại, lọc theo danh mục */}
                           <div className="flex-1 min-w-0">
                             <ProductSearchSelect
                               value={String(item.product_id || '')}
@@ -572,7 +572,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                             />
                           </div>
 
-                          {/* Delete */}
+                          {/* Nút xoá dòng */}
                           {items.length > 1 && (
                             <AnimatePresence mode="wait">
                               {deleteConfirmIdx === index ? (
@@ -606,9 +606,9 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                           )}
                         </div>
 
-                        {/* 2×2 grid — UoM/Qty on row 1, Price/Subtotal on row 2 */}
+                        {/* Lưới 2×2 — Đơn vị/Số lượng hàng 1, Đơn giá/Thành tiền hàng 2 */}
                         <div className="grid grid-cols-2 gap-x-3 gap-y-2 pl-7">
-                          {/* UoM */}
+                          {/* Đơn vị tính */}
                           <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Đơn vị tính</span>
                             <span className={cn(
@@ -619,7 +619,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                             </span>
                           </div>
 
-                          {/* Qty */}
+                          {/* Số lượng */}
                           <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Số lượng</span>
                             <div className="flex items-center gap-1">
@@ -642,7 +642,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                             </div>
                           </div>
 
-                          {/* Unit Price */}
+                          {/* Đơn giá */}
                           <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Đơn giá</span>
                             <div className="relative w-full">
@@ -659,7 +659,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                             </div>
                           </div>
 
-                          {/* Subtotal */}
+                          {/* Thành tiền */}
                           <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Thành tiền</span>
                             <AnimatePresence mode="wait">
@@ -687,7 +687,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                           </div>
                         </div>
 
-                        {/* Qty validation error */}
+                        {/* Lỗi xác thực số lượng */}
                         {errors[`qty_${index}`] && (
                           <p className="text-[11px] text-rose-500 pl-7">{errors[`qty_${index}`]}</p>
                         )}
@@ -697,7 +697,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
                 </AnimatePresence>
               </div>
 
-              {/* Add row + total */}
+              {/* Thêm dòng + tổng đơn hàng */}
               <div className="flex items-center justify-between">
                 <motion.button
                   type="button"
@@ -729,7 +729,7 @@ export function CreatePurchaseOrderSheet({ open, onClose }: CreatePurchaseOrderS
             </section>
           </div>
 
-          {/* Footer */}
+          {/* Chân trang */}
           <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50/80 shrink-0">
             <button
               type="button"

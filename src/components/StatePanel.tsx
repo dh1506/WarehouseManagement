@@ -6,6 +6,7 @@ interface StatePanelProps {
   action?: React.ReactNode;
 }
 
+// Muc dich: Hien thi panel trang thai rong/loi.
 export function StatePanel({
   title,
   description,

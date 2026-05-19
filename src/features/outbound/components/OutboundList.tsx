@@ -121,7 +121,7 @@ export function OutboundList() {
   const navigate = useNavigate();
   const { hasPermission } = useAuthStore();
 
-  // Manager = có quyền duyệt phiếu xuất
+  // Kiểm tra vai trò Manager (có quyền phê duyệt phiếu xuất)
   const isManager = hasPermission('stock_outs:approve');
 
   const [search, setSearch] = useState('');
@@ -133,7 +133,7 @@ export function OutboundList() {
 
   const debouncedSearch = useDebounce(search, 350);
 
-  // Tham số query dựa theo vai trò
+  // Tham số query theo bộ lọc hiện tại
   const queryParams = {
     page,
     limit: PAGE_SIZE,
@@ -142,12 +142,12 @@ export function OutboundList() {
     type: typeFilter !== 'ALL' ? typeFilter : undefined,
   };
 
-  // Polling 60 giây để giữ dữ liệu mới nhất
+  // Tự động làm mới mỗi 60 giây
   const { data, isLoading, isFetching } = useStockOuts(queryParams, {
     refetchInterval: 60_000,
   });
 
-  // KPI chỉ load khi là Manager
+  // Chỉ tải KPI khi là Manager
   const { kpis, isLoading: kpisLoading } = useStockOutKpis(isManager);
 
   const orders = data?.items ?? [];
@@ -158,7 +158,7 @@ export function OutboundList() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Reset page khi filter thay đổi
+  // Đặt lại trang về 1 khi bộ lọc thay đổi
   const handleStatusFilter = (s: OutboundStatus | 'ALL') => {
     setStatusFilter(s);
     setPage(1);
@@ -295,7 +295,7 @@ export function OutboundList() {
 
             <tbody className="divide-y divide-slate-50">
               {isLoading ? (
-                // Skeleton rows
+                // Hàng skeleton khi đang tải
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 8 }).map((__, j) => (

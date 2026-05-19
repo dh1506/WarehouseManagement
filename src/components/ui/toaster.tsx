@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/toast"
 import { useToast } from "@/hooks/use-toast"
 
+// Muc dich: Hien thi danh sach toast dang active.
 export function Toaster() {
   const { toasts } = useToast()
 

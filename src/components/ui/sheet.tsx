@@ -5,28 +5,33 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+// Muc dich: Wrapper cho Sheet root.
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
 
+// Muc dich: Trigger mo Sheet.
 function SheetTrigger({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
 }
 
+// Muc dich: Nut dong Sheet.
 function SheetClose({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Close>) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
+// Muc dich: Portal cho Sheet.
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
 }
 
+// Muc dich: Lop nen overlay cho Sheet.
 function SheetOverlay({
   className,
   ...props
@@ -43,6 +48,7 @@ function SheetOverlay({
   )
 }
 
+// Muc dich: Noi dung Sheet.
 function SheetContent({
   className,
   children,
@@ -84,6 +90,7 @@ function SheetContent({
   )
 }
 
+// Muc dich: Header cua Sheet.
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -94,6 +101,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Footer cua Sheet.
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -104,6 +112,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Tieu de Sheet.
 function SheetTitle({
   className,
   ...props
@@ -120,6 +129,7 @@ function SheetTitle({
   )
 }
 
+// Muc dich: Mo ta Sheet.
 function SheetDescription({
   className,
   ...props

@@ -11,7 +11,7 @@ import { CeoCommandCenter } from './CeoCommandCenter';
 import { useAuthStore } from '@/store/authStore';
 import { hasPageAccessFromPermissionNames } from '@/lib/pageAccess';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Kiểu dữ liệu ─────────────────────────────────────────────────────────────
 
 type QuickRange = 'today' | '7d' | '30d' | 'custom';
 type ViewMode = 'summary' | 'ops' | 'ceo';
@@ -29,7 +29,7 @@ interface KpiCardProps {
   drillLabel: string;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Hàm tiện ích ─────────────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -62,7 +62,7 @@ function getRangeParams(range: QuickRange, customFrom: string, customTo: string)
   };
 }
 
-// ── KPI Card ──────────────────────────────────────────────────────────────────
+// ── Thẻ KPI ──────────────────────────────────────────────────────────────────
 
 function KpiCard({
   icon,
@@ -122,7 +122,7 @@ function KpiCard({
   );
 }
 
-// ── Period Display ─────────────────────────────────────────────────────────────
+// ── Hiển thị khoảng thời gian ────────────────────────────────────────────────
 
 function PeriodBadge({ start, end }: { start?: string; end?: string }) {
   if (!start && !end) return null;
@@ -134,7 +134,7 @@ function PeriodBadge({ start, end }: { start?: string; end?: string }) {
   );
 }
 
-// ── Quick Range Button ────────────────────────────────────────────────────────
+// ── Nút chọn khoảng nhanh ────────────────────────────────────────────────────
 
 function RangeBtn({
   label,
@@ -160,7 +160,7 @@ function RangeBtn({
   );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Component chính ───────────────────────────────────────────────────────────
 
 export function DashboardSummary() {
   const authUser = useAuthStore((s) => s.user);
@@ -256,7 +256,7 @@ export function DashboardSummary() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* ── Fixed header ──────────────────────────────────────────────────────── */}
+      {/* ── Phần tiêu đề cố định ─────────────────────────────────────────────── */}
       <div className="shrink-0 px-4 pt-4 pb-3 md:px-6 md:pt-5 space-y-4">
         <PageHeader
           eyebrow="Tổng quan"
@@ -288,7 +288,7 @@ export function DashboardSummary() {
           }
         />
 
-        {/* Range selector */}
+        {/* Bộ chọn khoảng thời gian */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5">
             <RangeBtn label="Hôm nay" active={range === 'today'} onClick={() => setRange('today')} />
@@ -330,7 +330,7 @@ export function DashboardSummary() {
         </div>
       </div>
 
-      {/* ── Scrollable content ────────────────────────────────────────────────── */}
+      {/* ── Vùng cuộn nội dung ───────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 md:px-6">
         {isError ? (
           <div className="mt-8 flex flex-col items-center gap-3 text-center">

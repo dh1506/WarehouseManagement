@@ -14,7 +14,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export function InboundDashboard() {
   const canCreate = usePermission('stock_ins:create');
 
-  // ── Filter state ──────────────────────────────────────────────────────────
+  // ── Trạng thái bộ lọc ────────────────────────────────────────────────────
   const [search, setSearch]         = useState('');
   const [activeStatus, setActiveStatus] = useState<StockInStatus | 'all'>('all');
   const [supplierId, setSupplierId] = useState('');
@@ -23,7 +23,7 @@ export function InboundDashboard() {
   const [page, setPage]             = useState(1);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
 
-  // ── Query params (server-supported filters only) ──────────────────────────
+  // ── Tham số truy vấn (chỉ các bộ lọc được server hỗ trợ) ────────────────
   const queryParams: StockInQueryParams = useMemo(
     () => ({
       page,
@@ -38,7 +38,7 @@ export function InboundDashboard() {
   const { data: listData, isLoading, isError: isListError, error: listError } = useStockIns(queryParams);
   const { kpis, isLoading: isKpiLoading, isError: isKpiError } = useStockInKpis();
 
-  // ── Client-side date filter applied on top of the current page ────────────
+  // ── Lọc theo ngày phía client trên trang hiện tại ────────────────────────
   const filteredData = useMemo(() => {
     if (!listData) return undefined;
     if (!dateFrom && !dateTo) return listData;
@@ -51,7 +51,7 @@ export function InboundDashboard() {
     return { ...listData, stockIns: filtered };
   }, [listData, dateFrom, dateTo]);
 
-  // ── Handlers (all reset to page 1) ───────────────────────────────────────
+  // ── Xử lý thay đổi bộ lọc (đều reset về trang 1) ────────────────────────
   const handleSearchChange = useCallback((v: string) => { setSearch(v); setPage(1); }, []);
   const handleStatusChange = useCallback((s: StockInStatus | 'all') => { setActiveStatus(s); setPage(1); }, []);
   const handleSupplierChange = useCallback((id: string) => { setSupplierId(id); setPage(1); }, []);
@@ -65,7 +65,7 @@ export function InboundDashboard() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
     >
-      {/* ── Fixed top section ───────────────────────────────────────────────── */}
+      {/* ── Khu vực cố định phía trên ──────────────────────────────────────── */}
       <motion.div
         className="shrink-0 space-y-2 px-2 pt-2 pb-1.5 md:px-3 md:pt-3"
         initial={{ opacity: 0, y: -8 }}
@@ -95,7 +95,7 @@ export function InboundDashboard() {
         />
       </motion.div>
 
-      {/* ── Table fills remaining height ─────────────────────────────────────── */}
+      {/* ── Bảng dữ liệu chiếm phần còn lại ──────────────────────────────────── */}
       <div className="flex-1 min-h-0 px-2 pb-2 md:px-3 md:pb-3">
         <InboundTable
           data={filteredData}

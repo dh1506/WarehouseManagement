@@ -36,6 +36,7 @@ interface FieldErrors {
   reject_reason?: string;
 }
 
+// Muc dich: Dialog duyet/tu choi ket qua du bao.
 export function ReviewResultDialog({
   forecastId,
   target,

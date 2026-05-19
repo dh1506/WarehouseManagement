@@ -4,12 +4,14 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronRightIcon } from "lucide-react"
 
+// Muc dich: Wrapper cho DropdownMenu root.
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
 
+// Muc dich: Portal cho DropdownMenu.
 function DropdownMenuPortal({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
@@ -18,6 +20,7 @@ function DropdownMenuPortal({
   )
 }
 
+// Muc dich: Trigger mo DropdownMenu.
 function DropdownMenuTrigger({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
@@ -29,6 +32,7 @@ function DropdownMenuTrigger({
   )
 }
 
+// Muc dich: Khung noi dung DropdownMenu.
 function DropdownMenuContent({
   className,
   align = "start",
@@ -48,6 +52,7 @@ function DropdownMenuContent({
   )
 }
 
+// Muc dich: Nhom item trong DropdownMenu.
 function DropdownMenuGroup({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
@@ -56,6 +61,7 @@ function DropdownMenuGroup({
   )
 }
 
+// Muc dich: Item trong DropdownMenu.
 function DropdownMenuItem({
   className,
   inset,
@@ -79,6 +85,7 @@ function DropdownMenuItem({
   )
 }
 
+// Muc dich: Checkbox item trong DropdownMenu.
 function DropdownMenuCheckboxItem({
   className,
   children,
@@ -113,6 +120,7 @@ function DropdownMenuCheckboxItem({
   )
 }
 
+// Muc dich: Nhom radio trong DropdownMenu.
 function DropdownMenuRadioGroup({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
@@ -124,6 +132,7 @@ function DropdownMenuRadioGroup({
   )
 }
 
+// Muc dich: Radio item trong DropdownMenu.
 function DropdownMenuRadioItem({
   className,
   children,
@@ -156,6 +165,7 @@ function DropdownMenuRadioItem({
   )
 }
 
+// Muc dich: Label trong DropdownMenu.
 function DropdownMenuLabel({
   className,
   inset,
@@ -176,6 +186,7 @@ function DropdownMenuLabel({
   )
 }
 
+// Muc dich: Duong ke ngan cach trong DropdownMenu.
 function DropdownMenuSeparator({
   className,
   ...props
@@ -189,6 +200,7 @@ function DropdownMenuSeparator({
   )
 }
 
+// Muc dich: Hien thi shortcut cho item.
 function DropdownMenuShortcut({
   className,
   ...props
@@ -205,12 +217,14 @@ function DropdownMenuShortcut({
   )
 }
 
+// Muc dich: Sub menu trong DropdownMenu.
 function DropdownMenuSub({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
   return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
 }
 
+// Muc dich: Trigger mo sub menu.
 function DropdownMenuSubTrigger({
   className,
   inset,
@@ -235,6 +249,7 @@ function DropdownMenuSubTrigger({
   )
 }
 
+// Muc dich: Noi dung sub menu.
 function DropdownMenuSubContent({
   className,
   ...props

@@ -1,4 +1,4 @@
-// Hook use-toast theo chuẩn shadcn/ui
+// Hook quản lý thông báo toast theo chuẩn shadcn/ui
 import * as React from "react"
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
@@ -22,6 +22,7 @@ const actionTypes = {
 
 let count = 0
 
+// Muc dich: Tao id toast tang dan.
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER
   return count.toString()
@@ -53,6 +54,7 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
+// Muc dich: Hen gio xoa toast khoi store.
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return
@@ -69,6 +71,7 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout)
 }
 
+// Muc dich: Xu ly action de cap nhat state toast.
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
@@ -126,6 +129,7 @@ const listeners: Array<(state: State) => void> = []
 
 let memoryState: State = { toasts: [] }
 
+// Muc dich: Dispatch action va thong bao cho listeners.
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action)
   listeners.forEach((listener) => {
@@ -135,6 +139,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+// Muc dich: Tao va hien thi toast moi.
 function toast({ ...props }: Toast) {
   const id = genId()
 
@@ -164,6 +169,7 @@ function toast({ ...props }: Toast) {
   }
 }
 
+// Muc dich: Hook cung cap state va hanh dong toast.
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 

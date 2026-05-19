@@ -27,6 +27,7 @@ interface PersistedAuthState {
   isAuthenticated: boolean;
 }
 
+// Muc dich: Chuan hoa gia tri role ve chuoi.
 function normalizeRoleValue(role: unknown): string {
   if (typeof role === 'string') {
     return role;
@@ -40,6 +41,7 @@ function normalizeRoleValue(role: unknown): string {
   return '';
 }
 
+// Muc dich: Chuan hoa user profile tu du lieu bat ky.
 function normalizeUserProfile(user: unknown): UserProfile | null {
   if (!user || typeof user !== 'object') {
     return null;
@@ -60,6 +62,7 @@ function normalizeUserProfile(user: unknown): UserProfile | null {
   };
 }
 
+// Muc dich: Chuan hoa state auth tu storage.
 function normalizePersistedAuthState(state: unknown): PersistedAuthState {
   if (!state || typeof state !== 'object') {
     return { token: null, user: null, isAuthenticated: false };
@@ -105,22 +108,21 @@ export const useAuthStore = create<AuthState>()(
       hasPermission: (permission: string) => {
         const user = get().user;
         if (!user || !Array.isArray(user.permissions)) return false;
-        // Có thể custom logic Admin ở đây (vd: return user.role === 'Admin')
+        // Có thể mở rộng logic kiểm tra quyền Admin tại đây
         return user.permissions.includes(permission);
       },
     }),
     {
       name: 'auth-storage', // Lưu vào localStorage
       version: 3,
-      // v3: role_id is now required for permission refresh.
-      // Any session older than v3 is cleared — user re-logs in once and gets role_id.
+      // v3: bổ sung role_id bắt buộc — session cũ hơn v3 sẽ bị xóa, người dùng đăng nhập lại một lần.
       migrate: (_persistedState, version) => {
         if (version < 3) {
           return { token: null, user: null, isAuthenticated: false };
         }
         return normalizePersistedAuthState(_persistedState);
       },
-      partialize: (state) => ({ token: state.token, user: state.user, isAuthenticated: state.isAuthenticated }), // Chỉ persist những field này
+      partialize: (state) => ({ token: state.token, user: state.user, isAuthenticated: state.isAuthenticated }), // Chỉ lưu các trường này vào storage
     }
   )
 );

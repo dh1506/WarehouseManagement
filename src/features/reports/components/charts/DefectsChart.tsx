@@ -12,7 +12,7 @@ import { ChartCard } from './ChartCard';
 import { EmptyChartState } from './EmptyChartState';
 import { exportChartAsPNG, exportAsCSV } from './chartUtils';
 
-// ── Tooltip ──────────────────────────────────────────────────────────────────
+// ── Tooltip tùy chỉnh ────────────────────────────────────────────────────────
 
 function DefectTooltip({ active, payload }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
@@ -36,7 +36,7 @@ function DefectTooltip({ active, payload }: TooltipProps<number, string>) {
   );
 }
 
-// ── Legend List ──────────────────────────────────────────────────────────────
+// ── Danh sách chú thích ──────────────────────────────────────────────────────
 
 function CategoryLegend({
   categories,
@@ -71,7 +71,7 @@ function CategoryLegend({
   );
 }
 
-// ── Top 3 Defective Products ─────────────────────────────────────────────────
+// ── Top 3 sản phẩm lỗi ───────────────────────────────────────────────────────
 
 function TopDefectProducts({ products }: { products: DefectsData['topProducts'] }) {
   const rankColors = ['text-amber-500', 'text-slate-400', 'text-amber-700'];
@@ -111,7 +111,7 @@ function TopDefectProducts({ products }: { products: DefectsData['topProducts'] 
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ── Component chính ──────────────────────────────────────────────────────────
 
 interface DefectsChartProps {
   data:       DefectsData;
@@ -125,7 +125,7 @@ export function DefectsChart({ data, isLoading, isError }: DefectsChartProps) {
   const total   = data.categories.reduce((s, c) => s + c.value, 0);
   const isEmpty = !isLoading && !isError && total === 0;
 
-  // Inject total so tooltip can compute % without closure issues
+  // Gắn tổng vào dữ liệu để tooltip tính phần trăm
   const pieData = data.categories.map((c) => ({ ...c, _total: total }));
 
   const handleExportPNG = () => exportChartAsPNG(captureRef, 'defects-analysis');
@@ -162,7 +162,7 @@ export function DefectsChart({ data, isLoading, isError }: DefectsChartProps) {
         <div className="px-4 pt-3 pb-4">
           <div className="flex flex-col md:flex-row gap-6 items-stretch">
 
-            {/* ── Left: Donut with centre overlay ── */}
+            {/* ── Trái: Donut với nhãn ở giữa ── */}
             <div className="shrink-0 self-center w-full md:w-[200px]">
               <div className="relative">
                 <ResponsiveContainer width="100%" height={200}>
@@ -187,7 +187,7 @@ export function DefectsChart({ data, isLoading, isError }: DefectsChartProps) {
                   </PieChart>
                 </ResponsiveContainer>
 
-                {/* Centre label — absolutely positioned over the SVG */}
+                {/* Nhãn ở giữa vòng donut */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
                     <p className="text-[22px] font-bold leading-none text-slate-800">
@@ -199,7 +199,7 @@ export function DefectsChart({ data, isLoading, isError }: DefectsChartProps) {
               </div>
             </div>
 
-            {/* ── Right: Legend + Top 3 ── */}
+            {/* ── Phải: Chú thích + Top 3 ── */}
             <div className="flex-1 min-w-0 flex flex-col gap-4 py-1">
               <CategoryLegend categories={data.categories} total={total} />
               <div className="border-t border-slate-100 pt-3">

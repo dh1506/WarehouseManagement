@@ -96,7 +96,7 @@ function writeDiscrepancyResolutionStore(store: Record<string, StoredStockOutDis
   try {
     window.localStorage.setItem(STOCK_OUT_DISCREPANCY_STORAGE_KEY, JSON.stringify(store));
   } catch {
-    // Silent fail: localStorage may be unavailable in private mode/quota exceeded.
+    // Bỏ qua lỗi khi localStorage không khả dụng (chế độ ẩn danh hoặc vượt quota).
   }
 }
 
@@ -188,7 +188,7 @@ export async function getOutboundProductInventoryAvailabilityAtLocation(
   };
 }
 
-// ─── Helper unwrap ────────────────────────────────────────────────────────────
+// ─── Hàm tiện ích unwrap response ────────────────────────────────────────────
 
 function unwrap<T>(response: unknown): T {
   const r = response as { data?: { data?: T } | T };
@@ -198,10 +198,7 @@ function unwrap<T>(response: unknown): T {
   return (r?.data as T) ?? (response as T);
 }
 
-/**
- * Get total available quantity for a product across ALL warehouse locations
- * Used in simplified create form to show total stock
- */
+/** Lấy tổng tồn kho khả dụng của sản phẩm trên tất cả vị trí kho */
 export async function getProductTotalAvailableQuantity(productId: number): Promise<number> {
   try {
     const rows = await collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
@@ -211,7 +208,7 @@ export async function getProductTotalAvailableQuantity(productId: number): Promi
             page,
             limit,
             product_id: productId,
-            // ❌ Không filter theo warehouse_location_id - lấy tất cả
+            // Không lọc theo warehouse_location_id — lấy tất cả vị trí
           },
         });
         return unwrap<ReviewInventoryPage>(response);
@@ -232,7 +229,7 @@ export async function getProductTotalAvailableQuantity(productId: number): Promi
   }
 }
 
-// ─── Lot / Location helpers for create sheet ─────────────────────────────────
+// ─── Hàm hỗ trợ lô hàng / vị trí cho create sheet ───────────────────────────
 
 interface OutboundInventoryApiRow {
   product_id: number;
@@ -317,7 +314,7 @@ export async function getOutboundLocationOptions(
       const hasLot = (row.lots ?? []).some((l) => l.id === lotId);
       if (!hasLot) return;
     }
-    // Use quantity - reserved_quantity to bypass stale available_quantity
+    // Lấy tồn kho khả dụng (quantity trừ reserved_quantity)
     const avail = Math.max(0, (Number(row.quantity) || 0) - (Number(row.reserved_quantity) || 0));
     const code = row.location?.location_code ?? `LOC-${locId}`;
     const fullPath = row.location?.full_path ?? code;
@@ -377,11 +374,7 @@ export async function getStockOutById(id: number): Promise<StockOut> {
   return unwrap<StockOut>(response);
 }
 
-/**
- * Detail review snapshot: load stock-out order and total-warehouse inventory in parallel.
- * Shows total available across all locations so reviewers see the full picture.
- * Approval check uses total warehouse aggregate (matches updated BE approveStockOut logic).
- */
+/** Tải phiếu xuất và tồn kho toàn kho song song để hiển thị trang review */
 export async function getStockOutReviewSnapshot(id: number): Promise<StockOutReviewSnapshot> {
   const inventoryTask = collectPaginatedItems<ReviewInventoryPage, ReviewInventoryRow>({
     fetchPage: async (page, limit) => {
@@ -413,10 +406,7 @@ export async function getStockOutReviewSnapshot(id: number): Promise<StockOutRev
   return { order, availableByProduct };
 }
 
-/**
- * Per-location stock for a product — used to filter compatible locations in the create sheet.
- * Returns rows with warehouse_location_id + available_quantity only.
- */
+/** Tồn kho theo từng vị trí cho một sản phẩm — dùng để lọc vị trí hợp lệ trong create sheet */
 export async function getProductStockByLocation(
   productId: number,
 ): Promise<Array<{ warehouse_location_id: number; available_quantity: number }>> {
@@ -469,10 +459,7 @@ interface InventoryWithLotPage {
   };
 }
 
-/**
- * Lot-level inventory for a product at an optional location.
- * Used by the FEFO allocation engine to compute suggested lot splits.
- */
+/** Tồn kho theo lô của một sản phẩm tại vị trí tùy chọn — dùng cho engine FEFO */
 export async function getProductInventoryByLot(
   productId: number,
   warehouseLocationId?: number,
@@ -568,7 +555,7 @@ export async function approveStockOut(id: number): Promise<StockOut> {
 }
 
 // ─── Gán lô hàng (APPROVED/PICKING) ──────────────────────────────────────────
-// BE thay thế TOÀN BỘ lot assignments mỗi lần gọi
+// BE thay thế toàn bộ lot assignments mỗi lần gọi
 
 export async function updatePickedLots(
   id: number,
@@ -624,8 +611,8 @@ export async function cancelStockOut(
   return unwrap<StockOut>(response);
 }
 
-// ─── Proof Upload — Pending BE Integration ────────────────────────────────────
-// Flow: FE lấy presigned URL → upload thẳng lên B2 → confirm với BE
+// ─── Proof Upload (chờ BE triển khai) ────────────────────────────────────────
+// Luồng: FE lấy presigned URL → upload thẳng lên B2 → xác nhận với BE
 // Endpoint /api/stock-outs/:id/proof-upload-url chưa được triển khai trên BE.
 
 export async function getProofUploadUrl(
@@ -662,25 +649,14 @@ export async function confirmProofUpload(
 }
 
 // ─── Lịch sử thao tác phiếu xuất ─────────────────────────────────────────────
-// Lấy danh sách audit log của một phiếu xuất, sắp xếp theo thời gian tăng dần
 
 export async function getStockOutHistory(id: number): Promise<StockOutHistoryItem[]> {
-  // BE hiện tại chưa expose endpoint history cho stock-out.
-  // Trả rỗng để tránh 404 và giữ trang review ổn định.
+  // BE chưa có endpoint history cho stock-out — trả rỗng để tránh 404.
   void id;
   return [];
 }
 
-/**
- * Đọc số lượng tồn kho khả dụng của sản phẩm.
- *
- * Chiến lược hai lớp (chạy song song):
- *  1. localStorage fallback — đọc currentLoad từ `wm:bin-assignment-scope` (ghi bởi Zone Detail).
- *     Đây là nguồn chính xác nhất ngay sau khi operator cập nhật bin, vì API có thể chậm đồng bộ.
- *  2. API /api/inventories — nguồn chính thức, dùng khi fallback chưa có dữ liệu.
- *
- * Ưu tiên: fallback > 0 → dùng fallback; ngược lại → dùng API.
- */
+/** Lấy tồn kho khả dụng của sản phẩm, ưu tiên dữ liệu localStorage trước API */
 export async function getOutboundProductInventoryAvailability(productId: number): Promise<{
   availableQty: number;
   preferredLocationId: number | null;
@@ -712,11 +688,11 @@ export async function getOutboundProductInventoryAvailabilityWithOptions(
   }
 
   const task = (async () => {
-    // Lớp 1: đọc localStorage đồng bộ — không tốn network, luôn phản ánh lần lưu bin gần nhất
+    // Lớp 1: đọc localStorage (không tốn network, phản ánh lần lưu bin gần nhất)
     const fallbackQty = getProductAvailableQtyFromBinFallback(String(productId));
     const fallbackPreferredLocationId = getProductPreferredLocationIdFromBinFallback(String(productId));
 
-    // Fast-path: nếu fallback đã có dữ liệu dương, ưu tiên trả ngay để UI phản hồi tức thì.
+    // Ưu tiên fallback khi có dữ liệu để UI phản hồi tức thì
     if (!forceNetwork && fallbackQty > 0) {
       const fastResult = {
         availableQty: fallbackQty,
@@ -729,7 +705,7 @@ export async function getOutboundProductInventoryAvailabilityWithOptions(
       return fastResult;
     }
 
-    // Lớp 2: dùng cùng logic với Inventory Overview: quét full inventory rows rồi cộng available_quantity theo product_id.
+    // Lớp 2: gọi API tổng hợp tồn kho theo product_id
     let apiQty = 0;
     let preferredLocationId: number | null = null;
     let apiSucceeded = false;
@@ -746,8 +722,7 @@ export async function getOutboundProductInventoryAvailabilityWithOptions(
       }
     }
 
-    // Ưu tiên fallback khi có dữ liệu (operator vừa lưu bin trong Zone Detail)
-    // vì API inventory có thể chưa phản ánh đúng ngay sau thao tác cập nhật bin.
+    // Fallback được ưu tiên khi có dữ liệu (API có thể chưa đồng bộ sau khi cập nhật bin)
     const availableQty = fallbackQty > 0 ? fallbackQty : apiQty;
     const resolvedPreferredLocationId = preferredLocationId ?? fallbackPreferredLocationId;
 

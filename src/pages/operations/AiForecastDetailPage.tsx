@@ -1,6 +1,7 @@
 import { useParams, Navigate } from 'react-router-dom';
 import { AiForecastDetail } from '@/features/ai-forecast/components/AiForecastDetail';
 
+// Muc dich: Trang chi tiet du bao AI theo id.
 export function AiForecastDetailPage() {
   const { id } = useParams<{ id: string }>();
   const numericId = id ? parseInt(id, 10) : NaN;

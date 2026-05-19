@@ -3,6 +3,7 @@ import { Switch as SwitchPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Switch bat/tat.
 function Switch({
   className,
   size = "default",

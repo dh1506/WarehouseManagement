@@ -6,7 +6,7 @@ import { useStockCountDetail, useRecordCount, useCompleteCounting } from '../hoo
 import type { StockCountDetail } from '../types/stockCountType';
 import { ExceptionReportModal } from '@/features/staff-tasks/components/ExceptionReportModal';
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Hàm hỗ trợ ────────────────────────────────────────────────────────────────────
 
 function formatLocation(detail: StockCountDetail): string {
   return detail.location?.full_path ?? detail.location?.location_code ?? `#${detail.warehouse_location_id}`;
@@ -16,7 +16,7 @@ function hasEnteredQty(qty: number | null): qty is number {
   return qty !== null && qty >= 0;
 }
 
-// ── Barcode scanner hook ───────────────────────────────────────────────────────
+// ── Hook đọc mã vạch ───────────────────────────────────────────────────────
 
 function useBarcodeInput(onScan: (code: string) => void) {
   const bufferRef = useRef('');
@@ -43,7 +43,7 @@ function useBarcodeInput(onScan: (code: string) => void) {
   }, [onScan]);
 }
 
-// ── Product row card ───────────────────────────────────────────────────────────
+// ── Card dòng sản phẩm ───────────────────────────────────────────────────────────
 
 interface ProductRowProps {
   detail: StockCountDetail;
@@ -66,7 +66,7 @@ function ProductRow({ detail, qty, onQtyChange, isHighlighted }: ProductRowProps
             : 'border-slate-200'
       }`}
     >
-      {/* Location banner */}
+      {/* Banner vị trí */}
       <div className="px-4 pt-3 pb-2 bg-slate-50 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-slate-400 text-[16px]">location_on</span>
@@ -76,14 +76,14 @@ function ProductRow({ detail, qty, onQtyChange, isHighlighted }: ProductRowProps
         </div>
       </div>
 
-      {/* Product info + qty input */}
+      {/* Thông tin sản phẩm + ô nhập số lượng */}
       <div className="px-4 py-4 flex items-center gap-4">
-        {/* Product icon */}
+        {/* Icon sản phẩm */}
         <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined text-slate-400 text-[22px]">inventory_2</span>
         </div>
 
-        {/* Product name + SKU */}
+        {/* Tên sản phẩm + SKU */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">
             {detail.product.name}
@@ -96,7 +96,7 @@ function ProductRow({ detail, qty, onQtyChange, isHighlighted }: ProductRowProps
           )}
         </div>
 
-        {/* Qty input */}
+        {/* Ô nhập số lượng */}
         <div className="shrink-0 w-24">
           <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">
             Số lượng đếm
@@ -122,7 +122,7 @@ function ProductRow({ detail, qty, onQtyChange, isHighlighted }: ProductRowProps
         </div>
       </div>
 
-      {/* Status footer */}
+      {/* Footer trạng thái */}
       <AnimatePresence mode="wait">
         {entered && (
           <motion.div
@@ -141,7 +141,7 @@ function ProductRow({ detail, qty, onQtyChange, isHighlighted }: ProductRowProps
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Component chính ─────────────────────────────────────────────────────────────
 
 export function BlindCountScreen() {
   const { id: rawId } = useParams<{ id: string }>();
@@ -153,16 +153,16 @@ export function BlindCountScreen() {
   const recordMutation = useRecordCount();
   const completeMutation = useCompleteCounting();
 
-  // Counted qtys: detail.id → entered qty (null = not yet entered)
+  // Số lượng đã đếm: detail.id → số lượng nhập vào (null = chưa nhập)
   const [countedQtys, setCountedQtys] = useState<Record<number, number | null>>({});
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
-  // Track skipped detail IDs (exception reporting → skip)
+  // Tập hợp ID chi tiết đã bỏ qua (báo cáo sự cố → skip)
   const [skippedIds, setSkippedIds] = useState<Set<number>>(new Set());
 
   const details: StockCountDetail[] = data?.details ?? [];
 
-  // ── Barcode scan → find matching detail → highlight + +1 ─────────────────
+  // ── Quét mã vạch → tìm chi tiết khớp → highlight và cộng +1 ─────────────────
   const handleScan = useCallback(
     (code: string) => {
       const matched = details.find(
@@ -193,7 +193,7 @@ export function BlindCountScreen() {
 
   useBarcodeInput(handleScan);
 
-  // ── Derived state ─────────────────────────────────────────────────────────
+  // ── Trạng thái tính toán ─────────────────────────────────────────────────────────
   const activeDetails = useMemo(
     () => details.filter((d) => !skippedIds.has(d.id)),
     [details, skippedIds],
@@ -210,7 +210,7 @@ export function BlindCountScreen() {
     ? 0
     : Math.round((enteredCount / activeDetails.length) * 100);
 
-  // ── Submit handler ────────────────────────────────────────────────────────
+  // ── Xử lý hoàn tất ────────────────────────────────────────────────────────
   async function handleComplete() {
     if (!allEntered) return;
 
@@ -237,7 +237,7 @@ export function BlindCountScreen() {
 
   const isSubmitting = recordMutation.isPending || completeMutation.isPending;
 
-  // ── Loading ───────────────────────────────────────────────────────────────
+  // ── Trạng thái đang tải ───────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-white">
@@ -263,7 +263,7 @@ export function BlindCountScreen() {
     );
   }
 
-  // Guard: only COUNTING status allowed
+  // Chỉ cho phép phiếu ở trạng thái COUNTING
   if (data.status !== 'COUNTING') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-white px-6">
@@ -282,7 +282,7 @@ export function BlindCountScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      {/* ── Sticky top bar ────────────────────────────────────────────────── */}
+      {/* ── Thanh tiêu đề cố định ────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm px-4 py-3 shrink-0">
         <div className="flex items-center gap-3 mb-2">
           <button
@@ -301,7 +301,7 @@ export function BlindCountScreen() {
           </span>
         </div>
 
-        {/* Progress bar */}
+        {/* Thanh tiến độ */}
         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-blue-500 rounded-full"
@@ -311,7 +311,7 @@ export function BlindCountScreen() {
         </div>
       </header>
 
-      {/* ── Scan hint banner ──────────────────────────────────────────────── */}
+      {/* ── Banner hướng dẫn quét ──────────────────────────────────────────────── */}
       <div className="px-4 pt-4 shrink-0">
         <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
           <span className="material-symbols-outlined text-blue-500 text-[20px]">qr_code_scanner</span>
@@ -321,7 +321,7 @@ export function BlindCountScreen() {
         </div>
       </div>
 
-      {/* ── Product list ──────────────────────────────────────────────────── */}
+      {/* ── Danh sách sản phẩm ──────────────────────────────────────────────────── */}
       <div className="flex-1 px-4 py-4 space-y-3 pb-36 overflow-y-auto">
         {activeDetails.length === 0 && (
           <div className="flex flex-col items-center py-12 text-center gap-3 text-slate-400">
@@ -343,7 +343,7 @@ export function BlindCountScreen() {
         ))}
       </div>
 
-      {/* ── Sticky footer ─────────────────────────────────────────────────── */}
+      {/* ── Footer cố định ─────────────────────────────────────────────────── */}
       <div className="sticky bottom-0 z-20 bg-white/95 border-t border-slate-100 shadow-xl backdrop-blur px-4 py-4 shrink-0">
         {!allEntered && activeDetails.length > 0 && (
           <p className="text-center text-xs text-amber-600 font-medium mb-2 flex items-center justify-center gap-1">
@@ -366,7 +366,7 @@ export function BlindCountScreen() {
         </motion.button>
       </div>
 
-      {/* ── Confirm dialog ────────────────────────────────────────────────── */}
+      {/* ── Dialog xác nhận hoàn tất ────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showConfirm && (
           <motion.div
@@ -430,12 +430,12 @@ export function BlindCountScreen() {
         )}
       </AnimatePresence>
 
-      {/* ── Exception reporting FAB ────────────────────────────────────────── */}
+      {/* ── Nút báo cáo sự cố (FAB) ────────────────────────────────────────── */}
       <ExceptionReportModal
         taskDomain="COUNTING"
         taskId={numericId}
         onSkipItem={() => {
-          // Skip the first non-entered active detail
+          // Bỏ qua chi tiết đang hoạt động đầu tiên chưa nhập số lượng
           const target = activeDetails.find((d) => !hasEnteredQty(countedQtys[d.id] ?? null));
           if (target) {
             setSkippedIds((prev) => new Set([...prev, target.id]));

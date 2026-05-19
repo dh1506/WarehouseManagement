@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// ── Cron expression: basic non-empty validation ──────────────────────────────
+// ── Biểu thức cron: kiểm tra định dạng cơ bản ───────────────────────────────
 const cronRegex = /^(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)$/;
 
 export const reportConfigSchema = z.object({
@@ -9,7 +9,7 @@ export const reportConfigSchema = z.object({
     ['STOCK_IN', 'STOCK_OUT', 'STOCK_COUNT', 'STOCK_DISPOSAL', 'INVENTORY', 'DASHBOARD'],
     { error: 'Vui lòng chọn loại báo cáo' },
   ),
-  // Comma-separated emails in the form; converted to array before submit
+  // Danh sách email phân cách bằng dấu phẩy; chuyển thành mảng trước khi gửi
   recipient_emails_raw: z
     .string()
     .min(1, 'Vui lòng nhập ít nhất một địa chỉ email')

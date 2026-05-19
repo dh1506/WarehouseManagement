@@ -7,20 +7,41 @@ import type {
 import { sidebarNavItems } from '@/layouts/sidebar-navigation';
 import { getRolePermissions, updateRolePermissions } from './roleService';
 
-const MODULE_TEMPLATES: Omit<ModulePermission, 'view' | 'create' | 'edit' | 'delete' | 'approve'>[] =
-  sidebarNavItems.map((item) => ({
-    moduleId: item.permissionModule,
-    moduleName: item.label,
-    pagePath: item.to,
-    description: item.pageDescription ?? `Truy cập và thao tác trên trang ${item.label}.`,
-    iconBg: getIconBackground(item.permissionModule),
-    iconColor: getIconColor(item.permissionModule),
-  }));
+const MODULE_TEMPLATES: Array<Pick<
+  ModulePermission,
+  | 'moduleId'
+  | 'moduleName'
+  | 'pagePath'
+  | 'description'
+  | 'iconBg'
+  | 'iconColor'
+  | 'isConfigurable'
+  | 'canView'
+  | 'canCreate'
+  | 'canEdit'
+  | 'canDelete'
+  | 'canApprove'
+>> = sidebarNavItems.map((item) => ({
+  moduleId: item.permissionModule,
+  moduleName: item.label,
+  pagePath: item.to,
+  description: item.pageDescription ?? `Truy cập và thao tác trên trang ${item.label}.`,
+  iconBg: getIconBackground(item.permissionModule),
+  iconColor: getIconColor(item.permissionModule),
+  isConfigurable: true,
+  canView: true,
+  canCreate: true,
+  canEdit: true,
+  canDelete: true,
+  canApprove: true,
+}));
 
+// Muc dich: Chuan hoa token module de so khop linh hoat.
 function normalizeToken(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, '-');
 }
 
+// Muc dich: Tao thong tin tong hop ve quyen trang va rui ro.
 function toContext(roleId: string, modules: ModulePermission[]): RoleContext {
   const activeModules = modules.filter((module) => module.view).length;
   const highRiskPermissions = modules.filter((module) => module.delete || module.approve).length;
@@ -34,6 +55,7 @@ function toContext(roleId: string, modules: ModulePermission[]): RoleContext {
   };
 }
 
+// Muc dich: Map quyen role vao danh sach module theo template sidebar.
 function toTemplateModules(rolePermissions: Awaited<ReturnType<typeof getRolePermissions>>): ModulePermission[] {
   const permissionMap = new Map(
     rolePermissions.permissions.map((permission) => [normalizeToken(permission.module), permission]),
@@ -61,6 +83,7 @@ function toTemplateModules(rolePermissions: Awaited<ReturnType<typeof getRolePer
   });
 }
 
+// Muc dich: Lay quyen nang cao dua tren role va template sidebar.
 export async function getAdvancedRolePermissions(roleId: string): Promise<AdvancedRolePermissionResponse> {
   const rolePermissions = await getRolePermissions(roleId);
   const modules = toTemplateModules(rolePermissions);
@@ -72,6 +95,7 @@ export async function getAdvancedRolePermissions(roleId: string): Promise<Advanc
   };
 }
 
+// Muc dich: Cap nhat quyen role theo payload va tra ve cau hinh moi.
 export async function updateAdvancedRolePermissions(
   roleId: string,
   payload: UpdateAdvancedPermissionPayload,
@@ -107,6 +131,7 @@ export async function updateAdvancedRolePermissions(
   return getAdvancedRolePermissions(roleId);
 }
 
+// Muc dich: Chon mau nen icon theo nhom module.
 function getIconBackground(moduleId: string): string {
   if (moduleId === 'users' || moduleId === 'roles' || moduleId === 'permissions') {
     return 'bg-indigo-50';
@@ -123,6 +148,7 @@ function getIconBackground(moduleId: string): string {
   return 'bg-slate-100';
 }
 
+// Muc dich: Chon mau chu icon theo nhom module.
 function getIconColor(moduleId: string): string {
   if (moduleId === 'users' || moduleId === 'roles' || moduleId === 'permissions') {
     return 'text-indigo-600';

@@ -5,6 +5,7 @@ import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Wrapper scroll area co thanh cuon tuy chinh.
 function ScrollArea({
   className,
   children,
@@ -28,6 +29,7 @@ function ScrollArea({
   )
 }
 
+// Muc dich: Thanh cuon cho ScrollArea.
 function ScrollBar({
   className,
   orientation = "vertical",

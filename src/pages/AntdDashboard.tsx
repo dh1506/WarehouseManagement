@@ -35,9 +35,11 @@ import {
 const { Header, Sider, Content } = Layout;
 const { Title, Text, Link } = Typography;
 
+// Muc dich: Demo dashboard Ant Design (layout mau).
 export const AntdDashboard: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState('1');
 
+  // Muc dich: Danh sach menu ben trai.
   const menuItems = [
     { key: '1', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '2', icon: <DatabaseOutlined />, label: 'Inventory' },
@@ -47,6 +49,7 @@ export const AntdDashboard: React.FC = () => {
     { key: '6', icon: <SettingOutlined />, label: 'Settings' },
   ];
 
+  // Muc dich: Du lieu mau cho danh sach nhiem vu.
   const tasksData = [
     {
       id: 1,
@@ -72,7 +75,7 @@ export const AntdDashboard: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
-      {/* Sidebar */}
+      {/* Thanh bên */}
       <Sider width={260} theme="light" style={{ borderRight: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '24px 20px' }}>
           <Title level={4} style={{ color: '#003eb3', margin: 0, fontWeight: 700 }}>WMS Architect</Title>
@@ -97,9 +100,9 @@ export const AntdDashboard: React.FC = () => {
         </div>
       </Sider>
 
-      {/* Main Layout */}
+      {/* Bố cục chính */}
       <Layout style={{ backgroundColor: '#fcfcfc' }}>
-        {/* Header */}
+        {/* Đầu trang */}
         <Header style={{ backgroundColor: '#fff', padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', height: '72px' }}>
           <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#1f1f1f' }}>Predictive Logistics Engine</Title>
 
@@ -120,10 +123,10 @@ export const AntdDashboard: React.FC = () => {
           </Space>
         </Header>
 
-        {/* Content */}
+        {/* Nội dung */}
         <Content style={{ padding: '32px 40px', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
 
-          {/* Header Section */}
+          {/* Phần tiêu đề */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
             <div>
               <Title level={2} style={{ margin: '0 0 8px 0', fontWeight: 700 }}>My Assignments</Title>
@@ -140,11 +143,11 @@ export const AntdDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Grid */}
+          {/* Lưới nội dung chính */}
           <Row gutter={[24, 24]}>
-            {/* Left Column */}
+            {/* Cột trái */}
             <Col xs={24} lg={15}>
-              {/* Urgent Pick Card */}
+              {/* Thẻ nhiệm vụ ưu tiên */}
               <Card
                 styles={{ body: { padding: 0 } }}
                 style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: 'none', marginBottom: '24px' }}
@@ -184,7 +187,7 @@ export const AntdDashboard: React.FC = () => {
                 </Row>
               </Card>
 
-              {/* Task List */}
+              {/* Danh sách nhiệm vụ */}
               <Card
                 style={{ borderRadius: '12px', border: 'none', backgroundColor: '#fcfcfc' }}
                 styles={{ body: { padding: 0 } }}
@@ -225,9 +228,9 @@ export const AntdDashboard: React.FC = () => {
               </Card>
             </Col>
 
-            {/* Right Column */}
+            {/* Cột phải */}
             <Col xs={24} lg={9}>
-              {/* Shift Progress */}
+              {/* Tiến độ ca làm việc */}
               <Card
                 style={{
                   borderRadius: '16px',
@@ -257,7 +260,7 @@ export const AntdDashboard: React.FC = () => {
                 </div>
               </Card>
 
-              {/* AI Prediction */}
+              {/* Dự báo AI */}
               <Card
                 style={{
                   borderRadius: '16px',

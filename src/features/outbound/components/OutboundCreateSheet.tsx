@@ -54,7 +54,7 @@ const EMPTY_LINE: CreateFormValues['details'][number] = {
   quantity:            1,
 };
 
-// ─── Field helpers ────────────────────────────────────────────────────────────
+// ─── Component hỗ trợ field ──────────────────────────────────────────────────
 
 function FieldLabel({ children, required, hint }: {
   children: React.ReactNode;
@@ -116,7 +116,7 @@ function SelectField({
   );
 }
 
-// ─── Detail row ───────────────────────────────────────────────────────────────
+// ─── Dòng sản phẩm xuất ──────────────────────────────────────────────────────
 
 interface OutboundDetailRowProps {
   index: number;
@@ -149,7 +149,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
   const availableQty = availableQtyQuery.data ?? 0;
   const overAvailable = availableQty > 0 && Number(quantity) > availableQty;
 
-  // Clear stale lot when product changes
+  // Xóa lô cũ khi sản phẩm thay đổi và lô không còn hợp lệ
   useEffect(() => {
     if (!selectedLotId) return;
     const exists = (lotOptionsQuery.data ?? []).some((l) => l.id === selectedLotId);
@@ -160,7 +160,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
     }
   }, [selectedLotId, lotOptionsQuery.data, form, index]);
 
-  // Clear stale location when it's no longer in the allowed set
+  // Xóa vị trí cũ khi không còn trong danh sách cho phép
   useEffect(() => {
     if (warehouseLocationId <= 0) return;
     const allowed = new Set((locationOptionsQuery.data ?? []).map((l) => l.id));
@@ -169,7 +169,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
     }
   }, [warehouseLocationId, locationOptionsQuery.data, form, index]);
 
-  // Auto-fill location when options arrive and none selected
+  // Tự động chọn vị trí đầu tiên khi danh sách load xong mà chưa chọn
   useEffect(() => {
     const options = locationOptionsQuery.data;
     if (!options || options.length === 0) return;
@@ -193,7 +193,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
         'rounded-xl border bg-white shadow-sm transition-colors',
         lineErrors ? 'border-rose-200' : 'border-slate-200',
       )}>
-        {/* Card header */}
+        {/* Header dòng sản phẩm */}
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-600">
@@ -213,7 +213,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
         </div>
 
         <div className="space-y-3.5 p-4">
-          {/* Product — full width */}
+          {/* Sản phẩm — chiếm toàn bộ chiều ngang */}
           <div>
             <FieldLabel required>Sản phẩm</FieldLabel>
             <Controller
@@ -236,9 +236,9 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
             <FieldError message={lineErrors?.productId?.message} />
           </div>
 
-          {/* Row 2: Lot + Location (2 columns) */}
+          {/* Hàng 2: Lô + Vị trí (2 cột) */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Lot */}
+            {/* Lô hàng */}
             <div>
               <FieldLabel hint={requiresLotSelection && !selectedLotId ? 'bắt buộc' : 'tùy chọn'}>
                 Lô / Mẻ
@@ -251,11 +251,11 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
                 onChange={(e) => {
                   const v = e.target.value ? Number(e.target.value) : undefined;
                   form.setValue(`details.${index}.lotId`, v, { shouldDirty: true, shouldValidate: true });
-                  // Store lotNo + expiredDate for pre-allocation
+                  // Lưu lotNo + expiredDate để dùng cho pre-allocation
                   const lotOpt = (lotOptionsQuery.data ?? []).find((l) => l.id === v);
                   form.setValue(`details.${index}.lotNo`, lotOpt?.lotNo, { shouldDirty: true });
                   form.setValue(`details.${index}.expiredDate`, lotOpt?.expiredDate ?? undefined, { shouldDirty: true });
-                  // Reset location to trigger re-fetch for the chosen lot
+                  // Reset vị trí để tải lại danh sách theo lô vừa chọn
                   form.setValue(`details.${index}.warehouseLocationId`, 0, { shouldDirty: true });
                 }}
               >
@@ -281,7 +281,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
               <FieldError message={lineErrors?.lotId?.message} />
             </div>
 
-            {/* Location */}
+            {/* Vị trí kho */}
             <div>
               <FieldLabel required>Vị trí kho</FieldLabel>
               <SelectField
@@ -311,7 +311,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
             </div>
           </div>
 
-          {/* Row 3: Quantity */}
+          {/* Hàng 3: Số lượng */}
           <div className="max-w-45">
             <FieldLabel required>Số lượng xuất</FieldLabel>
             <input
@@ -349,7 +349,7 @@ function OutboundDetailRow({ index, totalRows, form, control, remove }: Outbound
   );
 }
 
-// ─── Main sheet ───────────────────────────────────────────────────────────────
+// ─── Sheet chính ─────────────────────────────────────────────────────────────
 
 interface OutboundCreateSheetProps {
   open: boolean;
@@ -375,7 +375,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     name: 'details',
   });
 
-  // Reset when opened
+  // Reset form khi sheet được mở
   useEffect(() => {
     if (open) {
       form.reset({ type: 'SALES', description: '', details: [{ ...EMPTY_LINE }] });
@@ -386,7 +386,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
     async (values: CreateFormValues) => {
       form.clearErrors();
 
-      // Pre-flight: validate available qty for each line
+      // Kiểm tra tồn kho khả dụng cho từng dòng trước khi submit
       const checks = await Promise.all(
         values.details.map(async (detail, index) => {
           if (detail.productId <= 0 || detail.warehouseLocationId <= 0) {
@@ -423,7 +423,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
         return;
       }
 
-      // Determine order-level warehouse_location_id (most common among lines)
+      // Xác định warehouse_location_id cấp phiếu (vị trí phổ biến nhất trong các dòng)
       const locationVotes = new Map<number, number>();
       values.details.forEach((d) => {
         if (d.warehouseLocationId > 0) {
@@ -446,7 +446,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
         })),
       });
 
-      // Save manually-selected lot pre-allocation for picking screen
+      // Lưu phân bổ lô thủ công vào localStorage cho màn hình lấy hàng
       try {
         const results: AllocationResult[] = values.details.map((d) => ({
           product_id:        d.productId,
@@ -474,7 +474,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
           results,
         });
       } catch {
-        // Pre-allocation is best-effort — picking screen falls back to manual if it fails
+        // Pre-allocation là best-effort — màn hình lấy hàng fallback thủ công nếu thất bại
       }
 
       onOpenChange(false);
@@ -487,7 +487,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onOpenChange(false)}>
       <SheetContent className="flex flex-col overflow-hidden p-0 w-[50vw]! max-w-none!" side="right">
-        {/* Header */}
+        {/* Tiêu đề sheet */}
         <SheetHeader className="shrink-0 border-b border-slate-100 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
@@ -502,7 +502,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
           </div>
         </SheetHeader>
 
-        {/* Scrollable body */}
+        {/* Nội dung cuộn được */}
         <div className="flex-1 overflow-y-auto">
           <form id="outbound-create-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5 px-6 py-5">
 
@@ -528,7 +528,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
               </div>
             </div>
 
-            {/* Product lines */}
+            {/* Danh sách dòng sản phẩm */}
             <div className="space-y-3">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Danh sách sản phẩm xuất
@@ -563,7 +563,7 @@ export function OutboundCreateSheet({ open, onOpenChange }: OutboundCreateSheetP
           </form>
         </div>
 
-        {/* Footer */}
+        {/* Footer hành động */}
         <div className="shrink-0 border-t border-slate-100 bg-white px-6 py-4">
           <div className="flex items-center gap-3">
             <button

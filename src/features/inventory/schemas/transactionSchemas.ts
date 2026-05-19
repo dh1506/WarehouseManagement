@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// ── Filter schema (URL-synced query params) ─────────────────────────────────
+// ── Schema lọc danh sách giao dịch ───────────────────────────────────────────
 
 export const transactionFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -14,7 +14,7 @@ export const transactionFilterSchema = z.object({
 export type TransactionFilterInput = z.input<typeof transactionFilterSchema>;
 export type TransactionFilterOutput = z.output<typeof transactionFilterSchema>;
 
-// ── Create adjustment form schema ───────────────────────────────────────────
+// ── Schema form tạo điều chỉnh ───────────────────────────────────────────────
 
 export const createAdjustmentFormSchema = z.object({
   warehouse_location_id: z.coerce

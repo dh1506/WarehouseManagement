@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useStockDisposalDetail } from '@/features/stock-disposal/hooks/useStockDisposal';
 import { StockDisposalDetail } from '@/features/stock-disposal/components/StockDisposalDetail';
 
+// Muc dich: Lay thong diep loi de hien thi UI.
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -18,6 +19,7 @@ function getErrorMessage(error: unknown): string {
   return 'Ticket not found or an error occurred.';
 }
 
+// Muc dich: Skeleton loading cho chi tiet phieu thanh ly.
 function SkeletonDetail() {
   return (
     <div className="px-6 py-6 space-y-5 animate-pulse">
@@ -48,6 +50,7 @@ function SkeletonDetail() {
   );
 }
 
+// Muc dich: Trang chi tiet phieu thanh ly.
 export function StockDisposalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

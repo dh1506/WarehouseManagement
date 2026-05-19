@@ -1,25 +1,26 @@
 import { Link } from 'react-router-dom';
 
+// Muc dich: Trang bao loi khong du quyen truy cap.
 export function ForbiddenPage() {
   return (
     <div className="min-h-screen bg-surface text-on-surface antialiased flex flex-col items-center justify-center p-6 lg:p-12 overflow-hidden relative">
-      {/* Subtle Background Element */}
+      {/* Nền trang trí mờ */}
       <div className="absolute inset-0 pointer-events-none opacity-40">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-secondary-container rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-fixed rounded-full blur-[120px]"></div>
       </div>
 
-      {/* Main Content Canvas */}
+      {/* Khung nội dung chính */}
       <main className="relative z-10 w-full max-w-6xl flex flex-col md:flex-row items-center gap-12 lg:gap-24">
-        {/* Illustration Side */}
+        {/* Phần hình minh hoạ */}
         <div className="w-full md:w-1/2 flex justify-center order-1 md:order-2">
           <div className="relative w-full max-w-md aspect-square bg-surface-container-lowest rounded-xl shadow-xl shadow-gray-200/50 p-8 flex items-center justify-center overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5"></div>
 
-            {/* Professional Error Visual */}
+            {/* Biểu tượng lỗi */}
             <div className="relative flex flex-col items-center">
               <div className="w-48 h-48 mb-8 relative">
-                {/* Simulated Enterprise Shield/Lock Graphic */}
+                {/* Biểu tượng khoá bảo mật */}
                 <div className="absolute inset-0 border-4 border-outline-variant/20 rounded-full animate-[spin_20s_linear_infinite]"></div>
                 <div className="absolute inset-4 border-4 border-primary/10 rounded-full animate-[spin_15s_linear_infinite_reverse]"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -38,7 +39,7 @@ export function ForbiddenPage() {
               </div>
             </div>
 
-            {/* Abstract Data Elements */}
+            {/* Phần tử trang trí */}
             <div className="absolute top-8 right-8 bg-secondary-container/20 p-3 rounded-lg backdrop-blur-sm">
               <span className="material-symbols-outlined text-secondary">admin_panel_settings</span>
             </div>
@@ -48,7 +49,7 @@ export function ForbiddenPage() {
           </div>
         </div>
 
-        {/* Text Content Side */}
+        {/* Phần nội dung văn bản */}
         <div className="w-full md:w-1/2 text-center md:text-left order-2 md:order-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-error-container/50 text-on-error-container text-xs font-bold tracking-widest uppercase mb-6">
             <span className="material-symbols-outlined text-sm">warning</span>
@@ -66,12 +67,12 @@ export function ForbiddenPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-            {/* Primary Action: Request Permission */}
+            {/* Hành động chính: yêu cầu quyền truy cập */}
             <button className="px-8 py-4 bg-primary text-on-primary rounded-lg font-bold text-base shadow-lg shadow-primary/20 hover:bg-on-primary-fixed-variant transition-all transform active:scale-95 flex items-center justify-center gap-2">
               <span className="material-symbols-outlined">verified_user</span>
               Yêu cầu quyền truy cập
             </button>
-            {/* Secondary Action: Back Home */}
+            {/* Hành động phụ: quay về trang chủ */}
             <Link
               to="/"
               className="px-8 py-4 bg-surface-container-high text-on-surface rounded-lg font-bold text-base hover:bg-surface-dim transition-all transform active:scale-95 flex items-center justify-center gap-2"
@@ -81,7 +82,7 @@ export function ForbiddenPage() {
             </Link>
           </div>
 
-          {/* Contextual Help */}
+          {/* Hỗ trợ liên hệ */}
           <div className="mt-12 pt-8 border-t border-outline-variant/30 flex items-center justify-center md:justify-start gap-4 text-sm text-on-surface-variant">
             <div className="flex -space-x-2">
               <img
@@ -102,7 +103,7 @@ export function ForbiddenPage() {
         </div>
       </main>
 
-      {/* Footer Identity */}
+      {/* Footer nhận diện thương hiệu */}
       <footer className="absolute bottom-8 left-0 w-full px-6 lg:px-12 flex flex-col md:flex-row justify-between items-center text-xs text-outline font-medium tracking-wide gap-2 text-center">
         <div className="flex items-center gap-2">
           <span className="font-black text-primary uppercase">Global Ops</span>
@@ -114,7 +115,7 @@ export function ForbiddenPage() {
         </div>
       </footer>
 
-      {/* Decorative Corner Element */}
+      {/* Phần tử trang trí góc */}
       <div className="absolute top-0 right-0 p-8 pointer-events-none">
         <div className="w-32 h-32 opacity-10">
           <svg className="fill-current text-primary" viewBox="0 0 100 100">

@@ -16,13 +16,13 @@ import { ChartCard } from './ChartCard';
 import { EmptyChartState } from './EmptyChartState';
 import { exportChartAsPNG, exportAsCSV } from './chartUtils';
 
-// ── Design tokens ───────────────────────────────────────────────────────────
+// ── Màu sắc biểu đồ ─────────────────────────────────────────────────────────
 
 const COLOR_INBOUND  = '#10b981'; // emerald-500
 const COLOR_OUTBOUND = '#3b82f6'; // blue-500
 const COLOR_PENDING  = '#f59e0b'; // amber-500
 
-// ── Custom Tooltip ──────────────────────────────────────────────────────────
+// ── Tooltip tùy chỉnh ───────────────────────────────────────────────────────
 
 function FlowTooltip({ active, payload, label }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
@@ -67,7 +67,7 @@ function FlowTooltip({ active, payload, label }: TooltipProps<number, string>) {
   );
 }
 
-// ── Period Toggle ───────────────────────────────────────────────────────────
+// ── Nút chọn khoảng thời gian ───────────────────────────────────────────────
 
 function PeriodBtn({
   label, active, onClick,
@@ -87,7 +87,7 @@ function PeriodBtn({
   );
 }
 
-// ── Custom Legend ───────────────────────────────────────────────────────────
+// ── Chú thích biểu đồ ───────────────────────────────────────────────────────
 
 function FlowLegend() {
   const items = [
@@ -114,7 +114,7 @@ function FlowLegend() {
   );
 }
 
-// ── Main Component ──────────────────────────────────────────────────────────
+// ── Component chính ─────────────────────────────────────────────────────────
 
 interface FlowChartProps {
   points7d:  FlowDataPoint[];
@@ -130,9 +130,9 @@ export function FlowChart({ points7d, points30d, isLoading, isError }: FlowChart
   const data    = period === '7d' ? points7d : points30d;
   const isEmpty = !isLoading && !isError && data.length === 0;
 
-  // For 30d, show every 4th label so the axis isn't crowded
+  // Hiển thị nhãn trục X thưa hơn ở chế độ 30 ngày
   const xInterval = period === '7d' ? 0 : 4;
-  // For 30d, use a wide scrollable chart so bars stay readable
+  // Mở rộng chiều ngang biểu đồ ở chế độ 30 ngày để cột không bị chật
   const chartMinWidth = period === '30d' ? 860 : undefined;
 
   const handleExportPNG = () => exportChartAsPNG(captureRef, `inbound-outbound-${period}`);
@@ -172,7 +172,7 @@ export function FlowChart({ points7d, points30d, isLoading, isError }: FlowChart
       ) : (
         <div className="px-4 pt-4 pb-3">
           <FlowLegend />
-          {/* Horizontal scroll container for 30d */}
+          {/* Cuộn ngang cho chế độ 30 ngày */}
           <div
             className={period === '30d' ? 'overflow-x-auto' : ''}
             style={period === '30d' ? { WebkitOverflowScrolling: 'touch' } : undefined}
@@ -233,7 +233,7 @@ export function FlowChart({ points7d, points30d, isLoading, isError }: FlowChart
                     dot={{ r: 3, fill: COLOR_PENDING, strokeWidth: 0 }}
                     activeDot={{ r: 5, fill: COLOR_PENDING, strokeWidth: 0 }}
                   />
-                  {/* Hide recharts default legend — we render our own above */}
+                  {/* Ẩn chú thích mặc định của recharts — dùng chú thích tùy chỉnh ở trên */}
                   <Legend content={() => null} />
                 </ComposedChart>
               </ResponsiveContainer>

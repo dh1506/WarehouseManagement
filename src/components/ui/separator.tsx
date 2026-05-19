@@ -5,6 +5,7 @@ import { Separator as SeparatorPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Muc dich: Duong ke phan tach noi dung.
 function Separator({
   className,
   orientation = "horizontal",

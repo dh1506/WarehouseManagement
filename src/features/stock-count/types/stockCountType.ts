@@ -41,7 +41,7 @@ export interface StockCountDetail {
   warehouse_location_id: number;
   product_id: number;
   lot_id: number | null;
-  system_quantity: string;     // Prisma Decimal → string
+  system_quantity: string;     // Prisma Decimal tuần tự hoá thành string
   counted_quantity: string | null;
   variance_quantity: string | null;
   unit_price: string | null;

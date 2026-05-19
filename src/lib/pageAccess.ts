@@ -1,16 +1,13 @@
 import type { Permission } from '@/features/roles/types/roleType';
 
-// ── Permission Matrix: page → BE modules mapping ─────────────────────────────
-// Used by RolePermissions.tsx to show sidebar pages as matrix rows.
-// Toggling a page permission propagates to ALL its modules.
-// Separate from SIDEBAR_PAGE_ACCESS_CONFIG (which only needs one primary module
-// per page for the sidebar visibility check).
+// ── Ma trận quyền: trang → module BE ────────────────────────────────────────
+// Dùng để hiển thị danh sách trang dưới dạng dòng ma trận quyền trong RolePermissions.tsx.
 export interface PagePermissionConfig {
   id: string;
   label: string;
-  icon: string;        // Material Symbol name
+  icon: string;        // Tên Material Symbol
   description: string;
-  modules: string[];   // All BE modules touched by this page
+  modules: string[];   // Tất cả module BE liên quan đến trang này
 }
 
 export const PAGE_PERMISSION_MAP: PagePermissionConfig[] = [
@@ -176,16 +173,18 @@ export const SIDEBAR_PAGE_ACCESS_CONFIG: SidebarPageAccessConfig[] = [
 
 const ADMIN_ROLES = new Set(['CEO']);
 
+// Muc dich: Chuan hoa danh sach permission ve lowercase.
 function normalizePermissions(permissionNames: string[]): Set<string> {
   return new Set(permissionNames.map((item) => item.trim().toLowerCase()));
 }
 
-// Page visibility requires the read (view) permission specifically.
-// Having create/edit/delete without view does NOT grant page access.
+// Hiển thị trang yêu cầu quyền read — chỉ có create/edit/delete không đủ.
+// Muc dich: Kiem tra co quyen read cho bat ky module.
 function hasReadPermission(permissionSet: Set<string>, modules: string[]): boolean {
   return modules.some((moduleName) => permissionSet.has(`${moduleName}:read`));
 }
 
+// Muc dich: Kiem tra quyen truy cap page tu danh sach permission.
 export function hasPageAccessFromPermissionNames(path: string, permissionNames: string[], roleName?: string): boolean {
   if (ADMIN_ROLES.has((roleName || '').trim().toUpperCase())) {
     return true;
@@ -203,6 +202,7 @@ export function hasPageAccessFromPermissionNames(path: string, permissionNames: 
   return hasReadPermission(normalizePermissions(permissionNames), config.modules);
 }
 
+// Muc dich: Kiem tra quyen truy cap page tu ma tran role.
 export function hasPageAccessFromRoleMatrix(page: SidebarPageAccessConfig, matrix: Permission[]): boolean {
   if (page.modules.length === 0) {
     return true;
@@ -214,6 +214,7 @@ export function hasPageAccessFromRoleMatrix(page: SidebarPageAccessConfig, matri
   });
 }
 
+// Muc dich: Cap nhat ma tran role theo quyen truy cap page.
 export function setPageAccessInRoleMatrix(
   page: SidebarPageAccessConfig,
   matrix: Permission[],

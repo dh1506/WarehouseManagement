@@ -9,9 +9,7 @@ import type {
   CreateAdjustmentPayload,
 } from '../types/transactionType';
 
-// Raw axios instance that bypasses the apiClient response interceptor.
-// Required for blob downloads — the shared interceptor unwraps ApiResponse<T>
-// which corrupts binary streams.
+// Instance axios riêng để tải file blob — interceptor chung sẽ phá vỡ luồng nhị phân
 const rawAxios = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
   timeout: 30000,

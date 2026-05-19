@@ -27,7 +27,7 @@ import {
   Filter,
 } from 'lucide-react';
 
-// ── Constants ───────────────────────────────────────────────────────────────
+// ── Hằng số ─────────────────────────────────────────────────────────────────
 
 const TRANSACTION_TYPE_CONFIG: Record<TransactionType, {
   label: string;
@@ -82,7 +82,7 @@ const TRANSACTION_TYPE_FALLBACK = {
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Hàm hỗ trợ ──────────────────────────────────────────────────────────────
 
 function formatDateTime(value: string): { date: string; time: string } {
   const d = new Date(value);
@@ -124,7 +124,7 @@ function normalizeDisplayQuantity(type: TransactionType | null | undefined, qty:
   return qty;
 }
 
-// ── KPI Stat Card ───────────────────────────────────────────────────────────
+// ── Thẻ thống kê KPI ────────────────────────────────────────────────────────
 
 function StatCard({
   label,
@@ -166,7 +166,7 @@ function StatCard({
   );
 }
 
-// ── Type Badge ──────────────────────────────────────────────────────────────
+// ── Badge loại giao dịch ────────────────────────────────────────────────────
 
 function TypeBadge({ type }: { type: TransactionType | string | null | undefined }) {
   const cfg = TRANSACTION_TYPE_CONFIG[type as TransactionType] ?? TRANSACTION_TYPE_FALLBACK;
@@ -179,7 +179,7 @@ function TypeBadge({ type }: { type: TransactionType | string | null | undefined
   );
 }
 
-// ── Transaction Row ─────────────────────────────────────────────────────────
+// ── Hàng giao dịch ──────────────────────────────────────────────────────────
 
 function TransactionRow({
   tx,
@@ -203,13 +203,11 @@ function TransactionRow({
       onClick={() => onViewDetail(tx.id)}
       className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
     >
-      {/* Timestamp */}
       <TableCell className="whitespace-nowrap">
         <div className="font-semibold text-slate-800 text-sm">{date}</div>
         <div className="text-xs text-slate-400">{time}</div>
       </TableCell>
 
-      {/* User */}
       <TableCell className="whitespace-nowrap">
         <div className="flex items-center gap-2">
           <div className={cn(
@@ -224,7 +222,6 @@ function TransactionRow({
         </div>
       </TableCell>
 
-      {/* Type & detail */}
       <TableCell className="whitespace-nowrap">
         <TypeBadge type={tx.transaction_type} />
         <div className="text-xs text-slate-400 mt-1 max-w-50 truncate">
@@ -232,7 +229,6 @@ function TransactionRow({
         </div>
       </TableCell>
 
-      {/* Product */}
       <TableCell className="whitespace-nowrap">
         <div className="text-sm font-medium text-slate-700 max-w-40 truncate">
           {tx.product.name}
@@ -240,7 +236,6 @@ function TransactionRow({
         <div className="text-xs text-slate-400 font-mono">{tx.product.code}</div>
       </TableCell>
 
-      {/* Quantity */}
       <TableCell className="whitespace-nowrap text-right">
         <span className={cn(
           'text-sm font-bold tabular-nums',
@@ -250,7 +245,6 @@ function TransactionRow({
         </span>
       </TableCell>
 
-      {/* Balance */}
       <TableCell className="whitespace-nowrap text-right">
         <div className="text-sm tabular-nums text-slate-700 font-semibold">
           {Number(tx.balance_after).toLocaleString()}
@@ -260,14 +254,12 @@ function TransactionRow({
         </div>
       </TableCell>
 
-      {/* Location */}
       <TableCell className="whitespace-nowrap">
         <div className="text-xs text-slate-500 max-w-32.5 truncate" title={tx.location.full_path}>
           {tx.location.warehouse?.name ?? '—'}
         </div>
       </TableCell>
 
-      {/* Action */}
       <TableCell className="whitespace-nowrap text-right">
         <button
           onClick={(e) => { e.stopPropagation(); onViewDetail(tx.id); }}
@@ -281,7 +273,7 @@ function TransactionRow({
   );
 }
 
-// ── Loading skeleton ────────────────────────────────────────────────────────
+// ── Skeleton tải dữ liệu ────────────────────────────────────────────────────
 
 function TableSkeleton() {
   return (
@@ -299,10 +291,10 @@ function TableSkeleton() {
   );
 }
 
-// ── Main component ──────────────────────────────────────────────────────────
+// ── Component chính ─────────────────────────────────────────────────────────
 
 export function TransactionHistory() {
-  // ── Filter state ────────────────────────────────────────────────────────
+  // ── Trạng thái bộ lọc ───────────────────────────────────────────────────
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(10);
   const [typeFilter, setTypeFilter] = useState<TransactionType | ''>('');
@@ -311,10 +303,10 @@ export function TransactionHistory() {
   const [toDate, setToDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  // ── Detail sheet ────────────────────────────────────────────────────────
+  // ── Sheet chi tiết ──────────────────────────────────────────────────────
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  // ── Build query params ──────────────────────────────────────────────────
+  // ── Xây dựng tham số truy vấn ───────────────────────────────────────────
   const queryParams: TransactionQueryParams = useMemo(() => ({
     page,
     limit,
@@ -328,13 +320,13 @@ export function TransactionHistory() {
   const kpis = useTransactionKpis();
   const { exportExcel, exportPdf } = useExportTransactions();
 
-  // ── Derived ─────────────────────────────────────────────────────────────
+  // ── Dữ liệu tính toán ───────────────────────────────────────────────────
   const transactions = data?.transactions ?? [];
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
   const total = pagination?.total ?? 0;
 
-  // ── Handlers ────────────────────────────────────────────────────────────
+  // ── Xử lý sự kiện ───────────────────────────────────────────────────────
   const handleViewDetail = useCallback((id: number) => setDetailId(id), []);
   const handlePageChange = useCallback((newPage: number) => setPage(Math.max(1, Math.min(newPage, totalPages))), [totalPages]);
 
@@ -368,7 +360,7 @@ export function TransactionHistory() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfbfe] px-3 py-3 sm:px-4 lg:px-5">
       <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
 
-        {/* ── Page Header ────────────────────────────────────────────────── */}
+        {/* ── Tiêu đề trang ──────────────────────────────────────────────── */}
         <PageHeader
           title="Lịch sử giao dịch kho"
           description="Theo dõi toàn bộ giao dịch nhập, xuất, điều chỉnh và chuyển kho trong hệ thống."
@@ -409,7 +401,7 @@ export function TransactionHistory() {
           }
         />
 
-        {/* ── KPI Stats ──────────────────────────────────────────────────── */}
+        {/* ── Thống kê KPI ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             label="Tổng giao dịch"
@@ -445,7 +437,7 @@ export function TransactionHistory() {
           />
         </div>
 
-        {/* ── Filter Panel (Collapsible) ─────────────────────────────────── */}
+        {/* ── Bảng lọc có thể thu gọn ────────────────────────────────────── */}
         <AnimatePresence>
           {showFilters && (
             <motion.div
@@ -457,7 +449,6 @@ export function TransactionHistory() {
             >
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  {/* Type filter */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                       Loại giao dịch
@@ -479,7 +470,6 @@ export function TransactionHistory() {
                     </Select>
                   </div>
 
-                  {/* Reference source filter */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                       Nguồn chứng từ
@@ -500,7 +490,6 @@ export function TransactionHistory() {
                     </Select>
                   </div>
 
-                  {/* From date */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                       Từ ngày
@@ -512,7 +501,6 @@ export function TransactionHistory() {
                     />
                   </div>
 
-                  {/* To date */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                       Đến ngày
@@ -524,7 +512,6 @@ export function TransactionHistory() {
                     />
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-end gap-2">
                     {hasActiveFilters && (
                       <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-slate-500">
@@ -538,12 +525,11 @@ export function TransactionHistory() {
           )}
         </AnimatePresence>
 
-        {/* ── Data Table ─────────────────────────────────────────────────── */}
+        {/* ── Bảng dữ liệu ───────────────────────────────────────────────── */}
         <div className={cn(
           'flex-1 min-h-0 flex flex-col rounded-xl border border-slate-100 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden transition-all duration-300',
           isFetching && !isLoading && 'opacity-70 saturate-75',
         )}>
-          {/* Table header info */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/40">
             <div className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4 text-slate-400" />
@@ -571,7 +557,6 @@ export function TransactionHistory() {
             </div>
           </div>
 
-          {/* Scrollable table */}
           <div className="flex-1 min-h-0 overflow-auto">
             <Table>
               <TableHeader>
@@ -627,7 +612,7 @@ export function TransactionHistory() {
             </Table>
           </div>
 
-          {/* ── Pagination ─────────────────────────────────────────────────── */}
+          {/* ── Phân trang ─────────────────────────────────────────────────── */}
           {pagination && pagination.total > 0 && (
             <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-100 shrink-0">
               <div className="flex items-center gap-2">
@@ -642,7 +627,6 @@ export function TransactionHistory() {
                   <span className="hidden sm:inline">Trước</span>
                 </Button>
 
-                {/* Page buttons */}
                 <div className="hidden sm:flex items-center gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum: number;
@@ -702,7 +686,7 @@ export function TransactionHistory() {
         </div>
       </div>
 
-      {/* ── Detail Sheet ───────────────────────────────────────────────── */}
+      {/* ── Sheet chi tiết ─────────────────────────────────────────────── */}
       <TransactionDetailSheet
         transactionId={detailId}
         open={detailId !== null}

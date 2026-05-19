@@ -1,9 +1,11 @@
 const SEARCH_FALLBACK_BATCH_SIZE = 100;
 
+// Muc dich: Chuan hoa chuoi tim kiem de so sanh.
 function normalizeSearchValue(value: string | null | undefined): string {
   return (value ?? '').trim().toLocaleLowerCase();
 }
 
+// Muc dich: Kiem tra chuoi search co khop bat ky field nao.
 export function matchesCaseInsensitiveSearch(
   search: string | undefined,
   fields: Array<string | null | undefined>,
@@ -16,6 +18,7 @@ export function matchesCaseInsensitiveSearch(
   return fields.some((field) => normalizeSearchValue(field).includes(normalizedSearch));
 }
 
+// Muc dich: Phan trang danh sach fallback da co san.
 export function paginateFallbackItems<T>(
   items: T[],
   page: number,
@@ -33,6 +36,7 @@ export function paginateFallbackItems<T>(
   };
 }
 
+// Muc dich: Thu thap toan bo item qua nhieu trang API.
 export async function collectPaginatedItems<TPayload, TItem>(options: {
   fetchPage: (page: number, limit: number) => Promise<TPayload>;
   getItems: (payload: TPayload) => TItem[];

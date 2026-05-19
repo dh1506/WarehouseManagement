@@ -29,7 +29,7 @@ import type {
   UpdateReportConfigPayload,
 } from '../types/reportType';
 
-// ── Query key factory ─────────────────────────────────────────────────────────
+// ── Khóa query cho React Query ────────────────────────────────────────────────
 
 export const REPORT_KEYS = {
   all: ['reports'] as const,
@@ -42,7 +42,7 @@ export const REPORT_KEYS = {
   configs: ['reports', 'configs'] as const,
 };
 
-// ── Dashboard Summary ─────────────────────────────────────────────────────────
+// ── Tổng quan dashboard ───────────────────────────────────────────────────────
 
 export function useDashboardSummary(params?: DashboardSummaryParams) {
   return useQuery<DashboardSummary>({
@@ -54,9 +54,9 @@ export function useDashboardSummary(params?: DashboardSummaryParams) {
   });
 }
 
-// ── Detailed Reports ──────────────────────────────────────────────────────────
+// ── Báo cáo chi tiết ──────────────────────────────────────────────────────────
 
-const REPORT_STALE_TIME = 2 * 60 * 1000; // 2 min — prevents refetch on every window focus
+const REPORT_STALE_TIME = 2 * 60 * 1000;
 
 export function useStockInReport(params: StockInReportParams) {
   return useQuery<StockInReportResponse>({
@@ -113,7 +113,7 @@ export function useInventoryReport(params: InventoryReportParams) {
   });
 }
 
-// ── Report Configs ────────────────────────────────────────────────────────────
+// ── Cấu hình báo cáo ─────────────────────────────────────────────────────────
 
 export function useReportConfigs() {
   return useQuery<ReportConfig[]>({

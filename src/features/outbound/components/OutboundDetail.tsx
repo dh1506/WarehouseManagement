@@ -127,7 +127,7 @@ function WorkflowStepper({ status }: { status: OutboundStatus }) {
   return (
     <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
       <div className="relative flex justify-between">
-        {/* Track */}
+        {/* Thanh tiến trình */}
         <div className="absolute top-5 left-0 w-full h-1 bg-slate-100 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-linear-to-r from-blue-600 to-blue-400 rounded-full"
@@ -239,7 +239,7 @@ function ActionPanel({
       onActionDone();
       setDialog(null);
     } catch {
-      // Toast đã được xử lý tập trung trong hook mutation.
+      // Toast lỗi đã được xử lý trong hook mutation
       setDialog(null);
     }
   };
@@ -263,7 +263,7 @@ function ActionPanel({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {/* DRAFT → Submit */}
+        {/* DRAFT → Gửi duyệt */}
         {order.status === 'DRAFT' && (
           <button
             onClick={() => setDialog('submit')}
@@ -274,7 +274,7 @@ function ActionPanel({
           </button>
         )}
 
-        {/* PENDING → Approve (Manager only) */}
+        {/* PENDING → Phê duyệt (chỉ Manager) */}
         {order.status === 'PENDING' && isManager && (
           <button
             onClick={() => setDialog('approve')}
@@ -287,7 +287,7 @@ function ActionPanel({
           </button>
         )}
 
-        {/* PENDING → Staff sees awaiting badge */}
+        {/* PENDING → Nhân viên thấy badge đang chờ duyệt */}
         {order.status === 'PENDING' && !isManager && (
           <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm font-semibold">
             <span className="material-symbols-outlined text-[18px] animate-pulse">hourglass_empty</span>
@@ -295,7 +295,7 @@ function ActionPanel({
           </div>
         )}
 
-        {/* APPROVED → Start Picking */}
+        {/* APPROVED → Bắt đầu lấy hàng */}
         {order.status === 'APPROVED' && (
           <button
             onClick={() => navigate(`/outbound/${order.id}/picking`)}
@@ -306,7 +306,7 @@ function ActionPanel({
           </button>
         )}
 
-        {/* PICKING → Continue */}
+        {/* PICKING → Tiếp tục lấy hàng */}
         {order.status === 'PICKING' && (
           <button
             onClick={() => navigate(`/outbound/${order.id}/picking`)}
@@ -317,7 +317,7 @@ function ActionPanel({
           </button>
         )}
 
-        {/* Cancel (any non-terminal state) */}
+        {/* Hủy phiếu (mọi trạng thái chưa kết thúc) */}
         {canCancel && (
           <button
             onClick={() => setDialog('cancel')}
@@ -478,7 +478,7 @@ export function OutboundDetail() {
 
     const checks = await Promise.all(
       order.details.map(async (detail) => {
-        // Must check at the stock-out's specific location — matches BE's validateAvailableStock logic.
+        // Kiểm tra tồn kho tại đúng vị trí của phiếu (khớp logic validateAvailableStock của BE)
         const availability = await getOutboundProductInventoryAvailabilityAtLocation(
           detail.product_id,
           order.warehouse_location_id,
@@ -770,7 +770,7 @@ export function OutboundDetail() {
                                     <span className="text-slate-600 font-medium">×{lot.quantity}</span>
                                   </div>
                                 ))}
-                                {/* Fulfillment indicator */}
+                                {/* Chỉ báo tình trạng gán lô */}
                                 <div className="mt-1">
                                   {isFulfilled ? (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -995,7 +995,7 @@ export function OutboundCreateForm() {
                   </select>
                 </div>
 
-                {/* Warehouse Location ID */}
+                {/* ID Vị trí kho */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1.5">
                     ID Vị trí kho <span className="text-red-500">*</span>
@@ -1012,7 +1012,7 @@ export function OutboundCreateForm() {
                   )}
                 </div>
 
-                {/* Reference Number */}
+                {/* Số tham chiếu */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1.5">
                     Số tham chiếu

@@ -1,4 +1,4 @@
-// ── Widget 1: Financial Snapshot ─────────────────────────────────────────────
+// ── Widget 1: Tài chính tồn kho ──────────────────────────────────────────────
 
 export interface CategorySlice {
   name: string;
@@ -17,7 +17,7 @@ export interface FinancialSnapshotData {
   stockOutCount30d: number;
 }
 
-// ── Widget 2: AI Forecast Insight ─────────────────────────────────────────────
+// ── Widget 2: Thông tin dự báo AI ────────────────────────────────────────────
 
 export type MapeLevel = 'ok' | 'warn' | 'critical';
 
@@ -33,7 +33,7 @@ export interface AiForecastInsight {
   totalProducts: number;
 }
 
-// ── Widget 3: Risk & Shrinkage ────────────────────────────────────────────────
+// ── Widget 3: Rủi ro & Hao hụt ───────────────────────────────────────────────
 
 export interface SupplierRisk {
   supplierId: number | null;
@@ -50,7 +50,7 @@ export interface ShrinkageData {
   supplierRisks: SupplierRisk[];
 }
 
-// ── Widget 4: Supply Chain KPIs ───────────────────────────────────────────────
+// ── Widget 4: KPI Chuỗi cung ứng ─────────────────────────────────────────────
 
 export interface MonthlyTrend {
   month: string;

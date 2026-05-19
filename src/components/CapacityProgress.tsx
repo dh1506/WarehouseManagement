@@ -5,18 +5,21 @@ import { cn } from '@/lib/utils';
 // 60–89 % → amber  (NEAR_FULL)
 // ≥ 90 %  → red    (FULL / overloaded)
 
+// Muc dich: Chon mau thanh load chinh.
 function barColor(totalPct: number): string {
   if (totalPct >= 90) return 'bg-rose-500';
   if (totalPct >= 60) return 'bg-amber-400';
   return 'bg-emerald-500';
 }
 
+// Muc dich: Chon mau cho phan pending.
 function pendingBarColor(totalPct: number): string {
   if (totalPct >= 90) return 'bg-rose-300';
   if (totalPct >= 60) return 'bg-amber-200';
   return 'bg-emerald-300';
 }
 
+// Muc dich: Chon mau text con lai.
 function remainingColor(remaining: number, capacity: number): string {
   if (remaining <= 0)               return 'text-rose-500';
   if (remaining < capacity * 0.1)   return 'text-amber-600';
@@ -33,6 +36,7 @@ interface CapacityProgressProps {
   className?: string;
 }
 
+// Muc dich: Hien thi thanh tien do su dung suc chua.
 export function CapacityProgress({
   capacity,
   currentLoad,

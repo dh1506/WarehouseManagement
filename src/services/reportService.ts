@@ -18,11 +18,13 @@ import type {
   UpdateReportConfigPayload,
 } from '@/features/reports/types/reportType';
 
+// Muc dich: Lay data thuan tu ApiResponse.
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
   return res.data;
 }
 
+// Muc dich: Chuan hoa danh sach email tu string/array.
 function parseRecipientEmails(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.map((email) => String(email).trim()).filter(Boolean);
@@ -38,7 +40,7 @@ function parseRecipientEmails(value: unknown): string[] {
         return parsed.map((email) => String(email).trim()).filter(Boolean);
       }
     } catch {
-      // Fall back to comma-separated text.
+      // Dự phòng: phân tách bằng dấu phẩy nếu không parse được JSON.
     }
 
     return trimmed
@@ -50,10 +52,12 @@ function parseRecipientEmails(value: unknown): string[] {
   return [];
 }
 
+// Muc dich: Dinh dang danh sach email thanh chuoi.
 function formatRecipientEmails(value: unknown): string {
   return parseRecipientEmails(value).join(', ');
 }
 
+// Muc dich: Chuan hoa recipient_emails ve array.
 function normalizeReportConfig<T extends { recipient_emails: unknown }>(config: T) {
   return {
     ...config,
@@ -61,12 +65,14 @@ function normalizeReportConfig<T extends { recipient_emails: unknown }>(config: 
   };
 }
 
+// Muc dich: Chuyen recipient_emails thanh chuoi de gui BE.
 function serializeRecipientEmails(value: unknown): string {
   return formatRecipientEmails(value);
 }
 
-// ── Dashboard Summary ─────────────────────────────────────────────────────────
+// ── Tóm tắt Dashboard ────────────────────────────────────────────────────────
 
+// Muc dich: Lay thong ke tong quan dashboard.
 export async function getDashboardSummary(
   params?: DashboardSummaryParams,
 ): Promise<DashboardSummary> {
@@ -80,8 +86,9 @@ export async function getDashboardSummary(
   return unwrap<DashboardSummary>(response);
 }
 
-// ── Detailed Reports ──────────────────────────────────────────────────────────
+// ── Báo cáo chi tiết ─────────────────────────────────────────────────────────
 
+// Muc dich: Lay bao cao nhap kho theo bo loc.
 export async function getStockInReport(
   params: StockInReportParams,
 ): Promise<StockInReportResponse> {
@@ -95,6 +102,7 @@ export async function getStockInReport(
   return unwrap<StockInReportResponse>(response);
 }
 
+// Muc dich: Lay bao cao xuat kho theo bo loc.
 export async function getStockOutReport(
   params: StockOutReportParams,
 ): Promise<StockOutReportResponse> {
@@ -108,6 +116,7 @@ export async function getStockOutReport(
   return unwrap<StockOutReportResponse>(response);
 }
 
+// Muc dich: Lay bao cao kiem kho theo bo loc.
 export async function getStockCountReport(
   params: StockCountReportParams,
 ): Promise<StockCountReportResponse> {
@@ -119,6 +128,7 @@ export async function getStockCountReport(
   return unwrap<StockCountReportResponse>(response);
 }
 
+// Muc dich: Lay bao cao huy kho theo bo loc.
 export async function getStockDisposalReport(
   params: StockDisposalReportParams,
 ): Promise<StockDisposalReportResponse> {
@@ -130,6 +140,7 @@ export async function getStockDisposalReport(
   return unwrap<StockDisposalReportResponse>(response);
 }
 
+// Muc dich: Lay bao cao ton kho theo bo loc.
 export async function getInventoryReport(
   params: InventoryReportParams,
 ): Promise<InventoryReportResponse> {
@@ -141,18 +152,21 @@ export async function getInventoryReport(
   return unwrap<InventoryReportResponse>(response);
 }
 
-// ── Report Config ─────────────────────────────────────────────────────────────
+// ── Cấu hình báo cáo ─────────────────────────────────────────────────────────
 
+// Muc dich: Lay danh sach cau hinh bao cao.
 export async function getReportConfigs(): Promise<ReportConfig[]> {
   const response = await apiClient.get('/api/reports/configs');
   return unwrap<ReportConfig[]>(response).map(normalizeReportConfig);
 }
 
+// Muc dich: Lay cau hinh bao cao theo id.
 export async function getReportConfigById(id: number): Promise<ReportConfig> {
   const response = await apiClient.get(`/api/reports/configs/${id}`);
   return normalizeReportConfig(unwrap<ReportConfig>(response));
 }
 
+// Muc dich: Tao cau hinh bao cao moi.
 export async function createReportConfig(
   payload: CreateReportConfigPayload,
 ): Promise<ReportConfig> {
@@ -163,6 +177,7 @@ export async function createReportConfig(
   return normalizeReportConfig(unwrap<ReportConfig>(response));
 }
 
+// Muc dich: Cap nhat cau hinh bao cao.
 export async function updateReportConfig(
   id: number,
   payload: UpdateReportConfigPayload,
@@ -176,6 +191,7 @@ export async function updateReportConfig(
   return normalizeReportConfig(unwrap<ReportConfig>(response));
 }
 
+// Muc dich: Xoa cau hinh bao cao theo id.
 export async function deleteReportConfig(id: number): Promise<void> {
   await apiClient.delete(`/api/reports/configs/${id}`);
 }

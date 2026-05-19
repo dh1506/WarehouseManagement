@@ -1,4 +1,4 @@
-// ── Inventory Transaction types — matches BE response shape ─────────────────
+// ── Kiểu dữ liệu giao dịch tồn kho ──────────────────────────────────────────
 
 export type TransactionType = 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER';
 
@@ -71,7 +71,7 @@ export interface TransactionListResponse {
   pagination: TransactionPagination;
 }
 
-// ── Query params for the list endpoint ──────────────────────────────────────
+// ── Tham số truy vấn danh sách ───────────────────────────────────────────────
 
 export interface TransactionQueryParams {
   page: number;
@@ -87,7 +87,7 @@ export interface TransactionQueryParams {
   reference_id?: string;
 }
 
-// ── KPI stats derived on the FE ─────────────────────────────────────────────
+// ── Thống kê KPI tính trên FE ────────────────────────────────────────────────
 
 export interface TransactionKpiStats {
   total: number;
@@ -97,7 +97,7 @@ export interface TransactionKpiStats {
   transferCount: number;
 }
 
-// ── Create Adjustment payload ───────────────────────────────────────────────
+// ── Payload tạo điều chỉnh ───────────────────────────────────────────────────
 
 export interface CreateAdjustmentPayload {
   warehouse_location_id: number;

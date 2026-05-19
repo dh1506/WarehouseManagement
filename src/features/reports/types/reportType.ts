@@ -1,4 +1,4 @@
-// ── Dashboard Summary ─────────────────────────────────────────────────────────
+// ── Tổng quan dashboard ───────────────────────────────────────────────────────
 
 export interface DashboardSummaryPeriod {
   start: string;
@@ -18,7 +18,7 @@ export interface DashboardSummaryParams {
   end_date?: string;
 }
 
-// ── Shared pagination ─────────────────────────────────────────────────────────
+// ── Phân trang dùng chung ─────────────────────────────────────────────────────
 
 export interface ReportPagination {
   page: number;
@@ -27,7 +27,7 @@ export interface ReportPagination {
   total_pages: number;
 }
 
-// ── Stock-In Report ───────────────────────────────────────────────────────────
+// ── Báo cáo nhập kho ─────────────────────────────────────────────────────────
 
 export interface StockInReportProduct {
   code: string;
@@ -77,7 +77,7 @@ export interface StockInReportResponse {
   pagination: ReportPagination;
 }
 
-// ── Stock-Out Report ──────────────────────────────────────────────────────────
+// ── Báo cáo xuất kho ─────────────────────────────────────────────────────────
 
 export interface StockOutReportProduct {
   code: string;
@@ -121,7 +121,7 @@ export interface StockOutReportResponse {
   pagination: ReportPagination;
 }
 
-// ── Stock-Count Report ────────────────────────────────────────────────────────
+// ── Báo cáo kiểm kê ──────────────────────────────────────────────────────────
 
 export interface StockCountReportProduct {
   code: string;
@@ -160,7 +160,7 @@ export interface StockCountReportResponse {
   pagination: ReportPagination;
 }
 
-// ── Stock-Disposal Report ─────────────────────────────────────────────────────
+// ── Báo cáo thanh lý ─────────────────────────────────────────────────────────
 
 export interface StockDisposalReportProduct {
   code: string;
@@ -201,7 +201,7 @@ export interface StockDisposalReportResponse {
   pagination: ReportPagination;
 }
 
-// ── Inventory Report ──────────────────────────────────────────────────────────
+// ── Báo cáo tồn kho ──────────────────────────────────────────────────────────
 
 export interface InventoryReportProduct {
   id: number;
@@ -234,7 +234,7 @@ export interface InventoryReportResponse {
   pagination: ReportPagination;
 }
 
-// ── Shared report query params ────────────────────────────────────────────────
+// ── Tham số truy vấn báo cáo ─────────────────────────────────────────────────
 
 export interface ReportDateParams {
   start_date?: string;
@@ -264,7 +264,7 @@ export interface InventoryReportParams {
   product_id?: number;
 }
 
-// ── Report Config ─────────────────────────────────────────────────────────────
+// ── Cấu hình báo cáo ─────────────────────────────────────────────────────────
 
 export type ReportType =
   | 'STOCK_IN'

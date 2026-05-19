@@ -1,4 +1,4 @@
-// ── Shared ────────────────────────────────────────────────────────────────────
+// ── Dùng chung ────────────────────────────────────────────────────────────────
 
 const AGING_THRESHOLD_HOURS = 2;
 
@@ -8,7 +8,7 @@ export function computeHoursAging(createdAt: string): number {
 
 export { AGING_THRESHOLD_HOURS };
 
-// ── Widget 1: Workflow Backlog ────────────────────────────────────────────────
+// ── Widget 1: Tồn đọng công việc ─────────────────────────────────────────────
 
 export interface BacklogItem {
   id: number;
@@ -35,7 +35,7 @@ export interface WorkflowData {
   funnelOutbound: FunnelStep[];
 }
 
-// ── Widget 2: Inventory Alerts ────────────────────────────────────────────────
+// ── Widget 2: Cảnh báo tồn kho ───────────────────────────────────────────────
 
 export interface AlertSkuItem {
   productId: string;
@@ -53,7 +53,7 @@ export interface InventoryAlertData {
   lowStockCount: number;
 }
 
-// ── Widget 3: Zone Health ─────────────────────────────────────────────────────
+// ── Widget 3: Sức khỏe khu vực kho ──────────────────────────────────────────
 
 export type ZoneStatus = 'ok' | 'warn' | 'critical';
 
@@ -78,7 +78,7 @@ export interface ZoneHealthData {
   exceptions: ExceptionItem[];
 }
 
-// ── Widget 4: Workforce ───────────────────────────────────────────────────────
+// ── Widget 4: Nhân sự ────────────────────────────────────────────────────────
 
 export interface WorkerItem {
   id: string;

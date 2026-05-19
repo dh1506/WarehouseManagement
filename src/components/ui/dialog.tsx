@@ -7,30 +7,35 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+// Muc dich: Wrapper cho Dialog root.
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
+// Muc dich: Trigger mo Dialog.
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
+// Muc dich: Portal cho Dialog.
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
+// Muc dich: Nut dong Dialog.
 function DialogClose({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+// Muc dich: Lop nen overlay cho Dialog.
 function DialogOverlay({
   className,
   ...props
@@ -47,6 +52,7 @@ function DialogOverlay({
   )
 }
 
+// Muc dich: Khung noi dung Dialog.
 function DialogContent({
   className,
   children,
@@ -85,6 +91,7 @@ function DialogContent({
   )
 }
 
+// Muc dich: Header cua Dialog.
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -95,6 +102,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Muc dich: Footer chua action trong Dialog.
 function DialogFooter({
   className,
   showCloseButton = false,
@@ -122,6 +130,7 @@ function DialogFooter({
   )
 }
 
+// Muc dich: Tieu de Dialog.
 function DialogTitle({
   className,
   ...props
@@ -138,6 +147,7 @@ function DialogTitle({
   )
 }
 
+// Muc dich: Mo ta Dialog.
 function DialogDescription({
   className,
   ...props

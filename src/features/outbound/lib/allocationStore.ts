@@ -1,6 +1,6 @@
-// ─── Allocation Store ─────────────────────────────────────────────────────────
-// localStorage persistence for FEFO pre-allocations and manual override audit trail.
-// Keys are versioned so stale data from older schemas can be safely ignored.
+// ─── Lưu trữ Phân Bổ ─────────────────────────────────────────────────────────
+// Lưu trữ phân bổ FEFO tạm và lịch sử override thủ công vào localStorage.
+// Key được đánh version để bỏ qua dữ liệu cũ không còn tương thích.
 
 import type { AllocationResult } from './fefoAllocationEngine';
 
@@ -50,11 +50,11 @@ function writeJson<T>(key: string, data: Record<string, T>): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(data));
   } catch {
-    // Quota exceeded or private mode — silent fail.
+    // Bỏ qua lỗi vượt quota hoặc chế độ ẩn danh.
   }
 }
 
-// ─── Pre-allocation CRUD ──────────────────────────────────────────────────────
+// ─── CRUD Phân Bổ Tạm ────────────────────────────────────────────────────────
 
 export function savePreAllocation(allocation: StoredAllocation): void {
   const store = readJson<StoredAllocation>(ALLOCATION_KEY);
@@ -73,7 +73,7 @@ export function clearPreAllocation(stockOutId: number): void {
   writeJson(ALLOCATION_KEY, store);
 }
 
-// ─── Override Audit CRUD ──────────────────────────────────────────────────────
+// ─── CRUD Lịch Sử Override ───────────────────────────────────────────────────
 
 export function appendOverrideAudit(entry: OverrideAuditEntry): void {
   const store = readJson<OverrideAuditEntry[]>(AUDIT_KEY);

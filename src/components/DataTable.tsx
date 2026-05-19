@@ -19,6 +19,7 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
 }
 
+// Muc dich: Render bang du lieu voi react-table.
 export function DataTable<TData, TValue>({
   columns,
   data,

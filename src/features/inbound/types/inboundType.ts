@@ -139,6 +139,7 @@ export const STOCK_IN_STATUS_LABELS: Record<StockInStatus, string> = {
 };
 
 // ── Helper: compute total value for a StockIn row ───────────────────────────
+// Muc dich: Tinh tong gia tri phieu nhap.
 export function computeStockInTotalValue(details: StockInDetail[] | undefined | null): number {
   return (details ?? []).reduce((sum, d) => {
     const price = d.unit_price ? Number(d.unit_price) : 0;

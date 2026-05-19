@@ -219,8 +219,7 @@ export function useCreateWarehouseZone() {
       createWarehouseZone(warehouseId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
-      // Zone category scopes changed — drop all per-category allowed-location caches
-      // so WarehouseZoneSelect picks up the new mappings immediately.
+      // Phạm vi danh mục zone thay đổi → xóa cache vị trí kho theo danh mục
       queryClient.invalidateQueries({ queryKey: ['location-allowed-categories'] });
     },
   });
@@ -234,8 +233,7 @@ export function useUpdateWarehouseZone() {
       updateWarehouseZone(warehouseId, zoneId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEYS.hubs });
-      // Zone category scopes changed — drop all per-category allowed-location caches
-      // so WarehouseZoneSelect picks up the new mappings immediately.
+      // Phạm vi danh mục zone thay đổi → xóa cache vị trí kho theo danh mục
       queryClient.invalidateQueries({ queryKey: ['location-allowed-categories'] });
     },
   });
@@ -283,8 +281,7 @@ export function useDeleteWarehouseZone() {
       }
     },
     onSuccess: () => {
-      // Invalidate + immediately refetch so the UI reflects the server state
-      // rather than relying on the optimistic snapshot.
+      // Xóa cache và tải lại ngay để UI phản ánh trạng thái thực từ server
       void queryClient.refetchQueries({ queryKey: WAREHOUSE_KEYS.hubs, type: 'active' });
     },
   });

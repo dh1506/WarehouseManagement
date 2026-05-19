@@ -855,7 +855,7 @@ export function ProductManagement() {
   );
 }
 
-// ── Inline cell components ────────────────────────────────────────────────────
+// ── Component nội tuyến ──────────────────────────────────────────────────────
 
 /**
  * Hiển thị tổng tồn kho khả dụng của sản phẩm.
@@ -949,7 +949,7 @@ function BatchCountCell({
   );
 }
 
-// ── Filter / Search / Pagination helpers ─────────────────────────────────────
+// ── Bộ lọc / Tìm kiếm / Phân trang ──────────────────────────────────────────
 
 function SearchInput({
   value,

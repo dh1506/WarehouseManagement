@@ -17,6 +17,7 @@ import { STOCK_IN_KEYS } from './useInbound';
 import { WAREHOUSE_KEYS } from '@/features/warehouses/hooks/useWarehouses';
 
 // ── Hook: fetch single StockIn detail ─────────────────────────────────────────
+// Muc dich: Lay chi tiet phieu nhap kho.
 export function useStockInDetail(id: number) {
   return useQuery<StockIn>({
     queryKey: STOCK_IN_KEYS.detail(id),
@@ -27,6 +28,7 @@ export function useStockInDetail(id: number) {
 }
 
 // ── Mutation: record received quantities → IN_PROGRESS ───────────────────────
+// Muc dich: Ghi nhan so luong nhap thuc te.
 export function useRecordReceipt(id: number) {
   const queryClient = useQueryClient();
 
@@ -44,6 +46,7 @@ export function useRecordReceipt(id: number) {
 }
 
 // ── Mutation: create discrepancy report → DISCREPANCY ────────────────────────
+// Muc dich: Tao bien ban sai lech phieu nhap.
 export function useCreateDiscrepancy(id: number) {
   const queryClient = useQueryClient();
 
@@ -61,6 +64,7 @@ export function useCreateDiscrepancy(id: number) {
 }
 
 // ── Mutation: resolve a discrepancy → IN_PROGRESS ────────────────────────────
+// Muc dich: Giai quyet sai lech phieu nhap.
 export function useResolveDiscrepancy(id: number) {
   const queryClient = useQueryClient();
 
@@ -82,6 +86,7 @@ export function useResolveDiscrepancy(id: number) {
 }
 
 // ── Mutation: allocate lots ───────────────────────────────────────────────────
+// Muc dich: Phan bo hang vao lot/bin.
 export function useAllocateLots(id: number) {
   const queryClient = useQueryClient();
 

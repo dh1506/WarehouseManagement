@@ -3,7 +3,7 @@ import type { InventoryDetailRow, InventoryOverviewData, InventorySkuRow } from 
 import apiClient from './apiClient';
 import { collectPaginatedItems } from './searchFallback';
 
-// ── Raw API types ─────────────────────────────────────────────────────────────
+// ── Kiểu dữ liệu thô từ API ──────────────────────────────────────────────────
 
 interface RawLot {
   id: number;
@@ -58,6 +58,7 @@ interface RawProductPage {
   pagination: { total: number; page: number; limit: number; totalPages: number };
 }
 
+// Muc dich: Lay data thuan tu phan hoi API.
 function unwrap<T>(response: unknown): T {
   const r = response as { data?: { data?: T } | T };
   if (r?.data && typeof r.data === 'object' && 'data' in (r.data as object)) {
@@ -66,10 +67,7 @@ function unwrap<T>(response: unknown): T {
   return (r?.data as T) ?? (response as T);
 }
 
-/**
- * Reusable inventory availability reader used by outbound create flow.
- * Uses the same /api/inventories source as Inventory Overview.
- */
+/** Lấy số lượng khả dụng và vị trí ưu tiên của sản phẩm từ tồn kho. */
 export async function getProductAvailableFromInventory(
   productId: number,
 ): Promise<ProductInventoryAvailability> {
@@ -99,10 +97,9 @@ export async function getProductAvailableFromInventory(
 
 const NEAR_EXPIRY_DAYS = 30;
 
-// ── getInventoryOverviewData ──────────────────────────────────────────────────
-// Fetches all products + all inventory rows, joins client-side.
-// warehouseId filter is applied on the inventory side (location.warehouse.id).
+// ── Tổng hợp dữ liệu tồn kho tổng quan ──────────────────────────────────────
 
+// Muc dich: Tong hop so lieu ton kho theo SKU va trang thai canh bao.
 export async function getInventoryOverviewData(warehouseId?: string): Promise<InventoryOverviewData> {
   const nearExpiryMs = Date.now() + NEAR_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
@@ -129,12 +126,12 @@ export async function getInventoryOverviewData(warehouseId?: string): Promise<In
     }),
   ]);
 
-  // Filter inventory rows by warehouse if specified
+  // Lọc tồn kho theo kho nếu có chỉ định
   const inventoryRows = warehouseId
     ? allInventoryRows.filter((r) => String(r.location?.warehouse?.id) === warehouseId)
     : allInventoryRows;
 
-  // Group inventory rows by product_id for O(1) lookup
+  // Nhóm tồn kho theo product_id để tra cứu nhanh
   const byProduct = new Map<number, RawInventoryRow[]>();
   for (const row of inventoryRows) {
     const list = byProduct.get(row.product_id) ?? [];
@@ -142,7 +139,7 @@ export async function getInventoryOverviewData(warehouseId?: string): Promise<In
     byProduct.set(row.product_id, list);
   }
 
-  // Build per-SKU rows
+  // Xây dựng dữ liệu tồn kho theo từng SKU
   const skuRows: InventorySkuRow[] = allProducts.map((p) => {
     const productId = String(p.id ?? '');
     const rows = byProduct.get(Number(p.id)) ?? [];
@@ -179,7 +176,7 @@ export async function getInventoryOverviewData(warehouseId?: string): Promise<In
     };
   });
 
-  // Derive warehouse options from inventory rows (all rows, unfiltered)
+  // Tổng hợp danh sách kho từ toàn bộ tồn kho (không lọc)
   const warehouseMap = new Map<string, string>();
   for (const row of allInventoryRows) {
     const wh = row.location?.warehouse;
@@ -201,10 +198,9 @@ export async function getInventoryOverviewData(warehouseId?: string): Promise<In
   };
 }
 
-// ── getProductLocationInventory ───────────────────────────────────────────────
-// Returns per-location breakdown for the drill-down detail view of one product.
-// Sum of row.onHand across all returned rows MUST equal the master's onHand value.
+// ── Tồn kho theo vị trí cho một sản phẩm ────────────────────────────────────
 
+// Muc dich: Lay ton kho theo vi tri cho mot san pham.
 export async function getProductLocationInventory(
   productId: string,
   warehouseId?: string,

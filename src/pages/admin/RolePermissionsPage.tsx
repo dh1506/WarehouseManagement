@@ -1,5 +1,6 @@
 import { RolePermissions } from '@/features/roles/components/RolePermissions';
 
+// Muc dich: Trang quan ly vai tro va phan quyen.
 export function RolePermissionsPage() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-surface">

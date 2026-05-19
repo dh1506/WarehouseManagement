@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, type ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// ── Export Dropdown ─────────────────────────────────────────────────────────
+// ── Nút xuất dữ liệu ────────────────────────────────────────────────────────
 
 interface ExportMenuProps {
   onPNG?: () => void;
@@ -62,7 +62,7 @@ function ExportMenu({ onPNG, onCSV }: ExportMenuProps) {
   );
 }
 
-// ── Chart Card ──────────────────────────────────────────────────────────────
+// ── Thẻ biểu đồ ─────────────────────────────────────────────────────────────
 
 export interface ChartCardProps {
   title: string;
@@ -77,7 +77,7 @@ export interface ChartCardProps {
   onExportCSV?: () => void;
   children: ReactNode;
   minHeight?: number;
-  /** ref forwarded to the inner capture zone used for PNG export */
+  /** ref trỏ đến vùng nội dung dùng để xuất PNG */
   captureRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -98,7 +98,7 @@ export function ChartCard({
 }: ChartCardProps) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-visible">
-      {/* Header */}
+      {/* Tiêu đề */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-50">
         <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center shrink-0`}>
           <span className={`material-symbols-outlined text-[17px] ${iconColor}`}>{icon}</span>
@@ -115,7 +115,7 @@ export function ChartCard({
         <ExportMenu onPNG={onExportPNG} onCSV={onExportCSV} />
       </div>
 
-      {/* Body — this is the capture zone for PNG export */}
+      {/* Nội dung — vùng xuất PNG */}
       <div ref={captureRef} style={{ minHeight }} className="bg-white">
         {isLoading ? (
           <div className="px-5 pt-5 pb-6 space-y-3">

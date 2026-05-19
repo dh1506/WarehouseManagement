@@ -11,6 +11,7 @@ import App from './App.tsx'
 // portal container (which render directly into <body>) stops the extension from
 // touching them. Material Symbols icons are also guarded so their ligature names
 // are not split across <font> tags.
+// Muc dich: Chan Google Translate can thiep vao DOM React.
 function guardAgainstTranslation() {
   const stamp = (root: Element | Document) => {
     root.querySelectorAll<Element>(

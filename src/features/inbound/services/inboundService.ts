@@ -9,12 +9,14 @@ import type {
 // BE wraps every response as { success, data: T, message }.
 // apiClient interceptor returns response.data (the full JSON body),
 // so we still need to unwrap the inner `.data` property.
+// Muc dich: Lay data tu response API.
 function unwrap<T>(response: unknown): T {
   const res = response as ApiResponse<T>;
   return res.data;
 }
 
 // ── GET /api/stock-ins ───────────────────────────────────────────────────────
+// Muc dich: Lay danh sach phieu nhap kho.
 export async function getStockIns(
   params: StockInQueryParams,
 ): Promise<StockInListResponse> {
@@ -42,6 +44,7 @@ export interface CreateStockInPayload {
   }>;
 }
 
+// Muc dich: Tao phieu nhap kho.
 export async function createStockIn(
   payload: CreateStockInPayload,
 ): Promise<StockIn> {
@@ -50,12 +53,14 @@ export async function createStockIn(
 }
 
 // ── PATCH /api/stock-ins/:id/approve ────────────────────────────────────────
+// Muc dich: Duyet/submit phieu nhap kho.
 export async function approveStockIn(id: number): Promise<StockIn> {
   const response = await apiClient.patch(`/api/stock-ins/${id}/approve`);
   return unwrap<StockIn>(response);
 }
 
 // ── PATCH /api/stock-ins/:id/complete ───────────────────────────────────────
+// Muc dich: Hoan tat phieu nhap kho.
 export async function completeStockIn(id: number): Promise<StockIn> {
   const response = await apiClient.patch(`/api/stock-ins/${id}/complete`);
   return unwrap<StockIn>(response);

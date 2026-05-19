@@ -33,6 +33,7 @@ import { CreateEventSheet } from './CreateEventSheet';
 
 const PAGE_LIMIT = 12;
 
+// Muc dich: Hien thi badge trang thai du bao.
 function ForecastStatusBadge({ status }: { status: AiForecastStatus }) {
   const s = FORECAST_STATUS_STYLES[status];
   const isRunning = status === 'RUNNING';
@@ -48,11 +49,13 @@ function ForecastStatusBadge({ status }: { status: AiForecastStatus }) {
   );
 }
 
+// Muc dich: Dinh dang thang nam theo locale.
 function formatMonth(isoDate: string): string {
   const d = new Date(isoDate);
   return d.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 }
 
+// Muc dich: Dinh dang ngay gio theo locale.
 function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleString('vi-VN', {
     month: 'short',
@@ -69,6 +72,7 @@ interface KpiCardProps {
   colorClass: string;
 }
 
+// Muc dich: The KPI don gian cho thong ke.
 function KpiCard({ label, value, colorClass }: KpiCardProps) {
   return (
     <div className={`rounded-2xl border px-4 py-3 ${colorClass}`}>
@@ -78,6 +82,7 @@ function KpiCard({ label, value, colorClass }: KpiCardProps) {
   );
 }
 
+// Muc dich: Hang du lieu du bao trong bang.
 function ForecastRow({ item, onView }: { item: AiForecast; onView: (id: number) => void }) {
   return (
     <TableRow className="hover:bg-slate-50">
@@ -111,6 +116,7 @@ function ForecastRow({ item, onView }: { item: AiForecast; onView: (id: number) 
   );
 }
 
+// Muc dich: Man hinh danh sach du bao AI.
 export function AiForecastList() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);

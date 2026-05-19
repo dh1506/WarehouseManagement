@@ -20,7 +20,7 @@ interface CreateStockCountSheetProps {
   onClose: () => void;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Hàm hỗ trợ ───────────────────────────────────────────────────────────────────
 function SectionLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -34,7 +34,7 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="text-xs text-rose-500 mt-1">{msg}</p>;
 }
 
-// ── Read-only inventory preview ───────────────────────────────────────────────
+// ── Danh sách hàng tồn kho chỉ xem ───────────────────────────────────────────────
 interface AutoItemListProps {
   rows: InventoryRow[];
   isLoading: boolean;
@@ -95,7 +95,7 @@ function AutoItemList({ rows, isLoading, unitPrices, onPriceChange, showUnitPric
   );
 }
 
-// ── Warehouse select ──────────────────────────────────────────────────────────
+// ── Chọn kho ──────────────────────────────────────────────────────────
 interface WarehouseSelectProps {
   value: number | null;
   onChange: (id: number | null) => void;
@@ -125,13 +125,13 @@ function WarehouseSelect({ value, onChange, warehouses, isLoading, disabled, err
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Component chính ─────────────────────────────────────────────────────────────
 export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const createMutation = useCreateStockCount();
 
-  // ── Form state ───────────────────────────────────────────────────────────
+  // ── Trạng thái form ───────────────────────────────────────────────────────────
   const [type, setType] = useState<StockCountType>('PERIODIC');
   const [scopeType, setScopeType] = useState<StockCountScopeType>('FULL');
   const [description, setDescription] = useState('');
@@ -140,10 +140,10 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [unitPrices, setUnitPrices] = useState<Record<number, string>>({});
 
-  // PRODUCT scope — set of checked product IDs
+  // Phạm vi PRODUCT — tập hợp ID sản phẩm được chọn
   const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
 
-  // ── Reset on open ────────────────────────────────────────────────────────
+  // ── Reset form khi mở ────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
       setType('PERIODIC');
@@ -171,7 +171,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
     setErrors({});
   }, []);
 
-  // ── Warehouses ───────────────────────────────────────────────────────────
+  // ── Danh sách kho ───────────────────────────────────────────────────────────
   const { data: warehouseData, isLoading: warehousesLoading } = useQuery({
     queryKey: ['warehouses', 'for-stock-count'],
     queryFn: () => getWarehouses({ page: 1, pageSize: 100 }),
@@ -180,7 +180,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
   });
   const warehouses = warehouseData?.data ?? [];
 
-  // ── Inventory: FULL scope ─────────────────────────────────────────────────
+  // ── Tồn kho: phạm vi FULL ─────────────────────────────────────────────────
   const { data: fullInventory = [], isLoading: fullLoading } = useQuery<InventoryRow[]>({
     queryKey: ['inventory-for-count', 'full', selectedWarehouseId],
     queryFn: () => fetchInventoryForCount({ warehouse_id: selectedWarehouseId! }),
@@ -188,7 +188,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
     staleTime: 30_000,
   });
 
-  // ── Inventory: PRODUCT scope — fetch all for warehouse ────────────────────
+  // ── Tồn kho: phạm vi PRODUCT — lấy toàn bộ theo kho ────────────────────
   const { data: warehouseInventory = [], isLoading: warehouseInventoryLoading } = useQuery<InventoryRow[]>({
     queryKey: ['inventory-for-count', 'by-warehouse', selectedWarehouseId],
     queryFn: () => fetchInventoryForCount({ warehouse_id: selectedWarehouseId! }),
@@ -196,7 +196,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
     staleTime: 30_000,
   });
 
-  // Unique products in this warehouse, sorted by name
+  // Danh sách sản phẩm duy nhất trong kho, sắp xếp theo tên
   const productsInWarehouse = useMemo(() => {
     const seen = new Set<number>();
     const result: Array<{ id: number; code: string; name: string }> = [];
@@ -236,7 +236,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
     return warehouseInventory.filter((r) => selectedProductIds.has(r.product_id));
   }, [warehouseInventory, selectedProductIds]);
 
-  // ── Validation ────────────────────────────────────────────────────────────
+  // ── Kiểm tra hợp lệ ────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -256,7 +256,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
     return Object.keys(newErrors).length === 0;
   };
 
-  // ── Build payload ─────────────────────────────────────────────────────────
+  // ── Tạo payload gửi lên API ─────────────────────────────────────────────────────────
   const buildDetails = () => {
     const rows = scopeType === 'FULL' ? fullInventory : filteredProductInventory;
     return rows.map((inv) => ({
@@ -303,7 +303,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Màn nền */}
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
@@ -314,7 +314,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
             onClick={!isSubmitting ? onClose : undefined}
           />
 
-          {/* Sheet panel */}
+          {/* Panel slide-in */}
           <motion.div
             key="sheet"
             initial={{ x: '100%', opacity: 0.5 }}
@@ -323,7 +323,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
             transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.9 }}
             className="fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col bg-white shadow-2xl shadow-slate-900/15"
           >
-            {/* ── Header ──────────────────────────────────────────────────── */}
+            {/* ── Tiêu đề ──────────────────────────────────────────────────── */}
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Tạo phiếu kiểm kê mới</h2>
@@ -340,10 +340,10 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
               </button>
             </div>
 
-            {/* ── Form body ───────────────────────────────────────────────── */}
+            {/* ── Nội dung form ───────────────────────────────────────────────── */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
-              {/* ── Audit Type ────────────────────────────────────────────── */}
+              {/* ── Loại kiểm kê ────────────────────────────────────────────── */}
               <div className="space-y-2">
                 <SectionLabel required>Loại kiểm kê</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
@@ -369,7 +369,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
                 </div>
               </div>
 
-              {/* ── Audit Scope ───────────────────────────────────────────── */}
+              {/* ── Phạm vi kiểm kê ───────────────────────────────────────────── */}
               <div className="space-y-2">
                 <SectionLabel required>Phạm vi kiểm kê</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
@@ -411,7 +411,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
                 </div>
               </div>
 
-              {/* ── Description ───────────────────────────────────────────── */}
+              {/* ── Mô tả ───────────────────────────────────────────── */}
               <div className="space-y-2">
                 <SectionLabel>Mô tả</SectionLabel>
                 <textarea
@@ -424,10 +424,10 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
                 />
               </div>
 
-              {/* ── Scope-specific section ────────────────────────────────── */}
+              {/* ── Phần theo phạm vi ────────────────────────────────── */}
               <AnimatePresence mode="wait" initial={false}>
 
-                {/* FULL — warehouse → full inventory */}
+                {/* FULL — chọn kho → toàn bộ tồn kho */}
                 {scopeType === 'FULL' && (
                   <motion.div
                     key="full"
@@ -468,7 +468,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
                   </motion.div>
                 )}
 
-                {/* PRODUCT — warehouse → checkbox product list → filtered inventory */}
+                {/* PRODUCT — chọn kho → danh sách sản phẩm → tồn kho đã lọc */}
                 {scopeType === 'PRODUCT' && (
                   <motion.div
                     key="product"
@@ -489,7 +489,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
 
                     {selectedWarehouseId && (
                       <div className="space-y-2">
-                        {/* Header row: label + select-all toggle */}
+                        {/* Hàng tiêu đề: nhãn + toggle chọn tất cả */}
                         <div className="flex items-center justify-between">
                           <SectionLabel required>Sản phẩm cần kiểm kê</SectionLabel>
                           {!warehouseInventoryLoading && productsInWarehouse.length > 0 && (
@@ -547,7 +547,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
 
                         <FieldError msg={errors['product']} />
 
-                        {/* Selection summary + inventory rows */}
+                        {/* Tóm tắt lựa chọn + dòng tồn kho */}
                         {selectedProductIds.size > 0 && (
                           <div className="space-y-2 pt-1">
                             <div className="flex items-center justify-between">
@@ -573,7 +573,7 @@ export function CreateStockCountSheet({ open, onClose }: CreateStockCountSheetPr
               </AnimatePresence>
             </div>
 
-            {/* ── Footer ──────────────────────────────────────────────────── */}
+            {/* ── Footer ─────────────────────────────────────────────────── */}
             <div className="shrink-0 border-t border-slate-100 px-6 py-4 flex items-center justify-between gap-3 bg-white">
               <p className="text-xs text-slate-400">
                 {itemCountLabel} · sẽ được lưu ở trạng thái <span className="font-semibold">Nháp</span>

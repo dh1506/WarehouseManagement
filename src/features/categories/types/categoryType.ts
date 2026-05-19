@@ -37,7 +37,6 @@ export interface CategoryDetail extends ProductCategory {
   }>;
 }
 
-// Icon options cho form chọn icon
 export const CATEGORY_ICONS = [
   { value: 'devices', label: 'Electronics' },
   { value: 'memory', label: 'Chips' },

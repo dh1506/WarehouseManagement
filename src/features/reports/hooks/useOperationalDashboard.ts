@@ -17,7 +17,7 @@ import type {
 
 const STALE_MS = 5 * 60 * 1000;
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Hàm tiện ích ──────────────────────────────────────────────────────────────
 
 function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -32,9 +32,7 @@ function buildDateRange(days: number): string[] {
   });
 }
 
-// ── Flow Data ─────────────────────────────────────────────────────────────────
-// Uses /api/stock-ins and /api/stock-outs (working endpoints) instead of the
-// report endpoints which don't accept the limit param correctly.
+// ── Dữ liệu luồng nhập/xuất kho ──────────────────────────────────────────────
 
 async function fetchFlowData(): Promise<FlowDataPoint[]> {
   const now = new Date();
@@ -44,26 +42,26 @@ async function fetchFlowData(): Promise<FlowDataPoint[]> {
   const end_date   = toISODate(now);
 
   const [inboundItems, outboundItems, pendingRes, inProgressRes] = await Promise.all([
-    // Fetch all COMPLETED stock-ins across all pages
+    // Lấy toàn bộ phiếu nhập hoàn thành từ tất cả trang
     collectPaginatedItems<StockInListResponse, StockIn>({
       fetchPage: (page, limit) =>
         getStockIns({ page, limit, search: '', status: 'COMPLETED' }),
       getItems:      (p) => p.stockIns,
       getTotalPages: (p) => p.pagination.totalPages,
     }),
-    // Fetch all COMPLETED stock-outs across all pages
+    // Lấy toàn bộ phiếu xuất hoàn thành từ tất cả trang
     collectPaginatedItems<StockOutListResponse, StockOut>({
       fetchPage: (page, limit) =>
         getStockOuts({ page, limit, status: 'COMPLETED' }),
       getItems:      (p) => p.items,
       getTotalPages: (p) => Math.ceil(p.total / p.limit),
     }),
-    // Current PENDING and IN_PROGRESS (first page is enough for the pending line)
+    // Lấy phiếu đang chờ và đang xử lý cho đường chờ
     getStockIns({ page: 1, limit: 200, search: '', status: 'PENDING' }),
     getStockIns({ page: 1, limit: 200, search: '', status: 'IN_PROGRESS' }),
   ]);
 
-  // Group counts by ISO date, filtered to the 30-day window
+  // Nhóm số lượng theo ngày trong cửa sổ 30 ngày
   const inboundByDate  = new Map<string, number>();
   const outboundByDate = new Map<string, number>();
   const pendingByDate  = new Map<string, number>();
@@ -96,7 +94,7 @@ async function fetchFlowData(): Promise<FlowDataPoint[]> {
   });
 }
 
-// ── Defects Data ──────────────────────────────────────────────────────────────
+// ── Dữ liệu lỗi & sai lệch ───────────────────────────────────────────────────
 
 async function fetchDefectsData(): Promise<DefectsData> {
   const [discInRes, discOutRes, summary, approvedRes, completedRes] = await Promise.all([
@@ -111,7 +109,7 @@ async function fetchDefectsData(): Promise<DefectsData> {
   const outDiscCount  = discOutRes.items.length;
   const expiringCount = summary.expiring_lots ?? 0;
 
-  // Count variance lines from stock counts
+  // Đếm dòng có sai lệch từ các phiếu kiểm kê
   const allCounts = [...approvedRes.stockCounts, ...completedRes.stockCounts];
   let countVarianceItems = 0;
   const productMap = new Map<
@@ -165,7 +163,7 @@ async function fetchDefectsData(): Promise<DefectsData> {
   return { categories, topProducts };
 }
 
-// ── Inventory Variance ────────────────────────────────────────────────────────
+// ── Sai lệch tồn kho ─────────────────────────────────────────────────────────
 
 async function fetchInventoryVarianceData(): Promise<InventoryVarianceData> {
   const [approvedRes, completedRes] = await Promise.all([
@@ -179,7 +177,7 @@ async function fetchInventoryVarianceData(): Promise<InventoryVarianceData> {
     return { zones: [], accuracy: 100, lastCountDate: toISODate(new Date()) };
   }
 
-  // Aggregate systemQty and actualQty per warehouse
+  // Tổng hợp tồn theo kho
   const warehouseMap = new Map<
     number,
     { name: string; systemQty: number; actualQty: number }
@@ -224,7 +222,7 @@ async function fetchInventoryVarianceData(): Promise<InventoryVarianceData> {
   return { zones, accuracy, lastCountDate };
 }
 
-// ── Hooks ─────────────────────────────────────────────────────────────────────
+// ── Hooks xuất ngoài ─────────────────────────────────────────────────────────
 
 export function useFlowData() {
   return useQuery<FlowDataPoint[]>({

@@ -29,6 +29,7 @@ interface UpdateActualDialogProps {
   onSuccess?: (resultId: number, actualQty: number) => void;
 }
 
+// Muc dich: Dialog cap nhat so luong thuc te cho ket qua du bao.
 export function UpdateActualDialog({ forecastId, target, onClose, onSuccess }: UpdateActualDialogProps) {
   const updateMutation = useBulkUpdateActualQty(forecastId);
   const [rawValue, setRawValue] = useState('');

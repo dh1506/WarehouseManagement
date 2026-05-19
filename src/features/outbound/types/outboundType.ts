@@ -10,7 +10,7 @@ export type OutboundStatus =
 
 export type OutboundType = 'SALES' | 'RETURN_TO_SUPPLIER';
 
-// ─── Nested BE response shapes ────────────────────────────────────────────────
+// ─── Cấu trúc response từ BE ──────────────────────────────────────────────────
 
 export interface StockOutCreator {
   id: number;
@@ -107,7 +107,7 @@ export interface CreateStockOutFormValues {
   details: CreateStockOutDetailFormValue[];
 }
 
-// ─── API Payloads ─────────────────────────────────────────────────────────────
+// ─── Payload gọi API ─────────────────────────────────────────────────────────
 
 export interface CreateStockOutPayload {
   warehouse_location_id: number;
@@ -136,7 +136,7 @@ export interface CancelStockOutPayload {
   reason?: string;
 }
 
-// ─── List / Query Params ──────────────────────────────────────────────────────
+// ─── Tham số danh sách / truy vấn ────────────────────────────────────────────
 
 export interface StockOutListParams {
   page?: number;
@@ -163,7 +163,7 @@ export interface StockOutKpiStats {
   completedToday: number;
 }
 
-// ─── Proof Upload (pending BE integration) ────────────────────────────────────
+// ─── Proof Upload (chờ BE tích hợp) ──────────────────────────────────────────
 
 export type ProofType = 'PHOTO' | 'DOCUMENT';
 
@@ -188,7 +188,7 @@ export interface LocalProofEntry {
   errorMessage?: string;
 }
 
-// ─── Discrepancy ──────────────────────────────────────────────────────────────
+// ─── Chênh lệch số lượng ─────────────────────────────────────────────────────
 
 export interface StockOutDiscrepancy {
   stock_out_detail_id: number;
@@ -209,7 +209,7 @@ export interface StockOutDiscrepancyRecord {
   action_taken?: string | null;
 }
 
-// ─── Audit Log / History ──────────────────────────────────────────────────────
+// ─── Nhật ký thao tác / Lịch sử ─────────────────────────────────────────────
 
 /** Một bản ghi trong lịch sử thao tác của phiếu xuất (từ bảng audit_logs) */
 export interface StockOutHistoryItem {
@@ -229,7 +229,7 @@ export interface StockOutHistoryItem {
   };
 }
 
-// ─── Labels & helpers ─────────────────────────────────────────────────────────
+// ─── Nhãn hiển thị & hằng số hỗ trợ ─────────────────────────────────────────
 
 export const OUTBOUND_STATUS_LABELS: Record<OutboundStatus, string> = {
   DRAFT: 'Nháp',

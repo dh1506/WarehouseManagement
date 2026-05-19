@@ -6,14 +6,7 @@ import type { AllocateLotPayload } from '../types/inboundDetailType';
 import { STOCK_IN_KEYS } from './useInbound';
 import { WAREHOUSE_KEYS } from '@/features/warehouses/hooks/useWarehouses';
 
-/**
- * Hook: Phân bổ hàng vào lot/bin (Step 5 — Lot Allocation)
- * API: POST /api/stock-ins/:id/allocate
- *
- * Tích hợp toast success/error và invalidate query cache.
- * Invalidate warehouse hub/zone-bins cache so the warehouse layout
- * diagram reflects updated occupancy after allocation.
- */
+// Muc dich: Phan bo hang vao lot/bin va dong bo cache/notify.
 export function useAllocateStockIn(id: number) {
   const queryClient = useQueryClient();
   const { toast } = useToast();

@@ -103,6 +103,7 @@ interface FieldErrors {
   city?: string;
 }
 
+// Muc dich: Label dong bo style cho field.
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -111,11 +112,13 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   );
 }
 
+// Muc dich: Hien thi loi validate cua field.
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
   return <p className="mt-1 text-xs text-rose-500">{msg}</p>;
 }
 
+// Muc dich: Sheet kich hoat du bao AI.
 export function TriggerForecastSheet({ open, onClose, onSuccess }: TriggerForecastSheetProps) {
   const eventsQuery = useAiForecastEvents();
   const triggerMutation = useTriggerForecast();

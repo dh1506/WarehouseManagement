@@ -38,6 +38,7 @@ interface ApiEnvelope<T> {
   message?: string;
 }
 
+// Muc dich: Lay data thuan tu response API.
 function unwrapApiData<T>(response: unknown): T {
   if (response && typeof response === 'object' && 'data' in response) {
     return (response as { data: T }).data;
@@ -46,6 +47,7 @@ function unwrapApiData<T>(response: unknown): T {
   return response as T;
 }
 
+// Muc dich: Map du lieu user login sang UserProfile.
 function mapLoginUser(user: LoginApiUser): UserProfile {
   // The login response permission objects don't include `is_active`
   // (the BE select doesn't expose it). Accept all permissions here;
@@ -64,6 +66,7 @@ function mapLoginUser(user: LoginApiUser): UserProfile {
   };
 }
 
+// Muc dich: Goi API dang nhap va map ket qua.
 export const loginApi = async (data: LoginFormData): Promise<LoginResponse> => {
   const response = await apiClient.post<ApiEnvelope<LoginApiData>>('/api/auth/login', data);
   const payload = unwrapApiData<LoginApiData>(response);

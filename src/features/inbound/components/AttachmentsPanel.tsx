@@ -89,7 +89,7 @@ export function AttachmentsPanel({
         Tài liệu đính kèm
       </h3>
 
-      {/* Drop Zone */}
+      {/* Vùng kéo thả tệp */}
       <div
         className={cn(
           'border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors',
@@ -123,7 +123,7 @@ export function AttachmentsPanel({
           {isUploading ? 'Đang tải lên...' : 'Chọn file'}
         </button>
 
-        {/* Upload Progress */}
+        {/* Tiến trình tải lên */}
         {isUploading && (
           <div className="mt-3 w-full max-w-[200px]">
             <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -139,7 +139,7 @@ export function AttachmentsPanel({
         )}
       </div>
 
-      {/* Attachment List */}
+      {/* Danh sách tệp đính kèm */}
       {attachments.length > 0 && (
         <div className="space-y-2">
           {attachments.map((att) => (
